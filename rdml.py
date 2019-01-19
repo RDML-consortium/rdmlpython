@@ -1,17 +1,20 @@
 #!/usr/bin/python
 
 import sys
+import os
 import re
 import datetime
 import zipfile
 import argparse
 from lxml import etree as ET
 
+
 class RdmlError(Exception):
     """Basic exception for errors raised by the RDML-Python library"""
     def __init__(self, message):
         Exception.__init__(self, message)
     pass
+
 
 class secondError(RdmlError):
     """Just to have, not used yet"""
@@ -30,7 +33,6 @@ class Rdml:
         _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-
     def __init__(self, filename=None):
         """Inits an empty RDML instance with new() or load RDML file with load().
 
@@ -42,11 +44,12 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
         
+        self._rdmlData = None
+        self._rdmlVersion = '0.0'
         if filename:
-            self.load(filename);
+            self.load(filename)
         else:
-            self.new();
-
+            self.new()
 
     def new(self):
         """Creates an new empty RDML object with the current date.
@@ -86,7 +89,6 @@ class Rdml:
         else:
             raise RdmlError('Compression error, not a valid RDML file.')
 
-
     def save(self, filename):
         """Save an RDML file with compression of rdml_data.xml.
 
@@ -105,7 +107,6 @@ class Rdml:
         finally:
             zf2.close()
 
-
     def loadXMLString(self, data):
         """Create RDML object from xml string. !ENTITY and DOCSTRINGS will be removed.
 
@@ -123,7 +124,6 @@ class Rdml:
         data = re.sub(r"!ENTITY", "", data)
         self._rdmlData = ET.ElementTree(ET.fromstring(data))
         self.loadVersion()
-
 
     def loadVersion(self):
         """Load the RDML version from the RDML object.
@@ -144,42 +144,51 @@ class Rdml:
         if not self._rdmlVersion in ['1.0','1.1','1.2']:
             raise RdmlError('Unknown or unsupported RDML file version.')
 
-
-    def validate(self):
-        """Validate the RDML against its schema.
+    def validate(self, filename=None):
+        """Validate the RDML object against its schema or load file and validate it.
 
         Args:
             self: The class self parameter.
+            filename: The name of the RDML file to load.
 
         Returns:
             A string with the validation result as a two column table.
-
-        Raises:
-            RdmlError: A unknown or unsupported RDML file version was read in.
         """
 
-        version = self._rdmlVersion
-        ret = "RDML version:\t" + version + "\n"
+        notes = ""
+        if filename:
+            try:
+                vd = Rdml(filename)
+            except RdmlError as err:
+                notes += 'RDML file structure:\tFalse\t' + str(err) + '\n'
+                return notes
+            notes += "RDML file structure:\tTrue\tValid file structure.\n"
+        else:
+            vd = self
+
+        version = vd.version()
+        rdmlws = os.path.dirname(os.path.abspath(__file__))
         if version == '1.0':
-            xmlschema_doc = ET.parse('schema/RDML_v1_0_REC.xsd')
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
         elif version == '1.1':
-            xmlschema_doc = ET.parse('schema/RDML_v1_1_REC.xsd')
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
-            xmlschema_doc = ET.parse('schema/RDML_v1_2_REC.xsd')
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         else:
-            raise RdmlError('Unknown schema version: ' + version)
-            return 'RDML version:\tUnknown schema version' + version
+            notes += 'RDML version:\tFalse\tUnknown schema version' + version + '\n'
+            return notes
+        notes += "RDML version:\tTrue\t" + version + "\n"
+
         xmlschema = ET.XMLSchema(xmlschema_doc)
-        result = xmlschema.validate(self._rdmlData)
+        result = xmlschema.validate(vd._rdmlData)
         if result:
-            ret += 'Schema validation result:\tRDML file is valid.\n'
+            notes += 'Schema validation result:\tTrue\tRDML file is valid.\n'
         else:
-            ret += 'Schema validation result:\tRDML file is not valid.\n'
+            notes += 'Schema validation result:\tFalse\tRDML file is not valid.\n'
         log = xmlschema.error_log
         if log:
-            ret += 'Schema validation error:\t' + str(log.last_error) + '\n'
-        return ret
-
+            notes += 'Schema validation error:\tFalse\t' + str(log.last_error) + '\n'
+        return notes
 
     def version(self):
         """Returns the version string of the RDML object.
@@ -212,23 +221,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Validate RDML file
-    if args.validate :
-        try:
-            xx = Rdml(args.validate);
-        except RdmlError as e:
-            print("RDML file structure:\t" + str(e))
-            sys.exit(2)
-        print("RDML file structure:\tValid file structure.")
-        try:
-            a = xx.validate()
-        except RdmlError as e:
-            print("RDML schema:\t" + str(e))
-            sys.exit(2)
-        print(a)
+    if args.validate:
+        inst = Rdml()
+        ret = inst.validate(filename=args.validate)
+        print(ret)
         sys.exit(0)
 
     # Tryout things
-    if args.doooo :
+    if args.doooo:
         print('Tryout')
         xx = Rdml()
         xx.getRoot()
