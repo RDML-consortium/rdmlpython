@@ -68,7 +68,7 @@ class Rdml:
         return
 
     def load(self, filename):
-        """Load an RDML file with decompression of rdml_data.xml. Uses loadXMLString().
+        """Load an RDML file with decompression of rdml_data.xml or an XML file. Uses loadXMLString().
 
         Args:
             self: The class self parameter.
@@ -87,7 +87,12 @@ class Rdml:
             else:
                 self.loadXMLString(data)
         else:
-            raise RdmlError('Compression error, not a valid RDML file.')
+            with open(filename, 'r') as txtfile:
+                data = txtfile.read()
+                if data:
+                    self.loadXMLString(data)
+                else:
+                    raise RdmlError('File format error, not a valid RDML or XML file.')
 
     def save(self, filename):
         """Save an RDML file with compression of rdml_data.xml.
@@ -118,27 +123,17 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
 
+        # To avoid some xml attacs based on
         # <!ENTITY entityname "replacement text">
-        # To avoid some xml attacs
         data = re.sub(r"<\W*!ENTITY[^>]+>", "", data)
         data = re.sub(r"!ENTITY", "", data)
-        self._rdmlData = ET.ElementTree(ET.fromstring(data))
-        self.loadVersion()
-
-    def loadVersion(self):
-        """Load the RDML version from the RDML object.
-
-        Args:
-            self: The class self parameter.
-
-        Returns:
-            No return value. Function may raise RdmlError if required.
-
-        Raises:
-            RdmlError: A unknown or unsupported RDML file version was read in.
-        """
-
+        try:
+            self._rdmlData = ET.ElementTree(ET.fromstring(data))
+        except ET.XMLSyntaxError:
+            raise RdmlError('XML load error, not a valid RDML or XML file.')
         root = self._rdmlData.getroot()
+        if root.tag != '{http://www.rdml.org}rdml':
+            raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
         self._rdmlVersion = root.get('version')
         # Remainder: Update version in new() and validate()
         if not self._rdmlVersion in ['1.0','1.1','1.2']:
@@ -186,8 +181,9 @@ class Rdml:
         else:
             notes += 'Schema validation result:\tFalse\tRDML file is not valid.\n'
         log = xmlschema.error_log
-        if log:
-            notes += 'Schema validation error:\tFalse\t' + str(log.last_error) + '\n'
+        for err in log:
+            notes += 'Schema validation error:\tFalse\t' # + str(log.last_error) + '\n'
+            notes += "Line %s, Column %s: %s \n" % (err.line, err.column, err.message)
         return notes
 
     def version(self):
@@ -223,14 +219,14 @@ if __name__ == "__main__":
     # Validate RDML file
     if args.validate:
         inst = Rdml()
-        ret = inst.validate(filename=args.validate)
-        print(ret)
+        res = inst.validate(filename=args.validate)
+        print(res)
         sys.exit(0)
 
     # Tryout things
     if args.doooo:
         print('Tryout')
-        xx = Rdml()
+        xx = Rdml('rdml_data.xml')
         xx.getRoot()
         xx.save('new.rdml')
 
