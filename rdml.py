@@ -160,7 +160,6 @@ class Rdml:
             notes += "RDML file structure:\tTrue\tValid file structure.\n"
         else:
             vd = self
-
         version = vd.version()
         rdmlws = os.path.dirname(os.path.abspath(__file__))
         if version == '1.0':
@@ -182,9 +181,44 @@ class Rdml:
             notes += 'Schema validation result:\tFalse\tRDML file is not valid.\n'
         log = xmlschema.error_log
         for err in log:
-            notes += 'Schema validation error:\tFalse\t' # + str(log.last_error) + '\n'
+            notes += 'Schema validation error:\tFalse\t'
             notes += "Line %s, Column %s: %s \n" % (err.line, err.column, err.message)
         return notes
+
+    def isvalid(self, filename=None):
+        """Validate the RDML object against its schema or load file and validate it.
+
+        Args:
+            self: The class self parameter.
+            filename: The name of the RDML file to load.
+
+        Returns:
+            True or false as the validation result.
+        """
+
+        if filename:
+            try:
+                vd = Rdml(filename)
+            except RdmlError as err:
+                return False
+        else:
+            vd = self
+        version = vd.version()
+        rdmlws = os.path.dirname(os.path.abspath(__file__))
+        if version == '1.0':
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
+        elif version == '1.1':
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
+        elif version == '1.2':
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
+        else:
+            return False
+        xmlschema = ET.XMLSchema(xmlschema_doc)
+        result = xmlschema.validate(vd._rdmlData)
+        if result:
+            return True
+        else:
+            return False
 
     def version(self):
         """Returns the version string of the RDML object.
