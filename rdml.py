@@ -23,13 +23,50 @@ class secondError(RdmlError):
     pass
 
 
+def _getFirstChild(base, id):
+    """Returns the first child element with a defined id"""
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + id:
+            return node
+    return None
+
+
+def _getFirstChildText(base, id):
+    """Returns the first child element with a defined id text"""
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + id:
+            return node.text
+    return ""
+
+
+def _addFirstChildToDic(base, dic, opt, id):
+    """Adds the first child element with a defined id text to the dic"""
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + id:
+            dic[id] = node.text
+            return dic
+    if not opt:
+        dic[id] = ""
+    return dic
+
+
+def _getAllChilds(base, id):
+    """Returns a list of all child elements with a defined id"""
+    ret = []
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + id:
+            ret.append(node)
+    return ret
+
+
 class Rdml:
     """RDML-Python library
     
-    A python library to open, write, read and edit RDML files.
+    The root element used to open, write, read and edit RDML files.
     
     Attributes:
         _rdmlData: The RDML XML object from lxml.
+        _node: The root node of the RDML XML object.
         _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
@@ -45,6 +82,7 @@ class Rdml:
         """
         
         self._rdmlData = None
+        self._node = None
         self._rdmlVersion = '0.0'
         if filename:
             self.load(filename)
@@ -81,7 +119,7 @@ class Rdml:
         if zipfile.is_zipfile(filename):
             zf = zipfile.ZipFile(filename, 'r')
             try:
-                data = zf.read('rdml_data.xml')
+                data = zf.read('rdml_data.xml').decode('utf-8')
             except KeyError:
                 raise RdmlError('No rdml_data.xml in compressed RDML file found.')
             else:
@@ -131,10 +169,10 @@ class Rdml:
             self._rdmlData = ET.ElementTree(ET.fromstring(data))
         except ET.XMLSyntaxError:
             raise RdmlError('XML load error, not a valid RDML or XML file.')
-        root = self._rdmlData.getroot()
-        if root.tag != '{http://www.rdml.org}rdml':
+        self._node = self._rdmlData.getroot()
+        if self._node.tag != '{http://www.rdml.org}rdml':
             raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
-        self._rdmlVersion = root.get('version')
+        self._rdmlVersion = self._node.get('version')
         # Remainder: Update version in new() and validate()
         if not self._rdmlVersion in ['1.0','1.1','1.2']:
             raise RdmlError('Unknown or unsupported RDML file version.')
@@ -232,15 +270,107 @@ class Rdml:
 
         return self._rdmlVersion
 
+    def experimenters(self):
+        exp = _getAllChilds(self._node, "experimenter")
+        ret = []
+        for node in exp:
+            ret.append(Experimenter(node, self._rdmlVersion))
+        return ret
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        allExperimenters = self.experimenters()
+        experimenters = []
+        for exp in allExperimenters:
+            experimenters.append(exp.tojson())
+
+        data = {
+            "rdml": {
+                "version": self.version(),
+                "dateMade": _getFirstChildText(self._node, "dateMade"),
+                "dateUpdated": _getFirstChildText(self._node, "dateUpdated"),
+                "experimenters": experimenters
+            }
+        }
+        return data
 
 
+class Experimenter:
+    """RDML-Python library
 
+    The experimenter element used to read and edit one experimenter.
 
+    Attributes:
+        _node: The experimenter node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
 
-    def getRoot(self):
-        root = self._rdmlData.getroot()
-#        raise UntiedShoelace('no rdddd')
-        print (root)
+    def __init__(self, node, version):
+        """Inits an empty RDML instance with new() or load RDML file with load().
+
+        Args:
+            self: The class self parameter.
+            node: The experimenter node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the experimenter subelement
+
+        Returns:
+            A string of the data or None.
+        """
+        if key == "id":
+            return self._node.get('id')
+
+        if key in ["firstName", "lastName"]:
+            return _getFirstChildText(self._node, key)
+
+        if key in ["email", "labName", "labAddress"]:
+            var = _getFirstChildText(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+
+        raise KeyError
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = {
+            "id": self._node.get('id'),
+            "firstName": _getFirstChildText(self._node, "firstName"),
+            "lastName": _getFirstChildText(self._node, "lastName")
+        }
+        _addFirstChildToDic(self._node, data, True, "email")
+        _addFirstChildToDic(self._node, data, True, "labName")
+        _addFirstChildToDic(self._node, data, True, "labAddress")
+        return data
 
 
 if __name__ == "__main__":

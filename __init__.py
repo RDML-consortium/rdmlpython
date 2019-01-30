@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from rdml import *
+from .rdml import *
 
 name = "rdmlpython"
 
