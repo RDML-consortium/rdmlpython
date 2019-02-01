@@ -277,6 +277,24 @@ class Rdml:
             ret.append(Experimenter(node, self._rdmlVersion))
         return ret
 
+    def delete_experimenter(self, byid=None, byposition=None):
+        if byid is None and byposition is None:
+            raise RdmlError('Either an id or a position must be provided.')
+        if byid is not None and byposition is not None:
+            raise RdmlError('Only an id or a position can be provided.')
+        exp = _getAllChilds(self._node, "experimenter")
+        if byid is not None:
+            for node in exp:
+                if node[id] == byid:
+                    self._node.remove(node)
+                    return
+            raise RdmlError('The id: ' + byid + ' was not found in RDML file.')
+        if byposition is not None:
+            if byposition < 0 or byposition > len(exp) - 1:
+                raise RdmlError('Position ' + byposition + ' is out of range.')
+            self._node.remove(exp[byposition])
+        # Todo delete in all use places
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
