@@ -59,6 +59,38 @@ def _getAllChilds(base, id):
     return ret
 
 
+def _getFirstIdPos(base, id):
+    """Returns a list of all child elements with a defined id"""
+    counter = 0
+    experimenter = -1
+    for node in base:
+        if node.tag == "{http://www.rdml.org}experimenter" and experimenter < 0:
+            experimenter = counter
+        counter += 1
+    if id == "experimenter":
+        return experimenter
+
+    return counter - 1
+
+
+def _getNumberOfChilds(base, id):
+    """Returns a list of all child elements with a defined id"""
+    counter = 0
+    for node in base:
+        if node.tag == "{http://www.rdml.org}experimenter":
+            counter += 1
+    return counter
+
+
+def _checkUniqueId(base, group, id):
+    """Checks if the id does not exist in a group of elements"""
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + group:
+            if node.get('id') == id:
+                return False
+    return True
+
+
 class Rdml:
     """RDML-Python library
     
@@ -271,13 +303,74 @@ class Rdml:
         return self._rdmlVersion
 
     def experimenters(self):
+        """Returns a list of all experimenter elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all experimenter elements.
+        """
+
         exp = _getAllChilds(self._node, "experimenter")
         ret = []
         for node in exp:
             ret.append(Experimenter(node, self._rdmlVersion))
         return ret
 
+    def new_experimenter(self, id, firstName, lastName, email=None, labName=None, labAddress=None, newposition=None):
+        """Creates a new experimenter element.
+
+        Args:
+            self: The class self parameter.
+            id: Experimenter unique id
+            firstName: Experimenters first name (required)
+            lastName: Experimenters last name (required)
+            email: Experimenters email (optional)
+            labName: Experimenters lab name (optional)
+            labAddress: Experimenters lab address (optional)
+            newposition: Experimenters position in the list of experimenters (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if id is None or id == "":
+            raise RdmlError('An experimenter id must be provided.')
+        if not _checkUniqueId(self._node, "experimenter", id):
+            raise RdmlError('The experimenter id "' + id + '" must be unique.')
+        if firstName is None or firstName == "":
+            raise RdmlError('An experimenter firstName must be provided.')
+        if lastName is None or lastName == "":
+            raise RdmlError('An experimenter lastName must be provided.')
+        count = _getNumberOfChilds(self._node, "experimenter")
+        if newposition is not None:
+            ofpos = newposition
+        if newposition is None or newposition < 0:
+            ofpos = 0
+        if newposition > count:
+            ofpos = count
+        newnode = ET.Element("{http://www.rdml.org}experimenter", id=id)
+        ET.SubElement(newnode, "{http://www.rdml.org}firstName").text = firstName
+        ET.SubElement(newnode, "{http://www.rdml.org}lastName").text = lastName
+        place = _getFirstIdPos(self._node, "experimenter") + ofpos
+        # subtext.text = "text2"
+        self._node.insert(place, newnode)
+
+
+
     def delete_experimenter(self, byid=None, byposition=None):
+        """Deletes an experimenter element.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
         if byid is None and byposition is None:
             raise RdmlError('Either an id or a position must be provided.')
         if byid is not None and byposition is not None:
