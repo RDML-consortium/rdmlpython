@@ -23,72 +23,233 @@ class secondError(RdmlError):
     pass
 
 
-def _getFirstChild(base, id):
-    """Returns the first child element with a defined id"""
+def _get_first_child(base, tag):
+    """Get a child element of the base node with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+
+    Returns:
+        The first child lxml node element found or None.
+    """
+
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + id:
+        if node.tag == "{http://www.rdml.org}" + tag:
             return node
     return None
 
 
-def _getFirstChildText(base, id):
-    """Returns the first child element with a defined id text"""
+def _get_first_child_text(base, tag):
+    """Get a child element of the base node with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+
+    Returns:
+        The text of first child node element found or an empty string.
+    """
+
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + id:
+        if node.tag == "{http://www.rdml.org}" + tag:
             return node.text
     return ""
 
 
-def _addFirstChildToDic(base, dic, opt, id):
-    """Adds the first child element with a defined id text to the dic"""
+def _get_first_child_by_pos_or_id(base, tag, by_id, by_pos):
+    """Get a child element of the base node with a given tag and position or id.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+        by_id: The unique id to search for. (string)
+        by_pos: The position of the element in the list (int)
+
+    Returns:
+        The child node element found or raise error.
+    """
+
+    if by_id is None and by_pos is None:
+        raise RdmlError('Either an ' + tag + ' id or a position must be provided.')
+    if by_id is not None and by_pos is not None:
+        raise RdmlError('Only an ' + tag + ' id or a position can be provided.')
+    exp = _get_all_children(base, tag)
+    if by_id is not None:
+        for node in exp:
+            if node["id"] == by_id:
+                return node
+        raise RdmlError('The ' + tag + ' id: ' + byid + ' was not found in RDML file.')
+    if by_pos is not None:
+        if by_pos < 0 or by_pos > len(exp) - 1:
+            raise RdmlError('The ' + tag + ' position ' + by_pos + ' is out of range.')
+        return exp[by_pos]
+
+
+def _add_first_child_to_dic(base, dic, opt, tag):
+    """Adds the first child element with a given tag to a dictionary.
+
+    Args:
+        base: The base node element. (lxml node)
+        opt: If false and id is not found in base, the element is added with an empty string (Bool)
+        dic: The dictionary to add the element to (dictionary)
+        tag: Child elements group tag used to select the elements. (string)
+
+    Returns:
+        The dictionary with the added element.
+    """
+
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + id:
-            dic[id] = node.text
+        if node.tag == "{http://www.rdml.org}" + tag:
+            dic[tag] = node.text
             return dic
     if not opt:
-        dic[id] = ""
+        dic[tag] = ""
     return dic
 
 
-def _getAllChilds(base, id):
-    """Returns a list of all child elements with a defined id"""
+def _get_all_children(base, tag):
+    """Get a list of all child elements with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+
+    Returns:
+        A list with all child node elements found or an empty list.
+    """
+
     ret = []
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + id:
+        if node.tag == "{http://www.rdml.org}" + tag:
             ret.append(node)
     return ret
 
 
-def _getFirstIdPos(base, id):
-    """Returns a list of all child elements with a defined id"""
+def _get_number_of_children(base, tag):
+    """Count all child elements with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+
+    Returns:
+        A int number of the found child elements with the id.
+    """
+
+    counter = 0
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + tag:
+            counter += 1
+    return counter
+
+
+def _check_unique_id(base, tag, id):
+    """Find all child elements with a given group and check if the id is already used.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+        id: The unique id to search for. (string)
+
+    Returns:
+        False if the id is already used, True if not.
+    """
+
+    for node in base:
+        if node.tag == "{http://www.rdml.org}" + tag:
+            if node.get('id') == id:
+                return False
+    return True
+
+
+def _create_new_element(base, tag, id):
+    """Create a new element with a given tag and id.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag. (string)
+        id: The unique id of the new element. (string)
+
+    Returns:
+        False if the id is already used, True if not.
+    """
+
+    if id is None or id == "":
+        raise RdmlError('An ' + tag + ' id must be provided.')
+    if not _check_unique_id(base, tag, id):
+        raise RdmlError('The ' + tag + ' id "' + id + '" must be unique.')
+
+    return ET.Element("{http://www.rdml.org}" + tag, id=id)
+
+
+def _add_new_subelement(base, basetag, tag, text, opt):
+    """Create a new element with a given tag and id.
+
+    Args:
+        base: The base node element. (lxml node)
+        basetag: Child elements group tag. (string)
+        tag: Child elements own tag, to be created. (string)
+        text: The text content of the new element. (string)
+        opt: If true, the element is optional (Bool)
+
+    Returns:
+        Nothing, the base lxml element is modified.
+    """
+
+    if opt is False:
+        if text is None or text == "":
+            raise RdmlError('An ' + basetag + ' ' + tag + ' must be provided.')
+        ET.SubElement(base, "{http://www.rdml.org}" + tag).text = text
+    else:
+        if text is not None and text != "":
+            ET.SubElement(base, "{http://www.rdml.org}" + tag).text = text
+
+
+def _get_tag_pos(base, tag, pos):
+    """Returns a position were to add a subelement with the given tag inc. pos offset.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: The id to search for. (string)
+        pos: The position relative to the tag elements (int)
+
+    Returns:
+        The int number of were to add the element with the tag.
+    """
+
+    count = _get_number_of_children(base, tag)
+    offset = 0
+    if pos is None or pos < 0:
+        offset = 0
+    if pos > count:
+        offset = count
+    return _get_first_tag_pos(base, tag) + offset
+
+
+def _get_first_tag_pos(base, tag):
+    """Returns a position were to add a subelement with the given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: The id to search for. (string)
+
+    Returns:
+        The int number of were to add the element with the tag.
+    """
+
     counter = 0
     experimenter = -1
     for node in base:
         if node.tag == "{http://www.rdml.org}experimenter" and experimenter < 0:
             experimenter = counter
         counter += 1
-    if id == "experimenter":
+    if tag == "experimenter":
         return experimenter
 
+    # Todo: Fix for other elements
+
     return counter - 1
-
-
-def _getNumberOfChilds(base, id):
-    """Returns a list of all child elements with a defined id"""
-    counter = 0
-    for node in base:
-        if node.tag == "{http://www.rdml.org}experimenter":
-            counter += 1
-    return counter
-
-
-def _checkUniqueId(base, group, id):
-    """Checks if the id does not exist in a group of elements"""
-    for node in base:
-        if node.tag == "{http://www.rdml.org}" + group:
-            if node.get('id') == id:
-                return False
-    return True
 
 
 class Rdml:
@@ -312,7 +473,7 @@ class Rdml:
             A list of all experimenter elements.
         """
 
-        exp = _getAllChilds(self._node, "experimenter")
+        exp = _get_all_children(self._node, "experimenter")
         ret = []
         for node in exp:
             ret.append(Experimenter(node, self._rdmlVersion))
@@ -334,30 +495,14 @@ class Rdml:
         Returns:
             Nothing, changes self.
         """
-
-        if id is None or id == "":
-            raise RdmlError('An experimenter id must be provided.')
-        if not _checkUniqueId(self._node, "experimenter", id):
-            raise RdmlError('The experimenter id "' + id + '" must be unique.')
-        if firstName is None or firstName == "":
-            raise RdmlError('An experimenter firstName must be provided.')
-        if lastName is None or lastName == "":
-            raise RdmlError('An experimenter lastName must be provided.')
-        count = _getNumberOfChilds(self._node, "experimenter")
-        if newposition is not None:
-            ofpos = newposition
-        if newposition is None or newposition < 0:
-            ofpos = 0
-        if newposition > count:
-            ofpos = count
-        newnode = ET.Element("{http://www.rdml.org}experimenter", id=id)
-        ET.SubElement(newnode, "{http://www.rdml.org}firstName").text = firstName
-        ET.SubElement(newnode, "{http://www.rdml.org}lastName").text = lastName
-        place = _getFirstIdPos(self._node, "experimenter") + ofpos
-        # subtext.text = "text2"
-        self._node.insert(place, newnode)
-
-
+        new_node = _create_new_element(self._node, "experimenter", id)
+        _add_new_subelement(new_node, "experimenter", "firstName", firstName, False)
+        _add_new_subelement(new_node, "experimenter", "lastName", lastName, False)
+        _add_new_subelement(new_node, "experimenter", "email", email, True)
+        _add_new_subelement(new_node, "experimenter", "labName", labName, True)
+        _add_new_subelement(new_node, "experimenter", "labAddress", labAddress, True)
+        place = _get_tag_pos(self._node, "experimenter", newposition)
+        self._node.insert(place, new_node)
 
     def delete_experimenter(self, byid=None, byposition=None):
         """Deletes an experimenter element.
@@ -371,21 +516,8 @@ class Rdml:
             Nothing, changes self.
         """
 
-        if byid is None and byposition is None:
-            raise RdmlError('Either an id or a position must be provided.')
-        if byid is not None and byposition is not None:
-            raise RdmlError('Only an id or a position can be provided.')
-        exp = _getAllChilds(self._node, "experimenter")
-        if byid is not None:
-            for node in exp:
-                if node[id] == byid:
-                    self._node.remove(node)
-                    return
-            raise RdmlError('The id: ' + byid + ' was not found in RDML file.')
-        if byposition is not None:
-            if byposition < 0 or byposition > len(exp) - 1:
-                raise RdmlError('Position ' + byposition + ' is out of range.')
-            self._node.remove(exp[byposition])
+        elem = _get_first_child_by_pos_or_id(self._node, "experimenter", byid, byposition)
+        self._node.remove(elem)
         # Todo delete in all use places
 
     def tojson(self):
@@ -406,8 +538,8 @@ class Rdml:
         data = {
             "rdml": {
                 "version": self.version(),
-                "dateMade": _getFirstChildText(self._node, "dateMade"),
-                "dateUpdated": _getFirstChildText(self._node, "dateUpdated"),
+                "dateMade": _get_first_child_text(self._node, "dateMade"),
+                "dateUpdated": _get_first_child_text(self._node, "dateUpdated"),
                 "experimenters": experimenters
             }
         }
@@ -452,10 +584,10 @@ class Experimenter:
             return self._node.get('id')
 
         if key in ["firstName", "lastName"]:
-            return _getFirstChildText(self._node, key)
+            return _get_first_child_text(self._node, key)
 
         if key in ["email", "labName", "labAddress"]:
-            var = _getFirstChildText(self._node, key)
+            var = _get_first_child_text(self._node, key)
             if var == "":
                 return None
             else:
@@ -475,12 +607,12 @@ class Experimenter:
 
         data = {
             "id": self._node.get('id'),
-            "firstName": _getFirstChildText(self._node, "firstName"),
-            "lastName": _getFirstChildText(self._node, "lastName")
+            "firstName": _get_first_child_text(self._node, "firstName"),
+            "lastName": _get_first_child_text(self._node, "lastName")
         }
-        _addFirstChildToDic(self._node, data, True, "email")
-        _addFirstChildToDic(self._node, data, True, "labName")
-        _addFirstChildToDic(self._node, data, True, "labAddress")
+        _add_first_child_to_dic(self._node, data, True, "email")
+        _add_first_child_to_dic(self._node, data, True, "labName")
+        _add_first_child_to_dic(self._node, data, True, "labAddress")
         return data
 
 
@@ -504,16 +636,3 @@ if __name__ == "__main__":
         xx = Rdml('rdml_data.xml')
         xx.getRoot()
         xx.save('new.rdml')
-
-# if __name__ == '__main__':
- #   xx = Rdml()
-#    xx.load('example.rdml')
-  #  xx.load('err_doub.rdml')
-#    print (dir(zipfile))
-#    print zipfile.builtin_module_names
-  #  try:
-    #    xx.getRoot()
-   #     xx.validate()
-  #      xx.version()
- #   except RdmlError as e:
-#  print(e)
