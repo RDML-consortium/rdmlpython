@@ -396,7 +396,9 @@ class Rdml:
 
         data = "<rdml version='1.2' xmlns:rdml='http://www.rdml.org' xmlns='http://www.rdml.org'>\n<dateMade>"
         data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-        data += "</dateMade>\n</rdml>"
+        data += "</dateMade>\n<dateUpdated>"
+        data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        data += "</dateUpdated>\n</rdml>"
         self.loadXMLString(data)
         return
 
@@ -438,6 +440,8 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
 
+        elem = _get_first_child(self._node, "dateUpdated")
+        elem.text = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         data = ET.tostring(self._rdmlData, pretty_print=True)
         zf2 = zipfile.ZipFile(filename, mode='w', compression=zipfile.ZIP_DEFLATED,)
         try:
