@@ -35,7 +35,7 @@ def _get_first_child(base, tag):
     """
 
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + tag:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
             return node
     return None
 
@@ -52,7 +52,7 @@ def _get_first_child_text(base, tag):
     """
 
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + tag:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
             return node.text
     return ""
 
@@ -74,16 +74,16 @@ def _get_first_child_by_pos_or_id(base, tag, by_id, by_pos):
         raise RdmlError('Either an ' + tag + ' id or a position must be provided.')
     if by_id is not None and by_pos is not None:
         raise RdmlError('Only an ' + tag + ' id or a position can be provided.')
-    exp = _get_all_children(base, tag)
+    allChildren = _get_all_children(base, tag)
     if by_id is not None:
-        for node in exp:
-            if node["id"] == by_id:
+        for node in allChildren:
+            if node.get('id') == by_id:
                 return node
-        raise RdmlError('The ' + tag + ' id: ' + byid + ' was not found in RDML file.')
+        raise RdmlError('The ' + tag + ' id: ' + by_id + ' was not found in RDML file.')
     if by_pos is not None:
-        if by_pos < 0 or by_pos > len(exp) - 1:
+        if by_pos < 0 or by_pos > len(allChildren) - 1:
             raise RdmlError('The ' + tag + ' position ' + by_pos + ' is out of range.')
-        return exp[by_pos]
+        return allChildren[by_pos]
 
 
 def _add_first_child_to_dic(base, dic, opt, tag):
@@ -100,7 +100,7 @@ def _add_first_child_to_dic(base, dic, opt, tag):
     """
 
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + tag:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
             dic[tag] = node.text
             return dic
     if not opt:
@@ -121,7 +121,7 @@ def _get_all_children(base, tag):
 
     ret = []
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + tag:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
             ret.append(node)
     return ret
 
@@ -139,7 +139,7 @@ def _get_number_of_children(base, tag):
 
     counter = 0
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + tag:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
             counter += 1
     return counter
 
@@ -157,7 +157,7 @@ def _check_unique_id(base, tag, id):
     """
 
     for node in base:
-        if node.tag == "{http://www.rdml.org}" + tag:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
             if node.get('id') == id:
                 return False
     return True
@@ -180,7 +180,7 @@ def _create_new_element(base, tag, id):
     if not _check_unique_id(base, tag, id):
         raise RdmlError('The ' + tag + ' id "' + id + '" must be unique.')
 
-    return ET.Element("{http://www.rdml.org}" + tag, id=id)
+    return ET.Element(tag, id=id)
 
 
 def _add_new_subelement(base, basetag, tag, text, opt):
@@ -200,18 +200,83 @@ def _add_new_subelement(base, basetag, tag, text, opt):
     if opt is False:
         if text is None or text == "":
             raise RdmlError('An ' + basetag + ' ' + tag + ' must be provided.')
-        ET.SubElement(base, "{http://www.rdml.org}" + tag).text = text
+        ET.SubElement(base, tag).text = text
     else:
         if text is not None and text != "":
-            ET.SubElement(base, "{http://www.rdml.org}" + tag).text = text
+            ET.SubElement(base, tag).text = text
 
 
-def _get_tag_pos(base, tag, pos):
+def _change_subelement(base, tag, xmlkeys, value, opt, vtype):
+    """Change the value of the element with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements own tag, to be created. (string)
+        xmlkeys: The list of possible keys in the right order for xml (list strings)
+        value: The text content of the new element.
+        opt: If true, the element is optional (Bool)
+        vtype: If true, the element is optional ("string", "int", "float")
+
+    Returns:
+        Nothing, the base lxml element is modified.
+    """
+
+    # Todo validate values with vtype
+    goodVal = value
+
+    if opt is False:
+        if goodVal is None or goodVal == "":
+            raise RdmlError('A value for ' + tag + ' must be provided.')
+
+    if tag == "id":
+        par = base.getparent()
+        groupTag = base.tag.replace("{http://www.rdml.org}", "")
+        if not _check_unique_id(par, groupTag, goodVal):
+            raise RdmlError('The ' + groupTag + ' id "' + goodVal + '" is not unique.')
+        base.attrib['id'] = goodVal
+        return
+
+    # Check if the tag already excists
+    elem = _get_first_child(base, tag)
+    if elem is not None:
+        if goodVal is None or goodVal == "":
+            base.remove(elem)
+        else:
+            elem.text = goodVal
+    else:
+        if goodVal is not None and goodVal != "":
+            new_node = ET.Element(tag)
+            new_node.text = goodVal
+            place = _get_tag_pos(base, tag, xmlkeys, 0)
+            base.insert(place, new_node)
+
+
+def _move_subelement(base, tag, id, xmlkeys, position):
+    """Change the value of the element with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: The id to search for. (string)
+        id: The unique id of the new element. (string)
+        xmlkeys: The list of possible keys in the right order for xml (list strings)
+        position: the new position of the element (int)
+
+    Returns:
+        Nothing, the base lxml element is modified.
+    """
+
+    pos = _get_tag_pos(base, tag, xmlkeys, position)
+    ele = _get_first_child_by_pos_or_id(base, tag, id, None)
+    base.insert(pos, ele)
+
+
+def _get_tag_pos(base, tag, xmlkeys, pos):
     """Returns a position were to add a subelement with the given tag inc. pos offset.
 
     Args:
         base: The base node element. (lxml node)
         tag: The id to search for. (string)
+        xmlkeys: The list of possible keys in the right order for xml (list strings)
         pos: The position relative to the tag elements (int)
 
     Returns:
@@ -219,37 +284,33 @@ def _get_tag_pos(base, tag, pos):
     """
 
     count = _get_number_of_children(base, tag)
-    offset = 0
+    offset = pos
     if pos is None or pos < 0:
         offset = 0
     if pos > count:
         offset = count
-    return _get_first_tag_pos(base, tag) + offset
+    return _get_first_tag_pos(base, tag, xmlkeys) + offset
 
 
-def _get_first_tag_pos(base, tag):
+def _get_first_tag_pos(base, tag, xmlkeys):
     """Returns a position were to add a subelement with the given tag.
 
     Args:
         base: The base node element. (lxml node)
         tag: The id to search for. (string)
+        xmlkeys: The list of possible keys in the right order for xml (list strings)
 
     Returns:
         The int number of were to add the element with the tag.
     """
 
+    listrest = xmlkeys[xmlkeys.index(tag):]
     counter = 0
-    experimenter = -1
     for node in base:
-        if node.tag == "{http://www.rdml.org}experimenter" and experimenter < 0:
-            experimenter = counter
+        if node.tag.replace("{http://www.rdml.org}", "") in listrest:
+            return counter
         counter += 1
-    if tag == "experimenter":
-        return experimenter
-
-    # Todo: Fix for other elements
-
-    return counter - 1
+    return counter
 
 
 class Rdml:
@@ -281,6 +342,47 @@ class Rdml:
             self.load(filename)
         else:
             self.new()
+
+    def __getitem__(self, key):
+        """Returns data of the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the experimenter subelement
+
+        Returns:
+            A string of the data or None.
+        """
+        if key == "version":
+            return self.version()
+        if key in ["dateMade", "dateUpdated"]:
+            return _get_first_child_text(self._node, key)
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["version", "dateMade", "dateUpdated"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["dateMade", "dateUpdated", "id", "experimenter", "documentation", "dye",
+                "sample", "target", "thermalCyclingConditions", "experiment"]
 
     def new(self):
         """Creates an new empty RDML object with the current date.
@@ -363,7 +465,7 @@ class Rdml:
         except ET.XMLSyntaxError:
             raise RdmlError('XML load error, not a valid RDML or XML file.')
         self._node = self._rdmlData.getroot()
-        if self._node.tag != '{http://www.rdml.org}rdml':
+        if self._node.tag.replace("{http://www.rdml.org}", "") != 'rdml':
             raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
         self._rdmlVersion = self._node.get('version')
         # Remainder: Update version in new() and validate()
@@ -501,8 +603,37 @@ class Rdml:
         _add_new_subelement(new_node, "experimenter", "email", email, True)
         _add_new_subelement(new_node, "experimenter", "labName", labName, True)
         _add_new_subelement(new_node, "experimenter", "labAddress", labAddress, True)
-        place = _get_tag_pos(self._node, "experimenter", newposition)
+        place = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
+
+    def move_experimenter(self, id, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            id: Experimenter unique id
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "experimenter", id, self.xmlkeys(), newposition)
+
+    def get_experimenter(self, byid=None, byposition=None):
+        """Returns an experimenter element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Experimenter(_get_first_child_by_pos_or_id(self._node, "experimenter", byid, byposition),
+                            self._rdmlVersion)
 
     def delete_experimenter(self, byid=None, byposition=None):
         """Deletes an experimenter element.
@@ -534,12 +665,11 @@ class Rdml:
         experimenters = []
         for exp in allExperimenters:
             experimenters.append(exp.tojson())
-
         data = {
             "rdml": {
-                "version": self.version(),
-                "dateMade": _get_first_child_text(self._node, "dateMade"),
-                "dateUpdated": _get_first_child_text(self._node, "dateUpdated"),
+                "version": self["version"],
+                "dateMade": self["dateMade"],
+                "dateUpdated": self["dateUpdated"],
                 "experimenters": experimenters
             }
         }
@@ -571,7 +701,7 @@ class Experimenter:
         self._rdmlVersion = version
 
     def __getitem__(self, key):
-        """Returns a json of the RDML object without fluorescence data.
+        """Returns the value for the key.
 
         Args:
             self: The class self parameter.
@@ -580,20 +710,59 @@ class Experimenter:
         Returns:
             A string of the data or None.
         """
+
         if key == "id":
             return self._node.get('id')
-
         if key in ["firstName", "lastName"]:
             return _get_first_child_text(self._node, key)
-
         if key in ["email", "labName", "labAddress"]:
             var = _get_first_child_text(self._node, key)
             if var == "":
                 return None
             else:
                 return var
-
         raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the experimenter subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+        if key in ["id", "firstName", "lastName"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key in ["email", "labName", "labAddress"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["id", "firstName", "lastName", "email", "labName", "labAddress"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return self.keys()
 
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
