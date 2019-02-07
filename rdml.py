@@ -229,12 +229,13 @@ def _change_subelement(base, tag, xmlkeys, value, opt, vtype):
             raise RdmlError('A value for ' + tag + ' must be provided.')
 
     if tag == "id":
-        par = base.getparent()
-        groupTag = base.tag.replace("{http://www.rdml.org}", "")
-        if not _check_unique_id(par, groupTag, goodVal):
-            raise RdmlError('The ' + groupTag + ' id "' + goodVal + '" is not unique.')
-        base.attrib['id'] = goodVal
-        return
+        if base.get('id') != goodVal:
+            par = base.getparent()
+            groupTag = base.tag.replace("{http://www.rdml.org}", "")
+            if not _check_unique_id(par, groupTag, goodVal):
+                raise RdmlError('The ' + groupTag + ' id "' + goodVal + '" is not unique.')
+            base.attrib['id'] = goodVal
+            return
 
     # Check if the tag already excists
     elem = _get_first_child(base, tag)
@@ -735,6 +736,162 @@ class Rdml:
         self._node.remove(elem)
         # Todo delete in all use places
 
+    def documentations(self):
+        """Returns a list of all documentation elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all documentation elements.
+        """
+
+        exp = _get_all_children(self._node, "documentation")
+        ret = []
+        for node in exp:
+            ret.append(Documentation(node, self._rdmlVersion))
+        return ret
+
+    def new_documentation(self, id, text=None, newposition=None):
+        """Creates a new documentation element.
+
+        Args:
+            self: The class self parameter.
+            id: Documentation unique id
+            text: Documentation descriptive test (optional)
+            newposition: Experimenters position in the list of experimenters (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+        new_node = _create_new_element(self._node, "documentation", id)
+        _add_new_subelement(new_node, "documentation", "text", text, True)
+        place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def move_documentation(self, id, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            id: Documentation unique id
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "documentation", id, self.xmlkeys(), newposition)
+
+    def get_documentation(self, byid=None, byposition=None):
+        """Returns an documentation element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Documentation(_get_first_child_by_pos_or_id(self._node, "documentation", byid, byposition),
+                            self._rdmlVersion)
+
+    def delete_documentation(self, byid=None, byposition=None):
+        """Deletes an documentation element.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "documentation", byid, byposition)
+        self._node.remove(elem)
+        # Todo delete in all use places
+
+    def dyes(self):
+        """Returns a list of all dye elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all dye elements.
+        """
+
+        exp = _get_all_children(self._node, "dye")
+        ret = []
+        for node in exp:
+            ret.append(Dye(node, self._rdmlVersion))
+        return ret
+
+    def new_dye(self, id, description=None, newposition=None):
+        """Creates a new dye element.
+
+        Args:
+            self: The class self parameter.
+            id: Dye unique id
+            description: Dye descriptive test (optional)
+            newposition: Dye position in the list of dyes (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+        new_node = _create_new_element(self._node, "dye", id)
+        _add_new_subelement(new_node, "dye", "description", description, True)
+        place = _get_tag_pos(self._node, "dye", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def move_dye(self, id, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            id: Dye unique id
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "dye", id, self.xmlkeys(), newposition)
+
+    def get_dye(self, byid=None, byposition=None):
+        """Returns an dye element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Dye(_get_first_child_by_pos_or_id(self._node, "dye", byid, byposition),
+                   self._rdmlVersion)
+
+    def delete_dye(self, byid=None, byposition=None):
+        """Deletes an dye element.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "dye", byid, byposition)
+        self._node.remove(elem)
+        # Todo delete in all use places
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
@@ -755,13 +912,29 @@ class Rdml:
         for exp in allExperimenters:
             experimenters.append(exp.tojson())
 
+        allDocumentations = self.documentations()
+        documentations = []
+        for exp in allDocumentations:
+            documentations.append(exp.tojson())
+
+        allDyes = self.dyes()
+        dyes = []
+        for exp in allDyes:
+            dyes.append(exp.tojson())
+
         data = {
             "rdml": {
                 "version": self["version"],
                 "dateMade": self["dateMade"],
                 "dateUpdated": self["dateUpdated"],
                 "ids": rdmlids,
-                "experimenters": experimenters
+                "experimenters": experimenters,
+                "documentations": documentations,
+                "dyes": dyes,
+                "samples": [],
+                "targets": [],
+                "cyclingConditions": [],
+                "experiments": []
             }
         }
         return data
@@ -977,6 +1150,212 @@ class Experimenter:
         _add_first_child_to_dic(self._node, data, True, "email")
         _add_first_child_to_dic(self._node, data, True, "labName")
         _add_first_child_to_dic(self._node, data, True, "labAddress")
+        return data
+
+
+class Documentation:
+    """RDML-Python library
+
+    The documentation element used to read and edit one documentation tag.
+
+    Attributes:
+        _node: The documentation node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
+
+    def __init__(self, node, version):
+        """Inits an documentation instance.
+
+        Args:
+            self: The class self parameter.
+            node: The documentation node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the documentation subelement
+
+        Returns:
+            A string of the data or None.
+        """
+
+        if key == "id":
+            return self._node.get('id')
+        if key in ["text"]:
+            var = _get_first_child_text(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the documentation subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+        if key in ["id"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key in ["text"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["id", "text"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return self.keys()
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = {
+            "id": self._node.get('id'),
+        }
+        _add_first_child_to_dic(self._node, data, True, "text")
+        return data
+
+
+class Dye:
+    """RDML-Python library
+
+    The dye element used to read and edit one dye.
+
+    Attributes:
+        _node: The dye node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
+
+    def __init__(self, node, version):
+        """Inits an dye instance.
+
+        Args:
+            self: The class self parameter.
+            node: The dye node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the dye subelement
+
+        Returns:
+            A string of the data or None.
+        """
+
+        if key == "id":
+            return self._node.get('id')
+        if key in ["description"]:
+            var = _get_first_child_text(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the dye subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+        if key in ["id"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key in ["description"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["id", "description"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return self.keys()
+
+    def tojson(self):
+        """Returns a json of the RDML object.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = {
+            "id": self._node.get('id'),
+        }
+        _add_first_child_to_dic(self._node, data, True, "description")
         return data
 
 
