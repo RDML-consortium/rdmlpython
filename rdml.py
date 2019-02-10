@@ -276,6 +276,15 @@ def _change_subelement(base, tag, xmlkeys, value, opt, vtype):
 
     # Todo validate values with vtype
     goodVal = value
+    if vtype == "bool":
+        ev = _string_to_bool(value, triple=True)
+        if ev is None or ev == "":
+            goodVal = ""
+        else:
+            if ev:
+                goodVal = "true"
+            else:
+                goodVal = "false"
 
     if opt is False:
         if goodVal is None or goodVal == "":
@@ -1643,18 +1652,20 @@ class Sample:
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key in ["interRunCalibrator", "calibratorSample"]:
-            return _change_subelement(self._node, key, self.xmlkeys(),
-                                      _string_to_bool(value, triple=True), True, "bool")
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "bool")
         if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
             if value is None:
                 return
             if "value" not in value or "unit" not in value:
                 raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
-            if value["unit"] not in ["cop", "fold", "dil", "ng", "nMol", "other"]:
+            if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
                 raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
             ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "value", ["value", "unit"], value["value"], False, "float")
-            _change_subelement(ele, "unit", ["value", "unit"], value["unit"], False, "string")
+            _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
+            if value["value"] != "":
+                _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
+            else:
+                _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
             _remove_irrelevant_subelement(self._node, key)
             return
         if key in ["templateRNAQuality", "templateDNAQuality"]:
@@ -1662,11 +1673,9 @@ class Sample:
                 return
             if "method" not in value or "result" not in value:
                 raise RdmlError('"' + key + '" must have a dictionary with "method" and "result" as value.')
-            if value["unit"] not in ["cop", "fold", "dil", "ng", "nMol", "other"]:
-                raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
             ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "method", ["method", "result"], value["method"], False, "string")
-            _change_subelement(ele, "result", ["method", "result"], value["result"], False, "float")
+            _change_subelement(ele, "method", ["method", "result"], value["method"], True, "string")
+            _change_subelement(ele, "result", ["method", "result"], value["result"], True, "float")
             _remove_irrelevant_subelement(self._node, key)
             return
         if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
@@ -1677,7 +1686,7 @@ class Sample:
                                    ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
                                    value, True, "string")
             if key == "cdnaSynthesisMethod_primingMethod":
-                if value not in ["oligo-dt", "random", "target-specific", "oligo-dt and random", "other"]:
+                if value not in ["", "oligo-dt", "random", "target-specific", "oligo-dt and random", "other"]:
                     raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
                 _change_subelement(ele, "primingMethod",
                                    ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
@@ -1685,12 +1694,12 @@ class Sample:
             if key == "cdnaSynthesisMethod_dnaseTreatment":
                 _change_subelement(ele, "dnaseTreatment",
                                    ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
-                                   _string_to_bool(value, triple=True), True, "bool")
+                                   value, True, "bool")
             if key == "cdnaSynthesisMethod_thermalCyclingConditions":
                 forId = _get_or_create_subelement(ele, "thermalCyclingConditions",
                                                   ["enzyme", "primingMethod", "dnaseTreatment",
                                                    "thermalCyclingConditions"])
-                if value is not None or value != "":
+                if value is not None and value != "":
                     # Todo check ID
                     forId.attrib['id'] = value
                 else:
@@ -1759,9 +1768,10 @@ class Sample:
             _add_first_child_to_dic(elem, qdic, True, "dnaseTreatment")
             forId = _get_first_child(elem, "thermalCyclingConditions")
             if forId is not None:
-                qdic["thermalCyclingConditions"] = forId.attrib['id']
+                if forId.attrib['id'] != "":
+                    qdic["thermalCyclingConditions"] = forId.attrib['id']
             if len(qdic.keys()) != 0:
-                data["quantity"] = qdic
+                data["cdnaSynthesisMethod"] = qdic
         elem = _get_first_child(self._node, "templateRNAQuantity")
         if elem is not None:
             qdic = {}
