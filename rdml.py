@@ -106,8 +106,30 @@ def _string_to_bool(value, triple=True):
             return False
         else:
             return True
-
     return
+
+
+def _value_to_booldic(value):
+    """Translates a string, list or dic to a dictionary with true/false.
+
+    Args:
+        value: The string value to evaluate. (string)
+        triple: If True, None is returned if not found, if False, False
+
+    Returns:
+        The a bool value of tag or if triple is True None.
+    """
+
+    ret ={}
+    if type(value) is str:
+        ret[value] = True
+    if type(value) is list:
+        for ele in value:
+            ret[ele] = True
+    if type(value) is dict:
+        for key, val in value.items():
+            ret[key] = _string_to_bool(val, triple=False)
+    return ret
 
 
 def _get_first_child_by_pos_or_id(base, tag, by_id, by_pos):
@@ -144,8 +166,8 @@ def _add_first_child_to_dic(base, dic, opt, tag):
 
     Args:
         base: The base node element. (lxml node)
-        opt: If false and id is not found in base, the element is added with an empty string (Bool)
         dic: The dictionary to add the element to (dictionary)
+        opt: If false and id is not found in base, the element is added with an empty string (Bool)
         tag: Child elements group tag used to select the elements. (string)
 
     Returns:
@@ -176,6 +198,24 @@ def _get_all_children(base, tag):
     for node in base:
         if node.tag.replace("{http://www.rdml.org}", "") == tag:
             ret.append(node)
+    return ret
+
+
+def _get_all_children_id(base, tag):
+    """Get a list of ids of all child elements with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: Child elements group tag used to select the elements. (string)
+
+    Returns:
+        A list with all child id strings found or an empty list.
+    """
+
+    ret = []
+    for node in base:
+        if node.tag.replace("{http://www.rdml.org}", "") == tag:
+            ret.append(node.get('id'))
     return ret
 
 
@@ -1737,6 +1777,65 @@ class Sample:
                 "quantity", "calibratorSample", "cdnaSynthesisMethod",
                 "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
 
+    def documentation_ids(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return _get_all_children_id(self._node, "documentation")
+
+    def update_documentation_ids(self, ids):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            ids: A dictionary with id and true/false pairs
+
+        Returns:
+            True if a change was made, else false. Function may raise RdmlError if required.
+        """
+
+        old = self.documentation_ids()
+        good_ids = _value_to_booldic(ids)
+        mod = False
+
+        for id, inc in good_ids.items():
+            if inc is True:
+                if id not in old:
+                    print ("Add: " + id)
+                    new_node = _create_new_element(self._node, "documentation", id)
+                    place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), 999999999)
+                    self._node.insert(place, new_node)
+                    mod = True
+            else:
+                if id in old:
+                    print ("Delete: " + id)
+                    elem = _get_first_child_by_pos_or_id(self._node, "documentation", id, None)
+                    self._node.remove(elem)
+                    mod = True
+        return mod
+
+    def move_documentation(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "documentation", None, oldposition)
+        self._node.insert(pos, ele)
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
@@ -1751,6 +1850,7 @@ class Sample:
             "id": self._node.get('id'),
         }
         _add_first_child_to_dic(self._node, data, True, "description")
+        data["documentations"] = self.documentation_ids()
         _add_first_child_to_dic(self._node, data, False, "type")
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
         elem = _get_first_child(self._node, "quantity")
