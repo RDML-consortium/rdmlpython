@@ -299,7 +299,7 @@ def _add_new_subelement(base, basetag, tag, text, opt):
             ET.SubElement(base, tag).text = text
 
 
-def _change_subelement(base, tag, xmlkeys, value, opt, vtype):
+def _change_subelement(base, tag, xmlkeys, value, opt, vtype, id_as_element=False):
     """Change the value of the element with a given tag.
 
     Args:
@@ -309,6 +309,7 @@ def _change_subelement(base, tag, xmlkeys, value, opt, vtype):
         value: The text content of the new element.
         opt: If true, the element is optional (Bool)
         vtype: If true, the element is optional ("string", "int", "float")
+        id_as_element: If true, handle tag "id" as element, else as attribute
 
     Returns:
         Nothing, the base lxml element is modified.
@@ -330,7 +331,7 @@ def _change_subelement(base, tag, xmlkeys, value, opt, vtype):
         if goodVal is None or goodVal == "":
             raise RdmlError('A value for ' + tag + ' must be provided.')
 
-    if tag == "id":
+    if tag == "id" and id_as_element is False:
         if base.get('id') != goodVal:
             par = base.getparent()
             groupTag = base.tag.replace("{http://www.rdml.org}", "")
@@ -1777,6 +1778,98 @@ class Sample:
                 "quantity", "calibratorSample", "cdnaSynthesisMethod",
                 "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
 
+    def xrefs(self):
+        """Returns a list of the xrefs in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of dics with name and id strings.
+        """
+
+        xref = _get_all_children(self._node, "xRef")
+        ret = []
+        for node in xref:
+            data = {}
+            _add_first_child_to_dic(node, data, True, "name")
+            _add_first_child_to_dic(node, data, True, "id")
+            ret.append(data)
+        return ret
+
+    def new_xref(self, name=None, id=None, newposition=None):
+        """Creates a new xrefs element.
+
+        Args:
+            self: The class self parameter.
+            name: Publisher who created the xRef
+            id: Serial Number for this sample provided by publisher
+            newposition: The new position of the element
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if name is None and id is None:
+            raise RdmlError('Either name or id is required to create a xRef.')
+        new_node = ET.Element("xRef")
+        _add_new_subelement(new_node, "xRef", "name", name, True)
+        _add_new_subelement(new_node, "xRef", "id", id, True)
+        place = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def edit_xref(self, oldposition, newposition=None, name=None, id=None):
+        """Creates a new xrefs element.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+            name: Publisher who created the xRef
+            id: Serial Number for this sample provided by publisher
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if oldposition is None:
+            raise RdmlError('A oldposition is required to edit a xRef.')
+        pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        _change_subelement(ele, "name", ["name", "id"], name, True, "string")
+        _change_subelement(ele, "id", ["name", "id"], id, True, "string", id_as_element=True)
+        self._node.insert(pos, ele)
+
+    def move_xref(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def delete_xref(self, byposition):
+        """Deletes an experimenter element.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "xRef", None, byposition)
+        self._node.remove(elem)
+
     def documentation_ids(self):
         """Returns a list of the keys in the xml file.
 
@@ -1851,6 +1944,7 @@ class Sample:
         }
         _add_first_child_to_dic(self._node, data, True, "description")
         data["documentations"] = self.documentation_ids()
+        data["xRefs"] = self.xrefs()
         _add_first_child_to_dic(self._node, data, False, "type")
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
         elem = _get_first_child(self._node, "quantity")
