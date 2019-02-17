@@ -1115,6 +1115,87 @@ class Rdml:
         self._node.remove(elem)
         # Todo delete in all use places
 
+    def targets(self):
+        """Returns a list of all target elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all target elements.
+        """
+
+        exp = _get_all_children(self._node, "target")
+        ret = []
+        for node in exp:
+            ret.append(Target(node, self._rdmlVersion))
+        return ret
+
+    def new_target(self, id, type, newposition=None):
+        """Creates a new target element.
+
+        Args:
+            self: The class self parameter.
+            id: Target unique id (required)
+            type: Target type (required)
+            newposition: Targets position in the list of targets (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if type not in ["ref", "toi"]:
+            raise RdmlError('Unknown or unsupported target type value "' + type + '".')
+        new_node = _create_new_element(self._node, "target", id)
+        _add_new_subelement(new_node, "target", "type", type, False)
+        place = _get_tag_pos(self._node, "target", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def move_target(self, id, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            id: Target unique id
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "target", id, self.xmlkeys(), newposition)
+
+    def get_target(self, byid=None, byposition=None):
+        """Returns an target element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Target(_get_first_child_by_pos_or_id(self._node, "target", byid, byposition),
+                      self._rdmlVersion)
+
+    def delete_target(self, byid=None, byposition=None):
+        """Deletes an target element.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "target", byid, byposition)
+        self._node.remove(elem)
+        # Todo delete in all use places
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
@@ -1150,6 +1231,11 @@ class Rdml:
         for exp in allSamples:
             samples.append(exp.tojson())
 
+        allTargets = self.targets()
+        targets = []
+        for exp in allTargets:
+            targets.append(exp.tojson())
+
         data = {
             "rdml": {
                 "version": self["version"],
@@ -1160,7 +1246,7 @@ class Rdml:
                 "documentations": documentations,
                 "dyes": dyes,
                 "samples": samples,
-                "targets": [],
+                "targets": targets,
                 "cyclingConditions": [],
                 "experiments": []
             }
@@ -1834,6 +1920,9 @@ class Sample:
 
         if oldposition is None:
             raise RdmlError('A oldposition is required to edit a xRef.')
+        if (name is None or name == "") and (id is None or id == ""):
+            self.delete_xref(oldposition)
+            return
         pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
         ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
         _change_subelement(ele, "name", ["name", "id"], name, True, "string")
@@ -1900,14 +1989,12 @@ class Sample:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    print ("Add: " + id)
                     new_node = _create_new_element(self._node, "documentation", id)
                     place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), 999999999)
                     self._node.insert(place, new_node)
                     mod = True
             else:
                 if id in old:
-                    print ("Delete: " + id)
                     elem = _get_first_child_by_pos_or_id(self._node, "documentation", id, None)
                     self._node.remove(elem)
                     mod = True
@@ -1990,6 +2077,469 @@ class Sample:
             _add_first_child_to_dic(elem, qdic, False, "method")
             _add_first_child_to_dic(elem, qdic, False, "result")
             data["templateDNAQuality"] = qdic
+        return data
+
+
+class Target:
+    """RDML-Python library
+
+    The target element used to read and edit one target.
+
+    Attributes:
+        _node: The target node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
+
+    def __init__(self, node, version):
+        """Inits an target instance.
+
+        Args:
+            self: The class self parameter.
+            node: The target node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the target subelement
+
+        Returns:
+            A string of the data or None.
+        """
+
+        if key == "id":
+            return self._node.get('id')
+        if key == "type":
+            return _get_first_child_text(self._node, key)
+        if key in ["description", "amplificationEfficiencyMethod", "amplificationEfficiency", "detectionLimit"]:
+            var = _get_first_child_text(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+        if key == "dyeId":
+            forId = _get_first_child(self._node, key)
+            if forId is not None:
+                return forId.attrib['id']
+            else:
+                return None
+        if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
+                   "sequences_forwardPrimer_sequence", "sequences_reversePrimer_threePrimeTag",
+                   "sequences_reversePrimer_fivePrimeTag", "sequences_reversePrimer_sequence",
+                   "sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
+                   "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
+                   "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence",
+                   "sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
+                   "sequences_amplicon_sequence"]:
+            prim = _get_first_child(self._node, "sequences")
+            if prim is None:
+                return None
+            sec = None
+            if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
+                       "sequences_forwardPrimer_sequence"]:
+                sec = _get_first_child(prim, "forwardPrimer")
+            if key in ["sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                       "sequences_reversePrimer_sequence"]:
+                sec = _get_first_child(prim, "reversePrimer")
+            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence"]:
+                sec = _get_first_child(prim, "probe1")
+            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence"]:
+                sec = _get_first_child(prim, "probe2")
+            if key in ["sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
+                       "sequences_amplicon_sequence"]:
+                sec = _get_first_child(prim, "amplicon")
+            if sec is None:
+                return None
+            if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_reversePrimer_threePrimeTag",
+                       "sequences_probe1_threePrimeTag", "sequences_probe2_threePrimeTag",
+                       "sequences_amplicon_threePrimeTag"]:
+                return _get_first_child_text(sec, "threePrimeTag")
+            if key in ["sequences_forwardPrimer_fivePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                       "sequences_probe1_fivePrimeTag", "sequences_probe2_fivePrimeTag",
+                       "sequences_amplicon_fivePrimeTag"]:
+                return _get_first_child_text(sec, "fivePrimeTag")
+            if key in ["sequences_forwardPrimer_sequence", "sequences_reversePrimer_sequence",
+                       "sequences_probe1_sequence", "sequences_probe2_sequence",
+                       "sequences_amplicon_sequence"]:
+                return _get_first_child_text(sec, "sequence")
+            raise RdmlError('Target sequences programming read error.')
+        if key in ["commercialAssay_company", "commercialAssay_orderNumber"]:
+            prim = _get_first_child(self._node, "commercialAssay")
+            if prim is None:
+                return None
+            if key == "commercialAssay_company":
+                return _get_first_child_text(prim, "company")
+            if key == "commercialAssay_orderNumber":
+                return _get_first_child_text(prim, "orderNumber")
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the target subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        if key == "type":
+            if value not in ["ref", "toi"]:
+                raise RdmlError('Unknown or unsupported target type value "' + value + '".')
+
+        if key in ["id", "type"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key in ["description", "amplificationEfficiencyMethod"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        if key in ["amplificationEfficiency", "detectionLimit"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
+        if key == "dyeId":
+            forId = _get_or_create_subelement(self._node, "dyeId", self.xmlkeys())
+            if value is not None and value != "":
+                # Todo check ID
+                forId.attrib['id'] = value
+            else:
+                self._node.remove(forId)
+        if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
+                   "sequences_forwardPrimer_sequence", "sequences_reversePrimer_threePrimeTag",
+                   "sequences_reversePrimer_fivePrimeTag", "sequences_reversePrimer_sequence",
+                   "sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
+                   "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
+                   "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence",
+                   "sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
+                   "sequences_amplicon_sequence"]:
+            prim = _get_or_create_subelement(self._node, "sequences", self.xmlkeys())
+            sec = None
+            if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
+                       "sequences_forwardPrimer_sequence"]:
+                sec = _get_or_create_subelement(prim, "forwardPrimer",
+                                                ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
+            if key in ["sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                       "sequences_reversePrimer_sequence"]:
+                sec = _get_or_create_subelement(prim, "reversePrimer",
+                                                ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
+            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence"]:
+                sec = _get_or_create_subelement(prim, "probe1",
+                                                ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
+            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence"]:
+                sec = _get_or_create_subelement(prim, "probe2",
+                                                ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
+            if key in ["sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
+                       "sequences_amplicon_sequence"]:
+                sec = _get_or_create_subelement(prim, "amplicon",
+                                                ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
+            if sec is None:
+                return None
+            if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_reversePrimer_threePrimeTag",
+                       "sequences_probe1_threePrimeTag", "sequences_probe2_threePrimeTag",
+                       "sequences_amplicon_threePrimeTag"]:
+                _change_subelement(sec, "threePrimeTag",
+                                   ["threePrimeTag", "fivePrimeTag", "sequence"], value, True, "string")
+            if key in ["sequences_forwardPrimer_fivePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                       "sequences_probe1_fivePrimeTag", "sequences_probe2_fivePrimeTag",
+                       "sequences_amplicon_fivePrimeTag"]:
+                _change_subelement(sec, "fivePrimeTag",
+                                   ["threePrimeTag", "fivePrimeTag", "sequence"], value, True, "string")
+            if key in ["sequences_forwardPrimer_sequence", "sequences_reversePrimer_sequence",
+                       "sequences_probe1_sequence", "sequences_probe2_sequence",
+                       "sequences_amplicon_sequence"]:
+                _change_subelement(sec, "sequence",
+                                   ["threePrimeTag", "fivePrimeTag", "sequence"], value, True, "string")
+            if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
+                       "sequences_forwardPrimer_sequence"]:
+                _remove_irrelevant_subelement(prim, "forwardPrimer")
+            if key in ["sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                       "sequences_reversePrimer_sequence"]:
+                _remove_irrelevant_subelement(prim, "reversePrimer")
+            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence"]:
+                _remove_irrelevant_subelement(prim, "probe1")
+            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence"]:
+                _remove_irrelevant_subelement(prim, "probe2")
+            if key in ["sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
+                       "sequences_amplicon_sequence"]:
+                _remove_irrelevant_subelement(prim, "amplicon")
+            _remove_irrelevant_subelement(self._node, "sequences")
+        if key in ["commercialAssay_company", "commercialAssay_orderNumber"]:
+            ele = _get_or_create_subelement(self._node, "commercialAssay", self.xmlkeys())
+            if key == "commercialAssay_company":
+                _change_subelement(ele, "company", ["company", "orderNumber"], value, True, "string")
+            if key == "commercialAssay_orderNumber":
+                _change_subelement(ele, "orderNumber", ["company", "orderNumber"], value, True, "string")
+            _remove_irrelevant_subelement(self._node, "commercialAssay")
+            return
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["id", "description", "type", "amplificationEfficiencyMethod", "amplificationEfficiency",
+                "detectionLimit", "dyeId", "sequences_forwardPrimer_threePrimeTag",
+                "sequences_forwardPrimer_fivePrimeTag", "sequences_forwardPrimer_sequence",
+                "sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                "sequences_reversePrimer_sequence", "sequences_probe1_threePrimeTag",
+                "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
+                "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence", "sequences_amplicon_threePrimeTag",
+                "sequences_amplicon_fivePrimeTag", "sequences_amplicon_sequence", "commercialAssay_company",
+                "commercialAssay_orderNumber"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["description", "documentation", "xRef", "type", "amplificationEfficiencyMethod",
+                "amplificationEfficiency", "detectionLimit", "dyeId", "sequences", "commercialAssay"]
+
+    def xrefs(self):
+        """Returns a list of the xrefs in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of dics with name and id strings.
+        """
+
+        xref = _get_all_children(self._node, "xRef")
+        ret = []
+        for node in xref:
+            data = {}
+            _add_first_child_to_dic(node, data, True, "name")
+            _add_first_child_to_dic(node, data, True, "id")
+            ret.append(data)
+        return ret
+
+    def new_xref(self, name=None, id=None, newposition=None):
+        """Creates a new xrefs element.
+
+        Args:
+            self: The class self parameter.
+            name: Publisher who created the xRef
+            id: Serial Number for this target provided by publisher
+            newposition: The new position of the element
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if name is None and id is None:
+            raise RdmlError('Either name or id is required to create a xRef.')
+        new_node = ET.Element("xRef")
+        _add_new_subelement(new_node, "xRef", "name", name, True)
+        _add_new_subelement(new_node, "xRef", "id", id, True)
+        place = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def edit_xref(self, oldposition, newposition=None, name=None, id=None):
+        """Creates a new xrefs element.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+            name: Publisher who created the xRef
+            id: Serial Number for this target provided by publisher
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if oldposition is None:
+            raise RdmlError('A oldposition is required to edit a xRef.')
+        if (name is None or name == "") and (id is None or id == ""):
+            self.delete_xref(oldposition)
+            return
+        pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        _change_subelement(ele, "name", ["name", "id"], name, True, "string")
+        _change_subelement(ele, "id", ["name", "id"], id, True, "string", id_as_element=True)
+        self._node.insert(pos, ele)
+
+    def move_xref(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def delete_xref(self, byposition):
+        """Deletes an experimenter element.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "xRef", None, byposition)
+        self._node.remove(elem)
+
+    def documentation_ids(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return _get_all_children_id(self._node, "documentation")
+
+    def update_documentation_ids(self, ids):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            ids: A dictionary with id and true/false pairs
+
+        Returns:
+            True if a change was made, else false. Function may raise RdmlError if required.
+        """
+
+        old = self.documentation_ids()
+        good_ids = _value_to_booldic(ids)
+        mod = False
+
+        for id, inc in good_ids.items():
+            if inc is True:
+                if id not in old:
+                    new_node = _create_new_element(self._node, "documentation", id)
+                    place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), 999999999)
+                    self._node.insert(place, new_node)
+                    mod = True
+            else:
+                if id in old:
+                    elem = _get_first_child_by_pos_or_id(self._node, "documentation", id, None)
+                    self._node.remove(elem)
+                    mod = True
+        return mod
+
+    def move_documentation(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "documentation", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = {
+            "id": self._node.get('id'),
+        }
+        _add_first_child_to_dic(self._node, data, True, "description")
+        data["documentations"] = self.documentation_ids()
+        data["xRefs"] = self.xrefs()
+        _add_first_child_to_dic(self._node, data, False, "type")
+        _add_first_child_to_dic(self._node, data, True, "amplificationEfficiencyMethod")
+        _add_first_child_to_dic(self._node, data, True, "amplificationEfficiency")
+        _add_first_child_to_dic(self._node, data, True, "detectionLimit")
+        forId = _get_first_child(self._node, "dyeId")
+        if forId is not None:
+            if forId.attrib['id'] != "":
+                data["dyeId"] = forId.attrib['id']
+        elem = _get_first_child(self._node, "sequences")
+        if elem is not None:
+            qdic = {}
+            sec = _get_first_child(elem, "forwardPrimer")
+            if sec is not None:
+                sdic = {}
+                _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "sequence")
+                if len(sdic.keys()) != 0:
+                    qdic["forwardPrimer"] = sdic
+            sec = _get_first_child(elem, "reversePrimer")
+            if sec is not None:
+                sdic = {}
+                _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "sequence")
+                if len(sdic.keys()) != 0:
+                    qdic["reversePrimer"] = sdic
+            sec = _get_first_child(elem, "probe1")
+            if sec is not None:
+                sdic = {}
+                _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "sequence")
+                if len(sdic.keys()) != 0:
+                    qdic["probe1"] = sdic
+            sec = _get_first_child(elem, "probe2")
+            if sec is not None:
+                sdic = {}
+                _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "sequence")
+                if len(sdic.keys()) != 0:
+                    qdic["probe2"] = sdic
+            sec = _get_first_child(elem, "amplicon")
+            if sec is not None:
+                sdic = {}
+                _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
+                _add_first_child_to_dic(sec, sdic, True, "sequence")
+                if len(sdic.keys()) != 0:
+                    qdic["amplicon"] = sdic
+            if len(qdic.keys()) != 0:
+                data["sequences"] = qdic
+        elem = _get_first_child(self._node, "commercialAssay")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, True, "company")
+            _add_first_child_to_dic(elem, qdic, True, "orderNumber")
+            if len(qdic.keys()) != 0:
+                data["commercialAssay"] = qdic
         return data
 
 
