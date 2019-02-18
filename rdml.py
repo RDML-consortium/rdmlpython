@@ -2210,6 +2210,7 @@ class Target:
                 forId.attrib['id'] = value
             else:
                 self._node.remove(forId)
+            return
         if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
                    "sequences_forwardPrimer_sequence", "sequences_reversePrimer_threePrimeTag",
                    "sequences_reversePrimer_fivePrimeTag", "sequences_reversePrimer_sequence",
@@ -2269,6 +2270,7 @@ class Target:
                        "sequences_amplicon_sequence"]:
                 _remove_irrelevant_subelement(prim, "amplicon")
             _remove_irrelevant_subelement(self._node, "sequences")
+            return
         if key in ["commercialAssay_company", "commercialAssay_orderNumber"]:
             ele = _get_or_create_subelement(self._node, "commercialAssay", self.xmlkeys())
             if key == "commercialAssay_company":
