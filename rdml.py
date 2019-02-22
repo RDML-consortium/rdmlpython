@@ -2832,6 +2832,85 @@ class Therm_cyc_cons:
         ele = _get_first_child_by_pos_or_id(self._node, "experimenter", None, oldposition)
         self._node.insert(pos, ele)
 
+    def steps(self):
+        """Returns a list of all step elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all step elements.
+        """
+
+        exp = _get_all_children(self._node, "step")
+        # Todo sort by nr
+
+        ret = []
+        for node in exp:
+            ret.append(Step(node, self._rdmlVersion))
+        return ret
+
+    def new_step(self, id, type, newposition=None):
+        """Creates a new step element.
+
+        Args:
+            self: The class self parameter.
+            id: Step unique id (required)
+            type: Step type (required)
+            newposition: Step position in the list of steps (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
+            raise RdmlError('Unknown or unsupported step type value "' + type + '".')
+        new_node = _create_new_element(self._node, "step", id)
+        _add_new_subelement(new_node, "step", "type", type, False)
+        place = _get_tag_pos(self._node, "step", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def move_step(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "step", oldposition, self.xmlkeys(), newposition)
+
+    def get_step(self, byposition=None):
+        """Returns an sample element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Step(_get_first_child_by_pos_or_id(self._node, "step", None, byposition), self._rdmlVersion)
+
+    def delete_step(self, byposition=None):
+        """Deletes an step element.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "step", None, byposition)
+        self._node.remove(elem)
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
@@ -2842,6 +2921,11 @@ class Therm_cyc_cons:
             A json of the data.
         """
 
+        allSteps = self.steps()
+        steps = []
+        for exp in allSteps:
+            steps.append(exp.tojson())
+
         data = {
             "id": self._node.get('id'),
         }
@@ -2849,6 +2933,237 @@ class Therm_cyc_cons:
         data["documentations"] = self.documentation_ids()
         _add_first_child_to_dic(self._node, data, True, "lidTemperature")
         data["experimenters"] = self.experimenter_ids()
+        data["steps"] = steps
+        return data
+
+
+class Step:
+    """RDML-Python library
+
+    The samples element used to read and edit one sample.
+
+    Attributes:
+        _node: The sample node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
+
+    def __init__(self, node, version):
+        """Inits an sample instance.
+
+        Args:
+            self: The class self parameter.
+            node: The sample node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the sample subelement. Be aware that change of type deletes all entries
+                 except nr and description
+
+        Returns:
+            A string of the data or None.
+        """
+
+        if key in ["nr", "type"]:
+            return _get_first_child_text(self._node, key)
+        if key == "description":
+            var = _get_first_child_text(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+        ele_type = _get_first_child_text(self._node, "type")
+        if ele_type == "temperature":
+            ele = _get_first_child(self._node, "temperature")
+            if key in ["temperature", "duration"]:
+                return _get_first_child_text(ele, key)
+            if key in ["temperatureChange", "durationChange", "measure", "ramp"]:
+                var = _get_first_child_text(ele, key)
+                if var == "":
+                    return None
+                else:
+                    return var
+
+        if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
+            ele = _get_first_child(self._node, key)
+            vdic = {}
+            vdic["value"] = _get_first_child_text(ele, "value")
+            vdic["unit"] = _get_first_child_text(ele, "unit")
+            if len(vdic.keys()) != 0:
+                return vdic
+            else:
+                return None
+        if key in ["templateRNAQuality", "templateDNAQuality"]:
+            ele = _get_first_child(self._node, key)
+            vdic = {}
+            vdic["method"] = _get_first_child_text(ele, "method")
+            vdic["result"] = _get_first_child_text(ele, "result")
+            if len(vdic.keys()) != 0:
+                return vdic
+            else:
+                return None
+        if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
+                   "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
+            ele = _get_first_child(self._node, "cdnaSynthesisMethod")
+            if ele is None:
+                return None
+            if key == "cdnaSynthesisMethod_enzyme":
+                return _get_first_child_text(ele, "enzyme")
+            if key == "cdnaSynthesisMethod_primingMethod":
+                return _get_first_child_text(ele, "primingMethod")
+            if key == "cdnaSynthesisMethod_dnaseTreatment":
+                return _get_first_child_text(ele, "dnaseTreatment")
+            if key == "cdnaSynthesisMethod_thermalCyclingConditions":
+                forId = _get_first_child(ele, "thermalCyclingConditions")
+                if forId is not None:
+                    return forId.attrib['id']
+                else:
+                    return None
+            raise RdmlError('Sample cdnaSynthesisMethod programming read error.')
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the sample subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        if key == "type":
+            if value not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
+                raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
+
+        if key in ["id", "type"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key == "description":
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        if key in ["interRunCalibrator", "calibratorSample"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "bool")
+        if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
+            if value is None:
+                return
+            if "value" not in value or "unit" not in value:
+                raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
+            if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
+                raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
+            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+            _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
+            if value["value"] != "":
+                _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
+            else:
+                _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
+            _remove_irrelevant_subelement(self._node, key)
+            return
+        if key in ["templateRNAQuality", "templateDNAQuality"]:
+            if value is None:
+                return
+            if "method" not in value or "result" not in value:
+                raise RdmlError('"' + key + '" must have a dictionary with "method" and "result" as value.')
+            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+            _change_subelement(ele, "method", ["method", "result"], value["method"], True, "string")
+            _change_subelement(ele, "result", ["method", "result"], value["result"], True, "float")
+            _remove_irrelevant_subelement(self._node, key)
+            return
+        if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
+                   "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
+            ele = _get_or_create_subelement(self._node, "cdnaSynthesisMethod", self.xmlkeys())
+            if key == "cdnaSynthesisMethod_enzyme":
+                _change_subelement(ele, "enzyme",
+                                   ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
+                                   value, True, "string")
+            if key == "cdnaSynthesisMethod_primingMethod":
+                if value not in ["", "oligo-dt", "random", "target-specific", "oligo-dt and random", "other"]:
+                    raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
+                _change_subelement(ele, "primingMethod",
+                                   ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
+                                   value, True, "string")
+            if key == "cdnaSynthesisMethod_dnaseTreatment":
+                _change_subelement(ele, "dnaseTreatment",
+                                   ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
+                                   value, True, "bool")
+            if key == "cdnaSynthesisMethod_thermalCyclingConditions":
+                forId = _get_or_create_subelement(ele, "thermalCyclingConditions",
+                                                  ["enzyme", "primingMethod", "dnaseTreatment",
+                                                   "thermalCyclingConditions"])
+                if value is not None and value != "":
+                    # Todo check ID
+                    forId.attrib['id'] = value
+                else:
+                    ele.remove(forId)
+            _remove_irrelevant_subelement(self._node, "cdnaSynthesisMethod")
+            return
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["nr", "description", "type", "interRunCalibrator", "quantity", "calibratorSample",
+                "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
+                "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
+                "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["nr", "description", "documentation", "xRef", "type", "interRunCalibrator",
+                "quantity", "calibratorSample", "cdnaSynthesisMethod",
+                "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = {}
+        _add_first_child_to_dic(self._node, data, False, "nr")
+        _add_first_child_to_dic(self._node, data, True, "description")
+        elem = _get_first_child(self._node, "templateDNAQuality")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "method")
+            _add_first_child_to_dic(elem, qdic, False, "result")
+            data["templateDNAQuality"] = qdic
+        elem = _get_first_child(self._node, "temperature")
+        if elem is not None:
+            data["type"] = "temperature"
+            _add_first_child_to_dic(elem, data, True, "temperature")
+            _add_first_child_to_dic(elem, data, True, "duration")
+        elem = _get_first_child(self._node, "lidOpen")
+        if elem is not None:
+            data["type"] = "lidOpen"
         return data
 
 
