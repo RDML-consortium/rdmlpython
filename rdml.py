@@ -78,6 +78,24 @@ def _get_first_child_bool(base, tag, triple=True):
         return None
 
 
+def _get_step_sort_nr(elem):
+    """Get the number of the step eg. for sorting.
+
+    Args:
+        elem: The node element. (lxml node)
+
+    Returns:
+        The a int value of the step node nr.
+    """
+
+    if elem is None:
+        raise RdmlError('A step element must be provided for sorting.')
+    ret = _get_first_child_text(elem, "nr")
+    if ret == "":
+        raise RdmlError('A step element must have a \"nr\" element for sorting.')
+    return int(ret)
+
+
 def _string_to_bool(value, triple=True):
     """Translates a string into bool value or None.
 
@@ -2842,73 +2860,146 @@ class Therm_cyc_cons:
             A list of all step elements.
         """
 
+        # The steps are sorted transiently to not modify the file in a read situation
         exp = _get_all_children(self._node, "step")
-        # Todo sort by nr
-
+        srt_exp = sorted(exp, key=_get_step_sort_nr)
         ret = []
-        for node in exp:
+        for node in srt_exp:
             ret.append(Step(node, self._rdmlVersion))
         return ret
 
-    def new_step(self, id, type, newposition=None):
+    def new_step_temperature(self, temperature, duration,
+                             temperatureChange=None, durationChange=None,
+                             measure=None, ramp=None, nr=None):
         """Creates a new step element.
 
         Args:
             self: The class self parameter.
-            id: Step unique id (required)
-            type: Step type (required)
-            newposition: Step position in the list of steps (optional)
+            temperature: The temperature of the step in degrees Celsius (required)
+            duration: The duration of this step in seconds (required)
+            temperatureChange: The change of the temperature from one cycle to the next (optional)
+            durationChange: The change of the duration from one cycle to the next (optional)
+            measure: Indicates to make a measurement and store it as meltcurve or real-time data (optional)
+            ramp: Limit temperature change from one step to the next in degrees Celsius per second (optional)
+            nr: Step unique nr (optional)
 
         Returns:
             Nothing, changes self.
         """
 
-        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
-            raise RdmlError('Unknown or unsupported step type value "' + type + '".')
-        new_node = _create_new_element(self._node, "step", id)
-        _add_new_subelement(new_node, "step", "type", type, False)
-        place = _get_tag_pos(self._node, "step", self.xmlkeys(), newposition)
+        if measure is not None and measure not in ["real time", "meltcurve"]:
+            raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
+        # The steps in the xml may be not sorted well, so fix it
+        self.cleanup_steps()
+
+        # Make space for the step if required
+        count = _get_number_of_children(self._node, "step")
+        if int(nr) - 1 < count:
+            exp = _get_all_children(self._node, "step")
+            i = 0
+            for node in exp:
+                if int(nr) - 1 <= i:
+                    elem = _get_first_child(node, "nr")
+                    elem.text = str(i + 2)
+                i += 1
+        new_node = ET.Element("step")
+        xml_temp_step = ["temperature", "duration", "temperatureChange", "durationChange", "measure", "ramp"]
+        _add_new_subelement(new_node, "step", "nr", nr, False)
+        subel = ET.SubElement(new_node, "temperature")
+        _change_subelement(subel, "temperature", xml_temp_step, temperature, False, "float")
+        _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
+        _change_subelement(subel, "temperatureChange", xml_temp_step, temperatureChange, True, "float")
+        _change_subelement(subel, "durationChange", xml_temp_step, durationChange, True, "int")
+        _change_subelement(subel, "measure", xml_temp_step, measure, True, "string")
+        _change_subelement(subel, "ramp", xml_temp_step, ramp, True, "float")
+        place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
 
-    def move_step(self, oldposition, newposition):
-        """Moves the element to the new position in the list.
+        # Sort the step in
+        self.cleanup_steps()
+
+    def cleanup_steps(self):
+        """The steps may not be in a order that makes sense. This function fixes it.
 
         Args:
             self: The class self parameter.
-            oldposition: The old position of the element
-            newposition: The new position of the element
 
         Returns:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        _move_subelement(self._node, "step", oldposition, self.xmlkeys(), newposition)
+        # The steps in the xml may be not sorted by "nr", so sort first
+        exp = _get_all_children(self._node, "step")
+        srt_exp = sorted(exp, key=_get_step_sort_nr)
+        i = 0
+        for node in srt_exp:
+            if _get_step_sort_nr(node) != _get_step_sort_nr(exp[i]):
+                pos = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + i
+                self._node.insert(pos, node)
+            i += 1
 
-    def get_step(self, byposition=None):
+        # The steps in the xml may not have the correct numbering, so fix it
+        exp = _get_all_children(self._node, "step")
+        i = 1
+        for node in exp:
+            if _get_step_sort_nr(node) != i:
+                elem = _get_first_child(node, "nr")
+                elem.text = str(i)
+            i += 1
+
+    def move_step(self, oldnr, newnr):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldnr: The old position of the element
+            newnr: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        # The steps in the xml may be not sorted well, so fix it
+        self.cleanup_steps()
+
+        # Change the nr
+        _move_subelement(self._node, "step", oldnr - 1, self.xmlkeys(), newnr - 1)
+
+        # Fix the nr
+        exp = _get_all_children(self._node, "step")
+        i = 1
+        for node in exp:
+            if _get_step_sort_nr(node) != i:
+                elem = _get_first_child(node, "nr")
+                elem.text = str(i)
+            i += 1
+        # Todo fix the goto steps
+
+    def get_step(self, bystep=None):
         """Returns an sample element by position or id.
 
         Args:
             self: The class self parameter.
-            byposition: Select the element by position in the list.
+            bystep: Select the element by step nr in the list.
 
         Returns:
             The found element or None.
         """
 
-        return Step(_get_first_child_by_pos_or_id(self._node, "step", None, byposition), self._rdmlVersion)
+        return Step(_get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1), self._rdmlVersion)
 
-    def delete_step(self, byposition=None):
+    def delete_step(self, bystep=None):
         """Deletes an step element.
 
         Args:
             self: The class self parameter.
-            byposition: Select the element by position in the list.
+            bystep: Select the element by step nr in the list.
 
         Returns:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "step", None, byposition)
+        elem = _get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1)
         self._node.remove(elem)
 
     def tojson(self):
@@ -2973,7 +3064,7 @@ class Step:
             A string of the data or None.
         """
 
-        if key in ["nr", "type"]:
+        if key == "nr":
             return _get_first_child_text(self._node, key)
         if key == "description":
             var = _get_first_child_text(self._node, key)
@@ -2981,54 +3072,46 @@ class Step:
                 return None
             else:
                 return var
-        ele_type = _get_first_child_text(self._node, "type")
-        if ele_type == "temperature":
-            ele = _get_first_child(self._node, "temperature")
+        ele_type = _get_first_child(self._node, "temperature")
+        if ele_type is not None:
+            if key == "type":
+                return "temperature"
             if key in ["temperature", "duration"]:
-                return _get_first_child_text(ele, key)
+                return _get_first_child_text(ele_type, key)
             if key in ["temperatureChange", "durationChange", "measure", "ramp"]:
-                var = _get_first_child_text(ele, key)
+                var = _get_first_child_text(ele_type, key)
                 if var == "":
                     return None
                 else:
                     return var
-
-        if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
-            ele = _get_first_child(self._node, key)
-            vdic = {}
-            vdic["value"] = _get_first_child_text(ele, "value")
-            vdic["unit"] = _get_first_child_text(ele, "unit")
-            if len(vdic.keys()) != 0:
-                return vdic
-            else:
-                return None
-        if key in ["templateRNAQuality", "templateDNAQuality"]:
-            ele = _get_first_child(self._node, key)
-            vdic = {}
-            vdic["method"] = _get_first_child_text(ele, "method")
-            vdic["result"] = _get_first_child_text(ele, "result")
-            if len(vdic.keys()) != 0:
-                return vdic
-            else:
-                return None
-        if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
-                   "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
-            ele = _get_first_child(self._node, "cdnaSynthesisMethod")
-            if ele is None:
-                return None
-            if key == "cdnaSynthesisMethod_enzyme":
-                return _get_first_child_text(ele, "enzyme")
-            if key == "cdnaSynthesisMethod_primingMethod":
-                return _get_first_child_text(ele, "primingMethod")
-            if key == "cdnaSynthesisMethod_dnaseTreatment":
-                return _get_first_child_text(ele, "dnaseTreatment")
-            if key == "cdnaSynthesisMethod_thermalCyclingConditions":
-                forId = _get_first_child(ele, "thermalCyclingConditions")
-                if forId is not None:
-                    return forId.attrib['id']
-                else:
+        ele_type = _get_first_child(self._node, "gradient")
+        if ele_type is not None:
+            if key == "type":
+                return "gradient"
+            if key in ["hightTemperature", "lowTemperature", "duration"]:
+                return _get_first_child_text(ele_type, key)
+            if key in ["temperatureChange", "durationChange", "measure", "ramp"]:
+                var = _get_first_child_text(ele_type, key)
+                if var == "":
                     return None
-            raise RdmlError('Sample cdnaSynthesisMethod programming read error.')
+                else:
+                    return var
+        ele_type = _get_first_child(self._node, "loop")
+        if ele_type is not None:
+            if key == "type":
+                return "loop"
+            if key in ["goto", "repeat"]:
+                return _get_first_child_text(ele_type, key)
+        ele_type = _get_first_child(self._node, "pause")
+        if ele_type is not None:
+            if key == "type":
+                return "pause"
+            if key == "temperature":
+                return _get_first_child_text(ele_type, key)
+        ele_type = _get_first_child(self._node, "lidOpen")
+        if ele_type is not None:
+            if key == "type":
+                return "lidOpen"
         raise KeyError
 
     def __setitem__(self, key, value):
@@ -3043,69 +3126,51 @@ class Step:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        if key == "type":
-            if value not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
-                raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
-
-        if key in ["id", "type"]:
-            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key in ["nr", "type"]:
+            raise RdmlError('"' + key + '" can not be set. Use thermal cycling conditions methods instead')
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
-        if key in ["interRunCalibrator", "calibratorSample"]:
-            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "bool")
-        if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
-            if value is None:
-                return
-            if "value" not in value or "unit" not in value:
-                raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
-            if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
-                raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
-            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
-            if value["value"] != "":
-                _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
-            else:
-                _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
-            _remove_irrelevant_subelement(self._node, key)
-            return
-        if key in ["templateRNAQuality", "templateDNAQuality"]:
-            if value is None:
-                return
-            if "method" not in value or "result" not in value:
-                raise RdmlError('"' + key + '" must have a dictionary with "method" and "result" as value.')
-            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "method", ["method", "result"], value["method"], True, "string")
-            _change_subelement(ele, "result", ["method", "result"], value["result"], True, "float")
-            _remove_irrelevant_subelement(self._node, key)
-            return
-        if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
-                   "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
-            ele = _get_or_create_subelement(self._node, "cdnaSynthesisMethod", self.xmlkeys())
-            if key == "cdnaSynthesisMethod_enzyme":
-                _change_subelement(ele, "enzyme",
-                                   ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
-                                   value, True, "string")
-            if key == "cdnaSynthesisMethod_primingMethod":
-                if value not in ["", "oligo-dt", "random", "target-specific", "oligo-dt and random", "other"]:
-                    raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
-                _change_subelement(ele, "primingMethod",
-                                   ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
-                                   value, True, "string")
-            if key == "cdnaSynthesisMethod_dnaseTreatment":
-                _change_subelement(ele, "dnaseTreatment",
-                                   ["enzyme", "primingMethod", "dnaseTreatment", "thermalCyclingConditions"],
-                                   value, True, "bool")
-            if key == "cdnaSynthesisMethod_thermalCyclingConditions":
-                forId = _get_or_create_subelement(ele, "thermalCyclingConditions",
-                                                  ["enzyme", "primingMethod", "dnaseTreatment",
-                                                   "thermalCyclingConditions"])
-                if value is not None and value != "":
-                    # Todo check ID
-                    forId.attrib['id'] = value
-                else:
-                    ele.remove(forId)
-            _remove_irrelevant_subelement(self._node, "cdnaSynthesisMethod")
-            return
+        ele_type = _get_first_child(self._node, "temperature")
+        if ele_type is not None:
+            xml_temp_step = ["temperature", "duration", "temperatureChange", "durationChange", "measure", "ramp"]
+            if key == "temperature":
+                return _change_subelement(ele_type, key, xml_temp_step, value, False, "float")
+            if key == "duration":
+                return _change_subelement(ele_type, key, xml_temp_step, value, False, "posint")
+            if key in ["temperatureChange", "ramp"]:
+                return _change_subelement(ele_type, key, xml_temp_step, value, True, "float")
+            if key == "durationChange":
+                return _change_subelement(ele_type, key, xml_temp_step, value, True, "int")
+            if key == "measure":
+                if value not in ["real time", "meltcurve"]:
+                    raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
+                return _change_subelement(ele_type, key, xml_temp_step, value, True, "string")
+        ele_type = _get_first_child(self._node, "gradient")
+        if ele_type is not None:
+            xml_temp_step = ["hightTemperature", "lowTemperature", "duration", "temperatureChange",
+                             "durationChange", "measure", "ramp"]
+            if key in ["hightTemperature", "lowTemperature"]:
+                return _change_subelement(ele_type, key, xml_temp_step, value, False, "float")
+            if key == "duration":
+                return _change_subelement(ele_type, key, xml_temp_step, value, False, "posint")
+            if key in ["temperatureChange", "ramp"]:
+                return _change_subelement(ele_type, key, xml_temp_step, value, True, "float")
+            if key == "durationChange":
+                return _change_subelement(ele_type, key, xml_temp_step, value, True, "int")
+            if key == "measure":
+                if value not in ["real time", "meltcurve"]:
+                    raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
+                return _change_subelement(ele_type, key, xml_temp_step, value, True, "string")
+        ele_type = _get_first_child(self._node, "loop")
+        if ele_type is not None:
+            xml_temp_step = ["goto", "repeat"]
+            if key in xml_temp_step:
+                return _change_subelement(ele_type, key, xml_temp_step, value, False, "posint")
+        ele_type = _get_first_child(self._node, "pause")
+        if ele_type is not None:
+            xml_temp_step = ["temperature"]
+            if key == "temperature":
+                return _change_subelement(ele_type, key, xml_temp_step, value, False, "float")
         raise KeyError
 
     def keys(self):
@@ -3118,10 +3183,24 @@ class Step:
             A list of the key strings.
         """
 
-        return ["nr", "description", "type", "interRunCalibrator", "quantity", "calibratorSample",
-                "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
-                "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
-                "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+        ele_type = _get_first_child(self._node, "temperature")
+        if ele_type is not None:
+            return ["nr", "type", "description", "temperature", "duration", "temperatureChange",
+                    "durationChange", "measure", "ramp"]
+        ele_type = _get_first_child(self._node, "gradient")
+        if ele_type is not None:
+            return ["nr", "type", "description", "hightTemperature", "lowTemperature", "duration",
+                    "temperatureChange", "durationChange", "measure", "ramp"]
+        ele_type = _get_first_child(self._node, "loop")
+        if ele_type is not None:
+            return ["nr", "type", "description", "goto", "repeat"]
+        ele_type = _get_first_child(self._node, "pause")
+        if ele_type is not None:
+            return ["nr", "type", "description", "temperature"]
+        ele_type = _get_first_child(self._node, "lidOpen")
+        if ele_type is not None:
+            return ["nr", "type", "description"]
+        return []
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -3133,9 +3212,23 @@ class Step:
             A list of the key strings.
         """
 
-        return ["nr", "description", "documentation", "xRef", "type", "interRunCalibrator",
-                "quantity", "calibratorSample", "cdnaSynthesisMethod",
-                "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+        ele_type = _get_first_child(self._node, "temperature")
+        if ele_type is not None:
+            return ["temperature", "duration", "temperatureChange", "durationChange", "measure", "ramp"]
+        ele_type = _get_first_child(self._node, "gradient")
+        if ele_type is not None:
+            return ["hightTemperature", "lowTemperature", "duration", "temperatureChange",
+                    "durationChange", "measure", "ramp"]
+        ele_type = _get_first_child(self._node, "loop")
+        if ele_type is not None:
+            return ["goto", "repeat"]
+        ele_type = _get_first_child(self._node, "pause")
+        if ele_type is not None:
+            return ["temperature"]
+        ele_type = _get_first_child(self._node, "lidOpen")
+        if ele_type is not None:
+            return []
+        return []
 
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
@@ -3150,20 +3243,41 @@ class Step:
         data = {}
         _add_first_child_to_dic(self._node, data, False, "nr")
         _add_first_child_to_dic(self._node, data, True, "description")
-        elem = _get_first_child(self._node, "templateDNAQuality")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "method")
-            _add_first_child_to_dic(elem, qdic, False, "result")
-            data["templateDNAQuality"] = qdic
         elem = _get_first_child(self._node, "temperature")
         if elem is not None:
-            data["type"] = "temperature"
-            _add_first_child_to_dic(elem, data, True, "temperature")
-            _add_first_child_to_dic(elem, data, True, "duration")
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "temperature")
+            _add_first_child_to_dic(elem, qdic, False, "duration")
+            _add_first_child_to_dic(elem, qdic, True, "temperatureChange")
+            _add_first_child_to_dic(elem, qdic, True, "durationChange")
+            _add_first_child_to_dic(elem, qdic, True, "measure")
+            _add_first_child_to_dic(elem, qdic, True, "ramp")
+            data["temperature"] = qdic
+        elem = _get_first_child(self._node, "gradient")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "hightTemperature")
+            _add_first_child_to_dic(elem, qdic, False, "lowTemperature")
+            _add_first_child_to_dic(elem, qdic, False, "duration")
+            _add_first_child_to_dic(elem, qdic, True, "temperatureChange")
+            _add_first_child_to_dic(elem, qdic, True, "durationChange")
+            _add_first_child_to_dic(elem, qdic, True, "measure")
+            _add_first_child_to_dic(elem, qdic, True, "ramp")
+            data["gradient"] = qdic
+        elem = _get_first_child(self._node, "loop")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "goto")
+            _add_first_child_to_dic(elem, qdic, False, "repeat")
+            data["loop"] = qdic
+        elem = _get_first_child(self._node, "pause")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "temperature")
+            data["pause"] = qdic
         elem = _get_first_child(self._node, "lidOpen")
         if elem is not None:
-            data["type"] = "lidOpen"
+            data["lidOpen"] = "lidOpen"
         return data
 
 
