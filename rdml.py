@@ -430,6 +430,25 @@ def _move_subelement(base, tag, id, xmlkeys, position):
     base.insert(pos, ele)
 
 
+def _move_subelement_pos(base, tag, oldpos, xmlkeys, position):
+    """Change the value of the element with a given tag.
+
+    Args:
+        base: The base node element. (lxml node)
+        tag: The id to search for. (string)
+        oldpos: The unique id of the new element. (string)
+        xmlkeys: The list of possible keys in the right order for xml (list strings)
+        position: the new position of the element (int)
+
+    Returns:
+        Nothing, the base lxml element is modified.
+    """
+
+    pos = _get_tag_pos(base, tag, xmlkeys, position)
+    ele = _get_first_child_by_pos_or_id(base, tag, None, oldpos)
+    base.insert(pos, ele)
+
+
 def _get_tag_pos(base, tag, xmlkeys, pos):
     """Returns a position were to add a subelement with the given tag inc. pos offset.
 
@@ -2887,24 +2906,13 @@ class Therm_cyc_cons:
             Nothing, changes self.
         """
 
-        if measure is not None and measure not in ["real time", "meltcurve"]:
+        if measure is not None and measure not in ["", "real time", "meltcurve"]:
             raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
-        # The steps in the xml may be not sorted well, so fix it
-        self.cleanup_steps()
-
-        # Make space for the step if required
+        nr = int(nr)
         count = _get_number_of_children(self._node, "step")
-        if int(nr) - 1 < count:
-            exp = _get_all_children(self._node, "step")
-            i = 0
-            for node in exp:
-                if int(nr) - 1 <= i:
-                    elem = _get_first_child(node, "nr")
-                    elem.text = str(i + 2)
-                i += 1
         new_node = ET.Element("step")
         xml_temp_step = ["temperature", "duration", "temperatureChange", "durationChange", "measure", "ramp"]
-        _add_new_subelement(new_node, "step", "nr", nr, False)
+        _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
         subel = ET.SubElement(new_node, "temperature")
         _change_subelement(subel, "temperature", xml_temp_step, temperature, False, "float")
         _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
@@ -2914,9 +2922,8 @@ class Therm_cyc_cons:
         _change_subelement(subel, "ramp", xml_temp_step, ramp, True, "float")
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
-
-        # Sort the step in
-        self.cleanup_steps()
+        # Now move step at final position
+        self.move_step(count + 1, nr)
 
     def cleanup_steps(self):
         """The steps may not be in a order that makes sense. This function fixes it.
@@ -2963,7 +2970,7 @@ class Therm_cyc_cons:
         self.cleanup_steps()
 
         # Change the nr
-        _move_subelement(self._node, "step", oldnr - 1, self.xmlkeys(), newnr - 1)
+        _move_subelement_pos(self._node, "step", oldnr - 1, self.xmlkeys(), newnr - 1)
 
         # Fix the nr
         exp = _get_all_children(self._node, "step")
@@ -2975,7 +2982,7 @@ class Therm_cyc_cons:
             i += 1
         # Todo fix the goto steps
 
-    def get_step(self, bystep=None):
+    def get_step(self, bystep):
         """Returns an sample element by position or id.
 
         Args:
@@ -3143,7 +3150,7 @@ class Step:
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "int")
             if key == "measure":
                 if value not in ["real time", "meltcurve"]:
-                    raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
+                    raise RdmlError('Unknown or unsupported step measure value: "' + value + '".')
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "string")
         ele_type = _get_first_child(self._node, "gradient")
         if ele_type is not None:
@@ -3159,7 +3166,7 @@ class Step:
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "int")
             if key == "measure":
                 if value not in ["real time", "meltcurve"]:
-                    raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
+                    raise RdmlError('Unknown or unsupported step measure value: "' + value + '".')
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "string")
         ele_type = _get_first_child(self._node, "loop")
         if ele_type is not None:
