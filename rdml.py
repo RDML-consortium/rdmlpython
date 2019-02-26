@@ -2925,6 +2925,118 @@ class Therm_cyc_cons:
         # Now move step at final position
         self.move_step(count + 1, nr)
 
+    def new_step_gradient(self, highTemperature, lowTemperature, duration,
+                          temperatureChange=None, durationChange=None,
+                          measure=None, ramp=None, nr=None):
+        """Creates a new step element.
+
+        Args:
+            self: The class self parameter.
+            highTemperature: The high gradient temperature of the step in degrees Celsius (required)
+            lowTemperature: The low gradient temperature of the step in degrees Celsius (required)
+            duration: The duration of this step in seconds (required)
+            temperatureChange: The change of the temperature from one cycle to the next (optional)
+            durationChange: The change of the duration from one cycle to the next (optional)
+            measure: Indicates to make a measurement and store it as meltcurve or real-time data (optional)
+            ramp: Limit temperature change from one step to the next in degrees Celsius per second (optional)
+            nr: Step unique nr (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if measure is not None and measure not in ["", "real time", "meltcurve"]:
+            raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
+        nr = int(nr)
+        count = _get_number_of_children(self._node, "step")
+        new_node = ET.Element("step")
+        xml_temp_step = ["highTemperature", "lowTemperature", "duration", "temperatureChange",
+                         "durationChange", "measure", "ramp"]
+        _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
+        subel = ET.SubElement(new_node, "gradient")
+        _change_subelement(subel, "highTemperature", xml_temp_step, highTemperature, False, "float")
+        _change_subelement(subel, "lowTemperature", xml_temp_step, lowTemperature, False, "float")
+        _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
+        _change_subelement(subel, "temperatureChange", xml_temp_step, temperatureChange, True, "float")
+        _change_subelement(subel, "durationChange", xml_temp_step, durationChange, True, "int")
+        _change_subelement(subel, "measure", xml_temp_step, measure, True, "string")
+        _change_subelement(subel, "ramp", xml_temp_step, ramp, True, "float")
+        place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
+        self._node.insert(place, new_node)
+        # Now move step at final position
+        self.move_step(count + 1, nr)
+
+    def new_step_loop(self, goto, repeat, nr=None):
+        """Creates a new step element.
+
+        Args:
+            self: The class self parameter.
+            goto: The step nr to go back to (required)
+            repeat: The number of times to go back to goto step, one less than cycles (optional)
+            nr: Step unique nr (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        nr = int(nr)
+        count = _get_number_of_children(self._node, "step")
+        new_node = ET.Element("step")
+        xml_temp_step = ["goto", "repeat"]
+        _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
+        subel = ET.SubElement(new_node, "loop")
+        _change_subelement(subel, "goto", xml_temp_step, goto, False, "posint")
+        _change_subelement(subel, "repeat", xml_temp_step, repeat, False, "posint")
+        place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
+        self._node.insert(place, new_node)
+        # Now move step at final position
+        self.move_step(count + 1, nr)
+
+    def new_step_pause(self, temperature, nr=None):
+        """Creates a new step element.
+
+        Args:
+            self: The class self parameter.
+            temperature: The temperature of the step in degrees Celsius (required)
+            nr: Step unique nr (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        nr = int(nr)
+        count = _get_number_of_children(self._node, "step")
+        new_node = ET.Element("step")
+        xml_temp_step = ["temperature"]
+        _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
+        subel = ET.SubElement(new_node, "pause")
+        _change_subelement(subel, "temperature", xml_temp_step, temperature, False, "float")
+        place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
+        self._node.insert(place, new_node)
+        # Now move step at final position
+        self.move_step(count + 1, nr)
+
+    def new_step_lidOpen(self, nr=None):
+        """Creates a new step element.
+
+        Args:
+            self: The class self parameter.
+            nr: Step unique nr (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        nr = int(nr)
+        count = _get_number_of_children(self._node, "step")
+        new_node = ET.Element("step")
+        _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
+        ET.SubElement(new_node, "lidOpen")
+        place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
+        self._node.insert(place, new_node)
+        # Now move step at final position
+        self.move_step(count + 1, nr)
+
     def cleanup_steps(self):
         """The steps may not be in a order that makes sense. This function fixes it.
 
@@ -3008,6 +3120,8 @@ class Therm_cyc_cons:
 
         elem = _get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1)
         self._node.remove(elem)
+        self.cleanup_steps()
+        # Todo fix the goto steps
 
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
@@ -3095,7 +3209,7 @@ class Step:
         if ele_type is not None:
             if key == "type":
                 return "gradient"
-            if key in ["hightTemperature", "lowTemperature", "duration"]:
+            if key in ["highTemperature", "lowTemperature", "duration"]:
                 return _get_first_child_text(ele_type, key)
             if key in ["temperatureChange", "durationChange", "measure", "ramp"]:
                 var = _get_first_child_text(ele_type, key)
@@ -3149,14 +3263,14 @@ class Step:
             if key == "durationChange":
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "int")
             if key == "measure":
-                if value not in ["real time", "meltcurve"]:
+                if value not in ["", "real time", "meltcurve"]:
                     raise RdmlError('Unknown or unsupported step measure value: "' + value + '".')
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "string")
         ele_type = _get_first_child(self._node, "gradient")
         if ele_type is not None:
-            xml_temp_step = ["hightTemperature", "lowTemperature", "duration", "temperatureChange",
+            xml_temp_step = ["highTemperature", "lowTemperature", "duration", "temperatureChange",
                              "durationChange", "measure", "ramp"]
-            if key in ["hightTemperature", "lowTemperature"]:
+            if key in ["highTemperature", "lowTemperature"]:
                 return _change_subelement(ele_type, key, xml_temp_step, value, False, "float")
             if key == "duration":
                 return _change_subelement(ele_type, key, xml_temp_step, value, False, "posint")
@@ -3196,7 +3310,7 @@ class Step:
                     "durationChange", "measure", "ramp"]
         ele_type = _get_first_child(self._node, "gradient")
         if ele_type is not None:
-            return ["nr", "type", "description", "hightTemperature", "lowTemperature", "duration",
+            return ["nr", "type", "description", "highTemperature", "lowTemperature", "duration",
                     "temperatureChange", "durationChange", "measure", "ramp"]
         ele_type = _get_first_child(self._node, "loop")
         if ele_type is not None:
@@ -3224,7 +3338,7 @@ class Step:
             return ["temperature", "duration", "temperatureChange", "durationChange", "measure", "ramp"]
         ele_type = _get_first_child(self._node, "gradient")
         if ele_type is not None:
-            return ["hightTemperature", "lowTemperature", "duration", "temperatureChange",
+            return ["highTemperature", "lowTemperature", "duration", "temperatureChange",
                     "durationChange", "measure", "ramp"]
         ele_type = _get_first_child(self._node, "loop")
         if ele_type is not None:
@@ -3263,7 +3377,7 @@ class Step:
         elem = _get_first_child(self._node, "gradient")
         if elem is not None:
             qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "hightTemperature")
+            _add_first_child_to_dic(elem, qdic, False, "highTemperature")
             _add_first_child_to_dic(elem, qdic, False, "lowTemperature")
             _add_first_child_to_dic(elem, qdic, False, "duration")
             _add_first_child_to_dic(elem, qdic, True, "temperatureChange")
