@@ -1312,6 +1312,83 @@ class Rdml:
         self._node.remove(elem)
         # Todo delete in all use places
 
+    def experiments(self):
+        """Returns a list of all experiment elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all experiment elements.
+        """
+
+        exp = _get_all_children(self._node, "experiment")
+        ret = []
+        for node in exp:
+            ret.append(Experiment(node, self._rdmlVersion))
+        return ret
+
+    def new_experiment(self, id, newposition=None):
+        """Creates a new experiment element.
+
+        Args:
+            self: The class self parameter.
+            id: Experiment unique id (required)
+            newposition: Experiment position in the list of experiments (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        new_node = _create_new_element(self._node, "experiment", id)
+        place = _get_tag_pos(self._node, "experiment", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def move_experiment(self, id, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            id: Experiments unique id
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "experiment", id, self.xmlkeys(), newposition)
+
+    def get_experiment(self, byid=None, byposition=None):
+        """Returns an experiment element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Experiment(_get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition),
+                          self._rdmlVersion)
+
+    def delete_experiment(self, byid=None, byposition=None):
+        """Deletes an experiment element.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition)
+        self._node.remove(elem)
+        # Todo delete in all use places
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
@@ -1357,6 +1434,11 @@ class Rdml:
         for exp in allTherm_cyc_cons:
             therm_cyc_cons.append(exp.tojson())
 
+        allExperiments = self.experiments()
+        experiments = []
+        for exp in allExperiments:
+            experiments.append(exp.tojson())
+
         data = {
             "rdml": {
                 "version": self["version"],
@@ -1369,7 +1451,7 @@ class Rdml:
                 "samples": samples,
                 "targets": targets,
                 "therm_cyc_cons": therm_cyc_cons,
-                "experiments": []
+                "experiments": experiments
             }
         }
         return data
@@ -3399,6 +3481,169 @@ class Step:
         elem = _get_first_child(self._node, "lidOpen")
         if elem is not None:
             data["lidOpen"] = "lidOpen"
+        return data
+
+
+class Experiment:
+    """RDML-Python library
+
+    The target element used to read and edit one experiment.
+
+    Attributes:
+        _node: The target node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
+
+    def __init__(self, node, version):
+        """Inits an experiment instance.
+
+        Args:
+            self: The class self parameter.
+            node: The experiment node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the experiment subelement
+
+        Returns:
+            A string of the data or None.
+        """
+
+        if key == "id":
+            return self._node.get('id')
+        if key == "description":
+            var = _get_first_child_text(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the target subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        if key == "id":
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key == "description":
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["id", "description"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["description", "documentation", "run"]
+
+    def documentation_ids(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return _get_all_children_id(self._node, "documentation")
+
+    def update_documentation_ids(self, ids):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            ids: A dictionary with id and true/false pairs
+
+        Returns:
+            True if a change was made, else false. Function may raise RdmlError if required.
+        """
+
+        old = self.documentation_ids()
+        good_ids = _value_to_booldic(ids)
+        mod = False
+
+        for id, inc in good_ids.items():
+            if inc is True:
+                if id not in old:
+                    new_node = _create_new_element(self._node, "documentation", id)
+                    place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), 999999999)
+                    self._node.insert(place, new_node)
+                    mod = True
+            else:
+                if id in old:
+                    elem = _get_first_child_by_pos_or_id(self._node, "documentation", id, None)
+                    self._node.remove(elem)
+                    mod = True
+        return mod
+
+    def move_documentation(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "documentation", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = {
+            "id": self._node.get('id'),
+        }
+        _add_first_child_to_dic(self._node, data, True, "description")
+        data["documentations"] = self.documentation_ids()
+        data["runs"] = []
         return data
 
 
