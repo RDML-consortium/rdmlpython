@@ -3628,6 +3628,375 @@ class Experiment:
         ele = _get_first_child_by_pos_or_id(self._node, "documentation", None, oldposition)
         self._node.insert(pos, ele)
 
+    def runs(self):
+        """Returns a list of all run elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of all run elements.
+        """
+
+        exp = _get_all_children(self._node, "run")
+        ret = []
+        for node in exp:
+            ret.append(Run(node, self._rdmlVersion))
+        return ret
+
+    def new_run(self, id, newposition=None):
+        """Creates a new run element.
+
+        Args:
+            self: The class self parameter.
+            id: Run unique id (required)
+            newposition: Run position in the list of experiments (optional)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        new_node = _create_new_element(self._node, "run", id)
+        place = _get_tag_pos(self._node, "run", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def move_run(self, id, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            id: Run unique id
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        _move_subelement(self._node, "run", id, self.xmlkeys(), newposition)
+
+    def get_run(self, byid=None, byposition=None):
+        """Returns an run element by position or id.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            The found element or None.
+        """
+
+        return Run(_get_first_child_by_pos_or_id(self._node, "run", byid, byposition),
+                   self._rdmlVersion)
+
+    def delete_run(self, byid=None, byposition=None):
+        """Deletes an run element.
+
+        Args:
+            self: The class self parameter.
+            byid: Select the element by the element id.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "run", byid, byposition)
+        self._node.remove(elem)
+        # Todo delete in all use places
+
+    def tojson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        allRuns = self.runs()
+        runs = []
+        for exp in allRuns:
+            runs.append(exp.tojson())
+        data = {
+            "id": self._node.get('id'),
+        }
+        _add_first_child_to_dic(self._node, data, True, "description")
+        data["documentations"] = self.documentation_ids()
+        data["runs"] = runs
+        return data
+
+
+class Run:
+    """RDML-Python library
+
+    The run element used to read and edit one run.
+
+    Attributes:
+        _node: The run node of the RDML XML object.
+        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
+    """
+
+    def __init__(self, node, version):
+        """Inits an run instance.
+
+        Args:
+            self: The class self parameter.
+            node: The sample node.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        self._node = node
+        self._rdmlVersion = version
+
+    def __getitem__(self, key):
+        """Returns the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the run subelement
+
+        Returns:
+            A string of the data or None.
+        """
+
+        if key == "id":
+            return self._node.get('id')
+        if key in ["description", "instrument", "backgroundDeterminationMethod", "cqDetectionMethod", "runDate"]:
+            var = _get_first_child_text(self._node, key)
+            if var == "":
+                return None
+            else:
+                return var
+        if key == "thermalCyclingConditions":
+            forId = _get_first_child(self._node, "thermalCyclingConditions")
+            if forId is not None:
+                return forId.attrib['id']
+            else:
+                return None
+        if key in ["dataCollectionSoftware_name", "dataCollectionSoftware_version"]:
+            ele = _get_first_child(self._node, "dataCollectionSoftware")
+            if ele is None:
+                return None
+            if key == "dataCollectionSoftware_name":
+                return _get_first_child_text(ele, "name")
+            if key == "dataCollectionSoftware_version":
+                return _get_first_child_text(ele, "version")
+            raise RdmlError('Run dataCollectionSoftware programming read error.')
+        if key in ["pcrFormat_rows", "pcrFormat_columns", "pcrFormat_rowLabel", "pcrFormat_columnLabel"]:
+            ele = _get_first_child(self._node, "pcrFormat")
+            if ele is None:
+                return None
+            if key == "pcrFormat_rows":
+                return _get_first_child_text(ele, "rows")
+            if key == "pcrFormat_columns":
+                return _get_first_child_text(ele, "columns")
+            if key == "pcrFormat_rowLabel":
+                return _get_first_child_text(ele, "rowLabel")
+            if key == "pcrFormat_columnLabel":
+                return _get_first_child_text(ele, "columnLabel")
+            raise RdmlError('Run pcrFormat programming read error.')
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            key: The key of the run subelement
+            value: The new value for the key
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        if key == "cqDetectionMethod":
+            if value not in ["", "automated threshold and baseline settings", "manual threshold and baseline settings",
+                             "second derivative maximum", "other"]:
+                raise RdmlError('Unknown or unsupported run cqDetectionMethod value "' + value + '".')
+        if key in ["pcrFormat_rowLabel", "pcrFormat_columnLabel"]:
+            if value not in ["ABC", "123", "A1a1"]:
+                raise RdmlError('Unknown or unsupported run ' + key + ' value "' + value + '".')
+
+        if key == "id":
+            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+        if key in ["description", "instrument", "backgroundDeterminationMethod", "cqDetectionMethod", "runDate"]:
+            return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        if key == "thermalCyclingConditions":
+            forId = _get_or_create_subelement(self._node, "thermalCyclingConditions", self.xmlkeys())
+            if value is not None and value != "":
+                # Todo check ID
+                forId.attrib['id'] = value
+            else:
+                self._node.remove(forId)
+            return
+        if key in ["dataCollectionSoftware_name", "dataCollectionSoftware_version"]:
+            ele = _get_or_create_subelement(self._node, "dataCollectionSoftware", self.xmlkeys())
+            if key == "dataCollectionSoftware_name":
+                _change_subelement(ele, "name", ["name", "version"], value, True, "string")
+            if key == "dataCollectionSoftware_version":
+                _change_subelement(ele, "version", ["name", "version"], value, True, "string")
+            _remove_irrelevant_subelement(self._node, "dataCollectionSoftware")
+            return
+        if key in ["pcrFormat_rows", "pcrFormat_columns", "pcrFormat_rowLabel", "pcrFormat_columnLabel"]:
+            ele = _get_or_create_subelement(self._node, "pcrFormat", self.xmlkeys())
+            if key == "pcrFormat_rows":
+                _change_subelement(ele, "rows", ["rows", "columns", "rowLabel", "columnLabel"], value, True, "string")
+            if key == "pcrFormat_columns":
+                _change_subelement(ele, "columns", ["rows", "columns", "rowLabel", "columnLabel"], value, True, "string")
+            if key == "pcrFormat_rowLabel":
+                _change_subelement(ele, "rowLabel", ["rows", "columns", "rowLabel", "columnLabel"], value, True, "string")
+            if key == "pcrFormat_columnLabel":
+                _change_subelement(ele, "columnLabel", ["rows", "columns", "rowLabel", "columnLabel"], value, True, "string")
+            _remove_irrelevant_subelement(self._node, "pcrFormat")
+            return
+        raise KeyError
+
+    def keys(self):
+        """Returns a list of the keys.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["id", "description", "instrument", "dataCollectionSoftware_name", "dataCollectionSoftware_version",
+                "backgroundDeterminationMethod", "cqDetectionMethod", "thermalCyclingConditions", "pcrFormat_rows",
+                "pcrFormat_columns", "pcrFormat_rowLabel", "pcrFormat_columnLabel", "runDate", "react"]
+
+    def xmlkeys(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return ["description", "documentation", "experimenter", "instrument", "dataCollectionSoftware",
+                "backgroundDeterminationMethod", "cqDetectionMethod", "thermalCyclingConditions", "pcrFormat",
+                "runDate", "react"]
+
+    def documentation_ids(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return _get_all_children_id(self._node, "documentation")
+
+    def update_documentation_ids(self, ids):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            ids: A dictionary with id and true/false pairs
+
+        Returns:
+            True if a change was made, else false. Function may raise RdmlError if required.
+        """
+
+        old = self.documentation_ids()
+        good_ids = _value_to_booldic(ids)
+        mod = False
+
+        for id, inc in good_ids.items():
+            if inc is True:
+                if id not in old:
+                    new_node = _create_new_element(self._node, "documentation", id)
+                    place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), 999999999)
+                    self._node.insert(place, new_node)
+                    mod = True
+            else:
+                if id in old:
+                    elem = _get_first_child_by_pos_or_id(self._node, "documentation", id, None)
+                    self._node.remove(elem)
+                    mod = True
+        return mod
+
+    def move_documentation(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "documentation", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def experimenter_ids(self):
+        """Returns a list of the keys in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of the key strings.
+        """
+
+        return _get_all_children_id(self._node, "experimenter")
+
+    def update_experimenter_ids(self, ids):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            ids: A dictionary with id and true/false pairs
+
+        Returns:
+            True if a change was made, else false. Function may raise RdmlError if required.
+        """
+
+        old = self.experimenter_ids()
+        good_ids = _value_to_booldic(ids)
+        mod = False
+
+        for id, inc in good_ids.items():
+            if inc is True:
+                if id not in old:
+                    new_node = _create_new_element(self._node, "experimenter", id)
+                    place = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), 999999999)
+                    self._node.insert(place, new_node)
+                    mod = True
+            else:
+                if id in old:
+                    elem = _get_first_child_by_pos_or_id(self._node, "experimenter", id, None)
+                    self._node.remove(elem)
+                    mod = True
+        return mod
+
+    def move_experimenter(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "experimenter", None, oldposition)
+        self._node.insert(pos, ele)
+
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
 
@@ -3643,7 +4012,38 @@ class Experiment:
         }
         _add_first_child_to_dic(self._node, data, True, "description")
         data["documentations"] = self.documentation_ids()
-        data["runs"] = []
+        data["experimenters"] = self.experimenter_ids()
+        _add_first_child_to_dic(self._node, data, True, "instrument")
+        elem = _get_first_child(self._node, "quantity")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "value")
+            _add_first_child_to_dic(elem, qdic, False, "unit")
+            data["quantity"] = qdic
+        _add_first_child_to_dic(self._node, data, True, "calibratorSample")
+        elem = _get_first_child(self._node, "dataCollectionSoftware")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, True, "name")
+            _add_first_child_to_dic(elem, qdic, True, "version")
+            if len(qdic.keys()) != 0:
+                data["dataCollectionSoftware"] = qdic
+        _add_first_child_to_dic(self._node, data, True, "backgroundDeterminationMethod")
+        _add_first_child_to_dic(self._node, data, True, "cqDetectionMethod")
+        forId = _get_first_child(self._node, "thermalCyclingConditions")
+        if forId is not None:
+            if forId.attrib['id'] != "":
+                data["thermalCyclingConditions"] = forId.attrib['id']
+        elem = _get_first_child(self._node, "pcrFormat")
+        if elem is not None:
+            qdic = {}
+            _add_first_child_to_dic(elem, qdic, False, "rows")
+            _add_first_child_to_dic(elem, qdic, False, "columns")
+            _add_first_child_to_dic(elem, qdic, False, "rowLabel")
+            _add_first_child_to_dic(elem, qdic, False, "columnLabel")
+            data["pcrFormat"] = qdic
+        _add_first_child_to_dic(self._node, data, True, "runDate")
+        data["react"] = _get_number_of_children(self._node, "react")
         return data
 
 
