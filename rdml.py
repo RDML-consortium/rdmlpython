@@ -4014,13 +4014,6 @@ class Run:
         data["documentations"] = self.documentation_ids()
         data["experimenters"] = self.experimenter_ids()
         _add_first_child_to_dic(self._node, data, True, "instrument")
-        elem = _get_first_child(self._node, "quantity")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "value")
-            _add_first_child_to_dic(elem, qdic, False, "unit")
-            data["quantity"] = qdic
-        _add_first_child_to_dic(self._node, data, True, "calibratorSample")
         elem = _get_first_child(self._node, "dataCollectionSoftware")
         if elem is not None:
             qdic = {}
