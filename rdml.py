@@ -500,7 +500,6 @@ class Rdml:
     Attributes:
         _rdmlData: The RDML XML object from lxml.
         _node: The root node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
     def __init__(self, filename=None):
@@ -516,7 +515,6 @@ class Rdml:
         
         self._rdmlData = None
         self._node = None
-        self._rdmlVersion = '0.0'
         if filename:
             self.load(filename)
         else:
@@ -650,9 +648,9 @@ class Rdml:
         self._node = self._rdmlData.getroot()
         if self._node.tag.replace("{http://www.rdml.org}", "") != 'rdml':
             raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
-        self._rdmlVersion = self._node.get('version')
+        rdml_version = self._node.get('version')
         # Remainder: Update version in new() and validate()
-        if not self._rdmlVersion in ['1.0','1.1','1.2']:
+        if not rdml_version in ['1.0','1.1','1.2']:
             raise RdmlError('Unknown or unsupported RDML file version.')
 
     def validate(self, filename=None):
@@ -743,10 +741,175 @@ class Rdml:
             self: The class self parameter.
 
         Returns:
+            A list of strings with the modifications made.
+        """
+
+        return self._node.get('version')
+
+    def migrate_version_1_0_to_1_1(self):
+        """Migrates the rdml version from v1.0 to v1.1.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
             A string of the version like '1.1'.
         """
 
-        return self._rdmlVersion
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.0':
+            raise RdmlError('RDML version for migration has to be v1.0.')
+
+        exp = _get_all_children(self._node, "thirdPartyExtensions")
+        if len(exp) > 0:
+            ret.append("Migration to v1.1 removed \"thirdPartyExtensions\" elements.")
+        for node in exp:
+            self._node.remove(node)
+
+        hint = ""
+        exp1 = _get_all_children(self._node, "experiment")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "run")
+            for node2 in exp2:
+                exp3 = _get_all_children(node2, "react")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "data")
+                    for node4 in exp4:
+                        exp5 = _get_all_children(node4, "quantity")
+                        for node5 in exp5:
+                            hint = "Migration to v1.1 removed react data \"quantity\" elements."
+                            node4.remove(node5)
+        if hint != "":
+            ret.append(hint)
+
+        xml_keys = ["description", "documentation", "xRef", "type", "interRunCalibrator",
+                    "quantity", "calibratorSample", "cdnaSynthesisMethod",
+                    "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+        exp1 = _get_all_children(self._node, "sample")
+        for node1 in exp1:
+            hint = ""
+            exp2 = _get_all_children(node1, "templateRNAQuantity")
+            if len(exp2) > 0:
+                templateRNAQuantity = _get_first_child_text(node1, "templateRNAQuantity")
+                node1.remove(exp2[0])
+                if templateRNAQuantity != "":
+                    hint = "Migration to v1.1 modified sample \"templateRNAQuantity\" element without loss."
+                    ele = _get_or_create_subelement(node1, "templateRNAQuantity", xml_keys)
+                    _change_subelement(ele, "value", ["value", "unit"], templateRNAQuantity, True, "float")
+                    _change_subelement(ele, "unit", ["value", "unit"], "ng", True, "float")
+            if hint != "":
+                ret.append(hint)
+            hint = ""
+            exp2 = _get_all_children(node1, "templateRNAQuantity")
+            if len(exp2) > 0:
+                templateDNAQuantity = _get_first_child_text(node1, "templateDNAQuantity")
+                node1.remove(exp2[0])
+                if templateDNAQuantity != "":
+                    hint = "Migration to v1.1 modified sample \"templateDNAQuantity\" element without loss."
+                    ele = _get_or_create_subelement(node1, "templateDNAQuantity", xml_keys)
+                    _change_subelement(ele, "value", ["value", "unit"], templateDNAQuantity, True, "float")
+                    _change_subelement(ele, "unit", ["value", "unit"], "ng", True, "float")
+            if hint != "":
+                ret.append(hint)
+
+        xml_keys = ["description", "documentation", "xRef", "type", "amplificationEfficiencyMethod",
+                    "amplificationEfficiency", "detectionLimit", "dyeId", "sequences", "commercialAssay"]
+        exp1 = _get_all_children(self._node, "target")
+        all_dyes = {}
+        hint = ""
+        for node1 in exp1:
+            hint = ""
+            dye_ele = _get_first_child_text(node1, "dyeId")
+            node1.remove(_get_first_child(node1, "dyeId"))
+            if dye_ele == "":
+                dye_ele = "conversion_dye_missing"
+                hint = "Migration to v1.1 created target nonsense \"dyeId\"."
+            forId = _get_or_create_subelement(node1, "dyeId", xml_keys)
+            forId.attrib['id'] = dye_ele
+            all_dyes[dye_ele] = True
+        if hint != "":
+            ret.append(hint)
+        for dkey in all_dyes.keys():
+            if _check_unique_id(self._node, "dye", dkey):
+                new_node = ET.Element("dye", id=dkey)
+                place = _get_tag_pos(self._node, "dye", self.xmlkeys(), 999999)
+                self._node.insert(place, new_node)
+
+        xml_keys = ["description", "documentation", "experimenter", "instrument", "dataCollectionSoftware",
+                    "backgroundDeterminationMethod", "cqDetectionMethod", "thermalCyclingConditions", "pcrFormat",
+                    "runDate", "react"]
+        exp1 = _get_all_children(self._node, "experiment")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "run")
+            for node2 in exp2:
+                old_format = _get_first_child_text(node2, "pcrFormat")
+                exp3 = _get_all_children(node2, "pcrFormat")
+                for node3 in exp3:
+                    node2.remove(node3)
+                rows = "1"
+                columns = "1"
+                rowLabel = "ABC"
+                columnLabel = "123"
+                if old_format == "single-well":
+                    rowLabel = "123"
+                if old_format == "48-well plate; A1-F8":
+                    rows = "6"
+                    columns = "8"
+                if old_format == "96-well plate; A1-H12":
+                    rows = "8"
+                    columns = "12"
+                if old_format == "384-well plate; A1-P24":
+                    rows = "16"
+                    columns = "24"
+                if old_format == "3072-well plate; A1a1-D12h8":
+                    rows = "32"
+                    columns = "96"
+                    rowLabel = "A1a1"
+                    columnLabel = "A1a1"
+                if old_format == "32-well rotor; 1-32":
+                    rows = "32"
+                    rowLabel = "123"
+                if old_format == "72-well rotor; 1-72":
+                    rows = "72"
+                    rowLabel = "123"
+                if old_format == "100-well rotor; 1-100":
+                    rows = "100"
+                    rowLabel = "123"
+                if old_format == "free format":
+                    rows = "-1"
+                    columns = "1"
+                    rowLabel = "123"
+                ele3 = _get_or_create_subelement(node2, "pcrFormat", xml_keys)
+                _change_subelement(ele3, "rows", ["rows", "columns", "rowLabel", "columnLabel"], rows, True, "string")
+                _change_subelement(ele3, "columns", ["rows", "columns", "rowLabel", "columnLabel"], columns, True, "string")
+                _change_subelement(ele3, "rowLabel", ["rows", "columns", "rowLabel", "columnLabel"], rowLabel, True, "string")
+                _change_subelement(ele3, "columnLabel", ["rows", "columns", "rowLabel", "columnLabel"], columnLabel, True, "string")
+                if old_format == "48-well plate A1-F8" or \
+                   old_format == "96-well plate; A1-H12" or \
+                   old_format == "384-well plate; A1-P24":
+                    exp3 = _get_all_children(node2, "react")
+                    for node3 in exp3:
+                        old_id = node3.get('id')
+                        old_letter = ord(re.sub("\d", "", old_id).upper()) - ord("A")
+                        old_nr = int(re.sub("\D", "", old_id))
+                        newId = old_nr + old_letter * int(columns)
+                        node3.attrib['id'] = str(newId)
+                if old_format == "3072-well plate; A1a1-D12h8":
+                    exp3 = _get_all_children(node2, "react")
+                    for node3 in exp3:
+                        old_id = node3.get('id')
+                        old_left = re.sub("\D\d+$", "", old_id)
+                        old_left_letter = ord(re.sub("\d", "", old_left).upper()) - ord("A")
+                        old_left_nr = int(re.sub("\D", "", old_left)) - 1
+                        old_right = re.sub("^\D\d+", "", old_id)
+                        old_right_letter = ord(re.sub("\d", "", old_right).upper()) - ord("A")
+                        old_right_nr = int(re.sub("\D", "", old_right))
+                        newId = old_left_nr * 8 + old_right_nr + old_left_letter * 768 + old_right_letter * 96
+                        node3.attrib['id'] = str(newId)
+        self._node.attrib['version'] = "1.1"
+        self.save("migTest.rdml")
+        return ret
 
     def rdmlids(self):
         """Returns a list of all rdml id elements.
@@ -761,7 +924,7 @@ class Rdml:
         exp = _get_all_children(self._node, "id")
         ret = []
         for node in exp:
-            ret.append(Rdmlid(node, self._rdmlVersion))
+            ret.append(Rdmlid(node))
         return ret
 
     def new_rdmlid(self, publisher, serialNumber, MD5Hash=None, newposition=None):
@@ -811,8 +974,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Rdmlid(_get_first_child_by_pos_or_id(self._node, "id", None, byposition),
-                      self._rdmlVersion)
+        return Rdmlid(_get_first_child_by_pos_or_id(self._node, "id", None, byposition))
 
     def delete_rdmlid(self, byposition=None):
         """Deletes an experimenter element.
@@ -841,7 +1003,7 @@ class Rdml:
         exp = _get_all_children(self._node, "experimenter")
         ret = []
         for node in exp:
-            ret.append(Experimenter(node, self._rdmlVersion))
+            ret.append(Experimenter(node))
         return ret
 
     def new_experimenter(self, id, firstName, lastName, email=None, labName=None, labAddress=None, newposition=None):
@@ -895,8 +1057,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Experimenter(_get_first_child_by_pos_or_id(self._node, "experimenter", byid, byposition),
-                            self._rdmlVersion)
+        return Experimenter(_get_first_child_by_pos_or_id(self._node, "experimenter", byid, byposition))
 
     def delete_experimenter(self, byid=None, byposition=None):
         """Deletes an experimenter element.
@@ -927,7 +1088,7 @@ class Rdml:
         exp = _get_all_children(self._node, "documentation")
         ret = []
         for node in exp:
-            ret.append(Documentation(node, self._rdmlVersion))
+            ret.append(Documentation(node))
         return ret
 
     def new_documentation(self, id, text=None, newposition=None):
@@ -973,8 +1134,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Documentation(_get_first_child_by_pos_or_id(self._node, "documentation", byid, byposition),
-                            self._rdmlVersion)
+        return Documentation(_get_first_child_by_pos_or_id(self._node, "documentation", byid, byposition))
 
     def delete_documentation(self, byid=None, byposition=None):
         """Deletes an documentation element.
@@ -1005,7 +1165,7 @@ class Rdml:
         exp = _get_all_children(self._node, "dye")
         ret = []
         for node in exp:
-            ret.append(Dye(node, self._rdmlVersion))
+            ret.append(Dye(node))
         return ret
 
     def new_dye(self, id, description=None, newposition=None):
@@ -1051,8 +1211,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Dye(_get_first_child_by_pos_or_id(self._node, "dye", byid, byposition),
-                   self._rdmlVersion)
+        return Dye(_get_first_child_by_pos_or_id(self._node, "dye", byid, byposition))
 
     def delete_dye(self, byid=None, byposition=None):
         """Deletes an dye element.
@@ -1083,7 +1242,7 @@ class Rdml:
         exp = _get_all_children(self._node, "sample")
         ret = []
         for node in exp:
-            ret.append(Sample(node, self._rdmlVersion))
+            ret.append(Sample(node))
         return ret
 
     def new_sample(self, id, type, newposition=None):
@@ -1132,8 +1291,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Sample(_get_first_child_by_pos_or_id(self._node, "sample", byid, byposition),
-                      self._rdmlVersion)
+        return Sample(_get_first_child_by_pos_or_id(self._node, "sample", byid, byposition))
 
     def delete_sample(self, byid=None, byposition=None):
         """Deletes an sample element.
@@ -1164,7 +1322,7 @@ class Rdml:
         exp = _get_all_children(self._node, "target")
         ret = []
         for node in exp:
-            ret.append(Target(node, self._rdmlVersion))
+            ret.append(Target(node))
         return ret
 
     def new_target(self, id, type, newposition=None):
@@ -1213,8 +1371,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Target(_get_first_child_by_pos_or_id(self._node, "target", byid, byposition),
-                      self._rdmlVersion)
+        return Target(_get_first_child_by_pos_or_id(self._node, "target", byid, byposition))
 
     def delete_target(self, byid=None, byposition=None):
         """Deletes an target element.
@@ -1245,7 +1402,7 @@ class Rdml:
         exp = _get_all_children(self._node, "thermalCyclingConditions")
         ret = []
         for node in exp:
-            ret.append(Therm_cyc_cons(node, self._rdmlVersion))
+            ret.append(Therm_cyc_cons(node))
         return ret
 
     def new_therm_cyc_cons(self, id, newposition=None):
@@ -1293,8 +1450,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Therm_cyc_cons(_get_first_child_by_pos_or_id(self._node, "thermalCyclingConditions", byid, byposition),
-                              self._rdmlVersion)
+        return Therm_cyc_cons(_get_first_child_by_pos_or_id(self._node, "thermalCyclingConditions", byid, byposition))
 
     def delete_therm_cyc_cons(self, byid=None, byposition=None):
         """Deletes an thermalCyclingConditions element.
@@ -1325,7 +1481,7 @@ class Rdml:
         exp = _get_all_children(self._node, "experiment")
         ret = []
         for node in exp:
-            ret.append(Experiment(node, self._rdmlVersion))
+            ret.append(Experiment(node))
         return ret
 
     def new_experiment(self, id, newposition=None):
@@ -1370,8 +1526,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Experiment(_get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition),
-                          self._rdmlVersion)
+        return Experiment(_get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition))
 
     def delete_experiment(self, byid=None, byposition=None):
         """Deletes an experiment element.
@@ -1464,10 +1619,9 @@ class Rdmlid:
 
     Attributes:
         _node: The rdml id node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an rdml id instance.
 
         Args:
@@ -1479,7 +1633,6 @@ class Rdmlid:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -1568,10 +1721,9 @@ class Experimenter:
 
     Attributes:
         _node: The experimenter node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an experimenter instance.
 
         Args:
@@ -1583,7 +1735,6 @@ class Experimenter:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -1677,10 +1828,9 @@ class Documentation:
 
     Attributes:
         _node: The documentation node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an documentation instance.
 
         Args:
@@ -1692,7 +1842,6 @@ class Documentation:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -1780,10 +1929,9 @@ class Dye:
 
     Attributes:
         _node: The dye node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an dye instance.
 
         Args:
@@ -1795,7 +1943,6 @@ class Dye:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -1883,10 +2030,9 @@ class Sample:
 
     Attributes:
         _node: The sample node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an sample instance.
 
         Args:
@@ -1898,7 +2044,6 @@ class Sample:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -2290,10 +2435,9 @@ class Target:
 
     Attributes:
         _node: The target node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an target instance.
 
         Args:
@@ -2305,7 +2449,6 @@ class Target:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -2755,10 +2898,9 @@ class Therm_cyc_cons:
 
     Attributes:
         _node: The thermalCyclingConditions node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an thermalCyclingConditions instance.
 
         Args:
@@ -2770,7 +2912,6 @@ class Therm_cyc_cons:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -2966,7 +3107,7 @@ class Therm_cyc_cons:
         srt_exp = sorted(exp, key=_get_step_sort_nr)
         ret = []
         for node in srt_exp:
-            ret.append(Step(node, self._rdmlVersion))
+            ret.append(Step(node))
         return ret
 
     def new_step_temperature(self, temperature, duration,
@@ -3187,7 +3328,7 @@ class Therm_cyc_cons:
             The found element or None.
         """
 
-        return Step(_get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1), self._rdmlVersion)
+        return Step(_get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1))
 
     def delete_step(self, bystep=None):
         """Deletes an step element.
@@ -3238,10 +3379,9 @@ class Step:
 
     Attributes:
         _node: The sample node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an sample instance.
 
         Args:
@@ -3253,7 +3393,6 @@ class Step:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -3491,10 +3630,9 @@ class Experiment:
 
     Attributes:
         _node: The target node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an experiment instance.
 
         Args:
@@ -3506,7 +3644,6 @@ class Experiment:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -3641,7 +3778,7 @@ class Experiment:
         exp = _get_all_children(self._node, "run")
         ret = []
         for node in exp:
-            ret.append(Run(node, self._rdmlVersion))
+            ret.append(Run(node))
         return ret
 
     def new_run(self, id, newposition=None):
@@ -3686,8 +3823,7 @@ class Experiment:
             The found element or None.
         """
 
-        return Run(_get_first_child_by_pos_or_id(self._node, "run", byid, byposition),
-                   self._rdmlVersion)
+        return Run(_get_first_child_by_pos_or_id(self._node, "run", byid, byposition))
 
     def delete_run(self, byid=None, byposition=None):
         """Deletes an run element.
@@ -3735,10 +3871,9 @@ class Run:
 
     Attributes:
         _node: The run node of the RDML XML object.
-        _rdmlVersion: A string like '1.2' with the version of the rdmlData object.
     """
 
-    def __init__(self, node, version):
+    def __init__(self, node):
         """Inits an run instance.
 
         Args:
@@ -3750,7 +3885,6 @@ class Run:
         """
 
         self._node = node
-        self._rdmlVersion = version
 
     def __getitem__(self, key):
         """Returns the value for the key.
