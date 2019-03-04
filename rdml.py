@@ -741,7 +741,7 @@ class Rdml:
             self: The class self parameter.
 
         Returns:
-            A list of strings with the modifications made.
+            A string of the version like '1.1'.
         """
 
         return self._node.get('version')
@@ -753,7 +753,7 @@ class Rdml:
             self: The class self parameter.
 
         Returns:
-            A string of the version like '1.1'.
+            A list of strings with the modifications made.
         """
 
         ret = []
@@ -763,7 +763,7 @@ class Rdml:
 
         exp = _get_all_children(self._node, "thirdPartyExtensions")
         if len(exp) > 0:
-            ret.append("Migration to v1.1 removed \"thirdPartyExtensions\" elements.")
+            ret.append("Migration to v1.1 deleted \"thirdPartyExtensions\" elements.")
         for node in exp:
             self._node.remove(node)
 
@@ -778,7 +778,7 @@ class Rdml:
                     for node4 in exp4:
                         exp5 = _get_all_children(node4, "quantity")
                         for node5 in exp5:
-                            hint = "Migration to v1.1 removed react data \"quantity\" elements."
+                            hint = "Migration to v1.1 deleted react data \"quantity\" elements."
                             node4.remove(node5)
         if hint != "":
             ret.append(hint)
@@ -908,7 +908,115 @@ class Rdml:
                         newId = old_left_nr * 8 + old_right_nr + old_left_letter * 768 + old_right_letter * 96
                         node3.attrib['id'] = str(newId)
         self._node.attrib['version'] = "1.1"
-        self.save("migTest.rdml")
+        return ret
+
+    def migrate_version_1_1_to_1_2(self):
+        """Migrates the rdml version from v1.1 to v1.2.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of strings with the modifications made.
+        """
+
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.1':
+            raise RdmlError('RDML version for migration has to be v1.1.')
+
+        exp1 = _get_all_children(self._node, "sample")
+        for node1 in exp1:
+            hint = ""
+            exp2 = _get_all_children(node1, "templateRNAQuality")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.2 deleted sample \"templateRNAQuality\" element."
+            if hint != "":
+                ret.append(hint)
+            hint = ""
+            exp2 = _get_all_children(node1, "templateRNAQuantity")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.2 deleted sample \"templateRNAQuantity\" element."
+            if hint != "":
+                ret.append(hint)
+            hint = ""
+            exp2 = _get_all_children(node1, "templateDNAQuality")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.2 deleted sample \"templateDNAQuality\" element."
+            if hint != "":
+                ret.append(hint)
+            hint = ""
+            exp2 = _get_all_children(node1, "templateDNAQuantity")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.2 deleted sample \"templateDNAQuantity\" element."
+            if hint != "":
+                ret.append(hint)
+        self._node.attrib['version'] = "1.2"
+        return ret
+
+    def migrate_version_1_2_to_1_1(self):
+        """Migrates the rdml version from v1.2 to v1.1.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of strings with the modifications made.
+        """
+
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.2':
+            raise RdmlError('RDML version for migration has to be v1.2.')
+
+        exp1 = _get_all_children(self._node, "sample")
+        for node1 in exp1:
+            hint = ""
+            exp2 = _get_all_children(node1, "annotation")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.1 deleted sample \"annotation\" element."
+            if hint != "":
+                ret.append(hint)
+            hint = ""
+            exp2 = _get_all_children(node1, "templateQuantity")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.1 deleted sample \"templateQuantity\" element."
+            if hint != "":
+                ret.append(hint)
+
+        exp1 = _get_all_children(self._node, "target")
+        for node1 in exp1:
+            hint = ""
+            exp2 = _get_all_children(node1, "amplificationEfficiencySE")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.1 deleted target \"amplificationEfficiencySE\" element."
+            if hint != "":
+                ret.append(hint)
+
+        hint = ""
+        exp1 = _get_all_children(self._node, "experiment")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "run")
+            for node2 in exp2:
+                exp3 = _get_all_children(node2, "react")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "data")
+                    for node4 in exp4:
+                        exp5 = _get_all_children(node4, "bgFluorSlp")
+                        for node5 in exp5:
+                            hint = "Migration to v1.1 deleted react data \"bgFluorSlp\" elements."
+                            node4.remove(node5)
+        if hint != "":
+            ret.append(hint)
+
+        self._node.attrib['version'] = "1.1"
         return ret
 
     def rdmlids(self):
@@ -2068,24 +2176,6 @@ class Sample:
                 return var
         if key in ["interRunCalibrator", "calibratorSample"]:
             return _get_first_child_bool(self._node, key, triple=True)
-        if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
-            ele = _get_first_child(self._node, key)
-            vdic = {}
-            vdic["value"] = _get_first_child_text(ele, "value")
-            vdic["unit"] = _get_first_child_text(ele, "unit")
-            if len(vdic.keys()) != 0:
-                return vdic
-            else:
-                return None
-        if key in ["templateRNAQuality", "templateDNAQuality"]:
-            ele = _get_first_child(self._node, key)
-            vdic = {}
-            vdic["method"] = _get_first_child_text(ele, "method")
-            vdic["result"] = _get_first_child_text(ele, "result")
-            if len(vdic.keys()) != 0:
-                return vdic
-            else:
-                return None
         if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                    "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
             ele = _get_first_child(self._node, "cdnaSynthesisMethod")
@@ -2104,6 +2194,46 @@ class Sample:
                 else:
                     return None
             raise RdmlError('Sample cdnaSynthesisMethod programming read error.')
+        if key == "quantity":
+            ele = _get_first_child(self._node, key)
+            vdic = {}
+            vdic["value"] = _get_first_child_text(ele, "value")
+            vdic["unit"] = _get_first_child_text(ele, "unit")
+            if len(vdic.keys()) != 0:
+                return vdic
+            else:
+                return None
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            if key in ["templateRNAQuality", "templateDNAQuality"]:
+                ele = _get_first_child(self._node, key)
+                vdic = {}
+                vdic["method"] = _get_first_child_text(ele, "method")
+                vdic["result"] = _get_first_child_text(ele, "result")
+                if len(vdic.keys()) != 0:
+                    return vdic
+                else:
+                    return None
+            if key in ["templateRNAQuantity", "templateDNAQuantity"]:
+                ele = _get_first_child(self._node, key)
+                vdic = {}
+                vdic["value"] = _get_first_child_text(ele, "value")
+                vdic["unit"] = _get_first_child_text(ele, "unit")
+                if len(vdic.keys()) != 0:
+                    return vdic
+                else:
+                    return None
+        if ver == "1.2":
+            if key == "templateQuantity":
+                ele = _get_first_child(self._node, key)
+                vdic = {}
+                vdic["nucleotide"] = _get_first_child_text(ele, "nucleotide")
+                vdic["conc"] = _get_first_child_text(ele, "conc")
+                if len(vdic.keys()) != 0:
+                    return vdic
+                else:
+                    return None
         raise KeyError
 
     def __setitem__(self, key, value):
@@ -2128,31 +2258,6 @@ class Sample:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key in ["interRunCalibrator", "calibratorSample"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "bool")
-        if key in ["quantity", "templateRNAQuantity", "templateDNAQuantity"]:
-            if value is None:
-                return
-            if "value" not in value or "unit" not in value:
-                raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
-            if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
-                raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
-            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
-            if value["value"] != "":
-                _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
-            else:
-                _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
-            _remove_irrelevant_subelement(self._node, key)
-            return
-        if key in ["templateRNAQuality", "templateDNAQuality"]:
-            if value is None:
-                return
-            if "method" not in value or "result" not in value:
-                raise RdmlError('"' + key + '" must have a dictionary with "method" and "result" as value.')
-            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "method", ["method", "result"], value["method"], True, "string")
-            _change_subelement(ele, "result", ["method", "result"], value["result"], True, "float")
-            _remove_irrelevant_subelement(self._node, key)
-            return
         if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                    "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
             ele = _get_or_create_subelement(self._node, "cdnaSynthesisMethod", self.xmlkeys())
@@ -2181,6 +2286,65 @@ class Sample:
                     ele.remove(forId)
             _remove_irrelevant_subelement(self._node, "cdnaSynthesisMethod")
             return
+        if key == "quantity":
+            if value is None:
+                return
+            if "value" not in value or "unit" not in value:
+                raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
+            if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
+                raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
+            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+            _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
+            if value["value"] != "":
+                _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
+            else:
+                _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
+            _remove_irrelevant_subelement(self._node, key)
+            return
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            if key in ["templateRNAQuality", "templateDNAQuality"]:
+                if value is None:
+                    return
+                if "method" not in value or "result" not in value:
+                    raise RdmlError('"' + key + '" must have a dictionary with "method" and "result" as value.')
+                ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+                _change_subelement(ele, "method", ["method", "result"], value["method"], True, "string")
+                _change_subelement(ele, "result", ["method", "result"], value["result"], True, "float")
+                _remove_irrelevant_subelement(self._node, key)
+                return
+            if key in ["templateRNAQuantity", "templateDNAQuantity"]:
+                if value is None:
+                    return
+                if "value" not in value or "unit" not in value:
+                    raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
+                if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
+                    raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
+                ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+                _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
+                if value["value"] != "":
+                    _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
+                else:
+                    _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
+                _remove_irrelevant_subelement(self._node, key)
+                return
+        if ver == "1.2":
+            if key == "templateQuantity":
+                if value is None:
+                    return
+                if "nucleotide" not in value or "conc" not in value:
+                    raise RdmlError('Sample ' + key + ' must have a dictionary with "nucleotide" and "conc" as value.')
+                if value["nucleotide"] not in ["", "DNA", "genomic DNA", "cDNA", "RNA"]:
+                    raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
+                ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+                _change_subelement(ele, "conc", ["conc", "nucleotide"], value["conc"], True, "float")
+                if value["conc"] != "":
+                    _change_subelement(ele, "nucleotide", ["conc", "nucleotide"], value["nucleotide"], True, "string")
+                else:
+                    _change_subelement(ele, "nucleotide", ["conc", "nucleotide"], "", True, "string")
+                _remove_irrelevant_subelement(self._node, key)
+                return
         raise KeyError
 
     def keys(self):
@@ -2193,10 +2357,17 @@ class Sample:
             A list of the key strings.
         """
 
-        return ["id", "description", "type", "interRunCalibrator", "quantity", "calibratorSample",
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return ["id", "description", "type", "interRunCalibrator", "quantity", "calibratorSample",
+                    "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
+                    "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
+                    "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+        return ["id", "description", "annotation", "type", "interRunCalibrator", "quantity", "calibratorSample",
                 "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                 "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
-                "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+                "templateQuantity"]
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -2208,9 +2379,14 @@ class Sample:
             A list of the key strings.
         """
 
-        return ["description", "documentation", "xRef", "type", "interRunCalibrator",
-                "quantity", "calibratorSample", "cdnaSynthesisMethod",
-                "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return ["description", "documentation", "xRef", "type", "interRunCalibrator",
+                    "quantity", "calibratorSample", "cdnaSynthesisMethod",
+                    "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
+        return ["description", "documentation", "xRef", "annotation", "type", "interRunCalibrator",
+                "quantity", "calibratorSample", "cdnaSynthesisMethod", "templateQuantity"]
 
     def xrefs(self):
         """Returns a list of the xrefs in the xml file.
@@ -2307,6 +2483,121 @@ class Sample:
         elem = _get_first_child_by_pos_or_id(self._node, "xRef", None, byposition)
         self._node.remove(elem)
 
+    def annotations(self):
+        """Returns a list of the annotations in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of dics with property and value strings.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return []
+        xref = _get_all_children(self._node, "annotation")
+        ret = []
+        for node in xref:
+            data = {}
+            _add_first_child_to_dic(node, data, True, "property")
+            _add_first_child_to_dic(node, data, True, "value")
+            ret.append(data)
+        return ret
+
+    def new_annotation(self, property=None, value=None, newposition=None):
+        """Creates a new annotation element.
+
+        Args:
+            self: The class self parameter.
+            property: The property
+            value: Its value
+            newposition: The new position of the element
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return
+        if property is None or value is None:
+            raise RdmlError('Property and value are required to create a annotation.')
+        new_node = ET.Element("annotation")
+        _add_new_subelement(new_node, "annotation", "property", property, True)
+        _add_new_subelement(new_node, "annotation", "value", value, True)
+        place = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def edit_annotation(self, oldposition, newposition=None, property=None, value=None):
+        """Edits an annotation element.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+            property: The property
+            value: Its value
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return
+        if oldposition is None:
+            raise RdmlError('A oldposition is required to edit a annotation.')
+        if (property is None or property == "") or (value is None or value == ""):
+            self.delete_annotation(oldposition)
+            return
+        pos = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "annotation", None, oldposition)
+        _change_subelement(ele, "property", ["property", "value"], name, True, "string")
+        _change_subelement(ele, "value", ["property", "value"], id, True, "string")
+        self._node.insert(pos, ele)
+
+    def move_annotation(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return
+        pos = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "annotation", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def delete_annotation(self, byposition):
+        """Deletes an annotation element.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return
+        elem = _get_first_child_by_pos_or_id(self._node, "annotation", None, byposition)
+        self._node.remove(elem)
+
     def documentation_ids(self):
         """Returns a list of the keys in the xml file.
 
@@ -2373,6 +2664,8 @@ class Sample:
         Returns:
             A json of the data.
         """
+        par = self._node.getparent()
+        ver = par.get('version')
 
         data = {
             "id": self._node.get('id'),
@@ -2380,6 +2673,8 @@ class Sample:
         _add_first_child_to_dic(self._node, data, True, "description")
         data["documentations"] = self.documentation_ids()
         data["xRefs"] = self.xrefs()
+        if ver == "1.2":
+            data["annotations"] = self.annotations()
         _add_first_child_to_dic(self._node, data, False, "type")
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
         elem = _get_first_child(self._node, "quantity")
@@ -2401,30 +2696,38 @@ class Sample:
                     qdic["thermalCyclingConditions"] = forId.attrib['id']
             if len(qdic.keys()) != 0:
                 data["cdnaSynthesisMethod"] = qdic
-        elem = _get_first_child(self._node, "templateRNAQuantity")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "value")
-            _add_first_child_to_dic(elem, qdic, False, "unit")
-            data["templateRNAQuantity"] = qdic
-        elem = _get_first_child(self._node, "templateRNAQuality")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "method")
-            _add_first_child_to_dic(elem, qdic, False, "result")
-            data["templateRNAQuality"] = qdic
-        elem = _get_first_child(self._node, "templateDNAQuantity")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "value")
-            _add_first_child_to_dic(elem, qdic, False, "unit")
-            data["templateDNAQuantity"] = qdic
-        elem = _get_first_child(self._node, "templateDNAQuality")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "method")
-            _add_first_child_to_dic(elem, qdic, False, "result")
-            data["templateDNAQuality"] = qdic
+        if ver == "1.1":
+            elem = _get_first_child(self._node, "templateRNAQuantity")
+            if elem is not None:
+                qdic = {}
+                _add_first_child_to_dic(elem, qdic, False, "value")
+                _add_first_child_to_dic(elem, qdic, False, "unit")
+                data["templateRNAQuantity"] = qdic
+            elem = _get_first_child(self._node, "templateRNAQuality")
+            if elem is not None:
+                qdic = {}
+                _add_first_child_to_dic(elem, qdic, False, "method")
+                _add_first_child_to_dic(elem, qdic, False, "result")
+                data["templateRNAQuality"] = qdic
+            elem = _get_first_child(self._node, "templateDNAQuantity")
+            if elem is not None:
+                qdic = {}
+                _add_first_child_to_dic(elem, qdic, False, "value")
+                _add_first_child_to_dic(elem, qdic, False, "unit")
+                data["templateDNAQuantity"] = qdic
+            elem = _get_first_child(self._node, "templateDNAQuality")
+            if elem is not None:
+                qdic = {}
+                _add_first_child_to_dic(elem, qdic, False, "method")
+                _add_first_child_to_dic(elem, qdic, False, "result")
+                data["templateDNAQuality"] = qdic
+        if ver == "1.2":
+            elem = _get_first_child(self._node, "templateQuantity")
+            if elem is not None:
+                qdic = {}
+                _add_first_child_to_dic(elem, qdic, False, "nucleotide")
+                _add_first_child_to_dic(elem, qdic, False, "conc")
+                data["templateQuantity"] = qdic
         return data
 
 
@@ -2525,6 +2828,15 @@ class Target:
                 return _get_first_child_text(prim, "company")
             if key == "commercialAssay_orderNumber":
                 return _get_first_child_text(prim, "orderNumber")
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.2":
+            if key == "amplificationEfficiencySE":
+                var = _get_first_child_text(self._node, key)
+                if var == "":
+                    return None
+                else:
+                    return var
         raise KeyError
 
     def __setitem__(self, key, value):
@@ -2625,6 +2937,11 @@ class Target:
                 _change_subelement(ele, "orderNumber", ["company", "orderNumber"], value, True, "string")
             _remove_irrelevant_subelement(self._node, "commercialAssay")
             return
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.2":
+            if key == "amplificationEfficiencySE":
+                return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         raise KeyError
 
     def keys(self):
