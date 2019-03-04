@@ -4490,6 +4490,63 @@ class Run:
         data["react"] = _get_number_of_children(self._node, "react")
         return data
 
+    def getreactjson(self):
+        """Returns a json of the react data including fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        data = []
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            react_json = {
+                "id": react.get('id'),
+            }
+            forId = _get_first_child(react, "sample")
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    react_json["sample"] = forId.attrib['id']
+            react_datas = _get_all_children(react, "data")
+            react_datas_json = []
+            for react_data in react_datas:
+                in_react = {}
+                forId = _get_first_child(react_data, "tar")
+                if forId is not None:
+                    if forId.attrib['id'] != "":
+                        in_react["tar"] = forId.attrib['id']
+                _add_first_child_to_dic(react_data, in_react, True, "cq")
+                _add_first_child_to_dic(react_data, in_react, True, "excl")
+                _add_first_child_to_dic(react_data, in_react, True, "endPt")
+                _add_first_child_to_dic(react_data, in_react, True, "bgFluor")
+                _add_first_child_to_dic(react_data, in_react, True, "bgFluorSlp")
+                _add_first_child_to_dic(react_data, in_react, True, "quantFluor")
+                adps = _get_all_children(react_data, "adp")
+                adps_json = []
+                for adp in adps:
+                    in_adp = {}
+                    _add_first_child_to_dic(adp, in_adp, False, "cyc")
+                    _add_first_child_to_dic(adp, in_adp, True, "tmp")
+                    _add_first_child_to_dic(adp, in_adp, False, "fluor")
+                    adps_json.append(in_adp)
+                in_react["adps"] = adps_json
+                mdps = _get_all_children(react_data, "mdp")
+                mdps_json = []
+                for mdp in mdps:
+                    in_mdp = {}
+                    _add_first_child_to_dic(mdp, in_mdp, False, "cyc")
+                    _add_first_child_to_dic(mdp, in_mdp, True, "tmp")
+                    _add_first_child_to_dic(mdp, in_mdp, False, "fluor")
+                    mdps_json.append(in_mdp)
+                in_react["mdps"] = mdps_json
+                react_datas_json.append(in_react)
+            react_json["datas"] = react_datas_json
+            data.append(react_json)
+        return data
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The command line interface to the RDML-Python library.')
