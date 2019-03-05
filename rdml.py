@@ -4527,19 +4527,16 @@ class Run:
                 adps = _get_all_children(react_data, "adp")
                 adps_json = []
                 for adp in adps:
-                    in_adp = {}
-                    _add_first_child_to_dic(adp, in_adp, False, "cyc")
-                    _add_first_child_to_dic(adp, in_adp, True, "tmp")
-                    _add_first_child_to_dic(adp, in_adp, False, "fluor")
+                    in_adp = [_get_first_child_text(adp, "cyc"),
+                              _get_first_child_text(adp, "fluor"),
+                              _get_first_child_text(adp, "tmp")]
                     adps_json.append(in_adp)
                 in_react["adps"] = adps_json
                 mdps = _get_all_children(react_data, "mdp")
                 mdps_json = []
                 for mdp in mdps:
-                    in_mdp = {}
-                    _add_first_child_to_dic(mdp, in_mdp, False, "cyc")
-                    _add_first_child_to_dic(mdp, in_mdp, True, "tmp")
-                    _add_first_child_to_dic(mdp, in_mdp, False, "fluor")
+                    in_mdp = [_get_first_child_text(mdp, "tmp"),
+                              _get_first_child_text(mdp, "fluor")]
                     mdps_json.append(in_mdp)
                 in_react["mdps"] = mdps_json
                 react_datas_json.append(in_react)
