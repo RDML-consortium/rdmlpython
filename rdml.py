@@ -4500,8 +4500,14 @@ class Run:
             A json of the data.
         """
 
+        all_data = {}
         data = []
         reacts = _get_all_children(self._node, "react")
+        adp_cyc_max = 0.0
+        adp_fluor_max = 0.0
+        mdp_tmp_min = 120.0
+        mdp_tmp_max = 0.0
+        mdp_fluor_max = 0.0
         for react in reacts:
             react_json = {
                 "id": react.get('id'),
@@ -4527,22 +4533,34 @@ class Run:
                 adps = _get_all_children(react_data, "adp")
                 adps_json = []
                 for adp in adps:
-                    in_adp = [_get_first_child_text(adp, "cyc"),
-                              _get_first_child_text(adp, "fluor"),
-                              _get_first_child_text(adp, "tmp")]
+                    cyc = _get_first_child_text(adp, "cyc")
+                    fluor = _get_first_child_text(adp, "fluor")
+                    adp_cyc_max = max(adp_cyc_max, float(cyc))
+                    adp_fluor_max = max(adp_fluor_max, float(fluor))
+                    in_adp = [cyc, fluor, _get_first_child_text(adp, "tmp")]
                     adps_json.append(in_adp)
                 in_react["adps"] = adps_json
                 mdps = _get_all_children(react_data, "mdp")
                 mdps_json = []
                 for mdp in mdps:
-                    in_mdp = [_get_first_child_text(mdp, "tmp"),
-                              _get_first_child_text(mdp, "fluor")]
+                    tmp = _get_first_child_text(mdp, "tmp")
+                    fluor = _get_first_child_text(mdp, "fluor")
+                    mdp_tmp_min = min(mdp_tmp_min, float(tmp))
+                    mdp_tmp_max = max(mdp_tmp_max, float(tmp))
+                    mdp_fluor_max = max(mdp_fluor_max, float(fluor))
+                    in_mdp = [tmp, fluor]
                     mdps_json.append(in_mdp)
                 in_react["mdps"] = mdps_json
                 react_datas_json.append(in_react)
             react_json["datas"] = react_datas_json
             data.append(react_json)
-        return data
+        all_data["reacts"] = data
+        all_data["adp_cyc_max"] = adp_cyc_max
+        all_data["adp_fluor_max"] = adp_fluor_max
+        all_data["mdp_tmp_min"] = mdp_tmp_min
+        all_data["mdp_tmp_max"] = mdp_tmp_max
+        all_data["mdp_fluor_max"] = mdp_fluor_max
+        return all_data
 
 
 if __name__ == "__main__":
