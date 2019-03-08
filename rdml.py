@@ -4503,11 +4503,13 @@ class Run:
         all_data = {}
         data = []
         reacts = _get_all_children(self._node, "react")
+
         adp_cyc_max = 0.0
         adp_fluor_max = 0.0
         mdp_tmp_min = 120.0
         mdp_tmp_max = 0.0
         mdp_fluor_max = 0.0
+        max_data = 0
         for react in reacts:
             react_json = {
                 "id": react.get('id'),
@@ -4517,6 +4519,7 @@ class Run:
                 if forId.attrib['id'] != "":
                     react_json["sample"] = forId.attrib['id']
             react_datas = _get_all_children(react, "data")
+            max_data = max(max_data, len(react_datas))
             react_datas_json = []
             for react_data in react_datas:
                 in_react = {}
@@ -4560,6 +4563,7 @@ class Run:
         all_data["mdp_tmp_min"] = mdp_tmp_min
         all_data["mdp_tmp_max"] = mdp_tmp_max
         all_data["mdp_fluor_max"] = mdp_fluor_max
+        all_data["max_data_len"] = max_data
         return all_data
 
 
