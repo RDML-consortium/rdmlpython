@@ -4505,9 +4505,11 @@ class Run:
         reacts = _get_all_children(self._node, "react")
 
         adp_cyc_max = 0.0
+        adp_fluor_min = 99999999
         adp_fluor_max = 0.0
         mdp_tmp_min = 120.0
         mdp_tmp_max = 0.0
+        mdp_fluor_min = 99999999
         mdp_fluor_max = 0.0
         max_data = 0
         for react in reacts:
@@ -4539,6 +4541,7 @@ class Run:
                     cyc = _get_first_child_text(adp, "cyc")
                     fluor = _get_first_child_text(adp, "fluor")
                     adp_cyc_max = max(adp_cyc_max, float(cyc))
+                    adp_fluor_min = min(adp_fluor_min, float(fluor))
                     adp_fluor_max = max(adp_fluor_max, float(fluor))
                     in_adp = [cyc, fluor, _get_first_child_text(adp, "tmp")]
                     adps_json.append(in_adp)
@@ -4550,6 +4553,7 @@ class Run:
                     fluor = _get_first_child_text(mdp, "fluor")
                     mdp_tmp_min = min(mdp_tmp_min, float(tmp))
                     mdp_tmp_max = max(mdp_tmp_max, float(tmp))
+                    mdp_fluor_min = min(mdp_fluor_min, float(fluor))
                     mdp_fluor_max = max(mdp_fluor_max, float(fluor))
                     in_mdp = [tmp, fluor]
                     mdps_json.append(in_mdp)
@@ -4559,9 +4563,11 @@ class Run:
             data.append(react_json)
         all_data["reacts"] = data
         all_data["adp_cyc_max"] = adp_cyc_max
+        all_data["adp_fluor_min"] = adp_fluor_min
         all_data["adp_fluor_max"] = adp_fluor_max
         all_data["mdp_tmp_min"] = mdp_tmp_min
         all_data["mdp_tmp_max"] = mdp_tmp_max
+        all_data["mdp_fluor_min"] = mdp_fluor_min
         all_data["mdp_fluor_max"] = mdp_fluor_max
         all_data["max_data_len"] = max_data
         return all_data
