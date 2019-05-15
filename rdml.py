@@ -1022,6 +1022,35 @@ class Rdml:
         self._node.attrib['version'] = "1.1"
         return ret
 
+    def recreate_lost_ids(self):
+        """Searches for lost ids and repairs them.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the modifications.
+        """
+
+        mess = ""
+
+        # Find lost dyes in target
+        allTar = _get_all_children(self._node, "target")
+        foundIds = {}
+        for node in allTar:
+            forId = _get_first_child(node, "dyeId")
+            if forId is not None:
+                foundIds[forId.attrib['id']] = 0
+        presentIds = []
+        exp = _get_all_children(self._node, "dye")
+        for node in exp:
+            presentIds.append(node.attrib['id'])
+        for used_id in foundIds:
+            if used_id not in presentIds:
+                self.new_dye(id=used_id, newposition=0)
+                mess += "Recreated new dye: " + used_id + "\n"
+        return mess
+
     def rdmlids(self):
         """Returns a list of all rdml id elements.
 
@@ -2088,7 +2117,17 @@ class Dye:
             No return value, changes self. Function may raise RdmlError if required.
         """
         if key == "id":
-            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+            oldValue = self._node.get('id')
+            if oldValue != value:
+                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+                par = self._node.getparent()
+                allTar = _get_all_children(par, "target")
+                for node in allTar:
+                    forId = _get_first_child(node, "dyeId")
+                    if forId is not None:
+                        if forId.attrib['id'] == oldValue:
+                            forId.attrib['id'] = value
+            return
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
