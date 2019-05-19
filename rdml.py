@@ -653,7 +653,7 @@ class Rdml:
             raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
         rdml_version = self._node.get('version')
         # Remainder: Update version in new() and validate()
-        if not rdml_version in ['1.0','1.1','1.2']:
+        if rdml_version not in ['1.0', '1.1', '1.2']:
             raise RdmlError('Unknown or unsupported RDML file version.')
 
     def validate(self, filename=None):
@@ -1096,11 +1096,80 @@ class Rdml:
                 self.new_experimenter(id=used_id, firstName="unknown first name", lastName="unknown last name", newposition=0)
                 mess += "Recreated experimenter: " + used_id + "\n"
         # Find lost documentation
-
-
-
-
-
+        foundIds = {}
+        allSam = _get_all_children(self._node, "sample")
+        for node in allSam:
+            subNodes = _get_all_children(node, "documentation")
+            for subNode in subNodes:
+                foundIds[subNode.attrib['id']] = 0
+        allTh = _get_all_children(self._node, "target")
+        for node in allTh:
+            subNodes = _get_all_children(node, "documentation")
+            for subNode in subNodes:
+                foundIds[subNode.attrib['id']] = 0
+        allTh = _get_all_children(self._node, "thermalCyclingConditions")
+        for node in allTh:
+            subNodes = _get_all_children(node, "documentation")
+            for subNode in subNodes:
+                foundIds[subNode.attrib['id']] = 0
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "documentation")
+            for subNode in subNodes:
+                foundIds[subNode.attrib['id']] = 0
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                lastNodes = _get_all_children(subNode, "documentation")
+                for lastNode in lastNodes:
+                    foundIds[lastNode.attrib['id']] = 0
+        presentIds = []
+        exp = _get_all_children(self._node, "documentation")
+        for node in exp:
+            presentIds.append(node.attrib['id'])
+        for used_id in foundIds:
+            if used_id not in presentIds:
+                self.new_documentation(id=used_id, newposition=0)
+                mess += "Recreated documentation: " + used_id + "\n"
+        # Find lost sample
+        foundIds = {}
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                reactNodes = _get_all_children(subNode, "react")
+                for reactNode in reactNodes:
+                    lastNodes = _get_all_children(reactNode, "sample")
+                    for lastNode in lastNodes:
+                        foundIds[lastNode.attrib['id']] = 0
+        presentIds = []
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            presentIds.append(node.attrib['id'])
+        for used_id in foundIds:
+            if used_id not in presentIds:
+                self.new_sample(id=used_id, type="unkn", newposition=0)
+                mess += "Recreated sample: " + used_id + "\n"
+        # Find lost target
+        foundIds = {}
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                reactNodes = _get_all_children(subNode, "react")
+                for reactNode in reactNodes:
+                    dataNodes = _get_all_children(reactNode, "data")
+                    for dataNode in dataNodes:
+                        lastNodes = _get_all_children(dataNode, "tar")
+                        for lastNode in lastNodes:
+                            foundIds[lastNode.attrib['id']] = 0
+        presentIds = []
+        exp = _get_all_children(self._node, "target")
+        for node in exp:
+            presentIds.append(node.attrib['id'])
+        for used_id in foundIds:
+            if used_id not in presentIds:
+                self.new_target(id=used_id, type="toi", newposition=0)
+                mess += "Recreated target: " + used_id + "\n"
         return mess
 
     def rdmlids(self):
@@ -1127,6 +1196,7 @@ class Rdml:
             publisher: Publisher who created the serialNumber (required)
             serialNumber: Serial Number for this file provided by publisher (required)
             MD5Hash: A MD5 hash for this file (optional)
+            newposition: The new position of the element in the list (optional)
 
         Returns:
             Nothing, changes self.
@@ -1265,7 +1335,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "experimenter", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def documentations(self):
         """Returns a list of all documentation elements.
@@ -1342,7 +1411,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "documentation", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def dyes(self):
         """Returns a list of all dye elements.
@@ -1419,7 +1487,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "dye", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def samples(self):
         """Returns a list of all sample elements.
@@ -1499,7 +1566,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "sample", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def targets(self):
         """Returns a list of all target elements.
@@ -1579,7 +1645,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "target", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def therm_cyc_cons(self):
         """Returns a list of all thermalCyclingConditions elements.
@@ -1658,7 +1723,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "thermalCyclingConditions", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def experiments(self):
         """Returns a list of all experiment elements.
@@ -1734,7 +1798,6 @@ class Rdml:
 
         elem = _get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
@@ -2088,8 +2151,43 @@ class Documentation:
         Returns:
             No return value, changes self. Function may raise RdmlError if required.
         """
+
         if key == "id":
-            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+            oldValue = self._node.get('id')
+            if oldValue != value:
+                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+                par = self._node.getparent()
+                allSam = _get_all_children(par, "sample")
+                for node in allSam:
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        if subNode.attrib['id'] == oldValue:
+                            subNode.attrib['id'] = value
+                allTh = _get_all_children(par, "target")
+                for node in allTh:
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        if subNode.attrib['id'] == oldValue:
+                            subNode.attrib['id'] = value
+                allTh = _get_all_children(par, "thermalCyclingConditions")
+                for node in allTh:
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        if subNode.attrib['id'] == oldValue:
+                            subNode.attrib['id'] = value
+                allExp = _get_all_children(par, "experiment")
+                for node in allExp:
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        if subNode.attrib['id'] == oldValue:
+                            subNode.attrib['id'] = value
+                    subNodes = _get_all_children(node, "run")
+                    for subNode in subNodes:
+                        lastNodes = _get_all_children(subNode, "documentation")
+                        for lastNode in lastNodes:
+                            if lastNode.attrib['id'] == oldValue:
+                                lastNode.attrib['id'] = value
+            return
         if key == "text":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
@@ -2367,7 +2465,23 @@ class Sample:
             if value not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
                 raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
 
-        if key in ["id", "type"]:
+        if key == "id":
+            oldValue = self._node.get('id')
+            if oldValue != value:
+                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+                par = self._node.getparent()
+                allExp = _get_all_children(par, "experiment")
+                for node in allExp:
+                    subNodes = _get_all_children(node, "run")
+                    for subNode in subNodes:
+                        reactNodes = _get_all_children(subNode, "react")
+                        for reactNode in reactNodes:
+                            lastNodes = _get_all_children(reactNode, "sample")
+                            for lastNode in lastNodes:
+                                if lastNode.attrib['id'] == oldValue:
+                                    lastNode.attrib['id'] = value
+                return
+        if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
@@ -2395,7 +2509,7 @@ class Sample:
                                                   ["enzyme", "primingMethod", "dnaseTreatment",
                                                    "thermalCyclingConditions"])
                 if value is not None and value != "":
-                    # Todo check ID
+                    # We do not check that ID is valid to allow recreate_lost_ids()
                     forId.attrib['id'] = value
                 else:
                     ele.remove(forId)
@@ -2970,7 +3084,25 @@ class Target:
             if value not in ["ref", "toi"]:
                 raise RdmlError('Unknown or unsupported target type value "' + value + '".')
 
-        if key in ["id", "type"]:
+        if key == "id":
+            oldValue = self._node.get('id')
+            if oldValue != value:
+                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+                par = self._node.getparent()
+                allExp = _get_all_children(par, "experiment")
+                for node in allExp:
+                    subNodes = _get_all_children(node, "run")
+                    for subNode in subNodes:
+                        reactNodes = _get_all_children(subNode, "react")
+                        for reactNode in reactNodes:
+                            dataNodes = _get_all_children(reactNode, "data")
+                            for dataNode in dataNodes:
+                                lastNodes = _get_all_children(dataNode, "tar")
+                                for lastNode in lastNodes:
+                                    if lastNode.attrib['id'] == oldValue:
+                                        lastNode.attrib['id'] = value
+                return
+        if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key in ["description", "amplificationEfficiencyMethod"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
@@ -2979,7 +3111,7 @@ class Target:
         if key == "dyeId":
             forId = _get_or_create_subelement(self._node, "dyeId", self.xmlkeys())
             if value is not None and value != "":
-                # Todo check ID
+                # We do not check that ID is valid to allow recreate_lost_ids()
                 forId.attrib['id'] = value
             else:
                 self._node.remove(forId)
@@ -4291,7 +4423,6 @@ class Experiment:
 
         elem = _get_first_child_by_pos_or_id(self._node, "run", byid, byposition)
         self._node.remove(elem)
-        # Todo delete in all use places
 
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
@@ -4414,7 +4545,7 @@ class Run:
         if key == "thermalCyclingConditions":
             forId = _get_or_create_subelement(self._node, "thermalCyclingConditions", self.xmlkeys())
             if value is not None and value != "":
-                # Todo check ID
+                # We do not check that ID is valid to allow recreate_lost_ids()
                 forId.attrib['id'] = value
             else:
                 self._node.remove(forId)
