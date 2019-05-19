@@ -1034,9 +1034,9 @@ class Rdml:
 
         mess = ""
 
-        # Find lost dyes in target
-        allTar = _get_all_children(self._node, "target")
+        # Find lost dyes
         foundIds = {}
+        allTar = _get_all_children(self._node, "target")
         for node in allTar:
             forId = _get_first_child(node, "dyeId")
             if forId is not None:
@@ -1049,6 +1049,58 @@ class Rdml:
             if used_id not in presentIds:
                 self.new_dye(id=used_id, newposition=0)
                 mess += "Recreated new dye: " + used_id + "\n"
+        # Find lost thermalCycCon
+        foundIds = {}
+        allSam = _get_all_children(self._node, "sample")
+        for node in allSam:
+            subNode = _get_first_child(node, "cdnaSynthesisMethod")
+            if subNode is not None:
+                forId = _get_first_child(node, "thermalCyclingConditions")
+                if forId is not None:
+                    foundIds[forId.attrib['id']] = 0
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                forId = _get_first_child(subNode, "thermalCyclingConditions")
+                if forId is not None:
+                    foundIds[forId.attrib['id']] = 0
+        presentIds = []
+        exp = _get_all_children(self._node, "thermalCyclingConditions")
+        for node in exp:
+            presentIds.append(node.attrib['id'])
+        for used_id in foundIds:
+            if used_id not in presentIds:
+                self.new_therm_cyc_cons(id=used_id, newposition=0)
+                mess += "Recreated thermal cycling conditions: " + used_id + "\n"
+        # Find lost experimenter
+        foundIds = {}
+        allTh = _get_all_children(self._node, "thermalCyclingConditions")
+        for node in allTh:
+            subNodes = _get_all_children(node, "experimenter")
+            for subNode in subNodes:
+                foundIds[subNode.attrib['id']] = 0
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                lastNodes = _get_all_children(subNode, "experimenter")
+                for lastNode in lastNodes:
+                    foundIds[lastNode.attrib['id']] = 0
+        presentIds = []
+        exp = _get_all_children(self._node, "experimenter")
+        for node in exp:
+            presentIds.append(node.attrib['id'])
+        for used_id in foundIds:
+            if used_id not in presentIds:
+                self.new_experimenter(id=used_id, firstName="unknown first name", lastName="unknown last name", newposition=0)
+                mess += "Recreated experimenter: " + used_id + "\n"
+        # Find lost documentation
+
+
+
+
+
         return mess
 
     def rdmlids(self):
@@ -1910,7 +1962,28 @@ class Experimenter:
         Returns:
             No return value, changes self. Function may raise RdmlError if required.
         """
-        if key in ["id", "firstName", "lastName"]:
+
+        if key == "id":
+            oldValue = self._node.get('id')
+            if oldValue != value:
+                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+                par = self._node.getparent()
+                allTh = _get_all_children(par, "thermalCyclingConditions")
+                for node in allTh:
+                    subNodes = _get_all_children(node, "experimenter")
+                    for subNode in subNodes:
+                        if subNode.attrib['id'] == oldValue:
+                            subNode.attrib['id'] = value
+                allExp = _get_all_children(par, "experiment")
+                for node in allExp:
+                    subNodes = _get_all_children(node, "run")
+                    for subNode in subNodes:
+                        lastNodes = _get_all_children(subNode, "experimenter")
+                        for lastNode in lastNodes:
+                            if lastNode.attrib['id'] == oldValue:
+                                lastNode.attrib['id'] = value
+            return
+        if key in ["firstName", "lastName"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key in ["email", "labName", "labAddress"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
@@ -2598,8 +2671,8 @@ class Sample:
             return
         pos = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
         ele = _get_first_child_by_pos_or_id(self._node, "annotation", None, oldposition)
-        _change_subelement(ele, "property", ["property", "value"], name, True, "string")
-        _change_subelement(ele, "value", ["property", "value"], id, True, "string")
+        _change_subelement(ele, "property", ["property", "value"], property, True, "string")
+        _change_subelement(ele, "value", ["property", "value"], value, True, "string")
         self._node.insert(pos, ele)
 
     def move_annotation(self, oldposition, newposition):
@@ -3306,7 +3379,27 @@ class Therm_cyc_cons:
         """
 
         if key == "id":
-            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+            oldValue = self._node.get('id')
+            if oldValue != value:
+                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
+                par = self._node.getparent()
+                allSam = _get_all_children(par, "sample")
+                for node in allSam:
+                    subNode = _get_first_child(node, "cdnaSynthesisMethod")
+                    if subNode is not None:
+                        forId = _get_first_child(subNode, "thermalCyclingConditions")
+                        if forId is not None:
+                            if forId.attrib['id'] == oldValue:
+                                forId.attrib['id'] = value
+                allExp = _get_all_children(par, "experiment")
+                for node in allExp:
+                    subNodes = _get_all_children(node, "run")
+                    for subNode in subNodes:
+                        forId = _get_first_child(subNode, "thermalCyclingConditions")
+                        if forId is not None:
+                            if forId.attrib['id'] == oldValue:
+                                forId.attrib['id'] = value
+            return
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key == "lidTemperature":
