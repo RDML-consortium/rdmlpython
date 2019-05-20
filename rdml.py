@@ -2480,7 +2480,7 @@ class Sample:
                             for lastNode in lastNodes:
                                 if lastNode.attrib['id'] == oldValue:
                                     lastNode.attrib['id'] = value
-                return
+            return
         if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key == "description":
@@ -3101,7 +3101,7 @@ class Target:
                                 for lastNode in lastNodes:
                                     if lastNode.attrib['id'] == oldValue:
                                         lastNode.attrib['id'] = value
-                return
+            return
         if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key in ["description", "amplificationEfficiencyMethod"]:
@@ -3894,12 +3894,28 @@ class Therm_cyc_cons:
         # Fix the nr
         exp = _get_all_children(self._node, "step")
         i = 1
+        goto_mod = 0
+        goto_start = newnr
+        goto_end = oldnr
+        if oldnr > newnr:
+            goto_mod = 1
+        if oldnr < newnr:
+            goto_mod = -1
+            goto_start = oldnr
+            goto_end = newnr
         for node in exp:
             if _get_step_sort_nr(node) != i:
                 elem = _get_first_child(node, "nr")
                 elem.text = str(i)
+            # Fix the goto steps
+            ele_type = _get_first_child(node, "loop")
+            if ele_type is not None:
+                ele_goto = _get_first_child(ele_type, "goto")
+                if ele_goto is not None:
+                    jump_to = int(ele_goto.text)
+                    if goto_start <= jump_to < goto_end:
+                        ele_goto.text = str(jump_to + goto_mod)
             i += 1
-        # Todo fix the goto steps
 
     def get_step(self, bystep):
         """Returns an sample element by position or id.
@@ -3928,7 +3944,16 @@ class Therm_cyc_cons:
         elem = _get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1)
         self._node.remove(elem)
         self.cleanup_steps()
-        # Todo fix the goto steps
+        # Fix the goto steps
+        exp = _get_all_children(self._node, "step")
+        for node in exp:
+            ele_type = _get_first_child(node, "loop")
+            if ele_type is not None:
+                ele_goto = _get_first_child(ele_type, "goto")
+                if ele_goto is not None:
+                    jump_to = int(ele_goto.text)
+                    if bystep < jump_to:
+                        ele_goto.text = str(jump_to - 1)
 
     def tojson(self):
         """Returns a json of the RDML object without fluorescence data.
