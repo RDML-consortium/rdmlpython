@@ -645,7 +645,8 @@ class Rdml:
         data = re.sub(r"<\W*!ENTITY[^>]+>", "", data)
         data = re.sub(r"!ENTITY", "", data)
         try:
-            self._rdmlData = ET.ElementTree(ET.fromstring(data))
+            self._rdmlData = ET.ElementTree(ET.fromstring(data.encode('utf-8')))
+            # Change to bytecode and defused?
         except ET.XMLSyntaxError:
             raise RdmlError('XML load error, not a valid RDML or XML file.')
         self._node = self._rdmlData.getroot()
@@ -1170,6 +1171,84 @@ class Rdml:
             if used_id not in presentIds:
                 self.new_target(id=used_id, type="toi", newposition=0)
                 mess += "Recreated target: " + used_id + "\n"
+        return mess
+
+    def repair_rdml_file(self):
+        """Searches for known errors and repairs them.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the modifications.
+        """
+
+        mess = ""
+        mess += self.fixExclFalse()
+        mess += self.fixDuplicateReact()
+
+        return mess
+
+    def fixExclFalse(self):
+        """Searches in experiment-run-react-data for excl=false and deletes the elements.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the modifications.
+        """
+
+        mess = ""
+        count = 0
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                reactNodes = _get_all_children(subNode, "react")
+                for reactNode in reactNodes:
+                    dataNodes = _get_all_children(reactNode, "data")
+                    for dataNode in dataNodes:
+                        lastNodes = _get_all_children(dataNode, "excl")
+                        for lastNode in lastNodes:
+                            if lastNode.text.lower() == "false":
+                                count += 1
+                                dataNode.remove(lastNode)
+
+        if count > 0:
+            mess = "The element excl=false was removed " + str(count) + " times!\n"
+
+        return mess
+
+    def fixDuplicateReact(self):
+        """Searches in experiment-run-react for duplicates and keeps only the first.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the modifications.
+        """
+
+        mess = ""
+        foundIds = {}
+        count = 0
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                reactNodes = _get_all_children(subNode, "react")
+                for reactNode in reactNodes:
+                    tId = reactNode.attrib['id']
+                    if tId not in foundIds:
+                        foundIds[tId] = 0
+                    else:
+                        count += 1
+                        subNode.remove(reactNode)
+
+        if count > 0:
+            mess = str(count) + " duplicate react elements were removed!\n"
+
         return mess
 
     def rdmlids(self):
