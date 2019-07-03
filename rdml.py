@@ -495,6 +495,7 @@ def _get_tag_pos(base, tag, xmlkeys, pos):
     offset = pos
     if pos is None or pos < 0:
         offset = 0
+        pos = 0
     if pos > count:
         offset = count
     return _get_first_tag_pos(base, tag, xmlkeys) + offset
@@ -4924,6 +4925,159 @@ class Run:
                     if forId.attrib['id'] != "":
                         tarDyeLookup[tarId] = forId.attrib['id']
 
+        # Now create the header line
+        data += "Well\tSample\tSample Type\tTarget\tTarget Type\tDye\t"
+        reacts = _get_all_children(self._node, "react")
+        if len(reacts) < 1:
+            return ""
+        react_datas = _get_all_children(reacts[0], "data")
+        if len(react_datas) < 1:
+            return ""
+        headArr = []
+        if dMode == "amp":
+            adps = _get_all_children(react_datas[0], "adp")
+            for adp in adps:
+                headArr.append(_get_first_child_text(adp, "cyc"))
+            headArr = sorted(headArr, key=int)
+        else:
+            mdps = _get_all_children(react_datas[0], "mdp")
+            for mdp in mdps:
+                headArr.append(_get_first_child_text(mdp, "tmp"))
+            headArr = sorted(headArr, key=float, reverse=True)
+        for hElem in headArr:
+            data += hElem + "\t"
+        data += '\n'
+
+        # Now create the data lines
+        reacts = _get_all_children(self._node, "react")
+        wellData = []
+        for react in reacts:
+            reactId = react.get('id')
+            dataSample = reactId + '\t'
+            react_sample = "No Sample"
+            react_sample_type = "No Sample Type"
+            forId = _get_first_child(react, "sample")
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    react_sample = forId.attrib['id']
+                    react_sample_type = samTypeLookup[react_sample]
+            dataSample += react_sample + '\t' + react_sample_type
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                dataLine = dataSample
+                react_target = "No Target"
+                react_target_type = "No Target Type"
+                react_target_dye = "No Dye"
+                forId = _get_first_child(react_data, "tar")
+                if forId is not None:
+                    if forId.attrib['id'] != "":
+                        react_target = forId.attrib['id']
+                        react_target_type = tarTypeLookup[react_target]
+                        react_target_dye = tarDyeLookup[react_target]
+                dataLine += "\t" + react_target + '\t' + react_target_type + '\t' + react_target_dye
+                fluorList = []
+                if dMode == "amp":
+                    adps = _get_all_children(react_data, "adp")
+                    for adp in adps:
+                        cyc = _get_first_child_text(adp, "cyc")
+                        fluor = _get_first_child_text(adp, "fluor")
+                        fluorList.append([cyc, fluor])
+                    fluorList = sorted(fluorList, key=_sort_list_int)
+                else:
+                    mdps = _get_all_children(react_data, "mdp")
+                    for mdp in mdps:
+                        tmp = _get_first_child_text(mdp, "tmp")
+                        fluor = _get_first_child_text(mdp, "fluor")
+                        fluorList.append([tmp, fluor])
+                    fluorList = sorted(fluorList, key=_sort_list_float)
+                for hElem in fluorList:
+                    dataLine += "\t" + hElem[1]
+                dataLine += '\n'
+                wellData.append([reactId, dataLine])
+        wellData = sorted(wellData, key=_sort_list_int)
+        for hElem in wellData:
+            data += hElem[1]
+        return data
+
+    def import_table(self, rootEl, filename, dMode):
+        """Imports data from a tab seperated table file with react fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            rootEl: The rdml root element.
+            filename: The tab file to open.
+            dMode: amp for amplification data, melt for meltcurve data.
+
+        Returns:
+            A string with the modifications made.
+        """
+
+        ret = ""
+        with open(filename, "r") as tfile:
+            fileContent = tfile.read()
+
+        tabLines = fileContent.split("\n")
+
+        head = tabLines[0].split("\t")
+        if head[0] != "Well" or head[1] != "Sample" or head[2] != "Sample Type" or head[3] != "Target" \
+            or head[4] != "Target Type" or head[5] != "Dye":
+            raise RdmlError('The tab-format is not valid, essential columns are missing.')
+
+        # Get the information for the lookup dictionaries
+        samTypeLookup = {}
+        tarTypeLookup = {}
+        dyeLookup = {}
+        samples = _get_all_children(rootEl._node, "sample")
+        for sample in samples:
+            if sample.attrib['id'] != "":
+                samId = sample.attrib['id']
+                forType = _get_first_child_text(sample, "type")
+                if forType is not "":
+                    samTypeLookup[samId] = forType
+        targets = _get_all_children(rootEl._node, "target")
+        for target in targets:
+            if target.attrib['id'] != "":
+                tarId = target.attrib['id']
+                forType = _get_first_child_text(target, "type")
+                if forType is not "":
+                    tarTypeLookup[tarId] = forType
+                forId = _get_first_child(target, "dyeId")
+                if forId is not None:
+                    if forId.attrib['id'] != "":
+                        dyeLookup[forId.attrib['id']] = 1
+
+        # Process the lines
+        for tabLine in tabLines[1:]:
+            sLin = tabLine.split("\t")
+            if len(sLin) < 7 or sLin[1] == "" or sLin[2] == "" or sLin[3] == "" or sLin[4] == "" or sLin[5] == "":
+                continue
+            if sLin[1] not in samTypeLookup:
+                rootEl.new_sample(sLin[1], sLin[2])
+                samTypeLookup[sLin[1]] = sLin[2]
+                ret += "Created sample \"" + sLin[1] + "\" with type \"" + sLin[2] + "\"\n"
+            if sLin[3] not in tarTypeLookup:
+                if sLin[5] not in dyeLookup:
+                    rootEl.new_dye(sLin[5])
+                    dyeLookup[sLin[5]] = 1
+                    ret += "Created dye \"" + sLin[5] + "\"\n"
+                rootEl.new_target(sLin[3], sLin[4])
+                elem = rootEl.get_target(byid=sLin[3])
+                elem["dyeId"] = sLin[5]
+                tarTypeLookup[sLin[3]] = sLin[4]
+                ret += "Created " + sLin[3] + " with type \"" + sLin[4] + "\" and dye \"" + sLin[5] + "\"\n"
+
+            colCount = 6
+            for col in sLin[6:]:
+                print(col + " - " + head[colCount])
+                colCount += 1
+
+
+
+
+
+
+
+        return
         # Now create the header line
         data += "Well\tSample\tSample Type\tTarget\tTarget Type\tDye\t"
         reacts = _get_all_children(self._node, "react")
