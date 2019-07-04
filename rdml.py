@@ -5042,9 +5042,8 @@ class Run:
                 if forType is not "":
                     tarTypeLookup[tarId] = forType
                 forId = _get_first_child(target, "dyeId")
-                if forId is not None:
-                    if forId.attrib['id'] != "":
-                        dyeLookup[forId.attrib['id']] = 1
+                if forId is not None and forId.attrib['id'] != "":
+                    dyeLookup[forId.attrib['id']] = 1
 
         # Process the lines
         for tabLine in tabLines[1:]:
@@ -5066,91 +5065,88 @@ class Run:
                 tarTypeLookup[sLin[3]] = sLin[4]
                 ret += "Created " + sLin[3] + " with type \"" + sLin[4] + "\" and dye \"" + sLin[5] + "\"\n"
 
-            colCount = 6
-            for col in sLin[6:]:
-                print(col + " - " + head[colCount])
-                colCount += 1
+            react = None
+            data = None
 
+            exp = _get_all_children(self._node, "react")
+            for node in exp:
+                if sLin[0] == node.attrib['id']:
+                    react = node
+                    forId = _get_first_child_text(react, "sample")
+                    if forId and forId is not "" and forId.attrib['id'] != sLin[1]:
+                        ret += "Missmatch: Well " + sLin[0] + " has sample \"" + forId.attrib['id'] + \
+                               "\" in RDML file and sample \"" + sLin[1] + "\" in tab file.\n"
+                    break
+            if react is None:
+                new_node = ET.Element("react", id=sLin[0])
+                place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
+                self._node.insert(place, new_node)
+                react = new_node
+                new_node = ET.Element("sample", id=sLin[1])
+                react.insert(0, new_node)
 
+            exp = _get_all_children(react, "data")
+            for node in exp:
+                forId = _get_first_child(node, "tar")
+                if forId is not None and forId.attrib['id'] == sLin[3]:
+                    data = node
+                    break
+            if data is None:
+                new_node = ET.Element("data")
+                place = _get_tag_pos(react, "data", ["sample", "data"], 9999999)
+                react.insert(place, new_node)
+                data = new_node
+                new_node = ET.Element("tar", id=sLin[3])
+                place = _get_tag_pos(data, "tar",
+                                     ["tar", "cq", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"],
+                                     9999999)
+                data.insert(place, new_node)
 
-
-
-
-
-        return
-        # Now create the header line
-        data += "Well\tSample\tSample Type\tTarget\tTarget Type\tDye\t"
-        reacts = _get_all_children(self._node, "react")
-        if len(reacts) < 1:
-            return ""
-        react_datas = _get_all_children(reacts[0], "data")
-        if len(react_datas) < 1:
-            return ""
-        headArr = []
-        if dMode == "amp":
-            adps = _get_all_children(react_datas[0], "adp")
-            for adp in adps:
-                headArr.append(_get_first_child_text(adp, "cyc"))
-            headArr = sorted(headArr, key=int)
-        else:
-            mdps = _get_all_children(react_datas[0], "mdp")
-            for mdp in mdps:
-                headArr.append(_get_first_child_text(mdp, "tmp"))
-            headArr = sorted(headArr, key=float, reverse=True)
-        for hElem in headArr:
-            data += hElem + "\t"
-        data += '\n'
-
-        # Now create the data lines
-        reacts = _get_all_children(self._node, "react")
-        wellData = []
-        for react in reacts:
-            reactId = react.get('id')
-            dataSample = reactId + '\t'
-            react_sample = "No Sample"
-            react_sample_type = "No Sample Type"
-            forId = _get_first_child(react, "sample")
-            if forId is not None:
-                if forId.attrib['id'] != "":
-                    react_sample = forId.attrib['id']
-                    react_sample_type = samTypeLookup[react_sample]
-            dataSample += react_sample + '\t' + react_sample_type + '\t'
-            react_datas = _get_all_children(react, "data")
-            for react_data in react_datas:
-                dataLine = dataSample
-                react_target = "No Target"
-                react_target_type = "No Target Type"
-                react_target_dye = "No Dye"
-                forId = _get_first_child(react_data, "tar")
-                if forId is not None:
-                    if forId.attrib['id'] != "":
-                        react_target = forId.attrib['id']
-                        react_target_type = tarTypeLookup[react_target]
-                        react_target_dye = tarDyeLookup[react_target]
-                dataLine += react_target + '\t' + react_target_type + '\t' + react_target_dye + '\t'
-                fluorList = []
-                if dMode == "amp":
-                    adps = _get_all_children(react_data, "adp")
-                    for adp in adps:
-                        cyc = _get_first_child_text(adp, "cyc")
-                        fluor = _get_first_child_text(adp, "fluor")
-                        fluorList.append([cyc, fluor])
-                    fluorList = sorted(fluorList, key=_sort_list_int)
+            if dMode == "amp":
+                presentAmp = _get_first_child(data, "adp")
+                if presentAmp is not None:
+                    ret += "Well " + sLin[0] + " with sample \"" + sLin[1] + " and target \"" + sLin[3] + \
+                           "\" has already amplification data, no data were added.\n"
                 else:
-                    mdps = _get_all_children(react_data, "mdp")
-                    for mdp in mdps:
-                        tmp = _get_first_child_text(mdp, "tmp")
-                        fluor = _get_first_child_text(mdp, "fluor")
-                        fluorList.append([tmp, fluor])
-                    fluorList = sorted(fluorList, key=_sort_list_float)
-                for hElem in fluorList:
-                    dataLine += hElem[1] + "\t"
-                dataLine += '\n'
-                wellData.append([reactId, dataLine])
-        wellData = sorted(wellData, key=_sort_list_int)
-        for hElem in wellData:
-            data += hElem[1]
-        return data
+                    colCount = 6
+                    for col in sLin[6:]:
+                        new_node = ET.Element("adp")
+                        place = _get_tag_pos(data, "adp",
+                                             ["tar", "cq", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"],
+                                             9999999)
+                        data.insert(place, new_node)
+                        new_sub = ET.Element("cyc")
+                        new_sub.text = head[colCount]
+                        place = _get_tag_pos(new_node, "cyc", ["cyc", "tmp", "fluor"], 9999999)
+                        new_node.insert(place, new_sub)
+                        new_sub = ET.Element("fluor")
+                        new_sub.text = col
+                        place = _get_tag_pos(new_node, "fluor", ["cyc", "tmp", "fluor"], 9999999)
+                        new_node.insert(place, new_sub)
+                        colCount += 1
+            if dMode == "melt":
+                presentAmp = _get_first_child(data, "mdp")
+                if presentAmp is not None:
+                    ret += "Well " + sLin[0] + " with sample \"" + sLin[1] + " and target \"" + sLin[3] + \
+                           "\" has already melting data, no data were added.\n"
+                else:
+                    colCount = 6
+                    for col in sLin[6:]:
+                        new_node = ET.Element("mdp")
+                        place = _get_tag_pos(data, "mdp",
+                                             ["tar", "cq", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"],
+                                             9999999)
+                        data.insert(place, new_node)
+                        new_sub = ET.Element("tmp")
+                        new_sub.text = head[colCount]
+                        place = _get_tag_pos(new_node, "tmp", ["tmp", "fluor"], 9999999)
+                        new_node.insert(place, new_sub)
+                        new_sub = ET.Element("fluor")
+                        new_sub.text = col
+                        place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
+                        new_node.insert(place, new_sub)
+                        colCount += 1
+        return ret
 
     def getreactjson(self):
         """Returns a json of the react data including fluorescence data.
