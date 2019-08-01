@@ -681,7 +681,7 @@ class Rdml:
             raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
         rdml_version = self._node.get('version')
         # Remainder: Update version in new() and validate()
-        if rdml_version not in ['1.0', '1.1', '1.2']:
+        if rdml_version not in ['1.0', '1.1', '1.2', '1.3']:
             raise RdmlError('Unknown or unsupported RDML file version.')
 
     def validate(self, filename=None):
@@ -713,6 +713,8 @@ class Rdml:
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
+        elif version == '1.3':
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             notes += 'RDML version:\tFalse\tUnknown schema version' + version + '\n'
             return notes
@@ -756,6 +758,8 @@ class Rdml:
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
+        elif version == '1.4':
+            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             return False
         xmlschema = ET.XMLSchema(xmlschema_doc)
@@ -1050,6 +1054,62 @@ class Rdml:
         self._node.attrib['version'] = "1.1"
         return ret
 
+    def migrate_version_1_2_to_1_3(self):
+        """Migrates the rdml version from v1.2 to v1.3.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of strings with the modifications made.
+        """
+
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.2':
+            raise RdmlError('RDML version for migration has to be v1.2.')
+
+        self._node.attrib['version'] = "1.3"
+        return ret
+
+    def migrate_version_1_3_to_1_2(self):
+        """Migrates the rdml version from v1.3 to v1.2.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of strings with the modifications made.
+        """
+
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.3':
+            raise RdmlError('RDML version for migration has to be v1.3.')
+
+        hint = ""
+        exp1 = _get_all_children(self._node, "experiment")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "run")
+            for node2 in exp2:
+                exp3 = _get_all_children(node2, "react")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "partitions")
+                    for node4 in exp4:
+                        hint = "Migration to v1.2 deleted react \"partitions\" elements."
+                        node3.remove(node4)
+                    # No data element, no react element in v 1.2
+                    exp5 = _get_all_children(node3, "data")
+                    if len(exp5) == 0:
+                        hint = "Migration to v1.2 deleted run \"react\" elements."
+                        node2.remove(node3)
+
+        if hint != "":
+            ret.append(hint)
+
+        self._node.attrib['version'] = "1.2"
+        return ret
+
     def recreate_lost_ids(self):
         """Searches for lost ids and repairs them.
 
@@ -1190,6 +1250,15 @@ class Rdml:
                         lastNodes = _get_all_children(dataNode, "tar")
                         for lastNode in lastNodes:
                             foundIds[lastNode.attrib['id']] = 0
+                    partNodes = _get_all_children(reactNode, "partitions")
+                    for partNode in partNodes:
+                        dataNodes = _get_all_children(partNode, "data")
+                        for dataNode in dataNodes:
+                            lastNodes = _get_all_children(dataNode, "tar")
+                            for lastNode in lastNodes:
+                                foundIds[lastNode.attrib['id']] = 0
+        # Todo: Search in Table files
+
         presentIds = []
         exp = _get_all_children(self._node, "target")
         for node in exp:
