@@ -5137,17 +5137,34 @@ class Run:
             react = None
             data = None
 
+            # Get the position number if required
+            wellPos = sLin[0]
+            if re.search("\D\d+", sLin[0]):
+                old_letter = ord(re.sub("\d", "", sLin[0]).upper()) - ord("A")
+                old_nr = int(re.sub("\D", "", sLin[0]))
+                newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+                wellPos = str(newId)
+            if re.search("\D\d+\D\d+", sLin[0]):
+                old_left = re.sub("\D\d+$", "", sLin[0])
+                old_left_letter = ord(re.sub("\d", "", old_left).upper()) - ord("A")
+                old_left_nr = int(re.sub("\D", "", old_left)) - 1
+                old_right = re.sub("^\D\d+", "", sLin[0])
+                old_right_letter = ord(re.sub("\d", "", old_right).upper()) - ord("A")
+                old_right_nr = int(re.sub("\D", "", old_right))
+                newId = old_left_nr * 8 + old_right_nr + old_left_letter * 768 + old_right_letter * 96
+                wellPos = str(newId)
+
             exp = _get_all_children(self._node, "react")
             for node in exp:
-                if sLin[0] == node.attrib['id']:
+                if wellPos == node.attrib['id']:
                     react = node
                     forId = _get_first_child_text(react, "sample")
                     if forId and forId is not "" and forId.attrib['id'] != sLin[1]:
-                        ret += "Missmatch: Well " + sLin[0] + " has sample \"" + forId.attrib['id'] + \
+                        ret += "Missmatch: Well " + wellPos + " (" + sLin[0] + ") has sample \"" + forId.attrib['id'] + \
                                "\" in RDML file and sample \"" + sLin[1] + "\" in tab file.\n"
                     break
             if react is None:
-                new_node = ET.Element("react", id=sLin[0])
+                new_node = ET.Element("react", id=wellPos)
                 place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
                 self._node.insert(place, new_node)
                 react = new_node
@@ -5174,8 +5191,8 @@ class Run:
             if dMode == "amp":
                 presentAmp = _get_first_child(data, "adp")
                 if presentAmp is not None:
-                    ret += "Well " + sLin[0] + " with sample \"" + sLin[1] + " and target \"" + sLin[3] + \
-                           "\" has already amplification data, no data were added.\n"
+                    ret += "Well " + wellPos + " (" + sLin[0] + ") with sample \"" + sLin[1] + " and target \"" + \
+                           sLin[3] + "\" has already amplification data, no data were added.\n"
                 else:
                     colCount = 6
                     for col in sLin[6:]:
@@ -5196,8 +5213,8 @@ class Run:
             if dMode == "melt":
                 presentAmp = _get_first_child(data, "mdp")
                 if presentAmp is not None:
-                    ret += "Well " + sLin[0] + " with sample \"" + sLin[1] + " and target \"" + sLin[3] + \
-                           "\" has already melting data, no data were added.\n"
+                    ret += "Well " + wellPos + " (" + sLin[0] + ")  with sample \"" + sLin[1] + " and target \"" + \
+                           sLin[3] + "\" has already melting data, no data were added.\n"
                 else:
                     colCount = 6
                     for col in sLin[6:]:
