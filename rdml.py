@@ -758,7 +758,7 @@ class Rdml:
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
-        elif version == '1.4':
+        elif version == '1.3':
             xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             return False
