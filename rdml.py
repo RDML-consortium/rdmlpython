@@ -5085,7 +5085,8 @@ class Run:
         with open(filename, "r") as tfile:
             fileContent = tfile.read()
 
-        tabLines = fileContent.split("\n")
+        newlineFix = fileContent.replace("\r\n", "\n")
+        tabLines = newlineFix.split("\n")
 
         head = tabLines[0].split("\t")
         if head[0] != "Well" or head[1] != "Sample" or head[2] != "Sample Type" or head[3] != "Target" \
@@ -5179,7 +5180,7 @@ class Run:
                     break
             if data is None:
                 new_node = ET.Element("data")
-                place = _get_tag_pos(react, "data", ["sample", "data"], 9999999)
+                place = _get_tag_pos(react, "data", ["sample", "data", "partitions"], 9999999)
                 react.insert(place, new_node)
                 data = new_node
                 new_node = ET.Element("tar", id=sLin[3])
@@ -5232,6 +5233,187 @@ class Run:
                         place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
                         new_node.insert(place, new_sub)
                         colCount += 1
+        return ret
+
+    def import_digital_overview(self, rootEl, filename):
+        """Imports data from a tab seperated table file with digital PCR overview data.
+
+        Args:
+            self: The class self parameter.
+            rootEl: The rdml root element.
+            filename: The tab file to open.
+
+        Returns:
+            A string with the modifications made.
+        """
+
+        ret = ""
+        with open(filename, "r") as tfile:
+            fileContent = tfile.read()
+
+        newlineFix = fileContent.replace("\r\n", "\n")
+        tabLines = newlineFix.split("\n")
+
+        # Get the information for the lookup dictionaries
+        samTypeLookup = {}
+        tarTypeLookup = {}
+        dyeLookup = {}
+        samples = _get_all_children(rootEl._node, "sample")
+        for sample in samples:
+            if sample.attrib['id'] != "":
+                samId = sample.attrib['id']
+                forType = _get_first_child_text(sample, "type")
+                if forType is not "":
+                    samTypeLookup[samId] = forType
+        targets = _get_all_children(rootEl._node, "target")
+        for target in targets:
+            if target.attrib['id'] != "":
+                tarId = target.attrib['id']
+                forType = _get_first_child_text(target, "type")
+                if forType is not "":
+                    tarTypeLookup[tarId] = forType
+                forId = _get_first_child(target, "dyeId")
+                if forId is not None and forId.attrib['id'] != "":
+                    dyeLookup[forId.attrib['id']] = 1
+
+        # BioRad style
+        if re.search("^Well;",tabLines[0]):
+            head = tabLines[0].split(";")
+            posCount = 0
+            posWell = 0
+            posSample = -1
+            posDye = -1
+            posTarget = -1
+            posCopConc = -1
+            posPositives = -1
+            posNegatives = -1
+            for hInfo in head:
+                if hInfo == "Sample":
+                    posSample = posCount
+                if hInfo in ["TargetType", "TypeAssay"]:
+                    posDye = posCount
+                if hInfo in ["Target", "Assay"]:
+                    posTarget = posCount
+                if hInfo == "CopiesPer20uLWell":
+                    posCopConc = posCount
+                if hInfo == "Positives":
+                    posPositives = posCount
+                if hInfo == "Negatives":
+                    posNegatives = posCount
+                posCount += 1
+            if posSample == -1:
+                raise RdmlError('The overview tab-format is not valid, sample columns are missing.')
+            if posDye == -1:
+                raise RdmlError('The overview tab-format is not valid, channel columns are missing.')
+            if posTarget == -1:
+                raise RdmlError('The overview tab-format is not valid, target columns are missing.')
+            if posPositives == -1:
+                raise RdmlError('The overview tab-format is not valid, positives columns are missing.')
+            if posNegatives == -1:
+                raise RdmlError('The overview tab-format is not valid, negatives columns are missing.')
+
+            # Process the lines
+            for tabLine in tabLines[1:]:
+                sLin = tabLine.split(";")
+                emptyLine = tabLine.replace(";", "")
+                if len(sLin) < 7 or len(emptyLine) < 5:
+                    continue
+                if sLin[posSample] not in samTypeLookup:
+                    rootEl.new_sample(sLin[posSample], "unkn")
+                    samTypeLookup[sLin[posSample]] = "unkn"
+                    ret += "Created sample \"" + sLin[posSample] + "\" with type \"" + "unkn" + "\"\n"
+                if sLin[posTarget] not in tarTypeLookup:
+                    if sLin[posDye][:3] not in dyeLookup:
+                        rootEl.new_dye(sLin[posDye][:3])
+                        dyeLookup[sLin[posDye][:3]] = 1
+                        ret += "Created dye \"" + sLin[posDye][:3] + "\"\n"
+                    rootEl.new_target(sLin[posTarget], "toi")
+                    elem = rootEl.get_target(byid=sLin[posTarget])
+                    elem["dyeId"] = sLin[posDye][:3]
+                    tarTypeLookup[sLin[posTarget]] = "toi"
+                    ret += "Created " + sLin[posTarget] + " with type \"" + "toi" + "\" and dye \"" + sLin[posDye][:3] + "\"\n"
+
+                react = None
+                partit = None
+                data = None
+
+                # Get the position number if required
+                wellPos = sLin[posWell]
+                if re.search("\D\d+", sLin[posWell]):
+                    old_letter = ord(re.sub("\d", "", sLin[posWell]).upper()) - ord("A")
+                    old_nr = int(re.sub("\D", "", sLin[posWell]))
+                    newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+                    wellPos = str(newId)
+
+                exp = _get_all_children(self._node, "react")
+                for node in exp:
+                    if wellPos == node.attrib['id']:
+                        react = node
+                        forId = _get_first_child_text(react, "sample")
+                        if forId and forId is not "" and forId.attrib['id'] != sLin[posSample]:
+                            ret += "Missmatch: Well " + wellPos + " (" + sLin[posWell] + ") has sample \"" + forId.attrib['id'] + \
+                                   "\" in RDML file and sample \"" + sLin[posSample] + "\" in tab file.\n"
+                        break
+                if react is None:
+                    new_node = ET.Element("react", id=wellPos)
+                    place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
+                    self._node.insert(place, new_node)
+                    react = new_node
+                    new_node = ET.Element("sample", id=sLin[posSample])
+                    react.insert(0, new_node)
+
+                partit = _get_first_child(react, "partitions")
+                if partit is None:
+                    new_node = ET.Element("partitions")
+                    place = _get_tag_pos(react, "partitions", ["sample", "data", "partitions"], 9999999)
+                    react.insert(place, new_node)
+                    partit = new_node
+                    new_node = ET.Element("volume")
+                    new_node.text = "0.85"
+                    place = _get_tag_pos(partit, "volume", ["volume", "endPtTable", "data"], 9999999)
+                    partit.insert(place, new_node)
+
+                exp = _get_all_children(partit, "data")
+                for node in exp:
+                    forId = _get_first_child(node, "tar")
+                    if forId is not None and forId.attrib['id'] == sLin[posTarget]:
+                        data = node
+                        break
+                if data is None:
+                    new_node = ET.Element("data")
+                    place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                    partit.insert(place, new_node)
+                    data = new_node
+                    new_node = ET.Element("tar", id=sLin[posTarget])
+                    place = _get_tag_pos(data, "tar",
+                                         ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                         9999999)
+                    data.insert(place, new_node)
+
+                new_node = ET.Element("pos")
+                new_node.text = sLin[posPositives]
+                place = _get_tag_pos(data, "pos",
+                                     ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                     9999999)
+                data.insert(place, new_node)
+
+                new_node = ET.Element("neg")
+                new_node.text = sLin[posNegatives]
+                place = _get_tag_pos(data, "neg",
+                                     ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                     9999999)
+                data.insert(place, new_node)
+
+                if posCopConc != -1:
+                    new_node = ET.Element("conc")
+                    if int(sLin[posPositives]) == 0:
+                        new_node.text = "0"
+                    else:
+                        new_node.text = str(float(sLin[posCopConc])/20)
+                    place = _get_tag_pos(data, "conc",
+                                         ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                         9999999)
+                    data.insert(place, new_node)
         return ret
 
     def getreactjson(self):
