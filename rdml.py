@@ -8,6 +8,7 @@ import os
 import re
 import datetime
 import zipfile
+import tempfile
 import argparse
 from lxml import etree as ET
 
@@ -522,6 +523,46 @@ def _get_first_tag_pos(base, tag, xmlkeys):
     return counter
 
 
+def _writeFileInRDML(rdmlName, fileName, data):
+    """Writes a file in the RDML zip, even if it existed before.
+
+    Args:
+        rdmlName: The name of the RDML zip file
+        fileName: The name of the file to write into the zip
+        data: The data string of the file
+
+    Returns:
+        Nothing, modifies the RDML file.
+    """
+
+    needRewrite = False
+
+    if os.path.isfile(rdmlName):
+        with zipfile.ZipFile(rdmlName, 'r') as RDMLin:
+            for item in RDMLin.infolist():
+                if item.filename == fileName:
+                    needRewrite = True
+
+    if needRewrite:
+        tempFolder, tempName = tempfile.mkstemp(dir=os.path.dirname(rdmlName))
+        os.close(tempFolder)
+
+        # copy everything except the filename
+        with zipfile.ZipFile(rdmlName, 'r') as RDMLin:
+            with zipfile.ZipFile(tempName, mode='w', compression=zipfile.ZIP_DEFLATED) as RDMLout:
+                RDMLout.comment = RDMLin.comment
+                for item in RDMLin.infolist():
+                    if item.filename != fileName:
+                        RDMLout.writestr(item, RDMLin.read(item.filename))
+                RDMLout.writestr(fileName, data)
+
+        os.remove(rdmlName)
+        os.rename(tempName, rdmlName)
+    else:
+        with zipfile.ZipFile(rdmlName, mode='a', compression=zipfile.ZIP_DEFLATED) as RDMLout:
+            RDMLout.writestr(fileName, data)
+
+
 class Rdml:
     """RDML-Python library
     
@@ -628,6 +669,8 @@ class Rdml:
                 raise RdmlError('No rdml_data.xml in compressed RDML file found.')
             else:
                 self.loadXMLString(data)
+            finally:
+                zf.close()
         else:
             with open(filename, 'r') as txtfile:
                 data = txtfile.read()
@@ -650,11 +693,7 @@ class Rdml:
         elem = _get_first_child(self._node, "dateUpdated")
         elem.text = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         data = ET.tostring(self._rdmlData, pretty_print=True)
-        zf2 = zipfile.ZipFile(filename, mode='w', compression=zipfile.ZIP_DEFLATED,)
-        try:
-            zf2.writestr('rdml_data.xml', data)
-        finally:
-            zf2.close()
+        _writeFileInRDML(filename, 'rdml_data.xml', data)
 
     def loadXMLString(self, data):
         """Create RDML object from xml string. !ENTITY and DOCSTRINGS will be removed.
@@ -5241,7 +5280,7 @@ class Run:
         Args:
             self: The class self parameter.
             rootEl: The rdml root element.
-            zipFilename: The filename of the rdml file
+            rdmlFilename: The filename of the rdml file
             filename: The tab file to open.
             filelist: A list of tab files with fluorescence data
 
@@ -5501,17 +5540,18 @@ class Run:
                             if partit is None:
                                 continue
 
-                            finalFileName = propFileName + "_" + wellPos + "_" + well + ".tsv"
+                            finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+                            if finalFileName == "partitions/":
+                                finalFileName = propFileName + "_" + wellPos + "_" + well + ".tsv"
+                                triesCount = 0
+                                if finalFileName.lower() in uniqueFileNames:
+                                    while triesCount < 100:
+                                        finalFileName = propFileName + "_" + wellPos + "_" + well + "_" + str(triesCount) + ".tsv"
+                                        if finalFileName.lower() not in uniqueFileNames:
+                                            uniqueFileNames.append(finalFileName.lower())
+                                            break
 
-                            triesCount = 0
-                            if finalFileName.lower() in uniqueFileNames:
-                                while triesCount < 100:
-                                    finalFileName = propFileName + "_" + wellPos + "_" + well + "_" + triesCount + ".tsv"
-                                    if finalFileName.lower() not in uniqueFileNames:
-                                        uniqueFileNames.append(finalFileName.lower())
-                                        break
-
-                            print(finalFileName)
+                            # print(finalFileName)
 
                             if "Ch1" in headerLookup[well]:
                                 keepCh1 = True
@@ -5519,21 +5559,31 @@ class Run:
                             if "Ch2" in headerLookup[well]:
                                 keepCh2 = True
                                 header += headerLookup[well]["Ch2"] + "\t" + headerLookup[well]["Ch2"] + "\t"
-                            outTabFile += header.replace("\t$", "\n")
+                            outTabFile += re.sub(r'\t$', '\n', header)
 
                             if keepCh1 or keepCh2:
                                 exp = _get_all_children(partit, "data")
+                                ch1Pos = "0"
+                                ch1Neg = "0"
+                                ch1sum = 0
+                                ch2Pos = "0"
+                                ch2Neg = "0"
+                                ch2sum = 0
                                 for node in exp:
                                     forId = _get_first_child(node, "tar")
                                     if keepCh1 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch1"]:
                                         dataCh1 = node
                                         ch1Pos = _get_first_child_text(dataCh1, "pos")
                                         ch1Neg = _get_first_child_text(dataCh1, "neg")
+                                        ch1sum = int(ch1Pos) + int(ch1Neg)
                                     if keepCh2 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch2"]:
                                         dataCh2 = node
                                         ch2Pos = _get_first_child_text(dataCh2, "pos")
                                         ch2Neg = _get_first_child_text(dataCh2, "neg")
+                                        ch2sum = int(ch2Pos) + int(ch2Neg)
                                 if dataCh1 is None and dataCh2 is None:
+                                    continue
+                                if ch1sum < 1 and ch2sum < 1:
                                     continue
 
                                 with open(fileLookup[well], "r") as wellfile:
@@ -5556,17 +5606,12 @@ class Run:
 
                                     if keepCh1:
                                         ch1Arr.sort()
-                                        if len(ch1Arr) > int(ch1Neg):
+                                        if 0 < int(ch1Neg) <= len(ch1Arr):
                                             ch1Cut = ch1Arr[int(ch1Neg) - 1]
-                                        else:
-                                            print("Arr:" + str(len(ch1Arr)) + ">" + ch1Neg)
                                     if keepCh2:
                                         ch2Arr.sort()
-                                        if len(ch2Arr) > int(ch2Neg):
+                                        if 0 < int(ch2Neg) <= len(ch2Arr):
                                             ch2Cut = ch2Arr[int(ch2Neg) - 1]
-
-                                    blaP = 0
-                                    blaN = 0
 
                                     for line in wellLines[1:]:
                                         splitLine = line.split(",")
@@ -5576,10 +5621,8 @@ class Run:
                                             outTabFile += splitLine[0] + "\t"
                                             if float(splitLine[0]) > ch1Cut:
                                                 outTabFile += "p"
-                                                blaP += 1
                                             else:
                                                 outTabFile += "n"
-                                                blaN += 1
                                         if keepCh2:
                                             if keepCh1:
                                                 outTabFile += "\t"
@@ -5590,18 +5633,11 @@ class Run:
                                                 outTabFile += "n\n"
                                         else:
                                             outTabFile += "\n"
-                                    print(ch1Pos + " - " + str(blaP))
-                                    print(ch1Neg + " - " + str(blaN))
-
-
-
-
-
-
-
-
-
-
+                                    _writeFileInRDML(rdmlFilename, finalFileName, outTabFile)
+                                    new_node = ET.Element("endPtTable")
+                                    new_node.text = re.sub(r'^partitions/', '', finalFileName)
+                                    place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
+                                    partit.insert(place, new_node)
 
         else:
             # This is crap, use only in emergencies
