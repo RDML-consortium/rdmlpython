@@ -5686,6 +5686,7 @@ class Run:
         mdp_fluor_min = 99999999
         mdp_fluor_max = 0.0
         max_data = 0
+        max_partition_data = 0
         for react in reacts:
             react_json = {
                 "id": react.get('id'),
@@ -5734,6 +5735,29 @@ class Run:
                 in_react["mdps"] = mdps_json
                 react_datas_json.append(in_react)
             react_json["datas"] = react_datas_json
+            partit = _get_first_child(react, "partitions")
+            if partit is not None:
+                in_partitions = {}
+                endPtTable = _get_first_child_text(partit, "endPtTable")
+                if partit is not "":
+                    in_partitions["endPtTable"] = endPtTable
+                partit_datas = _get_all_children(partit, "data")
+                max_partition_data = max(max_partition_data, len(partit_datas))
+                partit_datas_json = []
+                for partit_data in partit_datas:
+                    in_partit = {}
+                    forId = _get_first_child(partit_data, "tar")
+                    if forId is not None:
+                        if forId.attrib['id'] != "":
+                            in_partit["tar"] = forId.attrib['id']
+                    _add_first_child_to_dic(partit_data, in_partit, False, "pos")
+                    _add_first_child_to_dic(partit_data, in_partit, False, "neg")
+                    _add_first_child_to_dic(partit_data, in_partit, True, "undef")
+                    _add_first_child_to_dic(partit_data, in_partit, True, "excl")
+                    _add_first_child_to_dic(partit_data, in_partit, True, "conc")
+                    partit_datas_json.append(in_partit)
+                in_partitions["datas"] = partit_datas_json
+                react_json["partitions"] = in_partitions
             data.append(react_json)
         all_data["reacts"] = data
         all_data["adp_cyc_max"] = adp_cyc_max
@@ -5744,6 +5768,7 @@ class Run:
         all_data["mdp_fluor_min"] = mdp_fluor_min
         all_data["mdp_fluor_max"] = mdp_fluor_max
         all_data["max_data_len"] = max_data
+        all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
 
