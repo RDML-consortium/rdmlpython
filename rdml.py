@@ -5664,6 +5664,56 @@ class Run:
 
         return ret
 
+    def get_digital_raw_data(self, rdmlFilename, reactPos):
+        """Imports data from a tab seperated table file with digital PCR overview data.
+
+        Args:
+            self: The class self parameter.
+            rdmlFilename: The filename of the rdml file
+            react: The react id to get the digital raw data from
+
+        Returns:
+            A string with the raw data table.
+        """
+
+        react = None
+        partit = None
+        retVal = ""
+
+        # Get the position number if required
+        wellPos = str(reactPos)
+        if re.search("\D\d+", wellPos):
+            old_letter = ord(re.sub("\d", "", wellPos.upper())) - ord("A")
+            old_nr = int(re.sub("\D", "", wellPos))
+            newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+            wellPos = str(newId)
+
+        exp = _get_all_children(self._node, "react")
+        for node in exp:
+            if wellPos == node.attrib['id']:
+                react = node
+                break
+        if react is None:
+            return ""
+
+        partit = _get_first_child(react, "partitions")
+        if partit is None:
+            return ""
+
+        finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+        if finalFileName == "partitions/":
+            return ""
+
+        if zipfile.is_zipfile(rdmlFilename):
+            zf = zipfile.ZipFile(rdmlFilename, 'r')
+            try:
+                retVal = zf.read(finalFileName).decode('utf-8')
+            except KeyError:
+                raise RdmlError('No ' + finalFileName + ' in compressed RDML file found.')
+            finally:
+                zf.close()
+        return retVal
+
     def getreactjson(self):
         """Returns a json of the react data including fluorescence data.
 
