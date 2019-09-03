@@ -554,7 +554,8 @@ def _writeFileInRDML(rdmlName, fileName, data):
                 for item in RDMLin.infolist():
                     if item.filename != fileName:
                         RDMLout.writestr(item, RDMLin.read(item.filename))
-                RDMLout.writestr(fileName, data)
+                if data != "":
+                    RDMLout.writestr(fileName, data)
 
         os.remove(rdmlName)
         os.rename(tempName, rdmlName)
@@ -585,6 +586,7 @@ class Rdml:
         """
         
         self._rdmlData = None
+        self._rdmlFilename = None
         self._node = None
         if filename:
             self.load(filename)
@@ -662,6 +664,7 @@ class Rdml:
         """    
 
         if zipfile.is_zipfile(filename):
+            self._rdmlFilename = filename
             zf = zipfile.ZipFile(filename, 'r')
             try:
                 data = zf.read('rdml_data.xml').decode('utf-8')
@@ -1149,11 +1152,12 @@ class Rdml:
         self._node.attrib['version'] = "1.2"
         return ret
 
-    def recreate_lost_ids(self):
+    def recreate_lost_ids(self, rdmlFilename=None):
         """Searches for lost ids and repairs them.
 
         Args:
             self: The class self parameter.
+            rdmlFilename: The filename of the rdml file
 
         Returns:
             A string with the modifications.
@@ -1296,7 +1300,20 @@ class Rdml:
                             lastNodes = _get_all_children(dataNode, "tar")
                             for lastNode in lastNodes:
                                 foundIds[lastNode.attrib['id']] = 0
-        # Todo: Search in Table files
+        # Search in Table files
+        if rdmlFilename is not None and rdmlFilename != "":
+            if zipfile.is_zipfile(rdmlFilename):
+                zf = zipfile.ZipFile(rdmlFilename, 'r')
+                for item in zf.infolist():
+                    if re.search("^partitions/", item.filename):
+                        fileContent = zf.read(item.filename).decode('utf-8')
+                        newlineFix = fileContent.replace("\r\n", "\n")
+                        tabLines = newlineFix.split("\n")
+                        header = tabLines[0].split("\t")
+                        for cell in header:
+                            if cell != "":
+                                foundIds[cell] = 0
+                zf.close()
 
         presentIds = []
         exp = _get_all_children(self._node, "target")
@@ -1794,7 +1811,7 @@ class Rdml:
         exp = _get_all_children(self._node, "target")
         ret = []
         for node in exp:
-            ret.append(Target(node))
+            ret.append(Target(node, self._rdmlFilename))
         return ret
 
     def new_target(self, id, type, newposition=None):
@@ -1843,7 +1860,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Target(_get_first_child_by_pos_or_id(self._node, "target", byid, byposition))
+        return Target(_get_first_child_by_pos_or_id(self._node, "target", byid, byposition), self._rdmlFilename)
 
     def delete_target(self, byid=None, byposition=None):
         """Deletes an target element.
@@ -1951,7 +1968,7 @@ class Rdml:
         exp = _get_all_children(self._node, "experiment")
         ret = []
         for node in exp:
-            ret.append(Experiment(node))
+            ret.append(Experiment(node, self._rdmlFilename))
         return ret
 
     def new_experiment(self, id, newposition=None):
@@ -1996,7 +2013,7 @@ class Rdml:
             The found element or None.
         """
 
-        return Experiment(_get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition))
+        return Experiment(_get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition), self._rdmlFilename)
 
     def delete_experiment(self, byid=None, byposition=None):
         """Deletes an experiment element.
@@ -2011,6 +2028,8 @@ class Rdml:
         """
 
         elem = _get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition)
+        # Todo Del files
+
         self._node.remove(elem)
 
     def tojson(self):
@@ -2651,7 +2670,7 @@ class Sample:
                     return vdic
                 else:
                     return None
-        if ver == "1.2":
+        if ver == "1.2" or ver == "1.3":
             if key == "templateQuantity":
                 ele = _get_first_child(self._node, key)
                 vdic = {}
@@ -2772,7 +2791,7 @@ class Sample:
                     _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
                 _remove_irrelevant_subelement(self._node, key)
                 return
-        if ver == "1.2":
+        if ver == "1.2" or ver == "1.3":
             if key == "templateQuantity":
                 if value is None:
                     return
@@ -3116,7 +3135,7 @@ class Sample:
         _add_first_child_to_dic(self._node, data, True, "description")
         data["documentations"] = self.documentation_ids()
         data["xRefs"] = self.xrefs()
-        if ver == "1.2":
+        if ver == "1.2" or ver == "1.3":
             data["annotations"] = self.annotations()
         _add_first_child_to_dic(self._node, data, False, "type")
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
@@ -3164,7 +3183,7 @@ class Sample:
                 _add_first_child_to_dic(elem, qdic, False, "method")
                 _add_first_child_to_dic(elem, qdic, False, "result")
                 data["templateDNAQuality"] = qdic
-        if ver == "1.2":
+        if ver == "1.2" or ver == "1.3":
             elem = _get_first_child(self._node, "templateQuantity")
             if elem is not None:
                 qdic = {}
@@ -3181,20 +3200,23 @@ class Target:
 
     Attributes:
         _node: The target node of the RDML XML object.
+        _rdmlFilename: The RDML filename
     """
 
-    def __init__(self, node):
+    def __init__(self, node, rdmlFilename):
         """Inits an target instance.
 
         Args:
             self: The class self parameter.
             node: The target node.
+            rdmlFilename: The RDML filename.
 
         Returns:
             No return value. Function may raise RdmlError if required.
         """
 
         self._node = node
+        self._rdmlFilename = rdmlFilename
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -3273,7 +3295,7 @@ class Target:
                 return _get_first_child_text(prim, "orderNumber")
         par = self._node.getparent()
         ver = par.get('version')
-        if ver == "1.2":
+        if ver == "1.2" or ver == "1.3":
             if key == "amplificationEfficiencySE":
                 var = _get_first_child_text(self._node, key)
                 if var == "":
@@ -3315,6 +3337,62 @@ class Target:
                                 for lastNode in lastNodes:
                                     if lastNode.attrib['id'] == oldValue:
                                         lastNode.attrib['id'] = value
+                            partit = _get_first_child(reactNode, "partitions")
+                            if partit is not None:
+                                digDataNodes = _get_all_children(partit, "data")
+                                for digDataNode in digDataNodes:
+                                    lastNodes = _get_all_children(digDataNode, "tar")
+                                    for lastNode in lastNodes:
+                                        if lastNode.attrib['id'] == oldValue:
+                                            lastNode.attrib['id'] = value
+
+                # Search in Table files
+                if self._rdmlFilename is not None and self._rdmlFilename != "":
+                    if zipfile.is_zipfile(self._rdmlFilename):
+                        fileList = []
+                        tempName = ""
+                        flipFiles = False
+                        with zipfile.ZipFile(self._rdmlFilename, 'r') as RDMLin:
+                            for item in RDMLin.infolist():
+                                if re.search("^partitions/", item.filename):
+                                    fileContent = RDMLin.read(item.filename).decode('utf-8')
+                                    newlineFix = fileContent.replace("\r\n", "\n")
+                                    tabLines = newlineFix.split("\n")
+                                    header = tabLines[0].split("\t")
+                                    needRewrite = False
+                                    for cell in header:
+                                        if cell == oldValue:
+                                            needRewrite = True
+                                    if needRewrite:
+                                        fileList.append(item.filename)
+                            if len(fileList) > 0:
+                                tempFolder, tempName = tempfile.mkstemp(dir=os.path.dirname(self._rdmlFilename))
+                                os.close(tempFolder)
+                                flipFiles = True
+                                with zipfile.ZipFile(tempName, mode='w', compression=zipfile.ZIP_DEFLATED) as RDMLout:
+                                    RDMLout.comment = RDMLin.comment
+                                    for item in RDMLin.infolist():
+                                        if item.filename not in fileList:
+                                            RDMLout.writestr(item, RDMLin.read(item.filename))
+                                        else:
+                                            fileContent = RDMLin.read(item.filename).decode('utf-8')
+                                            newlineFix = fileContent.replace("\r\n", "\n")
+                                            tabLines = newlineFix.split("\n")
+                                            header = tabLines[0].split("\t")
+                                            headerText = ""
+                                            for cell in header:
+                                                if cell == oldValue:
+                                                    headerText += value + "\t"
+                                                else:
+                                                    headerText += cell + "\t"
+                                            outFileStr = re.sub(r'\t$', '\n', headerText)
+                                            for tabLine in tabLines[1:]:
+                                                if tabLine != "":
+                                                    outFileStr += tabLine + "\n"
+                                            RDMLout.writestr(item.filename, outFileStr)
+                        if flipFiles:
+                            os.remove(self._rdmlFilename)
+                            os.rename(tempName, self._rdmlFilename)
             return
         if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
@@ -3400,7 +3478,7 @@ class Target:
             return
         par = self._node.getparent()
         ver = par.get('version')
-        if ver == "1.2":
+        if ver == "1.2" or ver == "1.3":
             if key == "amplificationEfficiencySE":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         raise KeyError
@@ -4453,20 +4531,23 @@ class Experiment:
 
     Attributes:
         _node: The target node of the RDML XML object.
+        _rdmlFilename: The RDML filename
     """
 
-    def __init__(self, node):
+    def __init__(self, node, rdmlFilename):
         """Inits an experiment instance.
 
         Args:
             self: The class self parameter.
             node: The experiment node.
+            rdmlFilename: The RDML filename.
 
         Returns:
             No return value. Function may raise RdmlError if required.
         """
 
         self._node = node
+        self._rdmlFilename = rdmlFilename
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -4601,7 +4682,7 @@ class Experiment:
         exp = _get_all_children(self._node, "run")
         ret = []
         for node in exp:
-            ret.append(Run(node))
+            ret.append(Run(node, self._rdmlFilename))
         return ret
 
     def new_run(self, id, newposition=None):
@@ -4646,7 +4727,7 @@ class Experiment:
             The found element or None.
         """
 
-        return Run(_get_first_child_by_pos_or_id(self._node, "run", byid, byposition))
+        return Run(_get_first_child_by_pos_or_id(self._node, "run", byid, byposition), self._rdmlFilename)
 
     def delete_run(self, byid=None, byposition=None):
         """Deletes an run element.
@@ -4661,6 +4742,31 @@ class Experiment:
         """
 
         elem = _get_first_child_by_pos_or_id(self._node, "run", byid, byposition)
+
+        # Delete in Table files
+        fileList = []
+        exp = _get_all_children(elem, "react")
+        for node in exp:
+            partit = _get_first_child(node, "partitions")
+            if partit is not None:
+                finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+                if finalFileName != "partitions/":
+                    fileList.append(finalFileName)
+        if len(fileList) > 0:
+            if self._rdmlFilename is not None and self._rdmlFilename != "":
+                if zipfile.is_zipfile(self._rdmlFilename):
+                    with zipfile.ZipFile(self._rdmlFilename, 'r') as RDMLin:
+                        tempFolder, tempName = tempfile.mkstemp(dir=os.path.dirname(self._rdmlFilename))
+                        os.close(tempFolder)
+                        with zipfile.ZipFile(tempName, mode='w', compression=zipfile.ZIP_DEFLATED) as RDMLout:
+                            RDMLout.comment = RDMLin.comment
+                            for item in RDMLin.infolist():
+                                if item.filename not in fileList:
+                                    RDMLout.writestr(item, RDMLin.read(item.filename))
+                    os.remove(self._rdmlFilename)
+                    os.rename(tempName, self._rdmlFilename)
+
+        # Delete the node
         self._node.remove(elem)
 
     def tojson(self):
@@ -4693,20 +4799,23 @@ class Run:
 
     Attributes:
         _node: The run node of the RDML XML object.
+        _rdmlFilename: The RDML filename.
     """
 
-    def __init__(self, node):
+    def __init__(self, node, rdmlFilename):
         """Inits an run instance.
 
         Args:
             self: The class self parameter.
             node: The sample node.
+            rdmlFilename: The RDML filename.
 
         Returns:
             No return value. Function may raise RdmlError if required.
         """
 
         self._node = node
+        self._rdmlFilename = rdmlFilename
 
     def __getitem__(self, key):
         """Returns the value for the key.
@@ -5670,7 +5779,7 @@ class Run:
         Args:
             self: The class self parameter.
             rdmlFilename: The filename of the rdml file
-            react: The react id to get the digital raw data from
+            reactPos: The react id to get the digital raw data from
 
         Returns:
             A string with the raw data table.
