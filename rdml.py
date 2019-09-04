@@ -2028,8 +2028,15 @@ class Rdml:
         """
 
         elem = _get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition)
-        # Todo Del files
+        experiment = Experiment(elem, self._rdmlFilename)
 
+        # Required to delete digital files
+        runs = _get_all_children(elem, "run")
+        for node in runs:
+            run = Run(node, self._rdmlFilename)
+            experiment.delete_run(byid=run["id"])
+
+        # Now delete the experiment element
         self._node.remove(elem)
 
     def tojson(self):
