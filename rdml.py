@@ -1152,12 +1152,11 @@ class Rdml:
         self._node.attrib['version'] = "1.2"
         return ret
 
-    def recreate_lost_ids(self, rdmlFilename=None):
+    def recreate_lost_ids(self):
         """Searches for lost ids and repairs them.
 
         Args:
             self: The class self parameter.
-            rdmlFilename: The filename of the rdml file
 
         Returns:
             A string with the modifications.
@@ -1301,9 +1300,9 @@ class Rdml:
                             for lastNode in lastNodes:
                                 foundIds[lastNode.attrib['id']] = 0
         # Search in Table files
-        if rdmlFilename is not None and rdmlFilename != "":
-            if zipfile.is_zipfile(rdmlFilename):
-                zf = zipfile.ZipFile(rdmlFilename, 'r')
+        if self._rdmlFilename is not None and self._rdmlFilename != "":
+            if zipfile.is_zipfile(self._rdmlFilename):
+                zf = zipfile.ZipFile(self._rdmlFilename, 'r')
                 for item in zf.infolist():
                     if re.search("^partitions/", item.filename):
                         fileContent = zf.read(item.filename).decode('utf-8')
@@ -5390,13 +5389,12 @@ class Run:
                         colCount += 1
         return ret
 
-    def import_digital_data(self, rootEl, rdmlFilename, filename, filelist):
+    def import_digital_data(self, rootEl, filename, filelist):
         """Imports data from a tab seperated table file with digital PCR overview data.
 
         Args:
             self: The class self parameter.
             rootEl: The rdml root element.
-            rdmlFilename: The filename of the rdml file
             filename: The tab file to open.
             filelist: A list of tab files with fluorescence data
 
@@ -5459,8 +5457,8 @@ class Run:
             fileLookup[currName] = wellFileName
 
         # Get the used unique file names
-        if zipfile.is_zipfile(rdmlFilename):
-            with zipfile.ZipFile(rdmlFilename, 'r') as rdmlObj:
+        if zipfile.is_zipfile(self._rdmlFilename):
+            with zipfile.ZipFile(self._rdmlFilename, 'r') as rdmlObj:
                 # Get list of files names in rdml zip
                 allRDMLfiles = rdmlObj.namelist()
                 for ele in allRDMLfiles:
@@ -5749,7 +5747,7 @@ class Run:
                                                 outTabFile += "n\n"
                                         else:
                                             outTabFile += "\n"
-                                    _writeFileInRDML(rdmlFilename, finalFileName, outTabFile)
+                                    _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
                                     new_node = ET.Element("endPtTable")
                                     new_node.text = re.sub(r'^partitions/', '', finalFileName)
                                     place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
@@ -5780,12 +5778,98 @@ class Run:
 
         return ret
 
-    def get_digital_raw_data(self, rdmlFilename, reactPos):
-        """Imports data from a tab seperated table file with digital PCR overview data.
+    def get_digital_overview_data(self, rootEl):
+        """Provides the digital overview data in tab seperated format.
 
         Args:
             self: The class self parameter.
-            rdmlFilename: The filename of the rdml file
+            rootEl: The rdml root element.
+
+        Returns:
+            A string with the overview data table.
+        """
+
+        #       0    1      2        3          4          5      6      7         8         9         10        11        12
+        ret = "Pos\tWell\tSample\tSampleType\tTarget\tTargetType\tDye\tCopies\tPositives\tNegatives\tUndefined\tExcluded\tFileName\n"
+
+        # Fill the lookup dics
+        samTypeLookup = {}
+        tarTypeLookup = {}
+        tarDyeLookup = {}
+
+        samples = _get_all_children(rootEl._node, "sample")
+        for sample in samples:
+            if sample.attrib['id'] != "":
+                samId = sample.attrib['id']
+                forType = _get_first_child_text(sample, "type")
+                if forType is not "":
+                    samTypeLookup[samId] = forType
+        targets = _get_all_children(rootEl._node, "target")
+        for target in targets:
+            if target.attrib['id'] != "":
+                tarId = target.attrib['id']
+                forType = _get_first_child_text(target, "type")
+                if forType is not "":
+                    tarTypeLookup[tarId] = forType
+                forId = _get_first_child(target, "dyeId")
+                if forId is not None and forId.attrib['id'] != "":
+                    tarDyeLookup[tarId] = forId.attrib['id']
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            pPos = react.attrib['id']
+            pWell = react.attrib['id']
+            # Todo: Well name
+            pSample = ""
+            pSampleType = ""
+            pFileName = ""
+            forId = _get_first_child(react, "sample")
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    pSample = forId.attrib['id']
+                    pSampleType = samTypeLookup[forId.attrib['id']]
+            partit = _get_first_child(react, "partitions")
+            if partit is not None:
+                endPtTable = _get_first_child_text(partit, "endPtTable")
+                if endPtTable is not "":
+                    pFileName = endPtTable
+                partit_datas = _get_all_children(partit, "data")
+                for partit_data in partit_datas:
+                    pTarget = ""
+                    pTargetType = ""
+                    pDye = ""
+                    forId = _get_first_child(partit_data, "tar")
+                    if forId is not None:
+                        if forId.attrib['id'] != "":
+                            pTarget = forId.attrib['id']
+                            pTargetType = tarTypeLookup[pTarget]
+                            pDye = tarDyeLookup[pTarget]
+                    pCopies = _get_first_child_text(partit_data, "conc")
+                    pPositives = _get_first_child_text(partit_data, "pos")
+                    pNegatives = _get_first_child_text(partit_data, "neg")
+                    pUnknown = _get_first_child_text(partit_data, "undef")
+                    pExcluded = _get_first_child_text(partit_data, "excl")
+
+                    ret += pPos + "\t"
+                    ret += pWell + "\t"
+                    ret += pSample + "\t"
+                    ret += pSampleType + "\t"
+                    ret += pTarget + "\t"
+                    ret += pTargetType + "\t"
+                    ret += pDye + "\t"
+                    ret += pCopies + "\t"
+                    ret += pPositives + "\t"
+                    ret += pNegatives + "\t"
+                    ret += pUnknown + "\t"
+                    ret += pExcluded + "\t"
+                    ret += pFileName + "\n"
+        return ret
+
+    def get_digital_raw_data(self, reactPos):
+        """Provides the digital of a react in tab seperated format.
+
+        Args:
+            self: The class self parameter.
             reactPos: The react id to get the digital raw data from
 
         Returns:
@@ -5820,8 +5904,157 @@ class Run:
         if finalFileName == "partitions/":
             return ""
 
-        if zipfile.is_zipfile(rdmlFilename):
-            zf = zipfile.ZipFile(rdmlFilename, 'r')
+        if zipfile.is_zipfile(self._rdmlFilename):
+            zf = zipfile.ZipFile(self._rdmlFilename, 'r')
+            try:
+                retVal = zf.read(finalFileName).decode('utf-8')
+            except KeyError:
+                raise RdmlError('No ' + finalFileName + ' in compressed RDML file found.')
+            finally:
+                zf.close()
+        return retVal
+
+    def set_digital_raw_data(self, rootEl, reactPos, setFileName):
+        """Imports data from a tab seperated table file with digital PCR data.
+
+        Args:
+            self: The class self parameter.
+            rootEl: The rdml root element.
+            reactPos: The react id to write the digital raw data to
+            setFileName: The name of the file with raw digital data
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        if setFileName is not None:
+            with open(setFileName, "r") as tfile:
+                fileContent = tfile.read()
+            return set_digital_raw_data_string(rootEl, reactPos, fileContent)
+        return ""
+
+    def set_digital_raw_data_string(self, rootEl, reactPos, setFileString):
+        """Imports data from a tab seperated table file with digital PCR overview data.
+
+        Args:
+            self: The class self parameter.
+            rootEl: The rdml root element.
+            reactPos: The react id to get the digital raw data from
+            setFileString: The raw digital data string in tab seperated format
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        react = None
+        partit = None
+        retVal = ""
+
+        newlineFix = setFileString.replace("\r\n", "\n")
+        tabLines = newlineFix.split("\n")
+
+
+        # Get the position number if required
+        wellPos = str(reactPos)
+        if re.search("\D\d+", wellPos):
+            old_letter = ord(re.sub("\d", "", wellPos.upper())) - ord("A")
+            old_nr = int(re.sub("\D", "", wellPos))
+            newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+            wellPos = str(newId)
+
+        exp = _get_all_children(self._node, "react")
+        for node in exp:
+            if wellPos == node.attrib['id']:
+                react = node
+                break
+        if react is None:
+            return ""
+
+        partit = _get_first_child(react, "partitions")
+        finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+
+        # delete digital data
+        if setFileString is None or setFileString == "":
+            if finalFileName != "partitions/":
+                _writeFileInRDML(self._rdmlFilename, finalFileName, "")
+            if partit is not None:
+                react.remove(partit)
+            return ""
+
+        # write digital data
+        # Get the information for the lookup dictionaries
+        tarTypeLookup = {}
+        dyeLookup = {}
+        uniqueFileNames = []
+
+        # Get the used unique file names
+        if zipfile.is_zipfile(self._rdmlFilename):
+            with zipfile.ZipFile(self._rdmlFilename, 'r') as rdmlObj:
+                # Get list of files names in rdml zip
+                allRDMLfiles = rdmlObj.namelist()
+                for ele in allRDMLfiles:
+                    if re.search("^partitions/", ele):
+                        uniqueFileNames.append(ele.lower())
+
+        # Create a new filename
+        if finalFileName == "partitions/":
+            runId = self._node.get('id')
+            runFix = re.sub(r"[^A-Za-z0-9]", "", runId)
+            experimentId = self._node.getparent().get('id')
+            experimentFix = re.sub(r"[^A-Za-z0-9]", "", experimentId)
+            propFileName = "partitions/" + experimentFix + "_" + runFix
+            finalFileName = propFileName + "_" + wellPos + "_" + reactPos + ".tsv"
+            triesCount = 0
+            if finalFileName.lower() in uniqueFileNames:
+                while triesCount < 100:
+                    finalFileName = propFileName + "_" + wellPos + "_" + reactPos + "_" + str(triesCount) + ".tsv"
+                    if finalFileName.lower() not in uniqueFileNames:
+                        uniqueFileNames.append(finalFileName.lower())
+                        break
+        if finalFileName == "partitions/":
+            return "No final filename found"
+
+        targets = _get_all_children(rootEl._node, "target")
+        for target in targets:
+            if target.attrib['id'] != "":
+                tarId = target.attrib['id']
+                forType = _get_first_child_text(target, "type")
+                if forType is not "":
+                    tarTypeLookup[tarId] = forType
+                forId = _get_first_child(target, "dyeId")
+                if forId is not None and forId.attrib['id'] != "":
+                    dyeLookup[forId.attrib['id']] = 1
+
+        # Get the target information
+        head = tabLines[0].split("\t")
+        colCount = len(head)
+        for headCell in head:
+            if headCell not in tarTypeLookup:
+                dyeName = headCell + " Dye"
+                if dyeName not in dyeLookup:
+                    rootEl.new_dye(dyeName)
+                    dyeLookup[dyeName] = 1
+                    retVal += "Created dye \"" + dyeName + "\"\n"
+                rootEl.new_target(headCell, "toi")
+                elem = rootEl.get_target(byid=headCell)
+                elem["dyeId"] = dyeName
+                tarTypeLookup[headCell] = "toi"
+                retVal += "Created " + headCell + " with type \"" + "toi" + "\" and dye \"" + dyeName + "\"\n"
+
+
+        if partit is not None:
+            react.remove(partit)
+
+
+
+
+
+        finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+        if finalFileName == "partitions/":
+            return ""
+
+        if zipfile.is_zipfile(self._rdmlFilename):
+            zf = zipfile.ZipFile(self._rdmlFilename, 'r')
             try:
                 retVal = zf.read(finalFileName).decode('utf-8')
             except KeyError:
@@ -5905,7 +6138,7 @@ class Run:
             if partit is not None:
                 in_partitions = {}
                 endPtTable = _get_first_child_text(partit, "endPtTable")
-                if partit is not "":
+                if endPtTable is not "":
                     in_partitions["endPtTable"] = endPtTable
                 partit_datas = _get_all_children(partit, "data")
                 max_partition_data = max(max_partition_data, len(partit_datas))
