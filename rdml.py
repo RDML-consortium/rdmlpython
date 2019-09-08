@@ -126,6 +126,20 @@ def _sort_list_float(elem):
     return float(elem[0])
 
 
+def _sort_list_digital_PCR(elem):
+    """Get the first column of the list as int. for sorting.
+
+    Args:
+        elem: The list
+
+    Returns:
+        The a int value of the first list element.
+    """
+
+    arr = elem.split("\t")
+    return int(arr[0]), arr[4]
+
+
 def _string_to_bool(value, triple=True):
     """Translates a string into bool value or None.
 
@@ -5389,12 +5403,13 @@ class Run:
                         colCount += 1
         return ret
 
-    def import_digital_data(self, rootEl, filename, filelist):
+    def import_digital_data(self, rootEl, fileformat, filename, filelist):
         """Imports data from a tab seperated table file with digital PCR overview data.
 
         Args:
             self: The class self parameter.
             rootEl: The rdml root element.
+            fileformat: The format of the files (RDML, BioRad).
             filename: The tab file to open.
             filelist: A list of tab files with fluorescence data
 
@@ -5412,6 +5427,7 @@ class Run:
         dyeLookup = {}
         headerLookup = {}
         fileLookup = {}
+        fileNameSuggLookup = {}
 
         samples = _get_all_children(rootEl._node, "sample")
         for sample in samples:
@@ -5431,40 +5447,7 @@ class Run:
                 if forId is not None and forId.attrib['id'] != "":
                     dyeLookup[forId.attrib['id']] = 1
 
-        # Extract the well position from file names
-        constNameChars = 0
-        charStopCount = False
-        for i in range(len(filelist[0])):
-            currChar = None
-            if charStopCount is False:
-                for wellFileName in filelist:
-                    if currChar is None:
-                        currChar = wellFileName[i]
-                    else:
-                        if currChar != wellFileName[i]:
-                            charStopCount = True
-                if charStopCount is False:
-                    constNameChars = i + 1
-
-        for wellFileName in filelist:
-            currName = wellFileName[constNameChars:].upper()
-            currName = currName.replace(".CSV", "")
-            currName = currName.replace("_AMPLITUDE", "")
-            currName = currName.replace("_COMPENSATEDDATA", "")
-            currName = currName.replace("_RAWDATA", "")
-            currName = re.sub(r"^\d+_", "", currName)
-            wellNames.append(currName)
-            fileLookup[currName] = wellFileName
-
-        # Get the used unique file names
-        if zipfile.is_zipfile(self._rdmlFilename):
-            with zipfile.ZipFile(self._rdmlFilename, 'r') as rdmlObj:
-                # Get list of files names in rdml zip
-                allRDMLfiles = rdmlObj.namelist()
-                for ele in allRDMLfiles:
-                    if re.search("^partitions/", ele):
-                        uniqueFileNames.append(ele.lower())
-
+        # Work the overview file
         if filename is not None:
             with open(filename, "r") as tfile:
                 fileContent = tfile.read()
@@ -5472,17 +5455,49 @@ class Run:
                 newlineFix = fileContent.replace("\r\n", "\n")
                 tabLines = newlineFix.split("\n")
 
-                # BioRad style
-                if re.search("^Well;",tabLines[0]):
+                posCount = 0
+
+                posWell = 0
+                posSample = -1
+                posSampleType = -1
+                posDye = -1
+                posTarget = -1
+                posTargetType = -1
+                posCopConc = -1
+                posPositives = -1
+                posNegatives = -1
+                posUndefined = -1
+                posExcluded = -1
+                posFilename = -1
+
+                if fileformat == "RDML":
+                    head = tabLines[0].split("\t")
+                    for hInfo in head:
+                        if hInfo == "Sample":
+                            posSample = posCount
+                        if hInfo == "SampleType":
+                            posSampleType = posCount
+                        if hInfo == "Target":
+                            posTarget = posCount
+                        if hInfo == "TargetType":
+                            posTargetType = posCount
+                        if hInfo == "Dye":
+                            posDye = posCount
+                        if hInfo == "Copies":
+                            posCopConc = posCount
+                        if hInfo == "Positives":
+                            posPositives = posCount
+                        if hInfo == "Negatives":
+                            posNegatives = posCount
+                        if hInfo == "Undefined":
+                            posUndefined = posCount
+                        if hInfo == "Excluded":
+                            posExcluded = posCount
+                        if hInfo == "FileName":
+                            posFilename = posCount
+                        posCount += 1
+                elif fileformat == "Bio-Rad":
                     head = tabLines[0].split(";")
-                    posCount = 0
-                    posWell = 0
-                    posSample = -1
-                    posDye = -1
-                    posTarget = -1
-                    posCopConc = -1
-                    posPositives = -1
-                    posNegatives = -1
                     for hInfo in head:
                         if hInfo == "Sample":
                             posSample = posCount
@@ -5497,285 +5512,474 @@ class Run:
                         if hInfo == "Negatives":
                             posNegatives = posCount
                         posCount += 1
-                    if posSample == -1:
-                        raise RdmlError('The overview tab-format is not valid, sample columns are missing.')
-                    if posDye == -1:
-                        raise RdmlError('The overview tab-format is not valid, channel columns are missing.')
-                    if posTarget == -1:
-                        raise RdmlError('The overview tab-format is not valid, target columns are missing.')
-                    if posPositives == -1:
-                        raise RdmlError('The overview tab-format is not valid, positives columns are missing.')
-                    if posNegatives == -1:
-                        raise RdmlError('The overview tab-format is not valid, negatives columns are missing.')
+                else:
+                    raise RdmlError('Unknown digital file format.')
 
-                    # Process the lines
-                    for tabLine in tabLines[1:]:
+                if posSample == -1:
+                    raise RdmlError('The overview tab-format is not valid, sample columns are missing.')
+                if posDye == -1:
+                    raise RdmlError('The overview tab-format is not valid, dye / channel columns are missing.')
+                if posTarget == -1:
+                    raise RdmlError('The overview tab-format is not valid, target columns are missing.')
+                if posPositives == -1:
+                    raise RdmlError('The overview tab-format is not valid, positives columns are missing.')
+                if posNegatives == -1:
+                    raise RdmlError('The overview tab-format is not valid, negatives columns are missing.')
+
+                # Process the lines
+                for tabLine in tabLines[1:]:
+                    if fileformat == "RDML":
+                        sLin = tabLine.split("\t")
+                        emptyLine = tabLine.replace("\t", "")
+                    elif fileformat == "Bio-Rad":
                         sLin = tabLine.split(";")
                         emptyLine = tabLine.replace(";", "")
-                        if len(sLin) < 7 or len(emptyLine) < 5:
-                            continue
-                        if sLin[posSample] not in samTypeLookup:
-                            rootEl.new_sample(sLin[posSample], "unkn")
-                            samTypeLookup[sLin[posSample]] = "unkn"
-                            ret += "Created sample \"" + sLin[posSample] + "\" with type \"" + "unkn" + "\"\n"
-                        if sLin[posTarget] not in tarTypeLookup:
-                            if sLin[posDye][:3] not in dyeLookup:
-                                rootEl.new_dye(sLin[posDye][:3])
-                                dyeLookup[sLin[posDye][:3]] = 1
-                                ret += "Created dye \"" + sLin[posDye][:3] + "\"\n"
-                            rootEl.new_target(sLin[posTarget], "toi")
-                            elem = rootEl.get_target(byid=sLin[posTarget])
-                            elem["dyeId"] = sLin[posDye][:3]
-                            tarTypeLookup[sLin[posTarget]] = "toi"
-                            ret += "Created " + sLin[posTarget] + " with type \"" + "toi" + "\" and dye \"" + sLin[posDye][:3] + "\"\n"
+                    else:
+                        sLin = tabLine.split("\t")
+                        emptyLine = tabLine.replace("\t", "")
 
-                        if sLin[posWell].upper() not in headerLookup:
-                            headerLookup[sLin[posWell].upper()] = {}
-                        headerLookup[sLin[posWell].upper()][sLin[posDye][:3]] = sLin[posTarget]
+                    if len(sLin) < 7 or len(emptyLine) < 5:
+                        continue
+                    if sLin[posSample] not in samTypeLookup:
+                        posSampleTypeName = "unkn"
+                        if posSampleType != -1:
+                            posSampleTypeName = sLin[posSampleType]
+                        rootEl.new_sample(sLin[posSample], posSampleTypeName)
+                        samTypeLookup[sLin[posSample]] = posSampleTypeName
+                        ret += "Created sample \"" + sLin[posSample] + "\" with type \"" + posSampleTypeName + "\"\n"
 
-                        react = None
-                        partit = None
-                        data = None
+                    if fileformat == "RDML":
+                        posDyeName = sLin[posDye]
+                    elif fileformat == "Bio-Rad":
+                        posDyeName = sLin[posDye][:3]
+                    else:
+                        posDyeName = sLin[posDye]
 
-                        # Get the position number if required
-                        wellPos = sLin[posWell]
-                        if re.search("\D\d+", sLin[posWell]):
-                            old_letter = ord(re.sub("\d", "", sLin[posWell]).upper()) - ord("A")
-                            old_nr = int(re.sub("\D", "", sLin[posWell]))
-                            newId = old_nr + old_letter * int(self["pcrFormat_columns"])
-                            wellPos = str(newId)
+                    if sLin[posTarget] not in tarTypeLookup:
+                        if posDyeName not in dyeLookup:
+                            rootEl.new_dye(posDyeName)
+                            dyeLookup[posDyeName] = 1
+                            ret += "Created dye \"" + posDyeName + "\"\n"
+                        posTargetTypeName = "toi"
+                        if posTargetType != -1:
+                            posTargetTypeName = sLin[posTargetType]
+                        rootEl.new_target(sLin[posTarget], posTargetTypeName)
+                        elem = rootEl.get_target(byid=sLin[posTarget])
+                        elem["dyeId"] = posDyeName
+                        tarTypeLookup[sLin[posTarget]] = posTargetTypeName
+                        ret += "Created " + sLin[posTarget] + " with type \"" + posTargetTypeName + "\" and dye \"" + posDyeName + "\"\n"
 
-                        exp = _get_all_children(self._node, "react")
-                        for node in exp:
-                            if wellPos == node.attrib['id']:
-                                react = node
-                                forId = _get_first_child_text(react, "sample")
-                                if forId and forId is not "" and forId.attrib['id'] != sLin[posSample]:
-                                    ret += "Missmatch: Well " + wellPos + " (" + sLin[posWell] + ") has sample \"" + forId.attrib['id'] + \
-                                           "\" in RDML file and sample \"" + sLin[posSample] + "\" in tab file.\n"
-                                break
-                        if react is None:
-                            new_node = ET.Element("react", id=wellPos)
-                            place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
-                            self._node.insert(place, new_node)
-                            react = new_node
-                            new_node = ET.Element("sample", id=sLin[posSample])
-                            react.insert(0, new_node)
+                    if sLin[posWell].upper() not in headerLookup:
+                        headerLookup[sLin[posWell].upper()] = {}
+                    headerLookup[sLin[posWell].upper()][posDyeName] = sLin[posTarget]
 
-                        partit = _get_first_child(react, "partitions")
-                        if partit is None:
-                            new_node = ET.Element("partitions")
-                            place = _get_tag_pos(react, "partitions", ["sample", "data", "partitions"], 9999999)
-                            react.insert(place, new_node)
-                            partit = new_node
-                            new_node = ET.Element("volume")
+                    if posFilename != -1 and sLin[posFilename] != "":
+                        fileNameSuggLookup[sLin[posWell].upper()] = sLin[posFilename]
+
+                    react = None
+                    partit = None
+                    data = None
+
+                    # Get the position number if required
+                    wellPos = sLin[posWell]
+                    if re.search("\D\d+", sLin[posWell]):
+                        old_letter = ord(re.sub("\d", "", sLin[posWell]).upper()) - ord("A")
+                        old_nr = int(re.sub("\D", "", sLin[posWell]))
+                        newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+                        wellPos = str(newId)
+
+                    exp = _get_all_children(self._node, "react")
+                    for node in exp:
+                        if wellPos == node.attrib['id']:
+                            react = node
+                            forId = _get_first_child_text(react, "sample")
+                            if forId and forId is not "" and forId.attrib['id'] != sLin[posSample]:
+                                ret += "Missmatch: Well " + wellPos + " (" + sLin[posWell] + ") has sample \"" + forId.attrib['id'] + \
+                                       "\" in RDML file and sample \"" + sLin[posSample] + "\" in tab file.\n"
+                            break
+                    if react is None:
+                        new_node = ET.Element("react", id=wellPos)
+                        place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
+                        self._node.insert(place, new_node)
+                        react = new_node
+                        new_node = ET.Element("sample", id=sLin[posSample])
+                        react.insert(0, new_node)
+
+                    partit = _get_first_child(react, "partitions")
+                    if partit is None:
+                        new_node = ET.Element("partitions")
+                        place = _get_tag_pos(react, "partitions", ["sample", "data", "partitions"], 9999999)
+                        react.insert(place, new_node)
+                        partit = new_node
+                        new_node = ET.Element("volume")
+                        if fileformat == "RDML":
                             new_node.text = "0.85"
-                            place = _get_tag_pos(partit, "volume", ["volume", "endPtTable", "data"], 9999999)
-                            partit.insert(place, new_node)
+                        elif fileformat == "Bio-Rad":
+                            new_node.text = "0.85"
+                        else:
+                            new_node.text = "0.85"
+                        place = _get_tag_pos(partit, "volume", ["volume", "endPtTable", "data"], 9999999)
+                        partit.insert(place, new_node)
 
-                        exp = _get_all_children(partit, "data")
-                        for node in exp:
-                            forId = _get_first_child(node, "tar")
-                            if forId is not None and forId.attrib['id'] == sLin[posTarget]:
-                                data = node
-                                break
-                        if data is None:
-                            new_node = ET.Element("data")
-                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
-                            partit.insert(place, new_node)
-                            data = new_node
-                            new_node = ET.Element("tar", id=sLin[posTarget])
-                            place = _get_tag_pos(data, "tar",
-                                                 ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                 9999999)
-                            data.insert(place, new_node)
-
-                        new_node = ET.Element("pos")
-                        new_node.text = sLin[posPositives]
-                        place = _get_tag_pos(data, "pos",
-                                             ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                             9999999)
+                    exp = _get_all_children(partit, "data")
+                    for node in exp:
+                        forId = _get_first_child(node, "tar")
+                        if forId is not None and forId.attrib['id'] == sLin[posTarget]:
+                            data = node
+                            break
+                    if data is None:
+                        new_node = ET.Element("data")
+                        place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                        partit.insert(place, new_node)
+                        data = new_node
+                        new_node = ET.Element("tar", id=sLin[posTarget])
+                        place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                         data.insert(place, new_node)
 
-                        new_node = ET.Element("neg")
-                        new_node.text = sLin[posNegatives]
-                        place = _get_tag_pos(data, "neg",
-                                             ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                             9999999)
+                    new_node = ET.Element("pos")
+                    new_node.text = sLin[posPositives]
+                    place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                    data.insert(place, new_node)
+
+                    new_node = ET.Element("neg")
+                    new_node.text = sLin[posNegatives]
+                    place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                    data.insert(place, new_node)
+
+                    if posUndefined != -1 and sLin[posUndefined] != "":
+                        new_node = ET.Element("undef")
+                        new_node.text = sLin[posUndefined]
+                        place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                         data.insert(place, new_node)
 
-                        if posCopConc != -1:
-                            new_node = ET.Element("conc")
-                            if int(sLin[posPositives]) == 0:
-                                new_node.text = "0"
-                            else:
+                    if posExcluded != -1 and sLin[posExcluded] != "":
+                        new_node = ET.Element("excl")
+                        new_node.text = sLin[posExcluded]
+                        place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                        data.insert(place, new_node)
+
+                    if posCopConc != -1:
+                        new_node = ET.Element("conc")
+                        if int(sLin[posPositives]) == 0:
+                            new_node.text = "0"
+                        else:
+                            if fileformat == "RDML":
+                                new_node.text = sLin[posCopConc]
+                            elif fileformat == "Bio-Rad":
                                 new_node.text = str(float(sLin[posCopConc])/20)
-                            place = _get_tag_pos(data, "conc",
-                                                 ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                 9999999)
-                            data.insert(place, new_node)
+                            else:
+                                new_node.text = sLin[posCopConc]
+                        place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                        data.insert(place, new_node)
 
-                    # Process available raw data
-                    runId = self._node.get('id')
-                    runFix = re.sub(r"[^A-Za-z0-9]", "", runId)
-                    experimentId = self._node.getparent().get('id')
-                    experimentFix = re.sub(r"[^A-Za-z0-9]", "", experimentId)
-                    propFileName = "partitions/" + experimentFix + "_" + runFix
+        # Read the raw data files
 
-                    for well in wellNames:
-                        if well in headerLookup:
-                            outTabFile = ""
-                            keepCh1 = False
-                            keepCh2 = False
-                            header = ""
+        # Extract the well position from file names
+        constNameChars = 0
+        if len(filelist) > 0:
+            charStopCount = False
+            for i in range(len(filelist[0])):
+                currChar = None
+                if charStopCount is False:
+                    for wellFileName in filelist:
+                        if currChar is None:
+                            currChar = wellFileName[i]
+                        else:
+                            if currChar != wellFileName[i]:
+                                charStopCount = True
+                    if charStopCount is False:
+                        constNameChars = i + 1
 
-                            react = None
-                            partit = None
-                            dataCh1 = None
-                            dataCh2 = None
+        for wellFileName in filelist:
+            currName = wellFileName[constNameChars:].upper()
+            currName = currName.replace(".CSV", "")
+            currName = currName.replace(".TSV", "")
+            currName = currName.replace("_AMPLITUDE", "")
+            currName = currName.replace("_COMPENSATEDDATA", "")
+            currName = currName.replace("_RAWDATA", "")
+            currName = re.sub(r"^\d+_", "", currName)
+            currName = re.sub(r" \(d+\)", "", currName)
+            wellNames.append(currName)
+            fileLookup[currName] = wellFileName
 
-                            wellPos = well
-                            if re.search("\D\d+", well):
-                                old_letter = ord(re.sub("\d", "", well).upper()) - ord("A")
-                                old_nr = int(re.sub("\D", "", well))
-                                newId = old_nr + old_letter * int(self["pcrFormat_columns"])
-                                wellPos = str(newId)
+        # Propose a filename for raw data
+        runId = self._node.get('id')
+        runFix = re.sub(r"[^A-Za-z0-9]", "", runId)
+        experimentId = self._node.getparent().get('id')
+        experimentFix = re.sub(r"[^A-Za-z0-9]", "", experimentId)
+        propFileName = "partitions/" + experimentFix + "_" + runFix
 
-                            exp = _get_all_children(self._node, "react")
-                            for node in exp:
-                                if wellPos == node.attrib['id']:
-                                    react = node
-                                    break
+        # Get the used unique file names
+        if zipfile.is_zipfile(self._rdmlFilename):
+            with zipfile.ZipFile(self._rdmlFilename, 'r') as rdmlObj:
+                # Get list of files names in rdml zip
+                allRDMLfiles = rdmlObj.namelist()
+                for ele in allRDMLfiles:
+                    if re.search("^partitions/", ele):
+                        uniqueFileNames.append(ele.lower())
 
-                            if react is None:
-                                continue
+        # Now process the files
+        warnVolume = ""
+        for well in wellNames:
+            outTabFile = ""
+            keepCh1 = False
+            keepCh2 = False
+            header = ""
 
-                            partit = _get_first_child(react, "partitions")
-                            if partit is None:
-                                continue
+            react = None
+            partit = None
+            dataCh1 = None
+            dataCh2 = None
 
-                            finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
-                            if finalFileName == "partitions/":
-                                finalFileName = propFileName + "_" + wellPos + "_" + well + ".tsv"
-                                triesCount = 0
-                                if finalFileName.lower() in uniqueFileNames:
-                                    while triesCount < 100:
-                                        finalFileName = propFileName + "_" + wellPos + "_" + well + "_" + str(triesCount) + ".tsv"
-                                        if finalFileName.lower() not in uniqueFileNames:
-                                            uniqueFileNames.append(finalFileName.lower())
-                                            break
+            wellPos = well
+            if re.search("\D\d+", well):
+                old_letter = ord(re.sub("\d", "", well).upper()) - ord("A")
+                old_nr = int(re.sub("\D", "", well))
+                newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+                wellPos = str(newId)
 
-                            # print(finalFileName)
+            exp = _get_all_children(self._node, "react")
+            for node in exp:
+                if wellPos == node.attrib['id']:
+                    react = node
+                    break
 
-                            if "Ch1" in headerLookup[well]:
-                                keepCh1 = True
-                                header += headerLookup[well]["Ch1"] + "\t" + headerLookup[well]["Ch1"] + "\t"
-                            if "Ch2" in headerLookup[well]:
-                                keepCh2 = True
-                                header += headerLookup[well]["Ch2"] + "\t" + headerLookup[well]["Ch2"] + "\t"
-                            outTabFile += re.sub(r'\t$', '\n', header)
-
-                            if keepCh1 or keepCh2:
-                                exp = _get_all_children(partit, "data")
-                                ch1Pos = "0"
-                                ch1Neg = "0"
-                                ch1sum = 0
-                                ch2Pos = "0"
-                                ch2Neg = "0"
-                                ch2sum = 0
-                                for node in exp:
-                                    forId = _get_first_child(node, "tar")
-                                    if keepCh1 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch1"]:
-                                        dataCh1 = node
-                                        ch1Pos = _get_first_child_text(dataCh1, "pos")
-                                        ch1Neg = _get_first_child_text(dataCh1, "neg")
-                                        ch1sum = int(ch1Pos) + int(ch1Neg)
-                                    if keepCh2 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch2"]:
-                                        dataCh2 = node
-                                        ch2Pos = _get_first_child_text(dataCh2, "pos")
-                                        ch2Neg = _get_first_child_text(dataCh2, "neg")
-                                        ch2sum = int(ch2Pos) + int(ch2Neg)
-                                if dataCh1 is None and dataCh2 is None:
-                                    continue
-                                if ch1sum < 1 and ch2sum < 1:
-                                    continue
-
-                                with open(fileLookup[well], "r") as wellfile:
-                                    wellFileContent = wellfile.read()
-                                    newlineFix = wellFileContent.replace("\r\n", "\n")
-                                    wellLines = newlineFix.split("\n")
-
-                                    ch1Arr = []
-                                    ch2Arr = []
-                                    ch1Cut = 0
-                                    ch2Cut = 0
-                                    for line in wellLines[1:]:
-                                        splitLine = line.split(",")
-                                        if len(splitLine) < 2:
-                                            continue
-                                        if keepCh1:
-                                            ch1Arr.append(float(splitLine[0]))
-                                        if keepCh2:
-                                            ch2Arr.append(float(splitLine[1]))
-
-                                    if keepCh1:
-                                        ch1Arr.sort()
-                                        if 0 < int(ch1Neg) <= len(ch1Arr):
-                                            ch1Cut = ch1Arr[int(ch1Neg) - 1]
-                                    if keepCh2:
-                                        ch2Arr.sort()
-                                        if 0 < int(ch2Neg) <= len(ch2Arr):
-                                            ch2Cut = ch2Arr[int(ch2Neg) - 1]
-
-                                    for line in wellLines[1:]:
-                                        splitLine = line.split(",")
-                                        if len(splitLine) < 2:
-                                            continue
-                                        if keepCh1:
-                                            outTabFile += splitLine[0] + "\t"
-                                            if float(splitLine[0]) > ch1Cut:
-                                                outTabFile += "p"
-                                            else:
-                                                outTabFile += "n"
-                                        if keepCh2:
-                                            if keepCh1:
-                                                outTabFile += "\t"
-                                            outTabFile += splitLine[1] + "\t"
-                                            if float(splitLine[1]) > ch2Cut:
-                                                outTabFile += "p\n"
-                                            else:
-                                                outTabFile += "n\n"
-                                        else:
-                                            outTabFile += "\n"
-                                    _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
-                                    new_node = ET.Element("endPtTable")
-                                    new_node.text = re.sub(r'^partitions/', '', finalFileName)
-                                    place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
-                                    partit.insert(place, new_node)
-
-        else:
-            # This is crap, use only in emergencies
-            dyes = ["Ch1", "Ch2", "Ch3"]
-            for dye in dyes:
-                if dye not in dyeLookup:
-                    rootEl.new_dye(dye)
-                    dyeLookup[dye] = 1
-                    ret += "Created dye \"" + dye + "\"\n"
-            for well in wellNames:
+            if react is None:
                 sampleName = "Sample in " + well
                 if sampleName not in samTypeLookup:
                     rootEl.new_sample(sampleName, "unkn")
                     samTypeLookup[sampleName] = "unkn"
                     ret += "Created sample \"" + sampleName + "\" with type \"" + "unkn" + "\"\n"
-                for dye in dyes:
-                    targetName = "Target in " + well + " " + dye
-                    if targetName not in tarTypeLookup:
-                        rootEl.new_target(targetName, "toi")
-                        elem = rootEl.get_target(byid=targetName)
-                        elem["dyeId"] = dye
-                        tarTypeLookup[targetName] = "toi"
-                        ret += "Created " + targetName + " with type \"" + "toi" + "\" and dye \"" + dye + "\"\n"
+                new_node = ET.Element("react", id=wellPos)
+                place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
+                self._node.insert(place, new_node)
+                react = new_node
+                new_node = ET.Element("sample", id=sampleName)
+                react.insert(0, new_node)
 
+            partit = _get_first_child(react, "partitions")
+            if partit is None:
+                new_node = ET.Element("partitions")
+                place = _get_tag_pos(react, "partitions", ["sample", "data", "partitions"], 9999999)
+                react.insert(place, new_node)
+                partit = new_node
+                new_node = ET.Element("volume")
+                if fileformat == "RDML":
+                    new_node.text = "0.9"
+                    warnVolume = "No information on partition volume given, used 0.9."
+                elif fileformat == "Bio-Rad":
+                    new_node.text = "0.85"
+                else:
+                    new_node.text = "0.85"
+                place = _get_tag_pos(partit, "volume", ["volume", "endPtTable", "data"], 9999999)
+                partit.insert(place, new_node)
+
+            if well in fileNameSuggLookup:
+                finalFileName = "partitions/" + fileNameSuggLookup[well]
+            else:
+                finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+                if finalFileName == "partitions/":
+                    finalFileName = propFileName + "_" + wellPos + "_" + well + ".tsv"
+                    triesCount = 0
+                    if finalFileName.lower() in uniqueFileNames:
+                        while triesCount < 100:
+                            finalFileName = propFileName + "_" + wellPos + "_" + well + "_" + str(triesCount) + ".tsv"
+                            if finalFileName.lower() not in uniqueFileNames:
+                                uniqueFileNames.append(finalFileName.lower())
+                                break
+
+            # print(finalFileName)
+
+            with open(fileLookup[well], "r") as wellfile:
+                wellFileContent = wellfile.read()
+                newlineFix = wellFileContent.replace("\r\n", "\n")
+                wellLines = newlineFix.split("\n")
+
+                ch1Pos = "0"
+                ch1Neg = "0"
+                ch1sum = 0
+                ch2Pos = "0"
+                ch2Neg = "0"
+                ch2sum = 0
+
+                if fileformat == "RDML":
+                    head = tabLines[0].split("\t")
+                elif fileformat == "Bio-Rad":
+                    if well in headerLookup:
+                        if "Ch1" in headerLookup[well]:
+                            keepCh1 = True
+                            header += headerLookup[well]["Ch1"] + "\t" + headerLookup[well]["Ch1"] + "\t"
+                        if "Ch2" in headerLookup[well]:
+                            keepCh2 = True
+                            header += headerLookup[well]["Ch2"] + "\t" + headerLookup[well]["Ch2"] + "\t"
+                        outTabFile += re.sub(r'\t$', '\n', header)
+                    else:
+                        headerLookup[well] = {}
+                        dyes = ["Ch1", "Ch2"]
+                        if len(wellLines) > 1:
+                            isThereData = wellLines[1].split(",")
+                            ch1Pos = ""
+                            ch1Neg = ""
+                            ch2Pos = ""
+                            ch2Neg = ""
+                            if re.search(r"\d", isThereData[0]):
+                                keepCh1 = True
+                            if len(isThereData) > 1 and re.search(r"\d", isThereData[1]):
+                                keepCh2 = True
+                            for dye in dyes:
+                                if dye not in dyeLookup:
+                                    rootEl.new_dye(dye)
+                                    dyeLookup[dye] = 1
+                                    ret += "Created dye \"" + dye + "\"\n"
+                            for dye in dyes:
+                                targetName = "Target in " + well + " " + dye
+                                if targetName not in tarTypeLookup:
+                                    rootEl.new_target(targetName, "toi")
+                                    elem = rootEl.get_target(byid=targetName)
+                                    elem["dyeId"] = dye
+                                    tarTypeLookup[targetName] = "toi"
+                                    ret += "Created " + targetName + " with type \"" + "toi" + "\" and dye \"" + dye + "\"\n"
+                                    headerLookup[well][dye] = targetName
+
+                    if keepCh1 or keepCh2:
+                        exp = _get_all_children(partit, "data")
+                        for node in exp:
+                            forId = _get_first_child(node, "tar")
+                            if keepCh1 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch1"]:
+                                dataCh1 = node
+                                ch1Pos = _get_first_child_text(dataCh1, "pos")
+                                ch1Neg = _get_first_child_text(dataCh1, "neg")
+                                ch1sum += int(ch1Pos) + int(ch1Neg)
+                            if keepCh2 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch2"]:
+                                dataCh2 = node
+                                ch2Pos = _get_first_child_text(dataCh2, "pos")
+                                ch2Neg = _get_first_child_text(dataCh2, "neg")
+                                ch2sum += int(ch2Pos) + int(ch2Neg)
+                        if dataCh1 is None and keepCh1:
+                            new_node = ET.Element("data")
+                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                            partit.insert(place, new_node)
+                            dataCh1 = new_node
+                            new_node = ET.Element("tar", id=headerLookup[well]["Ch1"])
+                            place = _get_tag_pos(dataCh1, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            dataCh1.insert(place, new_node)
+                            ch1Pos = ""
+                            ch1Neg = ""
+                            ch1sum = 2
+                        if dataCh2 is None and keepCh2:
+                            new_node = ET.Element("data")
+                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                            partit.insert(place, new_node)
+                            dataCh2 = new_node
+                            new_node = ET.Element("tar", id=headerLookup[well]["Ch2"])
+                            place = _get_tag_pos(dataCh2, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            dataCh2.insert(place, new_node)
+                            ch2Pos = ""
+                            ch2Neg = ""
+                            ch2sum = 2
+                        if dataCh1 is None and dataCh2 is None:
+                            continue
+                        if ch1sum < 1 and ch2sum < 1:
+                            continue
+
+                        if ch1Pos == "" and ch1Neg == "" and ch2Pos == "" and ch2Neg == "":
+                            countPart = 0
+                            for line in wellLines[1:]:
+                                splitLine = line.split(",")
+                                if len(splitLine[0]) < 2:
+                                    continue
+                                if keepCh1:
+                                    outTabFile += splitLine[0] + "\t" + "u"
+                                if keepCh2:
+                                    if keepCh1:
+                                        outTabFile += "\t"
+                                    outTabFile += splitLine[1] + "\t" + "u\n"
+                                countPart += 1
+                            if keepCh1:
+                                new_node = ET.Element("pos")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh1, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                dataCh1.insert(place, new_node)
+
+                                new_node = ET.Element("neg")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                dataCh1.insert(place, new_node)
+
+                                new_node = ET.Element("undef")
+                                new_node.text = str(countPart)
+                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                dataCh1.insert(place, new_node)
+                            if keepCh2:
+                                new_node = ET.Element("pos")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh2, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh2.insert(place, new_node)
+
+                                new_node = ET.Element("neg")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh2.insert(place, new_node)
+
+                                new_node = ET.Element("undef")
+                                new_node.text = str(countPart)
+                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh2.insert(place, new_node)
+                        else:
+                            ch1Arr = []
+                            ch2Arr = []
+                            ch1Cut = 0
+                            ch2Cut = 0
+                            for line in wellLines[1:]:
+                                splitLine = line.split(",")
+                                if len(splitLine) < 2:
+                                    continue
+                                if keepCh1:
+                                    ch1Arr.append(float(splitLine[0]))
+                                if keepCh2:
+                                    ch2Arr.append(float(splitLine[1]))
+
+                            if keepCh1:
+                                ch1Arr.sort()
+                                if 0 < int(ch1Neg) <= len(ch1Arr):
+                                    ch1Cut = ch1Arr[int(ch1Neg) - 1]
+                            if keepCh2:
+                                ch2Arr.sort()
+                                if 0 < int(ch2Neg) <= len(ch2Arr):
+                                    ch2Cut = ch2Arr[int(ch2Neg) - 1]
+
+                            for line in wellLines[1:]:
+                                splitLine = line.split(",")
+                                if len(splitLine) < 2:
+                                    continue
+                                if keepCh1:
+                                    outTabFile += splitLine[0] + "\t"
+                                    if float(splitLine[0]) > ch1Cut:
+                                        outTabFile += "p"
+                                    else:
+                                        outTabFile += "n"
+                                if keepCh2:
+                                    if keepCh1:
+                                        outTabFile += "\t"
+                                    outTabFile += splitLine[1] + "\t"
+                                    if float(splitLine[1]) > ch2Cut:
+                                        outTabFile += "p\n"
+                                    else:
+                                        outTabFile += "n\n"
+                                else:
+                                    outTabFile += "\n"
+                        _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
+                        new_node = ET.Element("endPtTable")
+                        new_node.text = re.sub(r'^partitions/', '', finalFileName)
+                        place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
+                        partit.insert(place, new_node)
+                    else:
+                        react.remove(partit)
+
+        ret += warnVolume
         return ret
 
     def get_digital_overview_data(self, rootEl):
@@ -5791,6 +5995,7 @@ class Run:
 
         #       0    1      2        3          4          5      6      7         8         9         10        11        12
         ret = "Pos\tWell\tSample\tSampleType\tTarget\tTargetType\tDye\tCopies\tPositives\tNegatives\tUndefined\tExcluded\tFileName\n"
+        tabLines = []
 
         # Fill the lookup dics
         samTypeLookup = {}
@@ -5818,8 +6023,10 @@ class Run:
         reacts = _get_all_children(self._node, "react")
         for react in reacts:
             pPos = react.attrib['id']
-            pWell = react.attrib['id']
-            # Todo: Well name
+            posId = int(react.attrib['id'])
+            pIdNumber = posId % int(self["pcrFormat_columns"])
+            pIdLetter = chr(ord("A") + int(posId / int(self["pcrFormat_columns"])))
+            pWell = pIdLetter + str(pIdNumber)
             pSample = ""
             pSampleType = ""
             pFileName = ""
@@ -5850,19 +6057,23 @@ class Run:
                     pUnknown = _get_first_child_text(partit_data, "undef")
                     pExcluded = _get_first_child_text(partit_data, "excl")
 
-                    ret += pPos + "\t"
-                    ret += pWell + "\t"
-                    ret += pSample + "\t"
-                    ret += pSampleType + "\t"
-                    ret += pTarget + "\t"
-                    ret += pTargetType + "\t"
-                    ret += pDye + "\t"
-                    ret += pCopies + "\t"
-                    ret += pPositives + "\t"
-                    ret += pNegatives + "\t"
-                    ret += pUnknown + "\t"
-                    ret += pExcluded + "\t"
-                    ret += pFileName + "\n"
+                    retLine = pPos + "\t"
+                    retLine += pWell + "\t"
+                    retLine += pSample + "\t"
+                    retLine += pSampleType + "\t"
+                    retLine += pTarget + "\t"
+                    retLine += pTargetType + "\t"
+                    retLine += pDye + "\t"
+                    retLine += pCopies + "\t"
+                    retLine += pPositives + "\t"
+                    retLine += pNegatives + "\t"
+                    retLine += pUnknown + "\t"
+                    retLine += pExcluded + "\t"
+                    retLine += pFileName + "\n"
+                    tabLines.append(retLine)
+        tabLines.sort(key=_sort_list_digital_PCR)
+        for tLine in tabLines:
+            ret += tLine
         return ret
 
     def get_digital_raw_data(self, reactPos):
@@ -5930,7 +6141,7 @@ class Run:
         if setFileName is not None:
             with open(setFileName, "r") as tfile:
                 fileContent = tfile.read()
-            return set_digital_raw_data_string(rootEl, reactPos, fileContent)
+            return self.set_digital_raw_data_string(rootEl, reactPos, fileContent)
         return ""
 
     def set_digital_raw_data_string(self, rootEl, reactPos, setFileString):
