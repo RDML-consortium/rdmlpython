@@ -1912,7 +1912,7 @@ class Rdml:
         Args:
             self: The class self parameter.
             id: ThermalCyclingConditions unique id (required)
-            newposition: Targets position in the list of targets (optional)
+            newposition: ThermalCyclingConditions position in the list of ThermalCyclingConditions (optional)
 
         Returns:
             Nothing, changes self.
@@ -3341,78 +3341,7 @@ class Target:
                 raise RdmlError('Unknown or unsupported target type value "' + value + '".')
 
         if key == "id":
-            oldValue = self._node.get('id')
-            if oldValue != value:
-                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
-                par = self._node.getparent()
-                allExp = _get_all_children(par, "experiment")
-                for node in allExp:
-                    subNodes = _get_all_children(node, "run")
-                    for subNode in subNodes:
-                        reactNodes = _get_all_children(subNode, "react")
-                        for reactNode in reactNodes:
-                            dataNodes = _get_all_children(reactNode, "data")
-                            for dataNode in dataNodes:
-                                lastNodes = _get_all_children(dataNode, "tar")
-                                for lastNode in lastNodes:
-                                    if lastNode.attrib['id'] == oldValue:
-                                        lastNode.attrib['id'] = value
-                            partit = _get_first_child(reactNode, "partitions")
-                            if partit is not None:
-                                digDataNodes = _get_all_children(partit, "data")
-                                for digDataNode in digDataNodes:
-                                    lastNodes = _get_all_children(digDataNode, "tar")
-                                    for lastNode in lastNodes:
-                                        if lastNode.attrib['id'] == oldValue:
-                                            lastNode.attrib['id'] = value
-
-                # Search in Table files
-                if self._rdmlFilename is not None and self._rdmlFilename != "":
-                    if zipfile.is_zipfile(self._rdmlFilename):
-                        fileList = []
-                        tempName = ""
-                        flipFiles = False
-                        with zipfile.ZipFile(self._rdmlFilename, 'r') as RDMLin:
-                            for item in RDMLin.infolist():
-                                if re.search("^partitions/", item.filename):
-                                    fileContent = RDMLin.read(item.filename).decode('utf-8')
-                                    newlineFix = fileContent.replace("\r\n", "\n")
-                                    tabLines = newlineFix.split("\n")
-                                    header = tabLines[0].split("\t")
-                                    needRewrite = False
-                                    for cell in header:
-                                        if cell == oldValue:
-                                            needRewrite = True
-                                    if needRewrite:
-                                        fileList.append(item.filename)
-                            if len(fileList) > 0:
-                                tempFolder, tempName = tempfile.mkstemp(dir=os.path.dirname(self._rdmlFilename))
-                                os.close(tempFolder)
-                                flipFiles = True
-                                with zipfile.ZipFile(tempName, mode='w', compression=zipfile.ZIP_DEFLATED) as RDMLout:
-                                    RDMLout.comment = RDMLin.comment
-                                    for item in RDMLin.infolist():
-                                        if item.filename not in fileList:
-                                            RDMLout.writestr(item, RDMLin.read(item.filename))
-                                        else:
-                                            fileContent = RDMLin.read(item.filename).decode('utf-8')
-                                            newlineFix = fileContent.replace("\r\n", "\n")
-                                            tabLines = newlineFix.split("\n")
-                                            header = tabLines[0].split("\t")
-                                            headerText = ""
-                                            for cell in header:
-                                                if cell == oldValue:
-                                                    headerText += value + "\t"
-                                                else:
-                                                    headerText += cell + "\t"
-                                            outFileStr = re.sub(r'\t$', '\n', headerText)
-                                            for tabLine in tabLines[1:]:
-                                                if tabLine != "":
-                                                    outFileStr += tabLine + "\n"
-                                            RDMLout.writestr(item.filename, outFileStr)
-                        if flipFiles:
-                            os.remove(self._rdmlFilename)
-                            os.rename(tempName, self._rdmlFilename)
+            self.change_id(value, merge_with_id=False)
             return
         if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
@@ -3502,6 +3431,98 @@ class Target:
             if key == "amplificationEfficiencySE":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         raise KeyError
+
+    def change_id(self, value, merge_with_id=False):
+        """Changes the value for the key.
+
+        Args:
+            self: The class self parameter.
+            value: The new value for the key.
+            merge_with_id: If True only allow unique keys, if False only rename its uses with existing id.
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        oldValue = self._node.get('id')
+        if oldValue != value:
+            if not _string_to_bool(merge_with_id, triple=False):
+                _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
+            else:
+                par = self._node.getparent()
+                groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
+                if _check_unique_id(par, groupTag, value):
+                    raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            par = self._node.getparent()
+            allExp = _get_all_children(par, "experiment")
+            for node in allExp:
+                subNodes = _get_all_children(node, "run")
+                for subNode in subNodes:
+                    reactNodes = _get_all_children(subNode, "react")
+                    for reactNode in reactNodes:
+                        dataNodes = _get_all_children(reactNode, "data")
+                        for dataNode in dataNodes:
+                            lastNodes = _get_all_children(dataNode, "tar")
+                            for lastNode in lastNodes:
+                                if lastNode.attrib['id'] == oldValue:
+                                    lastNode.attrib['id'] = value
+                        partit = _get_first_child(reactNode, "partitions")
+                        if partit is not None:
+                            digDataNodes = _get_all_children(partit, "data")
+                            for digDataNode in digDataNodes:
+                                lastNodes = _get_all_children(digDataNode, "tar")
+                                for lastNode in lastNodes:
+                                    if lastNode.attrib['id'] == oldValue:
+                                        lastNode.attrib['id'] = value
+
+            # Search in Table files
+            if self._rdmlFilename is not None and self._rdmlFilename != "":
+                if zipfile.is_zipfile(self._rdmlFilename):
+                    fileList = []
+                    tempName = ""
+                    flipFiles = False
+                    with zipfile.ZipFile(self._rdmlFilename, 'r') as RDMLin:
+                        for item in RDMLin.infolist():
+                            if re.search("^partitions/", item.filename):
+                                fileContent = RDMLin.read(item.filename).decode('utf-8')
+                                newlineFix = fileContent.replace("\r\n", "\n")
+                                tabLines = newlineFix.split("\n")
+                                header = tabLines[0].split("\t")
+                                needRewrite = False
+                                for cell in header:
+                                    if cell == oldValue:
+                                        needRewrite = True
+                                if needRewrite:
+                                    fileList.append(item.filename)
+                        if len(fileList) > 0:
+                            tempFolder, tempName = tempfile.mkstemp(dir=os.path.dirname(self._rdmlFilename))
+                            os.close(tempFolder)
+                            flipFiles = True
+                            with zipfile.ZipFile(tempName, mode='w', compression=zipfile.ZIP_DEFLATED) as RDMLout:
+                                RDMLout.comment = RDMLin.comment
+                                for item in RDMLin.infolist():
+                                    if item.filename not in fileList:
+                                        RDMLout.writestr(item, RDMLin.read(item.filename))
+                                    else:
+                                        fileContent = RDMLin.read(item.filename).decode('utf-8')
+                                        newlineFix = fileContent.replace("\r\n", "\n")
+                                        tabLines = newlineFix.split("\n")
+                                        header = tabLines[0].split("\t")
+                                        headerText = ""
+                                        for cell in header:
+                                            if cell == oldValue:
+                                                headerText += value + "\t"
+                                            else:
+                                                headerText += cell + "\t"
+                                        outFileStr = re.sub(r'\t$', '\n', headerText)
+                                        for tabLine in tabLines[1:]:
+                                            if tabLine != "":
+                                                outFileStr += tabLine + "\n"
+                                        RDMLout.writestr(item.filename, outFileStr)
+                    if flipFiles:
+                        os.remove(self._rdmlFilename)
+                        os.rename(tempName, self._rdmlFilename)
+        return
 
     def keys(self):
         """Returns a list of the keys.
@@ -5410,8 +5431,8 @@ class Run:
             self: The class self parameter.
             rootEl: The rdml root element.
             fileformat: The format of the files (RDML, BioRad).
-            filename: The tab file to open.
-            filelist: A list of tab files with fluorescence data
+            filename: The tab overvie file to open (recommended but optional).
+            filelist: A list of tab files with fluorescence data (optional, works without filename).
 
         Returns:
             A string with the modifications made.
@@ -5420,6 +5441,8 @@ class Run:
         ret = ""
         wellNames = []
         uniqueFileNames = []
+        if filelist is None:
+            filelist = []
 
         # Get the information for the lookup dictionaries
         samTypeLookup = {}
@@ -6203,155 +6226,6 @@ class Run:
         partit = _get_first_child(react, "partitions")
         if partit is None:
             return ""
-
-        finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
-        if finalFileName == "partitions/":
-            return ""
-
-        if zipfile.is_zipfile(self._rdmlFilename):
-            zf = zipfile.ZipFile(self._rdmlFilename, 'r')
-            try:
-                retVal = zf.read(finalFileName).decode('utf-8')
-            except KeyError:
-                raise RdmlError('No ' + finalFileName + ' in compressed RDML file found.')
-            finally:
-                zf.close()
-        return retVal
-
-    def set_digital_raw_data(self, rootEl, reactPos, setFileName):
-        """Imports data from a tab seperated table file with digital PCR data.
-
-        Args:
-            self: The class self parameter.
-            rootEl: The rdml root element.
-            reactPos: The react id to write the digital raw data to
-            setFileName: The name of the file with raw digital data
-
-        Returns:
-            No return value, changes self. Function may raise RdmlError if required.
-        """
-
-        if setFileName is not None:
-            with open(setFileName, "r") as tfile:
-                fileContent = tfile.read()
-            return self.set_digital_raw_data_string(rootEl, reactPos, fileContent)
-        return ""
-
-    def set_digital_raw_data_string(self, rootEl, reactPos, setFileString):
-        """Imports data from a tab seperated table file with digital PCR overview data.
-
-        Args:
-            self: The class self parameter.
-            rootEl: The rdml root element.
-            reactPos: The react id to get the digital raw data from
-            setFileString: The raw digital data string in tab seperated format
-
-        Returns:
-            No return value, changes self. Function may raise RdmlError if required.
-        """
-
-        react = None
-        partit = None
-        retVal = ""
-
-        newlineFix = setFileString.replace("\r\n", "\n")
-        tabLines = newlineFix.split("\n")
-
-
-        # Get the position number if required
-        wellPos = str(reactPos)
-        if re.search("\D\d+", wellPos):
-            old_letter = ord(re.sub("\d", "", wellPos.upper())) - ord("A")
-            old_nr = int(re.sub("\D", "", wellPos))
-            newId = old_nr + old_letter * int(self["pcrFormat_columns"])
-            wellPos = str(newId)
-
-        exp = _get_all_children(self._node, "react")
-        for node in exp:
-            if wellPos == node.attrib['id']:
-                react = node
-                break
-        if react is None:
-            return ""
-
-        partit = _get_first_child(react, "partitions")
-        finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
-
-        # delete digital data
-        if setFileString is None or setFileString == "":
-            if finalFileName != "partitions/":
-                _writeFileInRDML(self._rdmlFilename, finalFileName, "")
-            if partit is not None:
-                react.remove(partit)
-            return ""
-
-        # write digital data
-        # Get the information for the lookup dictionaries
-        tarTypeLookup = {}
-        dyeLookup = {}
-        uniqueFileNames = []
-
-        # Get the used unique file names
-        if zipfile.is_zipfile(self._rdmlFilename):
-            with zipfile.ZipFile(self._rdmlFilename, 'r') as rdmlObj:
-                # Get list of files names in rdml zip
-                allRDMLfiles = rdmlObj.namelist()
-                for ele in allRDMLfiles:
-                    if re.search("^partitions/", ele):
-                        uniqueFileNames.append(ele.lower())
-
-        # Create a new filename
-        if finalFileName == "partitions/":
-            runId = self._node.get('id')
-            runFix = re.sub(r"[^A-Za-z0-9]", "", runId)
-            experimentId = self._node.getparent().get('id')
-            experimentFix = re.sub(r"[^A-Za-z0-9]", "", experimentId)
-            propFileName = "partitions/" + experimentFix + "_" + runFix
-            finalFileName = propFileName + "_" + wellPos + "_" + reactPos + ".tsv"
-            triesCount = 0
-            if finalFileName.lower() in uniqueFileNames:
-                while triesCount < 100:
-                    finalFileName = propFileName + "_" + wellPos + "_" + reactPos + "_" + str(triesCount) + ".tsv"
-                    if finalFileName.lower() not in uniqueFileNames:
-                        uniqueFileNames.append(finalFileName.lower())
-                        break
-        if finalFileName == "partitions/":
-            return "No final filename found"
-
-        targets = _get_all_children(rootEl._node, "target")
-        for target in targets:
-            if target.attrib['id'] != "":
-                tarId = target.attrib['id']
-                forType = _get_first_child_text(target, "type")
-                if forType is not "":
-                    tarTypeLookup[tarId] = forType
-                forId = _get_first_child(target, "dyeId")
-                if forId is not None and forId.attrib['id'] != "":
-                    dyeLookup[forId.attrib['id']] = 1
-
-        # Get the target information
-        head = tabLines[0].split("\t")
-        colCount = len(head)
-        for headCell in head:
-            if headCell not in tarTypeLookup:
-                dyeName = headCell + " Dye"
-                if dyeName not in dyeLookup:
-                    rootEl.new_dye(dyeName)
-                    dyeLookup[dyeName] = 1
-                    retVal += "Created dye \"" + dyeName + "\"\n"
-                rootEl.new_target(headCell, "toi")
-                elem = rootEl.get_target(byid=headCell)
-                elem["dyeId"] = dyeName
-                tarTypeLookup[headCell] = "toi"
-                retVal += "Created " + headCell + " with type \"" + "toi" + "\" and dye \"" + dyeName + "\"\n"
-
-
-        if partit is not None:
-            react.remove(partit)
-
-
-
-
 
         finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
         if finalFileName == "partitions/":
