@@ -2280,30 +2280,50 @@ class Experimenter:
         """
 
         if key == "id":
-            oldValue = self._node.get('id')
-            if oldValue != value:
-                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
-                par = self._node.getparent()
-                allTh = _get_all_children(par, "thermalCyclingConditions")
-                for node in allTh:
-                    subNodes = _get_all_children(node, "experimenter")
-                    for subNode in subNodes:
-                        if subNode.attrib['id'] == oldValue:
-                            subNode.attrib['id'] = value
-                allExp = _get_all_children(par, "experiment")
-                for node in allExp:
-                    subNodes = _get_all_children(node, "run")
-                    for subNode in subNodes:
-                        lastNodes = _get_all_children(subNode, "experimenter")
-                        for lastNode in lastNodes:
-                            if lastNode.attrib['id'] == oldValue:
-                                lastNode.attrib['id'] = value
+            self.change_id(value, merge_with_id=False)
             return
         if key in ["firstName", "lastName"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key in ["email", "labName", "labAddress"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
+
+    def change_id(self, value, merge_with_id=False):
+        """Changes the value for the id.
+
+        Args:
+            self: The class self parameter.
+            value: The new value for the id.
+            merge_with_id: If True only allow a unique id, if False only rename its uses with existing id.
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        oldValue = self._node.get('id')
+        if oldValue != value:
+            par = self._node.getparent()
+            if not _string_to_bool(merge_with_id, triple=False):
+                _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
+            else:
+                groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
+                if _check_unique_id(par, groupTag, value):
+                    raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            allTh = _get_all_children(par, "thermalCyclingConditions")
+            for node in allTh:
+                subNodes = _get_all_children(node, "experimenter")
+                for subNode in subNodes:
+                    if subNode.attrib['id'] == oldValue:
+                        subNode.attrib['id'] = value
+            allExp = _get_all_children(par, "experiment")
+            for node in allExp:
+                subNodes = _get_all_children(node, "run")
+                for subNode in subNodes:
+                    lastNodes = _get_all_children(subNode, "experimenter")
+                    for lastNode in lastNodes:
+                        if lastNode.attrib['id'] == oldValue:
+                            lastNode.attrib['id'] = value
+        return
 
     def keys(self):
         """Returns a list of the keys.
@@ -2406,44 +2426,64 @@ class Documentation:
         """
 
         if key == "id":
-            oldValue = self._node.get('id')
-            if oldValue != value:
-                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
-                par = self._node.getparent()
-                allSam = _get_all_children(par, "sample")
-                for node in allSam:
-                    subNodes = _get_all_children(node, "documentation")
-                    for subNode in subNodes:
-                        if subNode.attrib['id'] == oldValue:
-                            subNode.attrib['id'] = value
-                allTh = _get_all_children(par, "target")
-                for node in allTh:
-                    subNodes = _get_all_children(node, "documentation")
-                    for subNode in subNodes:
-                        if subNode.attrib['id'] == oldValue:
-                            subNode.attrib['id'] = value
-                allTh = _get_all_children(par, "thermalCyclingConditions")
-                for node in allTh:
-                    subNodes = _get_all_children(node, "documentation")
-                    for subNode in subNodes:
-                        if subNode.attrib['id'] == oldValue:
-                            subNode.attrib['id'] = value
-                allExp = _get_all_children(par, "experiment")
-                for node in allExp:
-                    subNodes = _get_all_children(node, "documentation")
-                    for subNode in subNodes:
-                        if subNode.attrib['id'] == oldValue:
-                            subNode.attrib['id'] = value
-                    subNodes = _get_all_children(node, "run")
-                    for subNode in subNodes:
-                        lastNodes = _get_all_children(subNode, "documentation")
-                        for lastNode in lastNodes:
-                            if lastNode.attrib['id'] == oldValue:
-                                lastNode.attrib['id'] = value
+            self.change_id(value, merge_with_id=False)
             return
         if key == "text":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
+
+    def change_id(self, value, merge_with_id=False):
+        """Changes the value for the id.
+
+        Args:
+            self: The class self parameter.
+            value: The new value for the id.
+            merge_with_id: If True only allow a unique id, if False only rename its uses with existing id.
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        oldValue = self._node.get('id')
+        if oldValue != value:
+            par = self._node.getparent()
+            if not _string_to_bool(merge_with_id, triple=False):
+                _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
+            else:
+                groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
+                if _check_unique_id(par, groupTag, value):
+                    raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            allSam = _get_all_children(par, "sample")
+            for node in allSam:
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    if subNode.attrib['id'] == oldValue:
+                        subNode.attrib['id'] = value
+            allTh = _get_all_children(par, "target")
+            for node in allTh:
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    if subNode.attrib['id'] == oldValue:
+                        subNode.attrib['id'] = value
+            allTh = _get_all_children(par, "thermalCyclingConditions")
+            for node in allTh:
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    if subNode.attrib['id'] == oldValue:
+                        subNode.attrib['id'] = value
+            allExp = _get_all_children(par, "experiment")
+            for node in allExp:
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    if subNode.attrib['id'] == oldValue:
+                        subNode.attrib['id'] = value
+                subNodes = _get_all_children(node, "run")
+                for subNode in subNodes:
+                    lastNodes = _get_all_children(subNode, "documentation")
+                    for lastNode in lastNodes:
+                        if lastNode.attrib['id'] == oldValue:
+                            lastNode.attrib['id'] = value
+        return
 
     def keys(self):
         """Returns a list of the keys.
@@ -2541,20 +2581,40 @@ class Dye:
             No return value, changes self. Function may raise RdmlError if required.
         """
         if key == "id":
-            oldValue = self._node.get('id')
-            if oldValue != value:
-                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
-                par = self._node.getparent()
-                allTar = _get_all_children(par, "target")
-                for node in allTar:
-                    forId = _get_first_child(node, "dyeId")
-                    if forId is not None:
-                        if forId.attrib['id'] == oldValue:
-                            forId.attrib['id'] = value
+            self.change_id(value, merge_with_id=False)
             return
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
+
+    def change_id(self, value, merge_with_id=False):
+        """Changes the value for the id.
+
+        Args:
+            self: The class self parameter.
+            value: The new value for the id.
+            merge_with_id: If True only allow a unique id, if False only rename its uses with existing id.
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        oldValue = self._node.get('id')
+        if oldValue != value:
+            par = self._node.getparent()
+            if not _string_to_bool(merge_with_id, triple=False):
+                _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
+            else:
+                groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
+                if _check_unique_id(par, groupTag, value):
+                    raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            allTar = _get_all_children(par, "target")
+            for node in allTar:
+                forId = _get_first_child(node, "dyeId")
+                if forId is not None:
+                    if forId.attrib['id'] == oldValue:
+                        forId.attrib['id'] = value
+        return
 
     def keys(self):
         """Returns a list of the keys.
@@ -2719,20 +2779,7 @@ class Sample:
                 raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
 
         if key == "id":
-            oldValue = self._node.get('id')
-            if oldValue != value:
-                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
-                par = self._node.getparent()
-                allExp = _get_all_children(par, "experiment")
-                for node in allExp:
-                    subNodes = _get_all_children(node, "run")
-                    for subNode in subNodes:
-                        reactNodes = _get_all_children(subNode, "react")
-                        for reactNode in reactNodes:
-                            lastNodes = _get_all_children(reactNode, "sample")
-                            for lastNode in lastNodes:
-                                if lastNode.attrib['id'] == oldValue:
-                                    lastNode.attrib['id'] = value
+            self.change_id(value, merge_with_id=False)
             return
         if key == "type":
             return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
@@ -2828,6 +2875,39 @@ class Sample:
                 _remove_irrelevant_subelement(self._node, key)
                 return
         raise KeyError
+
+    def change_id(self, value, merge_with_id=False):
+        """Changes the value for the id.
+
+        Args:
+            self: The class self parameter.
+            value: The new value for the id.
+            merge_with_id: If True only allow a unique id, if False only rename its uses with existing id.
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        oldValue = self._node.get('id')
+        if oldValue != value:
+            par = self._node.getparent()
+            if not _string_to_bool(merge_with_id, triple=False):
+                _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
+            else:
+                groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
+                if _check_unique_id(par, groupTag, value):
+                    raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            allExp = _get_all_children(par, "experiment")
+            for node in allExp:
+                subNodes = _get_all_children(node, "run")
+                for subNode in subNodes:
+                    reactNodes = _get_all_children(subNode, "react")
+                    for reactNode in reactNodes:
+                        lastNodes = _get_all_children(reactNode, "sample")
+                        for lastNode in lastNodes:
+                            if lastNode.attrib['id'] == oldValue:
+                                lastNode.attrib['id'] = value
+        return
 
     def keys(self):
         """Returns a list of the keys.
@@ -3433,12 +3513,12 @@ class Target:
         raise KeyError
 
     def change_id(self, value, merge_with_id=False):
-        """Changes the value for the key.
+        """Changes the value for the id.
 
         Args:
             self: The class self parameter.
-            value: The new value for the key.
-            merge_with_id: If True only allow unique keys, if False only rename its uses with existing id.
+            value: The new value for the id.
+            merge_with_id: If True only allow a unique id, if False only rename its uses with existing id.
 
         Returns:
             No return value, changes self. Function may raise RdmlError if required.
@@ -3446,14 +3526,13 @@ class Target:
 
         oldValue = self._node.get('id')
         if oldValue != value:
+            par = self._node.getparent()
             if not _string_to_bool(merge_with_id, triple=False):
                 _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
             else:
-                par = self._node.getparent()
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
-            par = self._node.getparent()
             allExp = _get_all_children(par, "experiment")
             for node in allExp:
                 subNodes = _get_all_children(node, "run")
@@ -3844,32 +3923,52 @@ class Therm_cyc_cons:
         """
 
         if key == "id":
-            oldValue = self._node.get('id')
-            if oldValue != value:
-                _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
-                par = self._node.getparent()
-                allSam = _get_all_children(par, "sample")
-                for node in allSam:
-                    subNode = _get_first_child(node, "cdnaSynthesisMethod")
-                    if subNode is not None:
-                        forId = _get_first_child(subNode, "thermalCyclingConditions")
-                        if forId is not None:
-                            if forId.attrib['id'] == oldValue:
-                                forId.attrib['id'] = value
-                allExp = _get_all_children(par, "experiment")
-                for node in allExp:
-                    subNodes = _get_all_children(node, "run")
-                    for subNode in subNodes:
-                        forId = _get_first_child(subNode, "thermalCyclingConditions")
-                        if forId is not None:
-                            if forId.attrib['id'] == oldValue:
-                                forId.attrib['id'] = value
+            self.change_id(value, merge_with_id=False)
             return
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key == "lidTemperature":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         raise KeyError
+
+    def change_id(self, value, merge_with_id=False):
+        """Changes the value for the id.
+
+        Args:
+            self: The class self parameter.
+            value: The new value for the id.
+            merge_with_id: If True only allow a unique id, if False only rename its uses with existing id.
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        oldValue = self._node.get('id')
+        if oldValue != value:
+            par = self._node.getparent()
+            if not _string_to_bool(merge_with_id, triple=False):
+                _change_subelement(self._node, "id", self.xmlkeys(), value, False, "string")
+            else:
+                groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
+                if _check_unique_id(par, groupTag, value):
+                    raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            allSam = _get_all_children(par, "sample")
+            for node in allSam:
+                subNode = _get_first_child(node, "cdnaSynthesisMethod")
+                if subNode is not None:
+                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    if forId is not None:
+                        if forId.attrib['id'] == oldValue:
+                            forId.attrib['id'] = value
+            allExp = _get_all_children(par, "experiment")
+            for node in allExp:
+                subNodes = _get_all_children(node, "run")
+                for subNode in subNodes:
+                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    if forId is not None:
+                        if forId.attrib['id'] == oldValue:
+                            forId.attrib['id'] = value
+        return
 
     def keys(self):
         """Returns a list of the keys.
