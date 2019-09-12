@@ -5588,6 +5588,12 @@ class Run:
                 posCopConc = -1
                 posPositives = -1
                 posNegatives = -1
+                posCopConcCh2 = -1
+                posPositivesCh2 = -1
+                posNegativesCh2 = -1
+                posCopConcCh3 = -1
+                posPositivesCh3 = -1
+                posNegativesCh3 = -1
                 posUndefined = -1
                 posExcluded = -1
                 posVolume = -1
@@ -5637,14 +5643,52 @@ class Run:
                         if hInfo == "Negatives":
                             posNegatives = posCount
                         posCount += 1
+                elif fileformat == "Stilla":
+                    posWell = 1
+                    head = tabLines[0].split(",")
+                    for hInfo in head:
+                        hInfo = re.sub(r"^ +", '', hInfo)
+                        if hInfo == "SampleName":
+                            posSample = posCount
+                        if hInfo == "Blue_Channel_Concentration":
+                            posCopConc = posCount
+                        if hInfo == "Blue_Channel_NumberOfPositiveDroplets":
+                            posPositives = posCount
+                        if hInfo == "Blue_Channel_NumberOfNegativeDroplets":
+                            posNegatives = posCount
+                        if hInfo == "Green_Channel_Concentration":
+                            posCopConcCh2 = posCount
+                        if hInfo == "Green_Channel_NumberOfPositiveDroplets":
+                            posPositivesCh2 = posCount
+                        if hInfo == "Green_Channel_NumberOfNegativeDroplets":
+                            posNegativesCh2 = posCount
+                        if hInfo == "Red_Channel_Concentration":
+                            posCopConcCh3 = posCount
+                        if hInfo == "Red_Channel_NumberOfPositiveDroplets":
+                            posPositivesCh3 = posCount
+                        if hInfo == "Red_Channel_NumberOfNegativeDroplets":
+                            posNegativesCh3 = posCount
+                        posCount += 1
+                    for chan in ["Ch1", "Ch2", "Ch3"]:
+                        crTarName = "Target " + chan
+                        if crTarName not in tarTypeLookup:
+                            if chan not in dyeLookup:
+                                rootEl.new_dye(chan)
+                                dyeLookup[chan] = 1
+                                ret += "Created dye \"" + chan + "\"\n"
+                            rootEl.new_target(crTarName, "toi")
+                            elem = rootEl.get_target(byid=crTarName)
+                            elem["dyeId"] = chan
+                            tarTypeLookup[crTarName] = "toi"
+                            ret += "Created " + crTarName + " with type \"toi\" and dye \"" + chan + "\"\n"
                 else:
                     raise RdmlError('Unknown digital file format.')
 
                 if posSample == -1:
                     raise RdmlError('The overview tab-format is not valid, sample columns are missing.')
-                if posDye == -1:
+                if posDye == -1 and fileformat != "Stilla":
                     raise RdmlError('The overview tab-format is not valid, dye / channel columns are missing.')
-                if posTarget == -1:
+                if posTarget == -1 and fileformat != "Stilla":
                     raise RdmlError('The overview tab-format is not valid, target columns are missing.')
                 if posPositives == -1:
                     raise RdmlError('The overview tab-format is not valid, positives columns are missing.')
@@ -5659,6 +5703,12 @@ class Run:
                     elif fileformat == "Bio-Rad":
                         sLin = tabLine.split(";")
                         emptyLine = tabLine.replace(";", "")
+                    elif fileformat == "Stilla":
+                        tabLine = re.sub(r'^ +', '', tabLine)
+                        tabLine = re.sub(r', +', ',', tabLine)
+                        sLin = tabLine.split(",")
+                        emptyLine1 = tabLine.replace(",", "")
+                        emptyLine = emptyLine1.replace(" ", "")
                     else:
                         sLin = tabLine.split("\t")
                         emptyLine = tabLine.replace("\t", "")
@@ -5677,26 +5727,29 @@ class Run:
                         posDyeName = sLin[posDye]
                     elif fileformat == "Bio-Rad":
                         posDyeName = sLin[posDye][:3]
+                    elif fileformat == "Stilla":
+                        posDyeName = "Not required"
                     else:
                         posDyeName = sLin[posDye]
 
-                    if sLin[posTarget] not in tarTypeLookup:
-                        if posDyeName not in dyeLookup:
-                            rootEl.new_dye(posDyeName)
-                            dyeLookup[posDyeName] = 1
-                            ret += "Created dye \"" + posDyeName + "\"\n"
-                        posTargetTypeName = "toi"
-                        if posTargetType != -1:
-                            posTargetTypeName = sLin[posTargetType]
-                        rootEl.new_target(sLin[posTarget], posTargetTypeName)
-                        elem = rootEl.get_target(byid=sLin[posTarget])
-                        elem["dyeId"] = posDyeName
-                        tarTypeLookup[sLin[posTarget]] = posTargetTypeName
-                        ret += "Created " + sLin[posTarget] + " with type \"" + posTargetTypeName + "\" and dye \"" + posDyeName + "\"\n"
+                    if posTarget != -1:
+                        if sLin[posTarget] not in tarTypeLookup:
+                            if posDyeName not in dyeLookup:
+                                rootEl.new_dye(posDyeName)
+                                dyeLookup[posDyeName] = 1
+                                ret += "Created dye \"" + posDyeName + "\"\n"
+                            posTargetTypeName = "toi"
+                            if posTargetType != -1:
+                                posTargetTypeName = sLin[posTargetType]
+                            rootEl.new_target(sLin[posTarget], posTargetTypeName)
+                            elem = rootEl.get_target(byid=sLin[posTarget])
+                            elem["dyeId"] = posDyeName
+                            tarTypeLookup[sLin[posTarget]] = posTargetTypeName
+                            ret += "Created " + sLin[posTarget] + " with type \"" + posTargetTypeName + "\" and dye \"" + posDyeName + "\"\n"
 
-                    if sLin[posWell].upper() not in headerLookup:
-                        headerLookup[sLin[posWell].upper()] = {}
-                    headerLookup[sLin[posWell].upper()][posDyeName] = sLin[posTarget]
+                        if sLin[posWell].upper() not in headerLookup:
+                            headerLookup[sLin[posWell].upper()] = {}
+                        headerLookup[sLin[posWell].upper()][posDyeName] = sLin[posTarget]
 
                     if posFilename != -1 and sLin[posFilename] != "":
                         fileNameSuggLookup[sLin[posWell].upper()] = sLin[posFilename]
@@ -5707,9 +5760,12 @@ class Run:
 
                     # Get the position number if required
                     wellPos = sLin[posWell]
-                    if re.search("\D\d+", sLin[posWell]):
-                        old_letter = ord(re.sub("\d", "", sLin[posWell]).upper()) - ord("A")
-                        old_nr = int(re.sub("\D", "", sLin[posWell]))
+                    if fileformat == "Stilla":
+                        wellPos = re.sub(r'^\d+-', '', wellPos)
+
+                    if re.search(r"\D\d+", wellPos):
+                        old_letter = ord(re.sub(r"\d", "", wellPos.upper())) - ord("A")
+                        old_nr = int(re.sub(r"\D", "", wellPos))
                         newId = old_nr + old_letter * int(self["pcrFormat_columns"])
                         wellPos = str(newId)
 
@@ -5741,61 +5797,124 @@ class Run:
                             new_node.text = sLin[posVolume]
                         elif fileformat == "Bio-Rad":
                             new_node.text = "0.85"
+                        elif fileformat == "Stilla":
+                            new_node.text = "0.59"
                         else:
-                            new_node.text = "0.85"
+                            new_node.text = "0.70"
                         place = _get_tag_pos(partit, "volume", ["volume", "endPtTable", "data"], 9999999)
                         partit.insert(place, new_node)
 
-                    exp = _get_all_children(partit, "data")
-                    for node in exp:
-                        forId = _get_first_child(node, "tar")
-                        if forId is not None and forId.attrib['id'] == sLin[posTarget]:
-                            data = node
-                            break
-                    if data is None:
-                        new_node = ET.Element("data")
-                        place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
-                        partit.insert(place, new_node)
-                        data = new_node
-                        new_node = ET.Element("tar", id=sLin[posTarget])
-                        place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                    if fileformat == "Stilla":
+                        exp = _get_all_children(partit, "data")
+                        for i in range(1, 4):
+                            data = None
+                            stillaTarget = "Target Ch" + str(i)
+                            posDyeName = "Ch" + str(i)
+                            stillaConc = "0"
+                            stillaPos = "0"
+                            stillaNeg = "0"
+                            if i == 1:
+                                stillaConc = sLin[posCopConc]
+                                stillaPos = sLin[posPositives]
+                                stillaNeg = sLin[posNegatives]
+                            if i == 2:
+                                stillaConc = sLin[posCopConcCh2]
+                                stillaPos = sLin[posPositivesCh2]
+                                stillaNeg = sLin[posNegativesCh2]
+                            if i == 3:
+                                stillaConc = sLin[posCopConcCh3]
+                                stillaPos = sLin[posPositivesCh3]
+                                stillaNeg = sLin[posNegativesCh3]
+
+                            if re.search(r"\.", stillaConc):
+                                stillaConc = re.sub(r"0+$", "", stillaConc)
+                                stillaConc = re.sub(r"\.$", ".0", stillaConc)
+
+                            wellName = re.sub(r'^\d+-', '', sLin[posWell])
+                            if wellName.upper() not in headerLookup:
+                                headerLookup[wellName.upper()] = {}
+                            headerLookup[wellName.upper()][posDyeName] = stillaTarget
+
+                            for node in exp:
+                                forId = _get_first_child(node, "tar")
+                                if forId is not None and forId.attrib['id'] == stillaTarget:
+                                    data = node
+                                    break
+
+                            if data is None:
+                                new_node = ET.Element("data")
+                                place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                                partit.insert(place, new_node)
+                                data = new_node
+                                new_node = ET.Element("tar", id=stillaTarget)
+                                place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                data.insert(place, new_node)
+
+                            new_node = ET.Element("pos")
+                            new_node.text = stillaPos
+                            place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
+
+                            new_node = ET.Element("neg")
+                            new_node.text = stillaNeg
+                            place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
+
+                            new_node = ET.Element("conc")
+                            new_node.text = stillaConc
+                            place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
+                    else:
+                        exp = _get_all_children(partit, "data")
+                        for node in exp:
+                            forId = _get_first_child(node, "tar")
+                            if forId is not None and forId.attrib['id'] == sLin[posTarget]:
+                                data = node
+                                break
+                        if data is None:
+                            new_node = ET.Element("data")
+                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                            partit.insert(place, new_node)
+                            data = new_node
+                            new_node = ET.Element("tar", id=sLin[posTarget])
+                            place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
+
+                        new_node = ET.Element("pos")
+                        new_node.text = sLin[posPositives]
+                        place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                         data.insert(place, new_node)
 
-                    new_node = ET.Element("pos")
-                    new_node.text = sLin[posPositives]
-                    place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
-                    data.insert(place, new_node)
-
-                    new_node = ET.Element("neg")
-                    new_node.text = sLin[posNegatives]
-                    place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
-                    data.insert(place, new_node)
-
-                    if posUndefined != -1 and sLin[posUndefined] != "":
-                        new_node = ET.Element("undef")
-                        new_node.text = sLin[posUndefined]
+                        new_node = ET.Element("neg")
+                        new_node.text = sLin[posNegatives]
                         place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                         data.insert(place, new_node)
 
-                    if posExcluded != -1 and sLin[posExcluded] != "":
-                        new_node = ET.Element("excl")
-                        new_node.text = sLin[posExcluded]
-                        place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
-                        data.insert(place, new_node)
+                        if posUndefined != -1 and sLin[posUndefined] != "":
+                            new_node = ET.Element("undef")
+                            new_node.text = sLin[posUndefined]
+                            place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
 
-                    if posCopConc != -1:
-                        new_node = ET.Element("conc")
-                        if int(sLin[posPositives]) == 0:
-                            new_node.text = "0"
-                        else:
-                            if fileformat == "RDML":
-                                new_node.text = sLin[posCopConc]
-                            elif fileformat == "Bio-Rad":
-                                new_node.text = str(float(sLin[posCopConc])/20)
+                        if posExcluded != -1 and sLin[posExcluded] != "":
+                            new_node = ET.Element("excl")
+                            new_node.text = sLin[posExcluded]
+                            place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
+
+                        if posCopConc != -1:
+                            new_node = ET.Element("conc")
+                            if int(sLin[posPositives]) == 0:
+                                new_node.text = "0"
                             else:
-                                new_node.text = sLin[posCopConc]
-                        place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
-                        data.insert(place, new_node)
+                                if fileformat == "RDML":
+                                    new_node.text = sLin[posCopConc]
+                                elif fileformat == "Bio-Rad":
+                                    new_node.text = str(float(sLin[posCopConc])/20)
+                                else:
+                                    new_node.text = sLin[posCopConc]
+                            place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            data.insert(place, new_node)
 
         # Read the raw data files
 
@@ -5848,12 +5967,14 @@ class Run:
             outTabFile = ""
             keepCh1 = False
             keepCh2 = False
+            keepCh3 = False
             header = ""
 
             react = None
             partit = None
             dataCh1 = None
             dataCh2 = None
+            dataCh3 = None
 
             wellPos = well
             if re.search("\D\d+", well):
@@ -5889,10 +6010,12 @@ class Run:
                 partit = new_node
                 new_node = ET.Element("volume")
                 if fileformat == "RDML":
-                    new_node.text = "0.9"
-                    warnVolume = "No information on partition volume given, used 0.9."
+                    new_node.text = "0.7"
+                    warnVolume = "No information on partition volume given, used 0.7."
                 elif fileformat == "Bio-Rad":
                     new_node.text = "0.85"
+                elif fileformat == "Stilla":
+                    new_node.text = "0.59"
                 else:
                     new_node.text = "0.85"
                 place = _get_tag_pos(partit, "volume", ["volume", "endPtTable", "data"], 9999999)
@@ -6044,7 +6167,10 @@ class Run:
                                     rootEl.new_dye(dye)
                                     dyeLookup[dye] = 1
                                     ret += "Created dye \"" + dye + "\"\n"
+
+                            dyeCount = 0
                             for dye in dyes:
+                                dyeCount += 1
                                 targetName = "Target in " + well + " " + dye
                                 if targetName not in tarTypeLookup:
                                     rootEl.new_target(targetName, "toi")
@@ -6053,6 +6179,9 @@ class Run:
                                     tarTypeLookup[targetName] = "toi"
                                     ret += "Created target " + targetName + " with type \"" + "toi" + "\" and dye \"" + dye + "\"\n"
                                     headerLookup[well][dye] = targetName
+                                if (dyeCount == 1 and keepCh1) or (dyeCount == 2 and keepCh2):
+                                    header += targetName + "\t" + targetName + "\t"
+                            outTabFile += re.sub(r'\t$', '\n', header)
 
                     if keepCh1 or keepCh2:
                         exp = _get_all_children(partit, "data")
@@ -6107,6 +6236,8 @@ class Run:
                                     if keepCh1:
                                         outTabFile += "\t"
                                     outTabFile += splitLine[1] + "\t" + "u\n"
+                                else:
+                                    outTabFile += "\n"
                                 countPart += 1
                             if keepCh1:
                                 new_node = ET.Element("pos")
@@ -6179,6 +6310,264 @@ class Run:
                                         outTabFile += "\t"
                                     outTabFile += splitLine[1] + "\t"
                                     if float(splitLine[1]) > ch2Cut:
+                                        outTabFile += "p\n"
+                                    else:
+                                        outTabFile += "n\n"
+                                else:
+                                    outTabFile += "\n"
+                        _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
+                        new_node = ET.Element("endPtTable")
+                        new_node.text = re.sub(r'^partitions/', '', finalFileName)
+                        place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
+                        partit.insert(place, new_node)
+                    else:
+                        react.remove(partit)
+                elif fileformat == "Stilla":
+                    ch1Pos = "0"
+                    ch1Neg = "0"
+                    ch1sum = 0
+                    ch2Pos = "0"
+                    ch2Neg = "0"
+                    ch2sum = 0
+                    ch3Pos = "0"
+                    ch3Neg = "0"
+                    ch3sum = 0
+
+                    if well in headerLookup:
+                        if "Ch1" in headerLookup[well]:
+                            keepCh1 = True
+                            header += headerLookup[well]["Ch1"] + "\t" + headerLookup[well]["Ch1"] + "\t"
+                        if "Ch2" in headerLookup[well]:
+                            keepCh2 = True
+                            header += headerLookup[well]["Ch2"] + "\t" + headerLookup[well]["Ch2"] + "\t"
+                        if "Ch3" in headerLookup[well]:
+                            keepCh3 = True
+                            header += headerLookup[well]["Ch3"] + "\t" + headerLookup[well]["Ch3"] + "\t"
+                        outTabFile += re.sub(r'\t$', '\n', header)
+                    else:
+                        headerLookup[well] = {}
+                        dyes = ["Ch1", "Ch2", "Ch3"]
+                        if len(wellLines) > 1:
+                            isThereData = wellLines[1].split(",")
+                            ch1Pos = ""
+                            ch1Neg = ""
+                            ch2Pos = ""
+                            ch2Neg = ""
+                            ch3Pos = ""
+                            ch3Neg = ""
+                            if re.search(r"\d", isThereData[0]):
+                                keepCh1 = True
+                            if len(isThereData) > 1 and re.search(r"\d", isThereData[1]):
+                                keepCh2 = True
+                            if len(isThereData) > 2 and re.search(r"\d", isThereData[2]):
+                                keepCh3 = True
+                            for dye in dyes:
+                                if dye not in dyeLookup:
+                                    rootEl.new_dye(dye)
+                                    dyeLookup[dye] = 1
+                                    ret += "Created dye \"" + dye + "\"\n"
+                            dyeCount = 0
+                            for dye in dyes:
+                                dyeCount += 1
+                                targetName = "Target in " + well + " " + dye
+                                if targetName not in tarTypeLookup:
+                                    rootEl.new_target(targetName, "toi")
+                                    elem = rootEl.get_target(byid=targetName)
+                                    elem["dyeId"] = dye
+                                    tarTypeLookup[targetName] = "toi"
+                                    ret += "Created target " + targetName + " with type \"" + "toi" + "\" and dye \"" + dye + "\"\n"
+                                    if (dyeCount == 1 and keepCh1) or (dyeCount == 2 and keepCh2) or (dyeCount == 3 and keepCh3):
+                                        headerLookup[well][dye] = targetName
+                                header += targetName + "\t" + targetName + "\t"
+                            outTabFile += re.sub(r'\t$', '\n', header)
+
+                    if keepCh1 or keepCh2 or keepCh3:
+                        exp = _get_all_children(partit, "data")
+                        for node in exp:
+                            forId = _get_first_child(node, "tar")
+                            if keepCh1 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch1"]:
+                                dataCh1 = node
+                                ch1Pos = _get_first_child_text(dataCh1, "pos")
+                                ch1Neg = _get_first_child_text(dataCh1, "neg")
+                                ch1sum += int(ch1Pos) + int(ch1Neg)
+                            if keepCh2 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch2"]:
+                                dataCh2 = node
+                                ch2Pos = _get_first_child_text(dataCh2, "pos")
+                                ch2Neg = _get_first_child_text(dataCh2, "neg")
+                                ch2sum += int(ch2Pos) + int(ch2Neg)
+                            if keepCh3 and forId is not None and forId.attrib['id'] == headerLookup[well]["Ch3"]:
+                                dataCh3 = node
+                                ch3Pos = _get_first_child_text(dataCh3, "pos")
+                                ch3Neg = _get_first_child_text(dataCh3, "neg")
+                                ch3sum += int(ch3Pos) + int(ch3Neg)
+                        if dataCh1 is None and keepCh1:
+                            new_node = ET.Element("data")
+                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                            partit.insert(place, new_node)
+                            dataCh1 = new_node
+                            new_node = ET.Element("tar", id=headerLookup[well]["Ch1"])
+                            place = _get_tag_pos(dataCh1, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                 9999999)
+                            dataCh1.insert(place, new_node)
+                            ch1Pos = ""
+                            ch1Neg = ""
+                            ch1sum = 2
+                        if dataCh2 is None and keepCh2:
+                            new_node = ET.Element("data")
+                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                            partit.insert(place, new_node)
+                            dataCh2 = new_node
+                            new_node = ET.Element("tar", id=headerLookup[well]["Ch2"])
+                            place = _get_tag_pos(dataCh2, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                 9999999)
+                            dataCh2.insert(place, new_node)
+                            ch2Pos = ""
+                            ch2Neg = ""
+                            ch2sum = 2
+                        if dataCh3 is None and keepCh3:
+                            new_node = ET.Element("data")
+                            place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
+                            partit.insert(place, new_node)
+                            dataCh3 = new_node
+                            new_node = ET.Element("tar", id=headerLookup[well]["Ch3"])
+                            place = _get_tag_pos(dataCh3, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                 9999999)
+                            dataCh3.insert(place, new_node)
+                            ch3Pos = ""
+                            ch3Neg = ""
+                            ch3sum = 2
+                        if dataCh1 is None and dataCh2 is None and dataCh3 is None:
+                            continue
+                        if ch1sum < 1 and ch2sum < 1 and ch3sum < 1:
+                            continue
+
+                        if ch1Pos == "" and ch1Neg == "" and ch2Pos == "" and ch2Neg == "" and ch3Pos == "" and ch3Neg == "":
+                            countPart = 0
+                            for line in wellLines[1:]:
+                                splitLine = line.split(",")
+                                if len(splitLine[0]) < 2:
+                                    continue
+                                if keepCh1:
+                                    outTabFile += splitLine[0] + "\t" + "u"
+                                if keepCh2:
+                                    if keepCh1:
+                                        outTabFile += "\t"
+                                    outTabFile += splitLine[1] + "\t" + "u"
+                                if keepCh3:
+                                    if keepCh1 or keepCh2:
+                                        outTabFile += "\t"
+                                    outTabFile += splitLine[2] + "\t" + "u\n"
+                                else:
+                                    outTabFile += "\n"
+                                countPart += 1
+                            if keepCh1:
+                                new_node = ET.Element("pos")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh1, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh1.insert(place, new_node)
+
+                                new_node = ET.Element("neg")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh1.insert(place, new_node)
+
+                                new_node = ET.Element("undef")
+                                new_node.text = str(countPart)
+                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh1.insert(place, new_node)
+                            if keepCh2:
+                                new_node = ET.Element("pos")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh2, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh2.insert(place, new_node)
+
+                                new_node = ET.Element("neg")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh2.insert(place, new_node)
+
+                                new_node = ET.Element("undef")
+                                new_node.text = str(countPart)
+                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh2.insert(place, new_node)
+                            if keepCh3:
+                                new_node = ET.Element("pos")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh3, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh3.insert(place, new_node)
+
+                                new_node = ET.Element("neg")
+                                new_node.text = "0"
+                                place = _get_tag_pos(dataCh3, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh3.insert(place, new_node)
+
+                                new_node = ET.Element("undef")
+                                new_node.text = str(countPart)
+                                place = _get_tag_pos(dataCh3, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                                     9999999)
+                                dataCh3.insert(place, new_node)
+                        else:
+                            ch1Arr = []
+                            ch2Arr = []
+                            ch3Arr = []
+                            ch1Cut = 0
+                            ch2Cut = 0
+                            ch3Cut = 0
+                            for line in wellLines[1:]:
+                                splitLine = line.split(",")
+                                if len(splitLine) < 3:
+                                    continue
+                                if keepCh1:
+                                    ch1Arr.append(float(splitLine[0]))
+                                if keepCh2:
+                                    ch2Arr.append(float(splitLine[1]))
+                                if keepCh3:
+                                    ch3Arr.append(float(splitLine[2]))
+
+                            if keepCh1:
+                                ch1Arr.sort()
+                                if 0 < int(ch1Neg) <= len(ch1Arr):
+                                    ch1Cut = ch1Arr[int(ch1Neg) - 1]
+                            if keepCh2:
+                                ch2Arr.sort()
+                                if 0 < int(ch2Neg) <= len(ch2Arr):
+                                    ch2Cut = ch2Arr[int(ch2Neg) - 1]
+                            if keepCh3:
+                                ch3Arr.sort()
+                                if 0 < int(ch3Neg) <= len(ch3Arr):
+                                    ch3Cut = ch3Arr[int(ch3Neg) - 1]
+
+                            for line in wellLines[1:]:
+                                splitLine = line.split(",")
+                                if len(splitLine) < 2:
+                                    continue
+                                if keepCh1:
+                                    outTabFile += splitLine[0] + "\t"
+                                    if float(splitLine[0]) > ch1Cut:
+                                        outTabFile += "p"
+                                    else:
+                                        outTabFile += "n"
+                                if keepCh2:
+                                    if keepCh1:
+                                        outTabFile += "\t"
+                                    outTabFile += splitLine[1] + "\t"
+                                    if float(splitLine[1]) > ch2Cut:
+                                        outTabFile += "p"
+                                    else:
+                                        outTabFile += "n"
+                                if keepCh3:
+                                    if keepCh1 or keepCh2:
+                                        outTabFile += "\t"
+                                    outTabFile += splitLine[2] + "\t"
+                                    if float(splitLine[2]) > ch3Cut:
                                         outTabFile += "p\n"
                                     else:
                                         outTabFile += "n\n"
