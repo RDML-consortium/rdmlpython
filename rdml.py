@@ -10,6 +10,8 @@ import datetime
 import zipfile
 import tempfile
 import argparse
+import math
+import numpy as np
 from lxml import etree as ET
 
 
@@ -707,7 +709,7 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
 
-        elem = _get_first_child(self._node, "dateUpdated")
+        elem = _get_or_create_subelement(self._node, "dateUpdated", self.xmlkeys())
         elem.text = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         data = ET.tostring(self._rdmlData, pretty_print=True)
         _writeFileInRDML(filename, 'rdml_data.xml', data)
@@ -6836,6 +6838,167 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
+    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False):
+        """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            perTarget: If true, calculate efficiency per target, if false, for all samples.
+            baselineCorr: If true, do baseline correction for all samples.
+            commaConv: If true, convert comma seperator to dot.
+
+        Returns:
+            A 2d array with the resulting data.
+            [["id","sample","target","min_raw_fluor"]]
+        """
+
+        ##############################
+        # Collect the data in arrays #
+        ##############################
+
+        res = []
+        adp_cyc_max = 0
+
+        reacts = _get_all_children(self._node, "react")
+
+        # First get the max number of cycles and create the numpy array
+        for react in reacts:
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                adps = _get_all_children(react_data, "adp")
+                for adp in adps:
+                    cyc = _get_first_child_text(adp, "cyc")
+                    adp_cyc_max = max(adp_cyc_max, float(cyc))
+        adp_cyc_max = math.ceil(adp_cyc_max)
+        rawFluor = np.zeros((len(reacts), adp_cyc_max), dtype=np.float64)
+
+        # Now process the data for numpy and create results array
+        rowCount = 0
+        for react in reacts:
+            posId = react.get('id')
+            sample = ""
+            forId = _get_first_child(react, "sample")
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    sample = forId.attrib['id']
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                forId = _get_first_child(react_data, "tar")
+                target = ""
+                if forId is not None:
+                    if forId.attrib['id'] != "":
+                        target = forId.attrib['id']
+                #_add_first_child_to_dic(react_data, in_react, True, "cq")
+                res.append([posId, sample, target])
+                adps = _get_all_children(react_data, "adp")
+                for adp in adps:
+                    cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
+                    fluor = _get_first_child_text(adp, "fluor")
+                    if commaConv:
+                        noDot = fluor.replace(".", "")
+                        fluor = noDot.replace(",", ".")
+                    rawFluor[rowCount, cyc] = float(fluor)
+                rowCount += 1
+        # Add the min raw fluorescence to be sure no data are missing
+        # Missing data should be 0, there should be no fluorescence below or equal 0.
+        min_flour = np.amin(rawFluor, axis=1)
+        rowCount = 0
+        newRes = []
+        for x in res:
+            newRes.append(x + [str("{:.3g}".format(np.asscalar(min_flour[rowCount])))])
+            rowCount += 1
+        res = newRes
+
+        ####################
+        # SDM calculation  #
+        ####################
+
+        # First and Second Derivative values calculation
+
+        # Shifted matrix of the raw data
+        rawFluorShift = np.roll(rawFluor, 1, axis=1)
+        # Subtraction of the shifted matrix to the raw data
+        firstDerivative = rawFluor - rawFluorShift
+        # Shifted matrix of the firstDerivative
+        firstDerivativeShift = np.roll(firstDerivative, -1, axis=1)
+        # Subtraction of the firstDerivative values to the shifted matrix
+        secondDerivative = firstDerivativeShift - firstDerivative
+
+        # The three first column and the last one are replaced by zeros
+        firstDerivativeShift[:, -1] = 0
+        secondDerivative[:, 0:2] = 0
+        secondDerivative[:, -1] = 0
+
+        # Calculation of the second derivative maximum per well
+        # SDM is the max flo value per well and SDMcycles to the corresponding cycle
+        SDM = np.amax(secondDerivative, 1)
+        SDMcycles = np.argmax(secondDerivative, 1) + 1
+
+        ########################################
+        # Start point of the exponential phase #
+        ########################################
+
+        # For loop which determine the start of the exponential phase
+
+        # This first loop creates the vector that will be used during the
+        # initialisation phase of the baseline estimation
+
+        # Initialisation
+        startExpPhase = np.zeros((rawFluor.shape[0], 1), dtype=np.float64)
+        startExpCycles = np.zeros((rawFluor.shape[0], 1), dtype=np.int)
+
+        # for each row of the data
+        for i in range(0, rawFluor.shape[0]):
+            # the loop starts from the SDM cycle of each row
+            j = SDMcycles[i]
+            while rawFluor[i, j] >= rawFluor[i, j - 1] and j > 2:
+                j = j - 1
+            startExpPhase[i] = rawFluor[i, j]
+            startExpCycles[i] = j + 1
+
+        # For loop which modifies the start cycle if too far from the SDM cycle
+
+        # This loop looks for the cases where the previously calculated start point cycle is
+        # more than 10 cycles far from the SDM point. When it finds such a case, it replaces
+        # the start cycle by the SDM cycle minus 10. This vector will be used after the initialization
+        # phase
+
+        # Initialization of the expoPhaseBaselineEstimation vector
+        expoPhaseBaselineEstimation = startExpCycles.copy()
+
+        for i in range(0, startExpCycles.shape[0]):
+            if SDMcycles[i] - startExpCycles[i] > 10:
+                expoPhaseBaselineEstimation[i] = SDMcycles[i] - 10
+            else:
+                expoPhaseBaselineEstimation[i] = startExpCycles[i]
+
+        ###########################################################################
+        # First quality check : Is there enough amplification during the reaction #
+        ###########################################################################
+
+        # Slope calculation per well
+
+        logical = np.ones(rawFluor.shape)
+        vecCycle2 = np.arange(1, (rawFluor.shape[1] + 1), dtype=np.int)
+        matCycle2 = np.tile(vecCycle2, (rawFluor.shape[0], 1))
+
+        # the intercept is never used in the code but has to be mentioned otherwise
+        # the linearRegression can't be called.
+
+   #     [slopeAmp, interceptAmp] = linearRegression(matCycle2, rawFluor, logical);
+
+        # Minimum of fluorescence values per well
+      #  minFlu = min(rawFluor, [], 2);
+    #    minFluMat = rawFluor - repmat(minFlu, [1, size(rawFluor, 2)]);
+
+        _numpySave(matCycle2, "res_arr.tsv")
+        return res
+
+
+def _numpySave(var, fileName):
+    with np.printoptions(precision=3, suppress=True):
+        np.savetxt(fileName, var, fmt='%.4g', delimiter='\t', newline='\n')
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The command line interface to the RDML-Python library.')
@@ -6853,6 +7016,15 @@ if __name__ == "__main__":
 
     # Tryout things
     if args.doooo:
-        print('Tryout')
-        xx = Rdml('rdml_data.xml')
-        xx.save('new.rdml')
+        print('Test LinRegPCR')
+        rt = Rdml('data.rdml')
+        exp = rt.get_experiment(byid="QPCR_course_okt2018_xls")
+        run = exp.get_run(byid="20181004_cursus_Plaat1")
+        res = run.linRegPCR()
+        with open("res_out.txt", "w") as f:
+            for row in res:
+                for elem in row:
+                    f.write(elem + "\t")
+                f.write("\n")
+        # rt.save('new.rdml')
+        sys.exit(0)
