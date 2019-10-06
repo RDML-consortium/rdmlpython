@@ -608,6 +608,11 @@ def _linearRegression(x, y, z):
     return [slope, intercept]
 
 
+def _numpyTwoAxisSave(var, fileName):
+    with np.printoptions(precision=3, suppress=True):
+        np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
+
+
 class Rdml:
     """RDML-Python library
     
@@ -6916,7 +6921,7 @@ class Run:
                 if forId is not None:
                     if forId.attrib['id'] != "":
                         target = forId.attrib['id']
-                #_add_first_child_to_dic(react_data, in_react, True, "cq")
+                # _add_first_child_to_dic(react_data, in_react, True, "cq")
                 res.append([posId, sample, target])
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
@@ -7043,14 +7048,15 @@ class Run:
 
         # The output vector of the main for loops need to be initialized before the start of the loop :
         # This will be the baseline values vector. It has the same size of the SDMcycles vector
-        baselineValues = SDMcycles.copy()
+        baselineValues = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
         # The intercept values are not used in the code but could be used later.
-        interceptDifference = SDMcycles.copy()
+        interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
         # This is the vector for the baseline error quality check
         vecBaselineError = np.zeros((SDMcycles.shape[0], 1), dtype=np.int)
 
         # The for loop go through all the sample matrix and make calculations well by well
         for z in range(0, rawFluor.shape[0]):
+            print('Sample: ' + str(z))
             # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
             # minimum fluorescence value assigned as baseline value for the considered reaction :
             if vecNoAmplification[z] == 0:
@@ -7158,32 +7164,205 @@ class Run:
                 matTop[np.isnan(matTop)] = 0
                 [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
 
-                # Calculation of the difference betweem the two slope vectors
+                # Calculation of the difference between the two slope vectors
 
                 diffSlopTopBott = slopeTop - slopeBott
                 minimumDiffSlopTopBott = np.amin(np.abs(diffSlopTopBott))
-                cycleAbscisseMinDif = np.argmin(np.abs(diffSlopTopBott)) + 1
+                cycleAbscisseMinDif = np.argmin(np.abs(diffSlopTopBott))
 
                 # Second quality check : Baseline error
+                # Assigned 1 when diffSlopTopBott is a positive value, -1 when negative and let 0 for the zeros values
+                val = np.sign(diffSlopTopBott)
+                # Change the 0 into 1
+                val[val == 0] = 1
+                # Calculate the sign changes. val=1 when there is one changes val=2 for two changes ...etc
+                val = sum(val[0:-2] * val[1:-1] == -1)
 
-             #   _numpySave(minimumDiffSlopTopBott, "res_arr_1.tsv")
-             #   _numpySave(cycleAbscisseMinDif, "res_arr_2.tsv")
+                # If there is no sign changes, the baseline value will not be calculated
+                if val >= 1:
+                    # While loop that will not stop until the 0.0001 is reached.
+                    count = 1
+                    while minimumDiffSlopTopBott > 0.0001 and count < 1000:
+                        # Step value used to create the stepVector vector of the possible baseline values
+                        step2 = stepVector[2, 0] - stepVector[1, 0]
 
-                print(str(minimumDiffSlopTopBott) + " " + str(cycleAbscisseMinDif) + " " + str(step) + " " + str(miniFLU))
+                        # This if condition is necessary to have a wide enough range of possible baseline value
+                        # when the previous cycle of the minimum slopes difference is at the beginning or the
+                        # end of the vector. Otherwise, the real baseline value will not be included in the chosen range.
 
-                break
+                        if cycleAbscisseMinDif == 0 or cycleAbscisseMinDif == 9:
+                            lowValue = stepVector[cycleAbscisseMinDif, 0] - (6 * step2)
+                            highValue = stepVector[cycleAbscisseMinDif, 0] + (6 * step2)
+                        else:
+                            lowValue = stepVector[cycleAbscisseMinDif, 0] - (2 * step2)
+                            highValue = stepVector[cycleAbscisseMinDif, 0] + (2 * step2)
 
+                        Difference = highValue - lowValue
+                        step = Difference / 9
+                        stepVector = np.array([[lowValue],
+                                               [lowValue + step],
+                                               [lowValue + 2 * step],
+                                               [lowValue + 3 * step],
+                                               [lowValue + 4 * step],
+                                               [lowValue + 5 * step],
+                                               [lowValue + 6 * step],
+                                               [lowValue + 7 * step],
+                                               [lowValue + 8 * step],
+                                               [lowValue + 9 * step]],
+                                              dtype=np.float64)
 
+                        # Matrix of the considered well fluorescence values repeated 10 times (size of stepVector)
+                        matFluo = np.tile(rawFluor[z, :], (stepVector.shape[0], 1))
+                        LowHighValues = matFluo - np.tile(stepVector, (1, matFluo.shape[1]))
+                        # Only the values between the start and the SDM point are kept
+                        mat = LowHighValues[:, (expoPhaseBaselineEstimation[z][0] - 1):SDMcycles[z]]
+                        # When the values are negative or equal to zero there are replaces by not a number value.
+                        mat[np.isnan(mat)] = 0
+                        mat[mat <= 0] = np.nan
+                        matReg = np.log10(mat)
 
-        #_numpySave(vecNoAmplification, "res_arr_1.tsv")
+                        # Calculation of the logical matrix corresponding to the Values between the
+                        # jump and the seconde derivative maximum value
+                        a = np.isnan(matReg)
+                        g = np.sum(a, axis=1)
+                        gbis = g + 1
+                        stopStep = matReg[:, -1] - matReg[:, -2]
 
-        # _numpySave(vecNoAmplification, "res_arr_2.tsv")
+                        # Contrary to the previous phase, we now used the start points vector where the points too far
+                        # from the SDM are modified
+                        startOfLine = np.expand_dims(g, axis=1) + expoPhaseBaselineEstimation[z]
+                        for i in range(0, matReg.shape[0]):
+                            j = gbis[i]
+                            if j > matReg.shape[1] - 1: # Todo: OK -1???
+                                if np.abs(np.abs(matReg[i, j]) - np.abs(matReg[i, j + 1])) > 1.1 * stopStep[i]:
+                                    startOfLine[i] = startOfLine[i] + 1
+
+                        SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
+
+                        # The logical matrix assigned 1 for the values between startofLine and SDMvector
+                        logicalMatrix = LowHighValues.copy()
+                        for i in range(0, LowHighValues.shape[0]):
+                            for j in range(0, LowHighValues.shape[1]):
+                                if (j >= 0) and (j < startOfLine[i] - 1):
+                                    logicalMatrix[i, j] = 0
+                                if (SDMvector[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
+                                    logicalMatrix[i, j] = 0
+                                if (j >= startOfLine[i] - 1) and (j <= SDMvector[i] - 1):
+                                    logicalMatrix[i, j] = 1
+
+                        # Calculation of the slope bottom
+                        # Values corresponding to the middle cycle of the matrix
+                        mid = SDMvector - startOfLine
+
+                        # Calculation of the start cycle of the bottom values
+                        midBott = mid.copy()
+                        for i in range(0, mid.shape[0]):
+                            if np.mod(mid[i], 2) == 0:
+                                midBott[i] = mid[i] / 2 + startOfLine[i]
+                            else:
+                                midBott[i] = mid[i] / 2 - 0.5 + startOfLine[i]
+
+                        # The logical matrix assigned 1 for the values between startofLine and midBott values
+                        logicalMatrixBott = LowHighValues.copy()
+                        for i in range(0, LowHighValues.shape[0]):
+                            for j in range(0, LowHighValues.shape[1]):
+                                if (j >= 0) and (j < startOfLine[i] - 1):
+                                    logicalMatrixBott[i, j] = 0
+                                if (midBott[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
+                                    logicalMatrixBott[i, j] = 0
+                                if (j >= startOfLine[i] - 1) and (j <= midBott[i] - 1):
+                                    logicalMatrixBott[i, j] = 1
+
+                        matBase = LowHighValues.copy()
+                        matBase[np.isnan(matBase)] = 0
+                        matBase[matBase <= 0] = np.nan
+                        matBas = np.log10(matBase)
+                        vecCycle = range(1, matBas.shape[1] + 1)
+                        matCycle = np.tile(vecCycle, (matBas.shape[0], 1))
+                        matCycleBott = matCycle * logicalMatrixBott
+                        matBott = matBas * logicalMatrixBott
+                        matBott[np.isnan(matBott)] = 0
+                        [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
+
+                        # Calculation of the slope top
+                        midTop = mid.copy()
+                        for i in range(0, mid.shape[0]):
+                            if np.mod(mid[i], 2) == 0:
+                                midTop[i] = mid[i] / 2 + startOfLine[i]
+                            else:
+                                midTop[i] = mid[i] / 2 - 0.5 + startOfLine[i] + 1
+
+                        # The logical matrix assigned 1 for the values between midTop values and SDM value
+                        logicalMatrixTop = LowHighValues.copy()
+                        for i in range(0, LowHighValues.shape[0]):
+                            for j in range(0, LowHighValues.shape[1]):
+                                if (j >= 0) and (j < midTop[i] - 1):
+                                    logicalMatrixTop[i, j] = 0
+                                if (SDMvector[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
+                                    logicalMatrixTop[i, j] = 0
+                                if (j >= midTop[i] - 1) and (j <= SDMvector[i] - 1):
+                                    logicalMatrixTop[i, j] = 1
+
+                        matCycleTop = matCycle * logicalMatrixTop
+                        matTop = matBas * logicalMatrixTop
+                        matTop[np.isnan(matTop)] = 0
+                        [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
+
+                        # Calculation of the difference between the two slope vectors
+
+                        diffSlopTopBott = slopeTop - slopeBott
+                        minimumDiffSlopTopBott = np.amin(np.abs(diffSlopTopBott))
+                        cycleAbscisseMinDif = np.argmin(np.abs(diffSlopTopBott))
+
+                        # Incrementation
+                        count += 1
+
+                        # End of while loop
+                    # Output vectors filling
+                    # The baseline values vector is filled at the end of the while loop with the value that
+                    # satisfied the condition
+                    baselineValues[z] = stepVector[cycleAbscisseMinDif]
+                    interceptDifference[z] = interceptTop[cycleAbscisseMinDif] - interceptBott[cycleAbscisseMinDif]
+
+                    # End of if val >= 1:
+                else:
+                    # Corresponds to the baseline error sample. The minimum fluorescence value is assigned to
+                    # these sample in order to fill the vector
+                    baselineValues[z] = minFlu[z]
+                    interceptDifference[z] = 0.0
+                    # This vector allows to locate the baseline error sample. When such a sample is detected,
+                    # this vector is filled with a 2
+                    vecBaselineError[z] = 2
+
+                # End of if vecNoAmplification[z] == 0:
+            else:
+                # Correspond to the no amplification sample. The minimum fluo value is also assigned to these samples
+                baselineValues[z] = minFlu[z]
+                interceptDifference[z] = 0.0
+
+            # End of for z in range(0, rawFluor.shape[0]):
+        # For loop to exclude the negative baseline error problem
+        for i in range(0, rawFluor.shape[0]):
+            if np.abs(baselineValues[i]) > max(rawFluor[i, :]):
+                baselineValues[i] = minFlu[i]
+                vecBaselineError[i] = 2
+
+        ########################
+        # Baseline subtraction #
+        ########################
+
+        # The baseline values are subtracted to the raw data
+        baselineCorrectedData = rawFluor - np.tile(baselineValues, (1, rawFluor.shape[1]))
+        # The negative or null values are replaced with not a number values
+        baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
+
+        # Save the results for tests
+        _numpyTwoAxisSave(baselineValues, "res_arr_1.tsv")
+        _numpyTwoAxisSave(interceptDifference, "res_arr_2.tsv")
+        _numpyTwoAxisSave(vecBaselineError, "res_arr_3.tsv")
+        _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
+
         return res
-
-
-def _numpySave(var, fileName):
-    with np.printoptions(precision=3, suppress=True):
-        np.savetxt(fileName, var, fmt='%.4g', delimiter='\t', newline='\n')
 
 
 if __name__ == "__main__":
