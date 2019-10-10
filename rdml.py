@@ -627,7 +627,6 @@ def _linearRegression2(x, y, z, vecNoAmplification, vecBaselineError, vecExclude
     sumx2 = np.nansum(x2, axis=1)
     sumxy = np.nansum(xy, axis=1)
     n = np.nansum(z, axis=1)
-    n[np.isnan(n)] = 1
 
     with np.errstate(divide='ignore', invalid='ignore'):
         ssx = sumx2 - (sumx * sumx) / n
@@ -6945,13 +6944,30 @@ class Run:
         # Collect the data in arrays #
         ##############################
 
+        # res is a 2 dimensional array accessed only by
+        # variables, so columns might be added here
         header = [["id",  # 0
                    "sample",  # 1
                    "target",   # 2
                    "excluded",   # 3
-                   "min_raw_fluor"]]  # 4
+                   "threshold",   # 4
+                   "Cq",   # 5
+                   "N0",   # 6
+                   "individual PCR efficiency",   # 7
+                   "mean PCR efficiency",   # 8
+                   "passed all checks",   # 9
+                   "no amplification",   # 10
+                   "baseline error",   # 11
+                   "no plateau",   # 12
+                   "noisy sample",   # 13
+                   "PCR efficiency outside 5%"]]   # 14
         rar_tar = 2
         rar_excl = 3
+        rar_threshold = 4
+        rar_Cq = 5
+        rar_N0 = 6
+        rar_individual_PCR_efficiency = 7
+        rar_mean_PCR_efficiency = 8
 
         res = []
         adp_cyc_max = 0
@@ -6990,7 +7006,7 @@ class Run:
                     excl = ""
                 else:
                     excl = _get_first_child_text(react_data, "excl")
-                res.append([posId, sample, target, excl])
+                res.append([posId, sample, target, excl, "", "", "", "", "", "", "", "", "", "", "", ""])
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -7000,15 +7016,6 @@ class Run:
                         fluor = noDot.replace(",", ".")
                     rawFluor[rowCount, cyc] = float(fluor)
                 rowCount += 1
-        # Add the min raw fluorescence to be sure no data are missing
-        # Missing data should be 0, there should be no fluorescence below or equal 0.
-        min_flour = np.nanmin(rawFluor, axis=1)
-        rowCount = 0
-        newRes = []
-        for x in res:
-            newRes.append(x + [str("{:.3g}".format(np.asscalar(min_flour[rowCount])))])
-            rowCount += 1
-        res = newRes
 
         ########################
         # Baseline correction  #
@@ -7590,16 +7597,60 @@ class Run:
         optimalSlopeWol = slopeWoL.copy()
         SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
 
+        # Search for the optimal W-o-L (with the minimum CV)
+        n = 1
+        step = math.log10(meanEfficiency) * 0.02
+        meanStartExpPhase = np.nanmean(startExpPhase)
+        while n < 50 and lowerLimit > meanStartExpPhase and not np.isnan(standardDeviation):
+            upperLimit = 10 ** (math.log10(upperLimit) - step)
+            lowerLimit = 10 ** (math.log10(lowerLimit) - step)
+            [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
+                                                                 lowerLimit, upperLimit)
+            [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2,
+                                                          vecNoAmplification, vecBaselineError, vecExcludedByUser)
+            wolEff = 10 ** slopeWoL
+            keepWolEff = wolEff[np.not_equal(wolEff, 1)]
+            standardDeviation = np.nanstd(keepWolEff)
+            CV = standardDeviation / np.nanmean(keepWolEff)
+            if CV < CVmin:
+                CVmin = CV
+                optimalUpperLimit = upperLimit
+                optimalLowerLimit = lowerLimit
+                optimalWolEff = wolEff.copy()
+                optimalValuesInWol = valuesInWol.copy()
+                optimalSlopeWol = slopeWoL.copy()
+                meanEfficiency = np.nanmean(keepWolEff)
+                SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
+            n = n + 1
+
+        # Calculation of the threshold and Cq
+        # FIXME: Error 1 to much
+        calculThreshold = optimalUpperLimit / 10 ** (np.nanmean(optimalSlopeWol[np.not_equal(optimalSlopeWol, 0)]))
+        with np.errstate(divide='ignore', invalid='ignore'):
+            Cq = (calculThreshold - interceptWoL) / optimalSlopeWol
+        Cq[np.isnan(Cq)] = 0.0
+        Cq[np.isinf(Cq)] = 0.0
+
+        # Fixme: update cq in RDML
+
+        for i in range(0, len(res)):
+           # if not vecExcludedByUser[i]:
+            res[i][rar_threshold] = calculThreshold
+            res[i][rar_Cq] = Cq[i]
 
 
 
 
-        print(str(SEM) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
+        # optimalLowerLimit, optimalUpperLimit, meanEfficiency
+
+
+
+        print(str(calculThreshold) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
         print(str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit))
 
-        _numpyTwoAxisSave(optimalSlopeWol, "res_arr_5.tsv")
-      #  _numpyTwoAxisSave(SEM, "res_arr_6.tsv")
-     #   _numpyTwoAxisSave(optimalValuesInWol, "res_arr_7.tsv")
+        _numpyTwoAxisSave(Cq, "res_arr_5.tsv")
+        _numpyTwoAxisSave(interceptWoL, "res_arr_6.tsv")
+        _numpyTwoAxisSave(optimalSlopeWol, "res_arr_7.tsv")
 
         print(str(len(res)))
 
@@ -7635,10 +7686,10 @@ if __name__ == "__main__":
         xxexp = rt.get_experiment(byid="QPCR_course_okt2018_xls")
         xxrun = xxexp.get_run(byid="20181004_cursus_Plaat1")
         xxres = xxrun.linRegPCR(baselineCorr=False)
-        with open("res_out.txt", "w") as f:
+        with open("res_out.tsv", "w") as f:
             for row in xxres:
                 for elex in row:
-                    f.write(elex + "\t")
+                    f.write(str(elex) + "\t")
                 f.write("\n")
         # rt.save('new.rdml')
         sys.exit(0)
