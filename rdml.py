@@ -608,6 +608,62 @@ def _linearRegression(x, y, z):
     return [slope, intercept]
 
 
+def _linearRegression2(x, y, z, vecNoAmplification, vecBaselineError, vecExcludedByUser):
+    """A function which calculates the slope and/or the intercept.
+
+    Args:
+        x: The numpy array of the cycles
+        y: The numpy array that contains the values in the WoL
+        z: The logical numpy array
+
+    Returns:
+        An array with the slope and intercept.
+    """
+
+    x2 = x * x
+    xy = x * y
+    sumx = np.nansum(x, axis=1)
+    sumy = np.nansum(y, axis=1)
+    sumx2 = np.nansum(x2, axis=1)
+    sumxy = np.nansum(xy, axis=1)
+    n = np.nansum(z, axis=1)
+    n[np.isnan(n)] = 1
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ssx = sumx2 - (sumx * sumx) / n
+        sxy = sumxy - (sumx * sumy) / n
+
+        slope = sxy / ssx
+        intercept = (sumy / n) - slope * (sumx / n)
+
+    for i in range(len(vecNoAmplification)):
+        if vecNoAmplification[i] == 1 or vecBaselineError[i] == 2 or n[i] == 1 or np.isnan(slope[i]):
+            slope[i] = 0
+            intercept[i] = 0
+
+    return [slope, intercept]
+
+
+def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit):
+    # Function that sets the window of linearity : matWol is the matrix that contains only the log of
+    # the values in the Wol (or 0 if the values are not in the WoL), and logicalMatrix contains 1 for
+    # these values
+
+    logicalMatrix2 = np.logical_and(np.less(np.full(baselineCorrectedData.shape, lowerLimit), zeroBaselineCorrectedData),
+                                    np.less(zeroBaselineCorrectedData, np.full(baselineCorrectedData.shape, upperLimit)))
+
+    vecCycle = np.arange(1, baselineCorrectedData.shape[1] + 1, dtype=np.int)
+    cyclesInWol = np.tile(vecCycle, (baselineCorrectedData.shape[0], 1))
+
+    valuesInWol = np.log10(baselineCorrectedData) * logicalMatrix2
+    valuesInWol[np.isnan(valuesInWol)] = 0
+
+    cyclesInWol = cyclesInWol * logicalMatrix2
+    cyclesInWol[np.isnan(cyclesInWol)] = 0
+
+    return [valuesInWol, logicalMatrix2, cyclesInWol]
+
+
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
         np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
@@ -6871,14 +6927,14 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False):
+    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False):
         """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
             perTarget: If true, calculate efficiency per target, if false, for all samples.
             baselineCorr: If true, do baseline correction for all samples.
-            commaConv: If true, convert comma seperator to dot.
+            commaConv: If true, convert comma separator to dot.
 
         Returns:
             A 2d array with the resulting data.
@@ -6888,6 +6944,14 @@ class Run:
         ##############################
         # Collect the data in arrays #
         ##############################
+
+        header = [["id",  # 0
+                   "sample",  # 1
+                   "target",   # 2
+                   "excluded",   # 3
+                   "min_raw_fluor"]]  # 4
+        rar_tar = 2
+        rar_excl = 3
 
         res = []
         adp_cyc_max = 0
@@ -6922,7 +6986,11 @@ class Run:
                     if forId.attrib['id'] != "":
                         target = forId.attrib['id']
                 # _add_first_child_to_dic(react_data, in_react, True, "cq")
-                res.append([posId, sample, target])
+                if ignoreExclusion:
+                    excl = ""
+                else:
+                    excl = _get_first_child_text(react_data, "excl")
+                res.append([posId, sample, target, excl])
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -6934,7 +7002,7 @@ class Run:
                 rowCount += 1
         # Add the min raw fluorescence to be sure no data are missing
         # Missing data should be 0, there should be no fluorescence below or equal 0.
-        min_flour = np.amin(rawFluor, axis=1)
+        min_flour = np.nanmin(rawFluor, axis=1)
         rowCount = 0
         newRes = []
         for x in res:
@@ -6968,8 +7036,8 @@ class Run:
 
             # Calculation of the second derivative maximum per well
             # SDM is the max flo value per well and SDMcycles to the corresponding cycle
-            SDM = np.amax(secondDerivative, axis=1)
-            SDMcycles = np.argmax(secondDerivative, axis=1) + 1
+            SDM = np.nanmax(secondDerivative, axis=1)
+            SDMcycles = np.nanargmax(secondDerivative, axis=1) + 1
 
             ########################################
             # Start point of the exponential phase #
@@ -7025,17 +7093,17 @@ class Run:
             [slopeAmp, interceptAmp] = _linearRegression(matCycle2, rawFluor, logical)
 
             # Minimum of fluorescence values per well
-            minFlu = np.amin(rawFluor, axis=1)
+            minFlu = np.nanmin(rawFluor, axis=1)
             minFluMat = rawFluor - np.tile(np.expand_dims(minFlu, axis=1), (1, rawFluor.shape[1]))
 
-            # Check to detecte the negative slopes and the PCR reactions that have an
+            # Check to dedect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
 
             # initialization of the vecNoAmplification vector
             vecNoAmplification = np.zeros((rawFluor.shape[0], 1), dtype=np.int)
 
             for i in range(0, rawFluor.shape[0]):
-                if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.mean(minFluMat[i, 0:10])) < 7):
+                if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.nanmean(minFluMat[i, 0:10])) < 7):
                     vecNoAmplification[i] = 1
 
             # Consecutive derivative points near the SDM (caution arrays start at 0, not 1!)
@@ -7094,7 +7162,7 @@ class Run:
                     matReg = np.log10(mat)
                     # Assigned 1 when it finds a not a number in the matReg matrix and a 0 if not.
                     a = np.isnan(matReg)
-                    g = np.sum(a, axis=1)
+                    g = np.nansum(a, axis=1)
                     startOfLine = np.expand_dims(g, axis=1) + startExpCycles[z]
                     SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
 
@@ -7171,8 +7239,8 @@ class Run:
                     # Calculation of the difference between the two slope vectors
 
                     diffSlopTopBott = slopeTop - slopeBott
-                    minimumDiffSlopTopBott = np.amin(np.abs(diffSlopTopBott))
-                    cycleAbscisseMinDif = np.argmin(np.abs(diffSlopTopBott))
+                    minimumDiffSlopTopBott = np.nanmin(np.abs(diffSlopTopBott))
+                    cycleAbscisseMinDif = np.nanargmin(np.abs(diffSlopTopBott))
 
                     # Second quality check : Baseline error
                     # Assigned 1 when diffSlopTopBott is a positive value, -1 when negative and let 0 for the zeros values
@@ -7228,7 +7296,7 @@ class Run:
                             # Calculation of the logical matrix corresponding to the Values between the
                             # jump and the seconde derivative maximum value
                             a = np.isnan(matReg)
-                            g = np.sum(a, axis=1)
+                            g = np.nansum(a, axis=1)
                             gbis = g + 1
                             stopStep = matReg[:, -1] - matReg[:, -2]
 
@@ -7315,8 +7383,8 @@ class Run:
                             # Calculation of the difference between the two slope vectors
 
                             diffSlopTopBott = slopeTop - slopeBott
-                            minimumDiffSlopTopBott = np.amin(np.abs(diffSlopTopBott))
-                            cycleAbscisseMinDif = np.argmin(np.abs(diffSlopTopBott))
+                            minimumDiffSlopTopBott = np.nanmin(np.abs(diffSlopTopBott))
+                            cycleAbscisseMinDif = np.nanargmin(np.abs(diffSlopTopBott))
 
                             # Incrementation
                             count += 1
@@ -7347,7 +7415,7 @@ class Run:
                 # End of for z in range(0, rawFluor.shape[0]):
             # For loop to exclude the negative baseline error problem
             for i in range(0, rawFluor.shape[0]):
-                if np.abs(baselineValues[i]) > max(rawFluor[i, :]):
+                if np.abs(baselineValues[i]) > np.nanmax(rawFluor[i, :]):
                     baselineValues[i] = minFlu[i]
                     vecBaselineError[i] = 2
 
@@ -7378,10 +7446,170 @@ class Run:
             vecNoAmplification = np.load("np_vecNoAmp.npy")
             vecBaselineError = np.load("np_vecBaselineError.npy")
 
-
-
         # Save the results for tests
         _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
+
+        #################################
+        # CALCULATION OF A WOL PER GENE #
+        #################################
+        # Some functions work better without nan
+        zeroBaselineCorrectedData = baselineCorrectedData.copy()
+        zeroBaselineCorrectedData[np.isnan(zeroBaselineCorrectedData)] = 0
+
+        # Create the excluded by user vector
+        vecExcludedByUser = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
+        for i in range(0, len(res)):
+            if res[rar_excl] != "":
+                vecExcludedByUser[i] = True
+
+        geneNames = list(sorted(set([rowRes[rar_tar] for rowRes in res])))
+        optimalUpperLimitPerGene = []
+        optimalLowerLimitPerGene = []
+        optimalValuesInWolPerGene = []
+        optimalValuesInWol = np.zeros(baselineCorrectedData.shape, dtype=np.float64)
+        optimalWolEff = np.zeros(len(res), dtype=np.float64)
+        meanEfficiency = np.zeros(len(geneNames), dtype=np.float64)
+        newMeanEfficiency = np.zeros(len(geneNames), dtype=np.float64)
+        meanEffWithOutliers = np.zeros(len(geneNames), dtype=np.float64)
+        meanEffWithNoPlateau = np.zeros(len(geneNames), dtype=np.float64)
+        optimalSlopeWol = np.zeros(len(res), dtype=np.float64)
+        SEM = np.zeros(len(geneNames), dtype=np.float64)
+        Cq = np.zeros(len(res), dtype=np.float64)
+        threshold = np.zeros(len(res), dtype=np.float64)
+        efficiencyOutliers = np.zeros(len(res), dtype=np.float64)
+        noPlateau = np.zeros(len(res), dtype=np.float64)
+        noisySample = np.zeros(len(res), dtype=np.float64)
+        Fexp = np.zeros(len(res), dtype=np.float64)
+        Fobs = np.zeros(len(res), dtype=np.float64)
+        N0 = np.zeros(len(res), dtype=np.float64)
+        N0default = np.zeros(len(res), dtype=np.float64)
+        N0withOutliers = np.zeros(len(res), dtype=np.float64)
+        N0withNoPlateau = np.zeros(len(res), dtype=np.float64)
+        vecNewMeanEfficiency = np.zeros(len(res), dtype=np.float64)
+        vecMeanEffWithNoPlateau = np.zeros(len(res), dtype=np.float64)
+        vecMeanEffWithOutliers = np.zeros(len(res), dtype=np.float64)
+        vecMeanEfficiency = np.zeros(len(res), dtype=np.float64)
+        vecUp = np.zeros(len(res), dtype=np.float64)
+        vecLow = np.zeros(len(res), dtype=np.float64)
+
+        ####################
+        # SDM calculation  #
+        ####################
+
+        # First and Second Derivative values calculation
+
+        # Shifted matrix of the raw data
+        baselineCorrectedDataShift = np.roll(baselineCorrectedData, 1, axis=1)
+        # Subtraction of the shifted matrix to the raw data
+        firstDerivative = baselineCorrectedData - baselineCorrectedDataShift
+        # Shifted matrix of the firstDerivative
+        firstDerivativeShift = np.roll(firstDerivative, -1, axis=1)
+        # Subtraction of the firstDerivative values to the shifted matrix
+        secondDerivative = firstDerivativeShift - firstDerivative
+
+        # The three first column and the last one are replaced by zeros
+        firstDerivativeShift[:, -1] = 0
+        secondDerivative[:, 0:2] = 0
+        secondDerivative[:, -1] = 0
+
+        # Calculation of the second derivative maximum per well
+        # SDM is the max flo value per well and SDMcycles to the corresponding cycle
+       # secondDerivative[np.isnan(secondDerivative)] = 0
+        SDM = np.nanmax(secondDerivative, axis=1)
+        SDMcycles = np.nanargmax(secondDerivative, axis=1) + 1
+
+        ########################################
+        # Start point of the exponential phase #
+        ########################################
+
+        # For loop which determine the start of the exponential phase
+
+        # This first loop creates the vector that will be used during the
+        # initialisation phase of the baseline estimation
+
+        # Initialisation
+        startExpPhase = np.zeros((baselineCorrectedData.shape[0], 1), dtype=np.float64)
+        startExpCycles = np.zeros((baselineCorrectedData.shape[0], 1), dtype=np.int)
+
+        # for each row of the data
+        for i in range(0, baselineCorrectedData.shape[0]):
+            # the loop starts from the SDM cycle of each row
+            j = SDMcycles[i]
+            while baselineCorrectedData[i, j] >= baselineCorrectedData[i, j - 1] and j > 2:
+                j = j - 1
+            startExpPhase[i] = baselineCorrectedData[i, j]
+            startExpCycles[i] = j + 1
+
+        # For loop which modifies the start cycle if too far from the SDM cycle
+
+        # This loop looks for the cases where the previously calculated start point cycle is
+        # more than 10 cycles far from the SDM point. When it finds such a case, it replaces
+        # the start cycle by the SDM cycle minus 10.
+        for i in range(0, startExpCycles.shape[0]):
+            if SDMcycles[i] - startExpCycles[i] > 10:
+                startExpPhase[i] = baselineCorrectedData[i, SDMcycles[i] - 10]
+
+        calculMeanFluo = np.zeros(len(res), dtype=np.float64)
+        calculMeanLowFluo = np.zeros(len(res), dtype=np.float64)
+        for i in range(0, baselineCorrectedData.shape[0]):
+            if vecNoAmplification[i] == 0 and vecBaselineError[i] == 0:
+                calculMeanFluo[i] = baselineCorrectedData[i, SDMcycles[i]]
+                nbCycles = 4
+                calculMeanLowFluo[i] = baselineCorrectedData[i, SDMcycles[i] - nbCycles]
+                while np.isnan(calculMeanLowFluo[i]):
+                    nbCycles -= 1
+                    calculMeanLowFluo[i] = baselineCorrectedData[i, SDMcycles[i] - nbCycles]
+            else:
+                calculMeanFluo[i] = np.nan
+                calculMeanLowFluo[i] = np.nan
+
+        # Calculation of the upper and lower limits of the first W-o-L
+        # sets the first upper limit at the mean fluorescence value
+        upperLimit = np.nanmean(calculMeanFluo)
+        # sets the first lower limit 4 cycles below the upper limit
+        lowerLimit = np.nanmean(calculMeanLowFluo)
+
+        # Setting of the first W-o-L and calculation of the slope
+        [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit)
+        [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecNoAmplification,
+                                                      vecBaselineError, vecExcludedByUser)
+
+        # Calculation of the coefficient of variation (CV) of the values
+        # in the W-o-L
+        wolEff = 10 ** slopeWoL
+        keepWolEff = wolEff[np.not_equal(wolEff, 1)]
+        standardDeviation = np.nanstd(keepWolEff)
+        meanEfficiency = np.nanmean(keepWolEff)
+        CV = standardDeviation / meanEfficiency
+
+        CVmin = CV
+        optimalUpperLimit = upperLimit
+        optimalLowerLimit = lowerLimit
+        optimalWolEff = wolEff.copy()
+        optimalValuesInWol = valuesInWol.copy()
+        optimalSlopeWol = slopeWoL.copy()
+        SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
+
+
+
+
+
+        print(str(SEM) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
+        print(str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit))
+
+        _numpyTwoAxisSave(optimalSlopeWol, "res_arr_5.tsv")
+      #  _numpyTwoAxisSave(SEM, "res_arr_6.tsv")
+     #   _numpyTwoAxisSave(optimalValuesInWol, "res_arr_7.tsv")
+
+        print(str(len(res)))
+
+
+
+       # allGenes   rowRes[][rar_tar]
+      #  vecExcludedByUser = [rowRes[rar_excl] for rowRes in res]
+     #   rar_excl
+
+        print(geneNames)
 
         return res
 
@@ -7395,9 +7623,9 @@ if __name__ == "__main__":
 
     # Validate RDML file
     if args.validate:
-        inst = Rdml()
-        res = inst.validate(filename=args.validate)
-        print(res)
+        instValidate = Rdml()
+        resValidate = instValidate.validate(filename=args.validate)
+        print(resValidate)
         sys.exit(0)
 
     # Tryout things
