@@ -7261,8 +7261,8 @@ class Run:
                     # If there is no sign changes, the baseline value will not be calculated
                     if val >= 1:
                         # While loop that will not stop until the 0.0001 is reached.
-                        count = 1
-                        while minimumDiffSlopTopBott > 0.0001 and count < 1000:
+                        count = 1000
+                        while minimumDiffSlopTopBott > 0.0001 and count >= 0:
                             # Step value used to create the stepVector vector of the possible baseline values
                             step2 = stepVector[2, 0] - stepVector[1, 0]
 
@@ -7373,12 +7373,11 @@ class Run:
                             cycleAbscisseMinDif = np.nanargmin(np.abs(diffSlopTopBott))
 
                             # End in case there is no further improvement
-                   #         if lastMinimumDiffSlopTopBott == minimumDiffSlopTopBott:
-                   #             count += 10000
+                            if lastMinimumDiffSlopTopBott == minimumDiffSlopTopBott and count > 1:
+                                count = 1
 
                             # Incrementation
-                            count += 1
-
+                            count -= 1
                             # End of while loop
                         # Output vectors filling
                         # The baseline values vector is filled at the end of the while loop with the value that
