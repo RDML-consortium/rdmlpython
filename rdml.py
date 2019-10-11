@@ -14,6 +14,8 @@ import math
 import numpy as np
 from lxml import etree as ET
 
+# Fixme: Delete
+import time
 
 class RdmlError(Exception):
     """Basic exception for errors raised by the RDML-Python library"""
@@ -636,7 +638,7 @@ def _linearRegression2(x, y, z, vecNoAmplification, vecBaselineError, vecExclude
         intercept = (sumy / n) - slope * (sumx / n)
 
     for i in range(len(vecNoAmplification)):
-        if vecNoAmplification[i] == 1 or vecBaselineError[i] == 2 or n[i] == 1 or np.isnan(slope[i]):
+        if vecNoAmplification[i] or vecBaselineError[i] or n[i] == 1 or np.isnan(slope[i]):
             slope[i] = 0
             intercept[i] = 0
 
@@ -7038,6 +7040,9 @@ class Run:
         ########################
         # Baseline correction  #
         ########################
+        # Fixme: Delete
+        start_time = time.time()
+
         if baselineCorr:
             ####################
             # SDM calculation  #
@@ -7125,11 +7130,11 @@ class Run:
             # amplification less than seven the minimum fluorescence
 
             # initialization of the vecNoAmplification vector
-            vecNoAmplification = np.zeros((rawFluor.shape[0], 1), dtype=np.int)
+            vecNoAmplification = np.full(rawFluor.shape[0], False, dtype=np.bool)
 
             for i in range(0, rawFluor.shape[0]):
                 if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.nanmean(minFluMat[i, 0:10])) < 7):
-                    vecNoAmplification[i] = 1
+                    vecNoAmplification[i] = True
 
             # Consecutive derivative points near the SDM (caution arrays start at 0, not 1!)
             for i in range(0, firstDerivativeShift.shape[0]):
@@ -7137,7 +7142,7 @@ class Run:
                         firstDerivativeShift[i, SDMcycles[i] - 2] <= firstDerivativeShift[i, SDMcycles[i] - 1] or
                         firstDerivativeShift[i, SDMcycles[i] - 3] <= firstDerivativeShift[i, SDMcycles[i] - 2] <=
                         firstDerivativeShift[i, SDMcycles[i] - 1] <= firstDerivativeShift[i, SDMcycles[i]]):
-                    vecNoAmplification[i] = 1
+                    vecNoAmplification[i] = True
 
             ##################################################
             # Main loop : Calculation of the baseline values #
@@ -7149,14 +7154,14 @@ class Run:
             # The intercept values are not used in the code but could be used later.
             interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
             # This is the vector for the baseline error quality check
-            vecBaselineError = np.zeros((SDMcycles.shape[0], 1), dtype=np.int)
+            vecBaselineError = np.full(rawFluor.shape[0], False, dtype=np.bool)
 
             # The for loop go through all the sample matrix and make calculations well by well
             for z in range(0, rawFluor.shape[0]):
                 print('Sample: ' + str(z))
                 # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
                 # minimum fluorescence value assigned as baseline value for the considered reaction :
-                if vecNoAmplification[z] == 0:
+                if not vecNoAmplification[z]:
                     # First minimum slope difference value calculation
                     # Calculation of the fluorescence value corresponding to the SMD-5 fluorescence value
                     fluSDMminus5 = rawFluor[z, SDMcycles[z] - 6]
@@ -7429,9 +7434,9 @@ class Run:
                         interceptDifference[z] = 0.0
                         # This vector allows to locate the baseline error sample. When such a sample is detected,
                         # this vector is filled with a 2
-                        vecBaselineError[z] = 2
+                        vecBaselineError[z] = True
 
-                    # End of if vecNoAmplification[z] == 0:
+                    # End of if not vecNoAmplification[z]:
                 else:
                     # Correspond to the no amplification sample. The minimum fluo value is also assigned to these samples
                     baselineValues[z] = minFlu[z]
@@ -7442,7 +7447,7 @@ class Run:
             for i in range(0, rawFluor.shape[0]):
                 if np.abs(baselineValues[i]) > np.nanmax(rawFluor[i, :]):
                     baselineValues[i] = minFlu[i]
-                    vecBaselineError[i] = 2
+                    vecBaselineError[i] = True
 
             ########################
             # Baseline subtraction #
@@ -7473,6 +7478,9 @@ class Run:
 
         # Save the results for tests
         _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
+
+        # Fixme: Delete
+        print("Done Baseline: " + str(time.time() - start_time) + "sec")
 
         #################################
         # CALCULATION OF A WOL PER GENE #
@@ -7520,7 +7528,7 @@ class Run:
 
         # Calculation of the second derivative maximum per well
         # SDM is the max flo value per well and SDMcycles to the corresponding cycle
-       # secondDerivative[np.isnan(secondDerivative)] = 0
+        # secondDerivative[np.isnan(secondDerivative)] = 0
         SDM = np.nanmax(secondDerivative, axis=1)
         SDMcycles = np.nanargmax(secondDerivative, axis=1) + 1
 
@@ -7558,7 +7566,7 @@ class Run:
         calculMeanFluo = np.zeros(len(res), dtype=np.float64)
         calculMeanLowFluo = np.zeros(len(res), dtype=np.float64)
         for i in range(0, baselineCorrectedData.shape[0]):
-            if vecNoAmplification[i] == 0 and vecBaselineError[i] == 0:
+            if (not vecNoAmplification[i]) and (not vecBaselineError[i]):
                 calculMeanFluo[i] = baselineCorrectedData[i, SDMcycles[i]]
                 nbCycles = 4
                 calculMeanLowFluo[i] = baselineCorrectedData[i, SDMcycles[i] - nbCycles]
@@ -7697,28 +7705,27 @@ class Run:
             res[i][rar_noisy_sample] = vecExcludedNoisySample[i]
             res[i][rar_PCR_efficiency_outside] = vecExcludedPCREfficiency[i]
 
+        # Fixme: Delete
+        print("Run for: " + str(time.time() - start_time) + "sec")
 
 
         # optimalLowerLimit, optimalUpperLimit,
 
 
 
-        print(str(calculThreshold) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
-        print(str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit))
+     #   print(str(calculThreshold) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
+     #   print(str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit))
 
         _numpyTwoAxisSave(indexOutliers, "res_arr_5.tsv")
         _numpyTwoAxisSave(vecExcludedPCREfficiency, "res_arr_6.tsv")
         _numpyTwoAxisSave(vecExcludedNoisySample, "res_arr_7.tsv")
-
-        print(str(len(res)))
-
 
 
        # allGenes   rowRes[][rar_tar]
       #  vecExcludedByUser = [rowRes[rar_excl] for rowRes in res]
      #   rar_excl
 
-        print(geneNames)
+        # print(geneNames)
 
         if returnCSV:
             retCSV = ""
@@ -7752,10 +7759,10 @@ if __name__ == "__main__":
     # Tryout things
     if args.doooo:
         print('Test LinRegPCR')
-        rt = Rdml('data.rdml')
+        rt = Rdml(args.doooo)
         xxexp = rt.get_experiment(byid="QPCR_course_okt2018_xls")
         xxrun = xxexp.get_run(byid="20181004_cursus_Plaat1")
-        xxres = xxrun.linRegPCR(baselineCorr=False, returnCSV=True)
+        xxres = xxrun.linRegPCR(baselineCorr=True, returnCSV=True)
         with open("res_out.tsv", "w") as f:
             f.write(xxres)
 
