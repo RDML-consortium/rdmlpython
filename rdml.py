@@ -15,7 +15,7 @@ import numpy as np
 from lxml import etree as ET
 
 # Fixme: Delete
-import time
+import datetime as dt
 
 class RdmlError(Exception):
     """Basic exception for errors raised by the RDML-Python library"""
@@ -7041,7 +7041,7 @@ class Run:
         # Baseline correction  #
         ########################
         # Fixme: Delete
-        start_time = time.time()
+        start_time = dt.datetime.now()
 
         if baselineCorr:
             ####################
@@ -7130,7 +7130,7 @@ class Run:
             # amplification less than seven the minimum fluorescence
 
             # initialization of the vecNoAmplification vector
-            vecNoAmplification = np.full(rawFluor.shape[0], False, dtype=np.bool)
+            vecNoAmplification = np.zeros(rawFluor.shape[0], dtype=np.bool)
 
             for i in range(0, rawFluor.shape[0]):
                 if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.nanmean(minFluMat[i, 0:10])) < 7):
@@ -7154,7 +7154,7 @@ class Run:
             # The intercept values are not used in the code but could be used later.
             interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
             # This is the vector for the baseline error quality check
-            vecBaselineError = np.full(rawFluor.shape[0], False, dtype=np.bool)
+            vecBaselineError = np.zeros(rawFluor.shape[0], dtype=np.bool)
 
             # The for loop go through all the sample matrix and make calculations well by well
             for z in range(0, rawFluor.shape[0]):
@@ -7197,13 +7197,9 @@ class Run:
                     SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
 
                     # The logical matrix assigned 1 for the values between startofLine and SDMvector
-                    logicalMatrix = LowHighValues.copy()
+                    logicalMatrix = np.zeros(LowHighValues.shape, dtype=np.int)
                     for i in range(0, LowHighValues.shape[0]):
                         for j in range(0, LowHighValues.shape[1]):
-                            if (j >= 0) and (j < startOfLine[i] - 1):
-                                logicalMatrix[i, j] = 0
-                            if (SDMvector[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
-                                logicalMatrix[i, j] = 0
                             if (j >= startOfLine[i] - 1) and (j <= SDMvector[i] - 1):
                                 logicalMatrix[i, j] = 1
 
@@ -7212,21 +7208,12 @@ class Run:
                     mid = SDMvector - startOfLine
 
                     # Calculation of the start cycle of the bottom values
-                    midBott = mid.copy()
-                    for i in range(0, mid.shape[0]):
-                        if np.mod(mid[i], 2) == 0:
-                            midBott[i] = mid[i] / 2 + startOfLine[i]
-                        else:
-                            midBott[i] = mid[i] / 2 - 0.5 + startOfLine[i]
+                    midBott = np.floor(mid / 2 + startOfLine)
 
                     # The logical matrix assigned 1 for the values between startofLine and midBott values
-                    logicalMatrixBott = LowHighValues.copy()
+                    logicalMatrixBott = np.zeros(LowHighValues.shape, dtype=np.int)
                     for i in range(0, LowHighValues.shape[0]):
                         for j in range(0, LowHighValues.shape[1]):
-                            if (j >= 0) and (j < startOfLine[i] - 1):
-                                logicalMatrixBott[i, j] = 0
-                            if (midBott[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
-                                logicalMatrixBott[i, j] = 0
                             if (j >= startOfLine[i] - 1) and (j <= midBott[i] - 1):
                                 logicalMatrixBott[i, j] = 1
 
@@ -7243,21 +7230,12 @@ class Run:
 
                     # Calculation of the slope top values
                     # Calculation of the start cycle of the top values
-                    midTop = mid.copy()
-                    for i in range(0, mid.shape[0]):
-                        if np.mod(mid[i], 2) == 0:
-                            midTop[i] = mid[i] / 2 + startOfLine[i]
-                        else:
-                            midTop[i] = mid[i] / 2 - 0.5 + startOfLine[i] + 1
+                    midTop = np.ceil(mid / 2 + startOfLine)
 
-                    # The logical matrix assigned 1 for the values between midTop values and SDM value
-                    logicalMatrixTop = LowHighValues.copy()
+                   # The logical matrix assigned 1 for the values between midTop values and SDM value
+                    logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
                     for i in range(0, LowHighValues.shape[0]):
                         for j in range(0, LowHighValues.shape[1]):
-                            if (j >= 0) and (j < midTop[i] - 1):
-                                logicalMatrixTop[i, j] = 0
-                            if (SDMvector[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
-                                logicalMatrixTop[i, j] = 0
                             if (j >= midTop[i] - 1) and (j <= SDMvector[i] - 1):
                                 logicalMatrixTop[i, j] = 1
 
@@ -7342,13 +7320,9 @@ class Run:
                             SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
 
                             # The logical matrix assigned 1 for the values between startofLine and SDMvector
-                            logicalMatrix = LowHighValues.copy()
+                            logicalMatrix = np.zeros(LowHighValues.shape, dtype=np.int)
                             for i in range(0, LowHighValues.shape[0]):
                                 for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= 0) and (j < startOfLine[i] - 1):
-                                        logicalMatrix[i, j] = 0
-                                    if (SDMvector[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
-                                        logicalMatrix[i, j] = 0
                                     if (j >= startOfLine[i] - 1) and (j <= SDMvector[i] - 1):
                                         logicalMatrix[i, j] = 1
 
@@ -7357,21 +7331,12 @@ class Run:
                             mid = SDMvector - startOfLine
 
                             # Calculation of the start cycle of the bottom values
-                            midBott = mid.copy()
-                            for i in range(0, mid.shape[0]):
-                                if np.mod(mid[i], 2) == 0:
-                                    midBott[i] = mid[i] / 2 + startOfLine[i]
-                                else:
-                                    midBott[i] = mid[i] / 2 - 0.5 + startOfLine[i]
+                            midBott = np.floor(mid / 2 + startOfLine)
 
                             # The logical matrix assigned 1 for the values between startofLine and midBott values
-                            logicalMatrixBott = LowHighValues.copy()
+                            logicalMatrixBott = np.zeros(LowHighValues.shape, dtype=np.int)
                             for i in range(0, LowHighValues.shape[0]):
                                 for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= 0) and (j < startOfLine[i] - 1):
-                                        logicalMatrixBott[i, j] = 0
-                                    if (midBott[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
-                                        logicalMatrixBott[i, j] = 0
                                     if (j >= startOfLine[i] - 1) and (j <= midBott[i] - 1):
                                         logicalMatrixBott[i, j] = 1
 
@@ -7387,21 +7352,12 @@ class Run:
                             [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
 
                             # Calculation of the slope top
-                            midTop = mid.copy()
-                            for i in range(0, mid.shape[0]):
-                                if np.mod(mid[i], 2) == 0:
-                                    midTop[i] = mid[i] / 2 + startOfLine[i]
-                                else:
-                                    midTop[i] = mid[i] / 2 - 0.5 + startOfLine[i] + 1
+                            midTop = np.ceil(mid / 2 + startOfLine)
 
                             # The logical matrix assigned 1 for the values between midTop values and SDM value
-                            logicalMatrixTop = LowHighValues.copy()
+                            logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
                             for i in range(0, LowHighValues.shape[0]):
                                 for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= 0) and (j < midTop[i] - 1):
-                                        logicalMatrixTop[i, j] = 0
-                                    if (SDMvector[i] - 1 < j) and (j <= LowHighValues.shape[1] - 1):
-                                        logicalMatrixTop[i, j] = 0
                                     if (j >= midTop[i] - 1) and (j <= SDMvector[i] - 1):
                                         logicalMatrixTop[i, j] = 1
 
@@ -7411,10 +7367,14 @@ class Run:
                             [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
 
                             # Calculation of the difference between the two slope vectors
-
                             diffSlopTopBott = slopeTop - slopeBott
+                            lastMinimumDiffSlopTopBott = minimumDiffSlopTopBott
                             minimumDiffSlopTopBott = np.nanmin(np.abs(diffSlopTopBott))
                             cycleAbscisseMinDif = np.nanargmin(np.abs(diffSlopTopBott))
+
+                            # End in case there is no further improvement
+                   #         if lastMinimumDiffSlopTopBott == minimumDiffSlopTopBott:
+                   #             count += 10000
 
                             # Incrementation
                             count += 1
@@ -7480,7 +7440,8 @@ class Run:
         _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
 
         # Fixme: Delete
-        print("Done Baseline: " + str(time.time() - start_time) + "sec")
+        stop_time = dt.datetime.now() - start_time
+        print("Done Baseline: " + str(stop_time) + "sec")
 
         #################################
         # CALCULATION OF A WOL PER GENE #
@@ -7495,11 +7456,11 @@ class Run:
         N0 = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
 
         # Create the excluded by ... vectors
-        vecExcludedNoPlateau = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
-        vecExcludedNoisySample = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
-        vecExcludedPCREfficiency = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
-        vecExcludedByUser = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
-        vecExcluded = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
+        vecExcludedNoPlateau = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
+        vecExcludedNoisySample = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
+        vecExcludedPCREfficiency = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
+        vecExcludedByUser = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
+        vecExcluded = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
         for i in range(0, len(res)):
             if res[rar_excl] != "":
                 vecExcludedByUser[i] = True
@@ -7706,7 +7667,8 @@ class Run:
             res[i][rar_PCR_efficiency_outside] = vecExcludedPCREfficiency[i]
 
         # Fixme: Delete
-        print("Run for: " + str(time.time() - start_time) + "sec")
+        stop_time = dt.datetime.now() - start_time
+        print("Done All: " + str(stop_time) + "sec")
 
 
         # optimalLowerLimit, optimalUpperLimit,
