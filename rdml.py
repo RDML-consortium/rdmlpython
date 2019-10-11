@@ -6926,7 +6926,7 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False):
+    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False, returnCSV=False):
         """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
 
         Args:
@@ -6934,9 +6934,10 @@ class Run:
             perTarget: If true, calculate efficiency per target, if false, for all samples.
             baselineCorr: If true, do baseline correction for all samples.
             commaConv: If true, convert comma separator to dot.
+            returnCSV: If true, returns a csv string, if false, a 2d array object.
 
         Returns:
-            A 2d array with the resulting data.
+            A 2d array with the resulting data, format depending on returnCSV.
             [["id","sample","target","min_raw_fluor"]]
         """
 
@@ -6953,21 +6954,37 @@ class Run:
                    "threshold",   # 4
                    "Cq",   # 5
                    "N0",   # 6
-                   "individual PCR efficiency",   # 7
-                   "mean PCR efficiency",   # 8
-                   "passed all checks",   # 9
-                   "no amplification",   # 10
-                   "baseline error",   # 11
-                   "no plateau",   # 12
-                   "noisy sample",   # 13
-                   "PCR efficiency outside 5%"]]   # 14
+                   "N0 with efficiency outliers",   # 7
+                   "N0 with no pateau",   # 8
+                   "N0 with efficiency outliers and no plateau",   # 9
+                   "individual PCR efficiency",   # 10
+                   "mean PCR efficiency",   # 11
+                   "mean PCR efficiency with efficiency outliers",  # 12
+                   "mean PCR efficiency with no plateau",   # 13
+                   "mean PCR efficiency with efficiency outliers and no plateau",  # 14
+                   "no amplification",   # 15
+                   "baseline error",   # 16
+                   "no plateau",   # 17
+                   "noisy sample",   # 18
+                   "PCR efficiency outside 5%"]]   # 19
         rar_tar = 2
         rar_excl = 3
         rar_threshold = 4
         rar_Cq = 5
         rar_N0 = 6
-        rar_individual_PCR_efficiency = 7
-        rar_mean_PCR_efficiency = 8
+        rar_N0_eff = 7
+        rar_N0_plat = 8
+        rar_N0_eff_plat = 9
+        rar_individual_PCR_efficiency = 10
+        rar_mean_PCR_efficiency = 11
+        rar_mean_PCR_efficiency_eff = 12
+        rar_mean_PCR_efficiency_plat = 13
+        rar_mean_PCR_efficiency_eff_plat = 14
+        rar_no_amplification = 15
+        rar_baseline_error = 16
+        rar_no_plateau = 17
+        rar_noisy_sample = 18
+        rar_PCR_efficiency_outside = 19
 
         res = []
         adp_cyc_max = 0
@@ -7006,7 +7023,8 @@ class Run:
                     excl = ""
                 else:
                     excl = _get_first_child_text(react_data, "excl")
-                res.append([posId, sample, target, excl, "", "", "", "", "", "", "", "", "", "", "", ""])
+                res.append([posId, sample, target, excl, "", "", "", "", "", "",
+                            "", "", "", "", "", "", "", "", "", "", ""])
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -7463,41 +7481,22 @@ class Run:
         zeroBaselineCorrectedData = baselineCorrectedData.copy()
         zeroBaselineCorrectedData[np.isnan(zeroBaselineCorrectedData)] = 0
 
-        # Create the excluded by user vector
+        N0default = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
+        N0withOutliers = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
+        N0withNoPlateau = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
+        N0 = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
+
+        # Create the excluded by ... vectors
+        vecExcludedNoPlateau = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
+        vecExcludedNoisySample = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
+        vecExcludedPCREfficiency = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
         vecExcludedByUser = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
+        vecExcluded = np.full(baselineCorrectedData.shape[0], False, dtype=np.bool)
         for i in range(0, len(res)):
             if res[rar_excl] != "":
                 vecExcludedByUser[i] = True
 
         geneNames = list(sorted(set([rowRes[rar_tar] for rowRes in res])))
-        optimalUpperLimitPerGene = []
-        optimalLowerLimitPerGene = []
-        optimalValuesInWolPerGene = []
-        optimalValuesInWol = np.zeros(baselineCorrectedData.shape, dtype=np.float64)
-        optimalWolEff = np.zeros(len(res), dtype=np.float64)
-        meanEfficiency = np.zeros(len(geneNames), dtype=np.float64)
-        newMeanEfficiency = np.zeros(len(geneNames), dtype=np.float64)
-        meanEffWithOutliers = np.zeros(len(geneNames), dtype=np.float64)
-        meanEffWithNoPlateau = np.zeros(len(geneNames), dtype=np.float64)
-        optimalSlopeWol = np.zeros(len(res), dtype=np.float64)
-        SEM = np.zeros(len(geneNames), dtype=np.float64)
-        Cq = np.zeros(len(res), dtype=np.float64)
-        threshold = np.zeros(len(res), dtype=np.float64)
-        efficiencyOutliers = np.zeros(len(res), dtype=np.float64)
-        noPlateau = np.zeros(len(res), dtype=np.float64)
-        noisySample = np.zeros(len(res), dtype=np.float64)
-        Fexp = np.zeros(len(res), dtype=np.float64)
-        Fobs = np.zeros(len(res), dtype=np.float64)
-        N0 = np.zeros(len(res), dtype=np.float64)
-        N0default = np.zeros(len(res), dtype=np.float64)
-        N0withOutliers = np.zeros(len(res), dtype=np.float64)
-        N0withNoPlateau = np.zeros(len(res), dtype=np.float64)
-        vecNewMeanEfficiency = np.zeros(len(res), dtype=np.float64)
-        vecMeanEffWithNoPlateau = np.zeros(len(res), dtype=np.float64)
-        vecMeanEffWithOutliers = np.zeros(len(res), dtype=np.float64)
-        vecMeanEfficiency = np.zeros(len(res), dtype=np.float64)
-        vecUp = np.zeros(len(res), dtype=np.float64)
-        vecLow = np.zeros(len(res), dtype=np.float64)
 
         ####################
         # SDM calculation  #
@@ -7631,26 +7630,85 @@ class Run:
         Cq[np.isnan(Cq)] = 0.0
         Cq[np.isinf(Cq)] = 0.0
 
+        # QUALITY CHECK : NO PLATEAU
+        with np.errstate(divide='ignore', invalid='ignore'):
+            Fexp = optimalSlopeWol * baselineCorrectedData.shape[1]
+            Fobs = np.log10(baselineCorrectedData[:, -1])
+            Fres = Fexp / Fobs
+        Fres[np.isnan(Fres)] = 0.0
+        Fres[np.isinf(Fres)] = 0.0
+        vecExcludedNoPlateau = np.where(Fres < 5, True, vecExcludedNoPlateau)
+
+        # QUALITY CHECK : EFFICIENCY OUTLIERS
+        indexOutliers = np.logical_or((optimalWolEff < meanEfficiency - meanEfficiency * 0.05),
+                                      (optimalWolEff > meanEfficiency + meanEfficiency * 0.05))
+        vecExcludedPCREfficiency = np.where(indexOutliers, True, vecExcludedPCREfficiency)
+
+        # QUALITY CHECK : NOISY SAMPLE
+        for well in range(0, baselineCorrectedData.shape[0]):
+            value = 0
+            while value < optimalValuesInWol.shape[1] - 1 and optimalValuesInWol[well, value] == 0:
+                value += 1
+            while value < optimalValuesInWol.shape[1] - 1 and np.nansum(optimalValuesInWol[well, value + 1:-1]) != 0:
+                if optimalValuesInWol[well, value] >= optimalValuesInWol[well, value + 1]:
+                    vecExcludedNoisySample[well] = True
+                value += 1
+
+        # FixMe: Does this work??
+        # Calculation of the new mean efficiency (without the efficiency outliers
+        # and the no plateau curves)
+        newMeanEfficiency = np.nanmean(optimalWolEff[np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau)])
+
+        # Calculation of the mean efficiency including efficiency outliers
+        meanEffWithEffOutliers = np.nanmean(optimalWolEff[~vecExcludedNoPlateau])
+
+        # Calculation of the mean efficiency including no plateau
+        meanEffWithNoPlateau = np.nanmean(optimalWolEff[~vecExcludedPCREfficiency])
+
+        # Calculation of the starting concentrations
+        with np.errstate(divide='ignore', invalid='ignore'):
+            calcN0 = calculThreshold / newMeanEfficiency ** Cq
+            calcN0_eff = calculThreshold / meanEffWithEffOutliers ** Cq
+            calcN0_plat = calculThreshold / meanEffWithNoPlateau ** Cq
+            calcN0_eff_plat = calculThreshold / meanEfficiency ** Cq
+        N0 = np.where(np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau), calcN0, N0)
+        N0withOutliers = np.where(~vecExcludedNoPlateau, calcN0_eff, N0)
+        N0withNoPlateau = np.where(~vecExcludedPCREfficiency, calcN0_plat, N0)
+        N0default = np.where(True, calcN0_eff_plat, N0)
+
         # Fixme: update cq in RDML
 
         for i in range(0, len(res)):
            # if not vecExcludedByUser[i]:
             res[i][rar_threshold] = calculThreshold
             res[i][rar_Cq] = Cq[i]
+            res[i][rar_N0] = N0[i]
+            res[i][rar_N0_eff] = N0withOutliers[i]
+            res[i][rar_N0_plat] = N0withNoPlateau[i]
+            res[i][rar_N0_eff_plat] = N0default[i]
+            res[i][rar_individual_PCR_efficiency] = optimalWolEff[i]
+            res[i][rar_mean_PCR_efficiency] = newMeanEfficiency
+            res[i][rar_mean_PCR_efficiency_eff] = meanEffWithEffOutliers
+            res[i][rar_mean_PCR_efficiency_plat] = meanEffWithNoPlateau
+            res[i][rar_mean_PCR_efficiency_eff_plat] = meanEfficiency
+            res[i][rar_no_amplification] = vecNoAmplification[i]
+            res[i][rar_baseline_error] = vecBaselineError[i]
+            res[i][rar_no_plateau] = vecExcludedNoPlateau[i]
+            res[i][rar_noisy_sample] = vecExcludedNoisySample[i]
+            res[i][rar_PCR_efficiency_outside] = vecExcludedPCREfficiency[i]
 
 
 
-
-        # optimalLowerLimit, optimalUpperLimit, meanEfficiency
+        # optimalLowerLimit, optimalUpperLimit,
 
 
 
         print(str(calculThreshold) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
         print(str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit))
 
-        _numpyTwoAxisSave(Cq, "res_arr_5.tsv")
-        _numpyTwoAxisSave(interceptWoL, "res_arr_6.tsv")
-        _numpyTwoAxisSave(optimalSlopeWol, "res_arr_7.tsv")
+        _numpyTwoAxisSave(indexOutliers, "res_arr_5.tsv")
+        _numpyTwoAxisSave(vecExcludedPCREfficiency, "res_arr_6.tsv")
+        _numpyTwoAxisSave(vecExcludedNoisySample, "res_arr_7.tsv")
 
         print(str(len(res)))
 
@@ -7661,6 +7719,18 @@ class Run:
      #   rar_excl
 
         print(geneNames)
+
+        if returnCSV:
+            retCSV = ""
+            for j in range(0, len(header[0])):
+                retCSV += header[0][j] + "\t"
+            retCSV = re.sub(r"\t$", "\n", retCSV)
+
+            for i in range(0, len(res)):
+                for j in range(0, len(res[i])):
+                    retCSV += str(res[i][j]) + "\t"
+                retCSV = re.sub(r"\t$", "\n", retCSV)
+            return retCSV
 
         return res
 
@@ -7685,11 +7755,9 @@ if __name__ == "__main__":
         rt = Rdml('data.rdml')
         xxexp = rt.get_experiment(byid="QPCR_course_okt2018_xls")
         xxrun = xxexp.get_run(byid="20181004_cursus_Plaat1")
-        xxres = xxrun.linRegPCR(baselineCorr=False)
+        xxres = xxrun.linRegPCR(baselineCorr=False, returnCSV=True)
         with open("res_out.tsv", "w") as f:
-            for row in xxres:
-                for elex in row:
-                    f.write(str(elex) + "\t")
-                f.write("\n")
+            f.write(xxres)
+
         # rt.save('new.rdml')
         sys.exit(0)
