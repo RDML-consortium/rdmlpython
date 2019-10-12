@@ -7220,8 +7220,7 @@ class Run:
                     matBase[matBase <= 0] = np.nan
                     matBas = np.log10(matBase)
                     vecCycle = range(1, matBas.shape[1] + 1)
-                    matCycle = np.tile(vecCycle, (matBas.shape[0], 1))
-                    matCycleBott = matCycle * logicalMatrixBott
+                    matCycleBott = vecCycle * logicalMatrixBott
                     matBott = matBas * logicalMatrixBott
                     matBott[np.isnan(matBott)] = 0
                     [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
@@ -7237,7 +7236,7 @@ class Run:
                             if (j >= midTop[i] - 1) and (j <= SDMcycles[z] - 1):
                                 logicalMatrixTop[i, j] = 1
 
-                    matCycleTop = matCycle * logicalMatrixTop
+                    matCycleTop = vecCycle * logicalMatrixTop
                     matTop = matBas * logicalMatrixTop
                     matTop[np.isnan(matTop)] = 0
                     [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
@@ -7290,8 +7289,6 @@ class Run:
                                                   dtype=np.float64)
 
                             # Matrix of the considered well fluorescence values repeated 10 times (size of stepVector)
-                        #    matFluo = np.tile(rawFluor[z, :], (stepVector.shape[0], 1))
-                        #    LowHighValues = matFluo - np.tile(stepVector[:, np.newaxis], (1, matFluo.shape[1]))
                             LowHighValues = rawFluor[z, :] - stepVector[:, np.newaxis]
                             # Only the values between the start and the SDM point are kept
                             mat = LowHighValues[:, (expoPhaseBaselineEstimation[z] - 1):SDMcycles[z]]
@@ -7342,8 +7339,7 @@ class Run:
                             matBase[matBase <= 0] = np.nan
                             matBas = np.log10(matBase)
                             vecCycle = range(1, matBas.shape[1] + 1)
-                            matCycle = np.tile(vecCycle, (matBas.shape[0], 1))
-                            matCycleBott = matCycle * logicalMatrixBott
+                            matCycleBott = vecCycle * logicalMatrixBott
                             matBott = matBas * logicalMatrixBott
                             matBott[np.isnan(matBott)] = 0
                             [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
@@ -7358,7 +7354,7 @@ class Run:
                                     if (j >= midTop[i] - 1) and (j <= SDMcycles[z] - 1):
                                         logicalMatrixTop[i, j] = 1
 
-                            matCycleTop = matCycle * logicalMatrixTop
+                            matCycleTop = vecCycle * logicalMatrixTop
                             matTop = matBas * logicalMatrixTop
                             matTop[np.isnan(matTop)] = 0
                             [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
@@ -7398,9 +7394,9 @@ class Run:
                     baselineValues[z] = minFlu[z]
                     interceptDifference[z] = 0.0
 
-                # End of for z in range(0, rawFluor.shape[0]):
+                # End of for z in range(0, spFl[0]):
             # For loop to exclude the negative baseline error problem
-            for i in range(0, rawFluor.shape[0]):
+            for i in range(0, spFl[0]):
                 if np.abs(baselineValues[i]) > np.nanmax(rawFluor[i, :]):
                     baselineValues[i] = minFlu[i]
                     vecBaselineError[i] = True
@@ -7410,7 +7406,7 @@ class Run:
             ########################
 
             # The baseline values are subtracted to the raw data
-            baselineCorrectedData = rawFluor - np.tile(baselineValues, (1, rawFluor.shape[1]))
+            baselineCorrectedData = rawFluor - baselineValues
             # The negative or null values are replaced with not a number values
             baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
 
@@ -7428,9 +7424,9 @@ class Run:
             baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
 
             # Load the test data for now
-            baselineCorrectedData = np.load("np_baselineCorrectedData.npy")
-            vecNoAmplification = np.load("np_vecNoAmp.npy")
-            vecBaselineError = np.load("np_vecBaselineError.npy")
+            # baselineCorrectedData = np.load("np_baselineCorrectedData.npy")
+            # vecNoAmplification = np.load("np_vecNoAmp.npy")
+            # vecBaselineError = np.load("np_vecBaselineError.npy")
 
         # Save the results for tests
         _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
@@ -7446,17 +7442,17 @@ class Run:
         zeroBaselineCorrectedData = baselineCorrectedData.copy()
         zeroBaselineCorrectedData[np.isnan(zeroBaselineCorrectedData)] = 0
 
-        N0default = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
-        N0withOutliers = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
-        N0withNoPlateau = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
-        N0 = np.full(baselineCorrectedData.shape[0], np.nan, dtype=np.float64)
+        N0default = np.full(spFl[0], np.nan, dtype=np.float64)
+        N0withOutliers = np.full(spFl[0], np.nan, dtype=np.float64)
+        N0withNoPlateau = np.full(spFl[0], np.nan, dtype=np.float64)
+        N0 = np.full(spFl[0], np.nan, dtype=np.float64)
 
         # Create the excluded by ... vectors
-        vecExcludedNoPlateau = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
-        vecExcludedNoisySample = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
-        vecExcludedPCREfficiency = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
-        vecExcludedByUser = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
-        vecExcluded = np.zeros(baselineCorrectedData.shape[0], dtype=np.bool)
+        vecExcludedNoPlateau = np.zeros(spFl[0], dtype=np.bool)
+        vecExcludedNoisySample = np.zeros(spFl[0], dtype=np.bool)
+        vecExcludedPCREfficiency = np.zeros(spFl[0], dtype=np.bool)
+        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
+        vecExcluded = np.zeros(spFl[0], dtype=np.bool)
         for i in range(0, len(res)):
             if res[rar_excl] != "":
                 vecExcludedByUser[i] = True
@@ -7499,11 +7495,11 @@ class Run:
         # initialisation phase of the baseline estimation
 
         # Initialisation
-        startExpPhase = np.zeros((baselineCorrectedData.shape[0], 1), dtype=np.float64)
-        startExpCycles = np.zeros((baselineCorrectedData.shape[0], 1), dtype=np.int)
+        startExpPhase = np.zeros((spFl[0], 1), dtype=np.float64)
+        startExpCycles = np.zeros((spFl[0], 1), dtype=np.int)
 
         # for each row of the data
-        for i in range(0, baselineCorrectedData.shape[0]):
+        for i in range(0, spFl[0]):
             # the loop starts from the SDM cycle of each row
             j = SDMcycles[i]
             while baselineCorrectedData[i, j] >= baselineCorrectedData[i, j - 1] and j > 2:
@@ -7522,7 +7518,7 @@ class Run:
 
         calculMeanFluo = np.zeros(len(res), dtype=np.float64)
         calculMeanLowFluo = np.zeros(len(res), dtype=np.float64)
-        for i in range(0, baselineCorrectedData.shape[0]):
+        for i in range(0, spFl[0]):
             if (not vecNoAmplification[i]) and (not vecBaselineError[i]):
                 calculMeanFluo[i] = baselineCorrectedData[i, SDMcycles[i]]
                 nbCycles = 4
@@ -7541,7 +7537,8 @@ class Run:
         lowerLimit = np.nanmean(calculMeanLowFluo)
 
         # Setting of the first W-o-L and calculation of the slope
-        [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit)
+        [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
+                                                             lowerLimit, upperLimit)
         [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecNoAmplification,
                                                       vecBaselineError, vecExcludedByUser)
 
@@ -7597,7 +7594,7 @@ class Run:
 
         # QUALITY CHECK : NO PLATEAU
         with np.errstate(divide='ignore', invalid='ignore'):
-            Fexp = optimalSlopeWol * baselineCorrectedData.shape[1]
+            Fexp = optimalSlopeWol * spFl[1]
             Fobs = np.log10(baselineCorrectedData[:, -1])
             Fres = Fexp / Fobs
         Fres[np.isnan(Fres)] = 0.0
@@ -7610,7 +7607,7 @@ class Run:
         vecExcludedPCREfficiency = np.where(indexOutliers, True, vecExcludedPCREfficiency)
 
         # QUALITY CHECK : NOISY SAMPLE
-        for well in range(0, baselineCorrectedData.shape[0]):
+        for well in range(0, spFl[0]):
             value = 0
             while value < optimalValuesInWol.shape[1] - 1 and optimalValuesInWol[well, value] == 0:
                 value += 1
