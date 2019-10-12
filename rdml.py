@@ -596,11 +596,11 @@ def _linearRegression(x, y, z):
 
     x2 = x * x
     xy = x * y
-    sumx = np.sum(x, axis=1)
-    sumy = np.sum(y, axis=1)
-    sumx2 = np.sum(x2, axis=1)
-    sumxy = np.sum(xy, axis=1)
-    n = np.sum(z, axis=1)
+    sumx = np.nansum(x, axis=1)
+    sumy = np.nansum(y, axis=1)
+    sumx2 = np.nansum(x2, axis=1)
+    sumxy = np.nansum(xy, axis=1)
+    n = np.nansum(z, axis=1)
 
     ssx = sumx2 - (sumx * sumx) / n
     sxy = sumxy - (sumx * sumy) / n
@@ -654,12 +654,11 @@ def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperL
                                     np.less(zeroBaselineCorrectedData, np.full(baselineCorrectedData.shape, upperLimit)))
 
     vecCycle = np.arange(1, baselineCorrectedData.shape[1] + 1, dtype=np.int)
-    cyclesInWol = np.tile(vecCycle, (baselineCorrectedData.shape[0], 1))
 
     valuesInWol = np.log10(baselineCorrectedData) * logicalMatrix2
     valuesInWol[np.isnan(valuesInWol)] = 0
 
-    cyclesInWol = cyclesInWol * logicalMatrix2
+    cyclesInWol = vecCycle * logicalMatrix2
     cyclesInWol[np.isnan(cyclesInWol)] = 0
 
     return [valuesInWol, logicalMatrix2, cyclesInWol]
@@ -7117,16 +7116,15 @@ class Run:
 
             logical = np.ones(spFl)
             vecCycle2 = np.arange(1, (spFl[1] + 1), dtype=np.int)
-            matCycle2 = np.tile(vecCycle2, (spFl[0], 1))
 
             # the intercept is never used in the code but has to be mentioned otherwise
             # the linearRegression can't be called.
 
-            [slopeAmp, interceptAmp] = _linearRegression(matCycle2, rawFluor, logical)
+            [slopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], rawFluor, logical)
 
             # Minimum of fluorescence values per well
             minFlu = np.nanmin(rawFluor, axis=1)
-            minFluMat = rawFluor - minFlu[:, np.newaxis] # np.tile(np.expand_dims(minFlu, axis=1), (1, rawFluor.shape[1]))
+            minFluMat = rawFluor - minFlu[:, np.newaxis]
 
             # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
@@ -7194,19 +7192,18 @@ class Run:
                     # Assigned 1 when it finds a not a number in the matReg matrix and a 0 if not.
                     a = np.isnan(matReg)
                     g = np.nansum(a, axis=1)
-                    startOfLine = g[:, np.newaxis] + startExpCycles[z]
-                    SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
+                    startOfLine = g + startExpCycles[z]
 
                     # The logical matrix assigned 1 for the values between startofLine and SDMvector
                     logicalMatrix = np.zeros(LowHighValues.shape, dtype=np.int)
                     for i in range(0, LowHighValues.shape[0]):
                         for j in range(0, LowHighValues.shape[1]):
-                            if (j >= startOfLine[i] - 1) and (j <= SDMvector[i] - 1):
+                            if (j >= startOfLine[i] - 1) and (j <= SDMcycles[z] - 1):
                                 logicalMatrix[i, j] = 1
 
                     # Calculation of the slope bottom values
                     # Values corresponding to the middle cycle of the matrix
-                    mid = SDMvector - startOfLine
+                    mid = SDMcycles[z] - startOfLine
 
                     # Calculation of the start cycle of the bottom values
                     midBott = np.floor(mid / 2 + startOfLine)
@@ -7237,7 +7234,7 @@ class Run:
                     logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
                     for i in range(0, LowHighValues.shape[0]):
                         for j in range(0, LowHighValues.shape[1]):
-                            if (j >= midTop[i] - 1) and (j <= SDMvector[i] - 1):
+                            if (j >= midTop[i] - 1) and (j <= SDMcycles[z] - 1):
                                 logicalMatrixTop[i, j] = 1
 
                     matCycleTop = matCycle * logicalMatrixTop
@@ -7312,25 +7309,23 @@ class Run:
 
                             # Contrary to the previous phase, we now used the start points vector where the points too far
                             # from the SDM are modified
-                            startOfLine = np.expand_dims(g, axis=1) + expoPhaseBaselineEstimation[z]
+                            startOfLine = g + expoPhaseBaselineEstimation[z]
                             for i in range(0, matReg.shape[0]):
                                 j = gbis[i]
                                 if j > matReg.shape[1] - 1: # Todo: OK -1???
                                     if np.abs(np.abs(matReg[i, j]) - np.abs(matReg[i, j + 1])) > 1.1 * stopStep[i]:
                                         startOfLine[i] = startOfLine[i] + 1
 
-                            SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
-
                             # The logical matrix assigned 1 for the values between startofLine and SDMvector
                             logicalMatrix = np.zeros(LowHighValues.shape, dtype=np.int)
                             for i in range(0, LowHighValues.shape[0]):
                                 for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= startOfLine[i] - 1) and (j <= SDMvector[i] - 1):
+                                    if (j >= startOfLine[i] - 1) and (j <= SDMcycles[z] - 1):
                                         logicalMatrix[i, j] = 1
 
                             # Calculation of the slope bottom
                             # Values corresponding to the middle cycle of the matrix
-                            mid = SDMvector - startOfLine
+                            mid = SDMcycles[z] - startOfLine
 
                             # Calculation of the start cycle of the bottom values
                             midBott = np.floor(mid / 2 + startOfLine)
@@ -7360,7 +7355,7 @@ class Run:
                             logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
                             for i in range(0, LowHighValues.shape[0]):
                                 for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= midTop[i] - 1) and (j <= SDMvector[i] - 1):
+                                    if (j >= midTop[i] - 1) and (j <= SDMcycles[z] - 1):
                                         logicalMatrixTop[i, j] = 1
 
                             matCycleTop = matCycle * logicalMatrixTop
