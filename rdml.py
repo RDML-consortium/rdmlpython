@@ -7442,9 +7442,9 @@ class Run:
         zeroBaselineCorrectedData = baselineCorrectedData.copy()
         zeroBaselineCorrectedData[np.isnan(zeroBaselineCorrectedData)] = 0
 
-        N0default = np.full(spFl[0], np.nan, dtype=np.float64)
-        N0withOutliers = np.full(spFl[0], np.nan, dtype=np.float64)
-        N0withNoPlateau = np.full(spFl[0], np.nan, dtype=np.float64)
+        N0_eff_plat = np.full(spFl[0], np.nan, dtype=np.float64)
+        N0_eff = np.full(spFl[0], np.nan, dtype=np.float64)
+        N0_plat = np.full(spFl[0], np.nan, dtype=np.float64)
         N0 = np.full(spFl[0], np.nan, dtype=np.float64)
 
         # Create the excluded by ... vectors
@@ -7634,9 +7634,9 @@ class Run:
             calcN0_plat = calculThreshold / meanEffWithNoPlateau ** Cq
             calcN0_eff_plat = calculThreshold / meanEfficiency ** Cq
         N0 = np.where(np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau), calcN0, N0)
-        N0withOutliers = np.where(~vecExcludedNoPlateau, calcN0_eff, N0)
-        N0withNoPlateau = np.where(~vecExcludedPCREfficiency, calcN0_plat, N0)
-        N0default = np.where(True, calcN0_eff_plat, N0)
+        N0_eff = np.where(~vecExcludedNoPlateau, calcN0_eff, N0_eff)
+        N0_plat = np.where(~vecExcludedPCREfficiency, calcN0_plat, N0_plat)
+        N0_eff_plat = np.where(True, calcN0_eff_plat, N0_eff_plat)
 
         # Fixme: update cq in RDML
 
@@ -7645,9 +7645,9 @@ class Run:
             res[i][rar_threshold] = calculThreshold
             res[i][rar_Cq] = Cq[i]
             res[i][rar_N0] = N0[i]
-            res[i][rar_N0_eff] = N0withOutliers[i]
-            res[i][rar_N0_plat] = N0withNoPlateau[i]
-            res[i][rar_N0_eff_plat] = N0default[i]
+            res[i][rar_N0_eff] = N0_eff[i]
+            res[i][rar_N0_plat] = N0_plat[i]
+            res[i][rar_N0_eff_plat] = N0_eff_plat[i]
             res[i][rar_individual_PCR_efficiency] = optimalWolEff[i]
             res[i][rar_mean_PCR_efficiency] = newMeanEfficiency
             res[i][rar_mean_PCR_efficiency_eff] = meanEffWithEffOutliers
