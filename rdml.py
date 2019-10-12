@@ -7002,7 +7002,10 @@ class Run:
                     cyc = _get_first_child_text(adp, "cyc")
                     adp_cyc_max = max(adp_cyc_max, float(cyc))
         adp_cyc_max = math.ceil(adp_cyc_max)
-        rawFluor = np.zeros((len(reacts), adp_cyc_max), dtype=np.float64)
+
+        # spFl is the shape for all fluorescence numpy data arrays
+        spFl = (len(reacts), adp_cyc_max)
+        rawFluor = np.zeros(spFl, dtype=np.float64)  # Fixme: nan
 
         # Now process the data for numpy and create results array
         rowCount = 0
@@ -7060,7 +7063,7 @@ class Run:
             secondDerivative = firstDerivativeShift - firstDerivative
 
             # The three first column and the last one are replaced by zeros
-            firstDerivativeShift[:, -1] = 0
+            firstDerivativeShift[:, -1] = 0  # Fixme: nan
             secondDerivative[:, 0:2] = 0
             secondDerivative[:, -1] = 0
 
@@ -7079,11 +7082,11 @@ class Run:
             # initialisation phase of the baseline estimation
 
             # Initialisation
-            startExpPhase = np.zeros((rawFluor.shape[0], 1), dtype=np.float64)
-            startExpCycles = np.zeros((rawFluor.shape[0], 1), dtype=np.int)
+            startExpPhase = np.zeros(spFl[0], dtype=np.float64)
+            startExpCycles = np.zeros(spFl[0], dtype=np.int)
 
             # for each row of the data
-            for i in range(0, rawFluor.shape[0]):
+            for i in range(0, spFl[0]):
                 # the loop starts from the SDM cycle of each row
                 j = SDMcycles[i]
                 while rawFluor[i, j] >= rawFluor[i, j - 1] and j > 2:
@@ -7101,11 +7104,10 @@ class Run:
             # Initialization of the expoPhaseBaselineEstimation vector
             expoPhaseBaselineEstimation = startExpCycles.copy()
 
+     #       expoPhaseBaselineEstimation[SDMcycles - startExpCycles > 10] = SDMcycles - 10
             for i in range(0, startExpCycles.shape[0]):
                 if SDMcycles[i] - startExpCycles[i] > 10:
                     expoPhaseBaselineEstimation[i] = SDMcycles[i] - 10
-                else:
-                    expoPhaseBaselineEstimation[i] = startExpCycles[i]
 
             ###########################################################################
             # First quality check : Is there enough amplification during the reaction #
@@ -7113,9 +7115,9 @@ class Run:
 
             # Slope calculation per well
 
-            logical = np.ones(rawFluor.shape)
-            vecCycle2 = np.arange(1, (rawFluor.shape[1] + 1), dtype=np.int)
-            matCycle2 = np.tile(vecCycle2, (rawFluor.shape[0], 1))
+            logical = np.ones(spFl)
+            vecCycle2 = np.arange(1, (spFl[1] + 1), dtype=np.int)
+            matCycle2 = np.tile(vecCycle2, (spFl[0], 1))
 
             # the intercept is never used in the code but has to be mentioned otherwise
             # the linearRegression can't be called.
@@ -7124,15 +7126,15 @@ class Run:
 
             # Minimum of fluorescence values per well
             minFlu = np.nanmin(rawFluor, axis=1)
-            minFluMat = rawFluor - np.tile(np.expand_dims(minFlu, axis=1), (1, rawFluor.shape[1]))
+            minFluMat = rawFluor - minFlu[:, np.newaxis] # np.tile(np.expand_dims(minFlu, axis=1), (1, rawFluor.shape[1]))
 
-            # Check to dedect the negative slopes and the PCR reactions that have an
+            # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
 
             # initialization of the vecNoAmplification vector
-            vecNoAmplification = np.zeros(rawFluor.shape[0], dtype=np.bool)
+            vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
 
-            for i in range(0, rawFluor.shape[0]):
+            for i in range(0, spFl[0]):
                 if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.nanmean(minFluMat[i, 0:10])) < 7):
                     vecNoAmplification[i] = True
 
@@ -7154,11 +7156,11 @@ class Run:
             # The intercept values are not used in the code but could be used later.
             interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
             # This is the vector for the baseline error quality check
-            vecBaselineError = np.zeros(rawFluor.shape[0], dtype=np.bool)
+            vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
 
             # The for loop go through all the sample matrix and make calculations well by well
-            for z in range(0, rawFluor.shape[0]):
-                print('Sample: ' + str(z))
+            for z in range(0, spFl[0]):
+                print('React: ' + str(z))
                 # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
                 # minimum fluorescence value assigned as baseline value for the considered reaction :
                 if not vecNoAmplification[z]:
@@ -7170,22 +7172,21 @@ class Run:
                     # Calculation of the step that will be used to create the range of possible baseline values
                     step = diff1 / 9
                     miniFLU = 0.9 * minFlu[z]
-                    stepVector = np.array([[miniFLU],
-                                           [miniFLU + step],
-                                           [miniFLU + 2 * step],
-                                           [miniFLU + 3 * step],
-                                           [miniFLU + 4 * step],
-                                           [miniFLU + 5 * step],
-                                           [miniFLU + 6 * step],
-                                           [miniFLU + 7 * step],
-                                           [miniFLU + 8 * step],
-                                           [miniFLU + 9 * step]],
+                    stepVector = np.array([miniFLU,
+                                           miniFLU + step,
+                                           miniFLU + 2 * step,
+                                           miniFLU + 3 * step,
+                                           miniFLU + 4 * step,
+                                           miniFLU + 5 * step,
+                                           miniFLU + 6 * step,
+                                           miniFLU + 7 * step,
+                                           miniFLU + 8 * step,
+                                           miniFLU + 9 * step],
                                           dtype=np.float64)
                     # Matrix of the considered well fluorescence values repeated 10 times (size of stepVector)
-                    matFluo = np.tile(rawFluor[z, :], (stepVector.shape[0], 1))
-                    LowHighValues = matFluo - np.tile(stepVector, (1, matFluo.shape[1]))
+                    LowHighValues = rawFluor[z, :] - stepVector[:, np.newaxis]
                     # Only the values between the start and the SDM point are kept
-                    mat = LowHighValues[:, (startExpCycles[z, 0] - 1):SDMcycles[z]]
+                    mat = LowHighValues[:, (startExpCycles[z] - 1):SDMcycles[z]]
                     # When the values are negative or equal to zero there are replaces by not a number value.
                     mat[np.isnan(mat)] = 0
                     mat[mat <= 0] = np.nan
@@ -7193,7 +7194,7 @@ class Run:
                     # Assigned 1 when it finds a not a number in the matReg matrix and a 0 if not.
                     a = np.isnan(matReg)
                     g = np.nansum(a, axis=1)
-                    startOfLine = np.expand_dims(g, axis=1) + startExpCycles[z]
+                    startOfLine = g[:, np.newaxis] + startExpCycles[z]
                     SDMvector = np.tile(SDMcycles[z], (1, startOfLine.shape[0])).conj().transpose()
 
                     # The logical matrix assigned 1 for the values between startofLine and SDMvector
@@ -7232,7 +7233,7 @@ class Run:
                     # Calculation of the start cycle of the top values
                     midTop = np.ceil(mid / 2 + startOfLine)
 
-                   # The logical matrix assigned 1 for the values between midTop values and SDM value
+                    # The logical matrix assigned 1 for the values between midTop values and SDM value
                     logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
                     for i in range(0, LowHighValues.shape[0]):
                         for j in range(0, LowHighValues.shape[1]):
@@ -7264,38 +7265,39 @@ class Run:
                         count = 1000
                         while minimumDiffSlopTopBott > 0.0001 and count >= 0:
                             # Step value used to create the stepVector vector of the possible baseline values
-                            step2 = stepVector[2, 0] - stepVector[1, 0]
+                            step2 = stepVector[2] - stepVector[1]
 
                             # This if condition is necessary to have a wide enough range of possible baseline value
                             # when the previous cycle of the minimum slopes difference is at the beginning or the
                             # end of the vector. Otherwise, the real baseline value will not be included in the chosen range.
 
                             if cycleAbscisseMinDif == 0 or cycleAbscisseMinDif == 9:
-                                lowValue = stepVector[cycleAbscisseMinDif, 0] - (6 * step2)
-                                highValue = stepVector[cycleAbscisseMinDif, 0] + (6 * step2)
+                                lowValue = stepVector[cycleAbscisseMinDif] - (6 * step2)
+                                highValue = stepVector[cycleAbscisseMinDif] + (6 * step2)
                             else:
-                                lowValue = stepVector[cycleAbscisseMinDif, 0] - (2 * step2)
-                                highValue = stepVector[cycleAbscisseMinDif, 0] + (2 * step2)
+                                lowValue = stepVector[cycleAbscisseMinDif] - (2 * step2)
+                                highValue = stepVector[cycleAbscisseMinDif] + (2 * step2)
 
                             Difference = highValue - lowValue
                             step = Difference / 9
-                            stepVector = np.array([[lowValue],
-                                                   [lowValue + step],
-                                                   [lowValue + 2 * step],
-                                                   [lowValue + 3 * step],
-                                                   [lowValue + 4 * step],
-                                                   [lowValue + 5 * step],
-                                                   [lowValue + 6 * step],
-                                                   [lowValue + 7 * step],
-                                                   [lowValue + 8 * step],
-                                                   [lowValue + 9 * step]],
+                            stepVector = np.array([lowValue,
+                                                   lowValue + step,
+                                                   lowValue + 2 * step,
+                                                   lowValue + 3 * step,
+                                                   lowValue + 4 * step,
+                                                   lowValue + 5 * step,
+                                                   lowValue + 6 * step,
+                                                   lowValue + 7 * step,
+                                                   lowValue + 8 * step,
+                                                   lowValue + 9 * step],
                                                   dtype=np.float64)
 
                             # Matrix of the considered well fluorescence values repeated 10 times (size of stepVector)
-                            matFluo = np.tile(rawFluor[z, :], (stepVector.shape[0], 1))
-                            LowHighValues = matFluo - np.tile(stepVector, (1, matFluo.shape[1]))
+                        #    matFluo = np.tile(rawFluor[z, :], (stepVector.shape[0], 1))
+                        #    LowHighValues = matFluo - np.tile(stepVector[:, np.newaxis], (1, matFluo.shape[1]))
+                            LowHighValues = rawFluor[z, :] - stepVector[:, np.newaxis]
                             # Only the values between the start and the SDM point are kept
-                            mat = LowHighValues[:, (expoPhaseBaselineEstimation[z, 0] - 1):SDMcycles[z]]
+                            mat = LowHighValues[:, (expoPhaseBaselineEstimation[z] - 1):SDMcycles[z]]
                             # When the values are negative or equal to zero there are replaces by not a number value.
                             mat[np.isnan(mat)] = 0
                             mat[mat <= 0] = np.nan
