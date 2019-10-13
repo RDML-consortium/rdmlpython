@@ -610,7 +610,7 @@ def _linearRegression(x, y, z):
     return [slope, intercept]
 
 
-def _linearRegression2(x, y, z, vecNoAmplification, vecBaselineError, vecExcludedByUser):
+def _linearRegression2(x, y, z, vecExcluded):
     """A function which calculates the slope and/or the intercept.
 
     Args:
@@ -637,8 +637,8 @@ def _linearRegression2(x, y, z, vecNoAmplification, vecBaselineError, vecExclude
         slope = sxy / ssx
         intercept = (sumy / n) - slope * (sumx / n)
 
-    for i in range(len(vecNoAmplification)):
-        if vecNoAmplification[i] or vecBaselineError[i] or n[i] == 1 or np.isnan(slope[i]):
+    for i in range(len(vecExcluded)):
+        if vecExcluded[i] or n[i] == 1 or np.isnan(slope[i]):
             slope[i] = 0
             intercept[i] = 0
 
@@ -7045,6 +7045,12 @@ class Run:
         # Fixme: Delete
         start_time = dt.datetime.now()
 
+        # Initialization of the vecNoAmplification vector
+        vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
+
+        # This is the vector for the baseline error quality check
+        vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
+
         if baselineCorr:
             ####################
             # SDM calculation  #
@@ -7129,9 +7135,6 @@ class Run:
             # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
 
-            # initialization of the vecNoAmplification vector
-            vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
-
             for i in range(0, spFl[0]):
                 if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.nanmean(minFluMat[i, 0:10])) < 7):
                     vecNoAmplification[i] = True
@@ -7153,8 +7156,6 @@ class Run:
             baselineValues = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
             # The intercept values are not used in the code but could be used later.
             interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
-            # This is the vector for the baseline error quality check
-            vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
 
             # The for loop go through all the sample matrix and make calculations well by well
             for z in range(0, spFl[0]):
@@ -7457,7 +7458,8 @@ class Run:
             if res[rar_excl] != "":
                 vecExcludedByUser[i] = True
 
-        geneNames = list(sorted(set([rowRes[rar_tar] for rowRes in res])))
+        # Join the three exclusion reasons to one
+        vecExcluded = np.logical_or(np.logical_or(vecNoAmplification, vecBaselineError), False)  # vecExcludedByUser)
 
         ####################
         # SDM calculation  #
@@ -7516,127 +7518,156 @@ class Run:
             if SDMcycles[i] - startExpCycles[i] > 10:
                 startExpPhase[i] = baselineCorrectedData[i, SDMcycles[i] - 10]
 
-        calculMeanFluo = np.zeros(len(res), dtype=np.float64)
-        calculMeanLowFluo = np.zeros(len(res), dtype=np.float64)
-        for i in range(0, spFl[0]):
-            if (not vecNoAmplification[i]) and (not vecBaselineError[i]):
-                calculMeanFluo[i] = baselineCorrectedData[i, SDMcycles[i]]
-                nbCycles = 4
-                calculMeanLowFluo[i] = baselineCorrectedData[i, SDMcycles[i] - nbCycles]
-                while np.isnan(calculMeanLowFluo[i]):
-                    nbCycles -= 1
+        # Now mean calculation is done - if requested gene by gene
+        if perTarget:
+            geneNames = ['SCX'] # list(sorted(set([rowRes[rar_tar] for rowRes in res])))
+        else:
+            geneNames = ["ignored"]
+
+        # The loop for the calculation
+        for gene in geneNames:
+            vecCurrentGene = np.zeros(spFl[0], dtype=np.bool)
+            for i in range(0, spFl[0]):
+                if perTarget:
+                    if res[i][rar_tar] == gene:
+                        vecCurrentGene[i] = True
+                else:
+                    vecCurrentGene[i] = True
+
+            calculMeanFluo = np.zeros(len(res), dtype=np.float64)
+            calculMeanLowFluo = np.zeros(len(res), dtype=np.float64)
+            for i in range(0, spFl[0]):
+                if (not vecExcluded[i]) and ((not perTarget) or vecCurrentGene[i]):
+                    calculMeanFluo[i] = baselineCorrectedData[i, SDMcycles[i]]
+                    nbCycles = 4
                     calculMeanLowFluo[i] = baselineCorrectedData[i, SDMcycles[i] - nbCycles]
-            else:
-                calculMeanFluo[i] = np.nan
-                calculMeanLowFluo[i] = np.nan
+                    while np.isnan(calculMeanLowFluo[i]):
+                        nbCycles -= 1
+                        calculMeanLowFluo[i] = baselineCorrectedData[i, SDMcycles[i] - nbCycles]
+                else:
+                    calculMeanFluo[i] = np.nan
+                    calculMeanLowFluo[i] = np.nan
 
-        # Calculation of the upper and lower limits of the first W-o-L
-        # sets the first upper limit at the mean fluorescence value
-        upperLimit = np.nanmean(calculMeanFluo)
-        # sets the first lower limit 4 cycles below the upper limit
-        lowerLimit = np.nanmean(calculMeanLowFluo)
+            # Calculation of the upper and lower limits of the first W-o-L
+            # sets the first upper limit at the mean fluorescence value
+            upperLimit = np.nanmean(calculMeanFluo)
+            # sets the first lower limit 4 cycles below the upper limit
+            lowerLimit = np.nanmean(calculMeanLowFluo)
 
-        # Setting of the first W-o-L and calculation of the slope
-        [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
-                                                             lowerLimit, upperLimit)
-        [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecNoAmplification,
-                                                      vecBaselineError, vecExcludedByUser)
-
-        # Calculation of the coefficient of variation (CV) of the values
-        # in the W-o-L
-        wolEff = 10 ** slopeWoL
-        keepWolEff = wolEff[np.not_equal(wolEff, 1)]
-        standardDeviation = np.nanstd(keepWolEff)
-        meanEfficiency = np.nanmean(keepWolEff)
-        CV = standardDeviation / meanEfficiency
-
-        CVmin = CV
-        optimalUpperLimit = upperLimit
-        optimalLowerLimit = lowerLimit
-        optimalWolEff = wolEff.copy()
-        optimalValuesInWol = valuesInWol.copy()
-        optimalSlopeWol = slopeWoL.copy()
-        SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
-
-        # Search for the optimal W-o-L (with the minimum CV)
-        n = 1
-        step = math.log10(meanEfficiency) * 0.02
-        meanStartExpPhase = np.nanmean(startExpPhase)
-        while n < 50 and lowerLimit > meanStartExpPhase and not np.isnan(standardDeviation):
-            upperLimit = 10 ** (math.log10(upperLimit) - step)
-            lowerLimit = 10 ** (math.log10(lowerLimit) - step)
+            # Setting of the first W-o-L and calculation of the slope
             [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
                                                                  lowerLimit, upperLimit)
-            [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2,
-                                                          vecNoAmplification, vecBaselineError, vecExcludedByUser)
+            [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
+
+            # Calculation of the coefficient of variation (CV) of the values
+            # in the W-o-L
             wolEff = 10 ** slopeWoL
             keepWolEff = wolEff[np.not_equal(wolEff, 1)]
             standardDeviation = np.nanstd(keepWolEff)
-            CV = standardDeviation / np.nanmean(keepWolEff)
-            if CV < CVmin:
-                CVmin = CV
-                optimalUpperLimit = upperLimit
-                optimalLowerLimit = lowerLimit
-                optimalWolEff = wolEff.copy()
-                optimalValuesInWol = valuesInWol.copy()
-                optimalSlopeWol = slopeWoL.copy()
-                meanEfficiency = np.nanmean(keepWolEff)
-                SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
-            n = n + 1
+            meanEfficiency = np.nanmean(keepWolEff)
+            CV = standardDeviation / meanEfficiency
 
-        # Calculation of the threshold and Cq
-        # FIXME: Error 1 to much
-        calculThreshold = optimalUpperLimit / 10 ** (np.nanmean(optimalSlopeWol[np.not_equal(optimalSlopeWol, 0)]))
-        with np.errstate(divide='ignore', invalid='ignore'):
-            Cq = (calculThreshold - interceptWoL) / optimalSlopeWol
-        Cq[np.isnan(Cq)] = 0.0
-        Cq[np.isinf(Cq)] = 0.0
+            CVmin = CV
+            optimalUpperLimit = upperLimit
+            optimalLowerLimit = lowerLimit
+            optimalWolEff = wolEff.copy()
+            optimalValuesInWol = valuesInWol.copy()
+            optimalSlopeWol = slopeWoL.copy()
+            SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
 
-        # QUALITY CHECK : NO PLATEAU
-        with np.errstate(divide='ignore', invalid='ignore'):
-            Fexp = optimalSlopeWol * spFl[1]
-            Fobs = np.log10(baselineCorrectedData[:, -1])
-            Fres = Fexp / Fobs
-        Fres[np.isnan(Fres)] = 0.0
-        Fres[np.isinf(Fres)] = 0.0
-        vecExcludedNoPlateau = np.where(Fres < 5, True, vecExcludedNoPlateau)
+            # Search for the optimal W-o-L (with the minimum CV)
+            n = 1
+            step = math.log10(meanEfficiency) * 0.02
+            meanStartExpPhase = np.nanmean(startExpPhase)
+            while n < 50 and lowerLimit > meanStartExpPhase and not np.isnan(standardDeviation):
+                upperLimit = 10 ** (math.log10(upperLimit) - step)
+                lowerLimit = 10 ** (math.log10(lowerLimit) - step)
+                [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
+                                                                     lowerLimit, upperLimit)
+                [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
+                wolEff = 10 ** slopeWoL
+                keepWolEff = wolEff[np.not_equal(wolEff, 1)]
+                standardDeviation = np.nanstd(keepWolEff)
+                CV = standardDeviation / np.nanmean(keepWolEff)
+                if CV < CVmin:
+                    CVmin = CV
+                    optimalUpperLimit = upperLimit
+                    optimalLowerLimit = lowerLimit
+                    optimalWolEff = wolEff.copy()
+                    optimalValuesInWol = valuesInWol.copy()
+                    optimalSlopeWol = slopeWoL.copy()
+                    meanEfficiency = np.nanmean(keepWolEff)
+                    SEM = standardDeviation / math.sqrt(optimalSlopeWol.shape[0])
+                n = n + 1
 
-        # QUALITY CHECK : EFFICIENCY OUTLIERS
-        indexOutliers = np.logical_or((optimalWolEff < meanEfficiency - meanEfficiency * 0.05),
-                                      (optimalWolEff > meanEfficiency + meanEfficiency * 0.05))
-        vecExcludedPCREfficiency = np.where(indexOutliers, True, vecExcludedPCREfficiency)
+            # Calculation of the threshold and Cq
+            # FIXME: Error 1 to much
+            calculThreshold = optimalUpperLimit / 10 ** (np.nanmean(optimalSlopeWol[np.not_equal(optimalSlopeWol, 0)]))
+            with np.errstate(divide='ignore', invalid='ignore'):
+                Cq = (calculThreshold - interceptWoL) / optimalSlopeWol
+            Cq[np.isnan(Cq)] = 0.0
+            Cq[np.isinf(Cq)] = 0.0
 
-        # QUALITY CHECK : NOISY SAMPLE
-        for well in range(0, spFl[0]):
-            value = 0
-            while value < optimalValuesInWol.shape[1] - 1 and optimalValuesInWol[well, value] == 0:
-                value += 1
-            while value < optimalValuesInWol.shape[1] - 1 and np.nansum(optimalValuesInWol[well, value + 1:-1]) != 0:
-                if optimalValuesInWol[well, value] >= optimalValuesInWol[well, value + 1]:
-                    vecExcludedNoisySample[well] = True
-                value += 1
+            # QUALITY CHECK : NO PLATEAU
+            with np.errstate(divide='ignore', invalid='ignore'):
+                Fexp = optimalSlopeWol * spFl[1]
+                Fobs = np.log10(baselineCorrectedData[:, -1])
+                Fres = Fexp / Fobs
+            Fres[np.isnan(Fres)] = 0.0
+            Fres[np.isinf(Fres)] = 0.0
+            vecExcludedNoPlateau = np.where(Fres < 5, True, vecExcludedNoPlateau)
 
-        # FixMe: Does this work??
-        # Calculation of the new mean efficiency (without the efficiency outliers
-        # and the no plateau curves)
-        newMeanEfficiency = np.nanmean(optimalWolEff[np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau)])
+            # QUALITY CHECK : EFFICIENCY OUTLIERS
+            indexOutliers = np.logical_or((optimalWolEff < meanEfficiency - meanEfficiency * 0.05),
+                                          (optimalWolEff > meanEfficiency + meanEfficiency * 0.05))
+            vecExcludedPCREfficiency = np.where(indexOutliers, True, vecExcludedPCREfficiency)
 
-        # Calculation of the mean efficiency including efficiency outliers
-        meanEffWithEffOutliers = np.nanmean(optimalWolEff[~vecExcludedNoPlateau])
+            # QUALITY CHECK : NOISY SAMPLE
+            for well in range(0, spFl[0]):
+                value = 0
+                while value < optimalValuesInWol.shape[1] - 1 and optimalValuesInWol[well, value] == 0:
+                    value += 1
+                while value < optimalValuesInWol.shape[1] - 1 and np.nansum(optimalValuesInWol[well, value + 1:-1]) != 0:
+                    if optimalValuesInWol[well, value] >= optimalValuesInWol[well, value + 1]:
+                        vecExcludedNoisySample[well] = True
+                    value += 1
 
-        # Calculation of the mean efficiency including no plateau
-        meanEffWithNoPlateau = np.nanmean(optimalWolEff[~vecExcludedPCREfficiency])
+            # FixMe: Does this work??
+            # Calculation of the new mean efficiency (without the efficiency outliers
+            # and the no plateau curves)
+            newMeanEfficiency = np.nanmean(optimalWolEff[np.logical_and(vecCurrentGene, np.logical_and(~vecExcluded,
+                                                         np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau)))])
 
-        # Calculation of the starting concentrations
-        with np.errstate(divide='ignore', invalid='ignore'):
-            calcN0 = calculThreshold / newMeanEfficiency ** Cq
-            calcN0_eff = calculThreshold / meanEffWithEffOutliers ** Cq
-            calcN0_plat = calculThreshold / meanEffWithNoPlateau ** Cq
-            calcN0_eff_plat = calculThreshold / meanEfficiency ** Cq
-        N0 = np.where(np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau), calcN0, N0)
-        N0_eff = np.where(~vecExcludedNoPlateau, calcN0_eff, N0_eff)
-        N0_plat = np.where(~vecExcludedPCREfficiency, calcN0_plat, N0_plat)
-        N0_eff_plat = np.where(True, calcN0_eff_plat, N0_eff_plat)
+            # Calculation of the mean efficiency including efficiency outliers
+            meanEffWithEffOutliers = np.nanmean(optimalWolEff[np.logical_and(vecCurrentGene, np.logical_and(~vecExcluded,
+                                                              ~vecExcludedNoPlateau))])
+
+            # Calculation of the mean efficiency including no plateau
+            meanEffWithNoPlateau = np.nanmean(optimalWolEff[np.logical_and(vecCurrentGene, np.logical_and(~vecExcluded,
+                                                            ~vecExcludedPCREfficiency))])
+
+            # Calculation of the starting concentrations
+            with np.errstate(divide='ignore', invalid='ignore'):
+                calcN0 = calculThreshold / newMeanEfficiency ** Cq
+                calcN0_eff = calculThreshold / meanEffWithEffOutliers ** Cq
+                calcN0_plat = calculThreshold / meanEffWithNoPlateau ** Cq
+                calcN0_eff_plat = calculThreshold / meanEfficiency ** Cq
+            N0 = np.where(np.logical_and(~vecExcluded, np.logical_and(vecCurrentGene,
+                          np.logical_and(~vecExcludedPCREfficiency, ~vecExcludedNoPlateau))), calcN0, N0)
+            N0_eff = np.where(np.logical_and(~vecExcluded,
+                              np.logical_and(vecCurrentGene, ~vecExcludedNoPlateau)), calcN0_eff, N0_eff)
+            N0_plat = np.where(np.logical_and(~vecExcluded,
+                               np.logical_and(vecCurrentGene, ~vecExcludedPCREfficiency)), calcN0_plat, N0_plat)
+            N0_eff_plat = np.where(np.logical_and(~vecExcluded, vecCurrentGene), calcN0_eff_plat, N0_eff_plat)
+
+            for i in range(0, len(res)):
+                if vecCurrentGene[i] and (not vecExcluded[i]):
+                    res[i][rar_mean_PCR_efficiency] = newMeanEfficiency
+                    res[i][rar_mean_PCR_efficiency_eff] = meanEffWithEffOutliers
+                    res[i][rar_mean_PCR_efficiency_plat] = meanEffWithNoPlateau
+                    res[i][rar_mean_PCR_efficiency_eff_plat] = meanEfficiency
+
+            # End of for gene in geneNames: ~vecExcluded
 
         # Fixme: update cq in RDML
 
@@ -7649,10 +7680,6 @@ class Run:
             res[i][rar_N0_plat] = N0_plat[i]
             res[i][rar_N0_eff_plat] = N0_eff_plat[i]
             res[i][rar_individual_PCR_efficiency] = optimalWolEff[i]
-            res[i][rar_mean_PCR_efficiency] = newMeanEfficiency
-            res[i][rar_mean_PCR_efficiency_eff] = meanEffWithEffOutliers
-            res[i][rar_mean_PCR_efficiency_plat] = meanEffWithNoPlateau
-            res[i][rar_mean_PCR_efficiency_eff_plat] = meanEfficiency
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
             res[i][rar_no_plateau] = vecExcludedNoPlateau[i]
@@ -7690,7 +7717,13 @@ class Run:
 
             for i in range(0, len(res)):
                 for j in range(0, len(res[i])):
-                    retCSV += str(res[i][j]) + "\t"
+                    if j in [rar_no_amplification, rar_baseline_error, rar_no_plateau, rar_noisy_sample, rar_PCR_efficiency_outside]:
+                        if res[i][j]:
+                            retCSV += str(res[i][j]) + "\t"
+                        else:
+                            retCSV += "\t"
+                    else:
+                        retCSV += str(res[i][j]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
             return retCSV
 
@@ -7717,7 +7750,7 @@ if __name__ == "__main__":
         rt = Rdml(args.doooo)
         xxexp = rt.get_experiment(byid="QPCR_course_okt2018_xls")
         xxrun = xxexp.get_run(byid="20181004_cursus_Plaat1")
-        xxres = xxrun.linRegPCR(baselineCorr=True, returnCSV=True)
+        xxres = xxrun.linRegPCR(baselineCorr=True, returnCSV=True, perTarget=False)
         with open("res_out.tsv", "w") as f:
             f.write(xxres)
 
