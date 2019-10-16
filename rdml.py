@@ -6927,7 +6927,8 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False, returnCSV=False):
+    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False,
+                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False):
         """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
 
         Args:
@@ -6935,11 +6936,16 @@ class Run:
             perTarget: If true, calculate efficiency per target, if false, for all samples.
             baselineCorr: If true, do baseline correction for all samples.
             commaConv: If true, convert comma separator to dot.
-            returnCSV: If true, returns a csv string, if false, a 2d array object.
+            ignoreExclusion: If true, ignore the RDML exclusion strings.
+            saveRaw: If true, no raw values are given in the returned data
+            saveBaslineCorr: If true, no baseline corrected values are given in the returned data
+            saveResultsList: If true, return a 2d array object.
+            saveResultsCSV: If true, return a csv string.
 
         Returns:
-            A 2d array with the resulting data, format depending on returnCSV.
-            [["id","sample","target","min_raw_fluor"]]
+            A dictionary with the resulting data, presence and format depending on input.
+            rawData: A 2d array with the raw fluorescence values
+            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
         """
 
         ##############################
@@ -6968,6 +6974,8 @@ class Run:
                    "no plateau",   # 17
                    "noisy sample",   # 18
                    "PCR efficiency outside 5%"]]   # 19
+        rar_id = 0
+        rar_sample = 1
         rar_tar = 2
         rar_excl = 3
         rar_threshold = 4
@@ -6988,6 +6996,7 @@ class Run:
         rar_PCR_efficiency_outside = 19
 
         res = []
+        finalData = {}
         adp_cyc_max = 0
 
         reacts = _get_all_children(self._node, "react")
@@ -7038,6 +7047,16 @@ class Run:
                         fluor = noDot.replace(",", ".")
                     rawFluor[rowCount, cyc] = float(fluor)
                 rowCount += 1
+
+        if saveRaw:
+            rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
+            for i in range(0, spFl[1]):
+                rawArr[0].append(i + 1)
+            for i in range(0, spFl[0]):
+                rawArr.append([res[i][rar_id], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
+                for k in range(0, spFl[1]):
+                    rawArr[i + 1].append(float(rawFluor[i, k]))
+            finalData["rawData"] = rawArr
 
         ########################
         # Baseline correction  #
@@ -7432,6 +7451,18 @@ class Run:
         # Save the results for tests
         _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
 
+        if saveBaslineCorr:
+            rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
+            for i in range(0, spFl[1]):
+                rawArr[0].append(i + 1)
+            for i in range(0, spFl[0]):
+                rawArr.append([res[i][rar_id], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
+                for k in range(0, spFl[1]):
+                    rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
+            finalData["baselineCorrectedData"] = rawArr
+
+
+
         # Fixme: Delete
         stop_time = dt.datetime.now() - start_time
         print("Done Baseline: " + str(stop_time) + "sec")
@@ -7709,7 +7740,7 @@ class Run:
 
         # print(geneNames)
 
-        if returnCSV:
+        if saveResultsCSV:
             retCSV = ""
             for j in range(0, len(header[0])):
                 retCSV += header[0][j] + "\t"
@@ -7727,7 +7758,7 @@ class Run:
                 retCSV = re.sub(r"\t$", "\n", retCSV)
             return retCSV
 
-        return res
+        return finalData
 
 
 if __name__ == "__main__":
@@ -7748,11 +7779,31 @@ if __name__ == "__main__":
     if args.doooo:
         print('Test LinRegPCR')
         rt = Rdml(args.doooo)
-        xxexp = rt.get_experiment(byid="QPCR_course_okt2018_xls")
-        xxrun = xxexp.get_run(byid="20181004_cursus_Plaat1")
-        xxres = xxrun.linRegPCR(baselineCorr=True, returnCSV=True, perTarget=False)
-        with open("res_out.tsv", "w") as f:
-            f.write(xxres)
+        xxexp = rt.experiments()
+        xxrun = xxexp[0].runs()
+        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, perTarget=False)
+        if "rawData" in xxres:
+            with open("test/temp_rawData.tsv", "w") as f:
+                xxxResStr = ""
+                for xxxrow in xxres["rawData"]:
+                    for xxelex in xxxrow:
+                        if type(xxelex) is float:
+                            xxxResStr += "{0:0.3f}".format(xxelex) + "\t"
+                        else:
+                            xxxResStr += str(xxelex) + "\t"
+                    xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
+                f.write(xxxResStr)
+        if "baselineCorrectedData" in xxres:
+            with open("test/temp_baselineCorrectedData.tsv", "w") as f:
+                xxxResStr = ""
+                for xxxrow in xxres["baselineCorrectedData"]:
+                    for xxelex in xxxrow:
+                        if type(xxelex) is float:
+                            xxxResStr += "{0:0.3f}".format(xxelex) + "\t"
+                        else:
+                            xxxResStr += str(xxelex) + "\t"
+                    xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
+                f.write(xxxResStr)
 
         # rt.save('new.rdml')
         sys.exit(0)
