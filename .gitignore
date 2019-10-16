@@ -1,1 +1,3 @@
 *.pyc
+test/temp_*
+test/tmp_*

@@ -6928,7 +6928,7 @@ class Run:
         return all_data
 
     def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False,
-                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False):
+                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
 
         Args:
@@ -6941,6 +6941,7 @@ class Run:
             saveBaslineCorr: If true, no baseline corrected values are given in the returned data
             saveResultsList: If true, return a 2d array object.
             saveResultsCSV: If true, return a csv string.
+            verbose: If true, comment every performed step.
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -7178,7 +7179,8 @@ class Run:
 
             # The for loop go through all the sample matrix and make calculations well by well
             for z in range(0, spFl[0]):
-                print('React: ' + str(z))
+                if verbose:
+                    print('React: ' + str(z))
                 # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
                 # minimum fluorescence value assigned as baseline value for the considered reaction :
                 if not vecNoAmplification[z]:
@@ -7239,7 +7241,7 @@ class Run:
                     matBase[np.isnan(matBase)] = 0
                     matBase[matBase <= 0] = np.nan
                     matBas = np.log10(matBase)
-                    vecCycle = range(1, matBas.shape[1] + 1)
+                    vecCycle = np.arange(1, matBas.shape[1] + 1)
                     matCycleBott = vecCycle * logicalMatrixBott
                     matBott = matBas * logicalMatrixBott
                     matBott[np.isnan(matBott)] = 0
@@ -7358,7 +7360,7 @@ class Run:
                             matBase[np.isnan(matBase)] = 0
                             matBase[matBase <= 0] = np.nan
                             matBas = np.log10(matBase)
-                            vecCycle = range(1, matBas.shape[1] + 1)
+                            vecCycle = np.arange(1, matBas.shape[1] + 1)
                             matCycleBott = vecCycle * logicalMatrixBott
                             matBott = matBas * logicalMatrixBott
                             matBott[np.isnan(matBott)] = 0
@@ -7781,9 +7783,9 @@ if __name__ == "__main__":
         rt = Rdml(args.doooo)
         xxexp = rt.experiments()
         xxrun = xxexp[0].runs()
-        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, perTarget=False)
+        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, perTarget=False, verbose=False)
         if "rawData" in xxres:
-            with open("test/temp_rawData.tsv", "w") as f:
+            with open("test/temp_out_raw_data.tsv", "w") as f:
                 xxxResStr = ""
                 for xxxrow in xxres["rawData"]:
                     for xxelex in xxxrow:
@@ -7794,12 +7796,12 @@ if __name__ == "__main__":
                     xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
                 f.write(xxxResStr)
         if "baselineCorrectedData" in xxres:
-            with open("test/temp_baselineCorrectedData.tsv", "w") as f:
+            with open("test/temp_out_baseline_corrected_data.tsv", "w") as f:
                 xxxResStr = ""
                 for xxxrow in xxres["baselineCorrectedData"]:
                     for xxelex in xxxrow:
                         if type(xxelex) is float:
-                            xxxResStr += "{0:0.3f}".format(xxelex) + "\t"
+                            xxxResStr += "{0:0.6f}".format(xxelex) + "\t"
                         else:
                             xxxResStr += str(xxelex) + "\t"
                     xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
