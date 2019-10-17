@@ -7114,7 +7114,7 @@ class Run:
             for i in range(0, spFl[0]):
                 # the loop starts from the SDM cycle of each row
                 j = SDMcycles[i]
-                while rawFluor[i, j] >= rawFluor[i, j - 1] and j > 2:
+                while rawFluor[i, j] >= rawFluor[i, j - 1] and j > 1:
                     j = j - 1
                 startExpPhase[i] = rawFluor[i, j]
                 startExpCycles[i] = j + 1
@@ -7436,9 +7436,9 @@ class Run:
             # np.save("np_baselineCorrectedData.npy", baselineCorrectedData)
             # np.save("np_vecNoAmp.npy", vecNoAmplification)
             # np.save("np_vecBaselineError.npy", vecBaselineError)
-            _numpyTwoAxisSave(baselineValues, "res_arr_1.tsv")
-            _numpyTwoAxisSave(interceptDifference, "res_arr_2.tsv")
-            _numpyTwoAxisSave(vecBaselineError, "res_arr_3.tsv")
+            # _numpyTwoAxisSave(baselineValues, "res_arr_1.tsv")
+            # _numpyTwoAxisSave(interceptDifference, "res_arr_2.tsv")
+            # _numpyTwoAxisSave(vecBaselineError, "res_arr_3.tsv")
 
             # End of baseline correction:
         else:
@@ -7449,9 +7449,6 @@ class Run:
             # baselineCorrectedData = np.load("np_baselineCorrectedData.npy")
             # vecNoAmplification = np.load("np_vecNoAmp.npy")
             # vecBaselineError = np.load("np_vecBaselineError.npy")
-
-        # Save the results for tests
-        _numpyTwoAxisSave(baselineCorrectedData, "res_arr_4.tsv")
 
         if saveBaslineCorr:
             rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
