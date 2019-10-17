@@ -7283,7 +7283,7 @@ class Run:
                         count = 1000
                         while minimumDiffSlopTopBott > 0.0001 and count >= 0:
                             # Step value used to create the stepVector vector of the possible baseline values
-                            step2 = stepVector[2] - stepVector[1]
+                            step2 = stepVector[1] - stepVector[0]
 
                             # This if condition is necessary to have a wide enough range of possible baseline value
                             # when the previous cycle of the minimum slopes difference is at the beginning or the
@@ -7315,12 +7315,11 @@ class Run:
                             # Only the values between the start and the SDM point are kept
                             mat = LowHighValues[:, (expoPhaseBaselineEstimation[z] - 1):SDMcycles[z]]
                             # When the values are negative or equal to zero there are replaces by not a number value.
-                            mat[np.isnan(mat)] = 0
                             mat[mat <= 0] = np.nan
                             matReg = np.log10(mat)
 
                             # Calculation of the logical matrix corresponding to the Values between the
-                            # jump and the seconde derivative maximum value
+                            # jump and the second derivative maximum value
                             a = np.isnan(matReg)
                             g = np.nansum(a, axis=1)
                             gbis = g + 1
