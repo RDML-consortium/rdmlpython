@@ -7208,6 +7208,7 @@ class Run:
                     # Only the values between the start and the SDM point are kept
                     mat = LowHighValues[:, (startExpCycles[z] - 1):SDMcycles[z]]
                     # When the values are negative or equal to zero there are replaces by not a number value.
+                    # Required to shut up error in logic comparison
                     mat[np.isnan(mat)] = 0
                     mat[mat <= 0] = np.nan
                     matReg = np.log10(mat)
@@ -7238,6 +7239,7 @@ class Run:
                                 logicalMatrixBott[i, j] = 1
 
                     matBase = LowHighValues.copy()
+                    # Required to shut up error in logic comparison
                     matBase[np.isnan(matBase)] = 0
                     matBase[matBase <= 0] = np.nan
                     matBas = np.log10(matBase)
@@ -7315,6 +7317,8 @@ class Run:
                             # Only the values between the start and the SDM point are kept
                             mat = LowHighValues[:, (expoPhaseBaselineEstimation[z] - 1):SDMcycles[z]]
                             # When the values are negative or equal to zero there are replaces by not a number value.
+                            # Required to shut up error in logic comparison
+                            mat[np.isnan(mat)] = 0
                             mat[mat <= 0] = np.nan
                             matReg = np.log10(mat)
 
@@ -7328,9 +7332,11 @@ class Run:
                             # Contrary to the previous phase, we now used the start points vector where the points too far
                             # from the SDM are modified
                             startOfLine = g + expoPhaseBaselineEstimation[z]
+
+                            # Fixme: The for loop does not happen once in the test. Does it work?
                             for i in range(0, matReg.shape[0]):
                                 j = gbis[i]
-                                if j > matReg.shape[1] - 1: # Todo: OK -1???
+                                if j > matReg.shape[1] - 1:  # Todo: OK -1???
                                     if np.abs(np.abs(matReg[i, j]) - np.abs(matReg[i, j + 1])) > 1.1 * stopStep[i]:
                                         startOfLine[i] = startOfLine[i] + 1
 
@@ -7356,10 +7362,12 @@ class Run:
                                         logicalMatrixBott[i, j] = 1
 
                             matBase = LowHighValues.copy()
+                            # Required to shut up error in logic comparison
                             matBase[np.isnan(matBase)] = 0
                             matBase[matBase <= 0] = np.nan
                             matBas = np.log10(matBase)
                             vecCycle = np.arange(1, matBas.shape[1] + 1)
+
                             matCycleBott = vecCycle * logicalMatrixBott
                             matBott = matBas * logicalMatrixBott
                             matBott[np.isnan(matBott)] = 0
@@ -7429,6 +7437,8 @@ class Run:
             # The baseline values are subtracted to the raw data
             baselineCorrectedData = rawFluor - baselineValues
             # The negative or null values are replaced with not a number values
+            # Required to shut up error in logic comparison
+            baselineCorrectedData[np.isnan(baselineCorrectedData)] = 0
             baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
 
             # Save the results for tests
@@ -7442,6 +7452,8 @@ class Run:
             # End of baseline correction:
         else:
             baselineCorrectedData = rawFluor
+            # Required to shut up error in logic comparison
+            baselineCorrectedData[np.isnan(baselineCorrectedData)] = 0
             baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
 
             # Load the test data for now
@@ -7458,7 +7470,6 @@ class Run:
                 for k in range(0, spFl[1]):
                     rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
             finalData["baselineCorrectedData"] = rawArr
-
 
 
         # Fixme: Delete
