@@ -582,13 +582,13 @@ def _writeFileInRDML(rdmlName, fileName, data):
             RDMLout.writestr(fileName, data)
 
 
-def _linearRegression(x, y, z):
+def _linearRegression(x, y, useVal, vecExcluded=None):
     """A function which calculates the slope and/or the intercept.
 
     Args:
         x: The numpy array of the cycles
         y: The numpy array that contains the values in the WoL
-        z: The logical numpy array
+        useVal: The logical numpy array
 
     Returns:
         An array with the slope and intercept.
@@ -600,35 +600,7 @@ def _linearRegression(x, y, z):
     sumy = np.nansum(y, axis=1)
     sumx2 = np.nansum(x2, axis=1)
     sumxy = np.nansum(xy, axis=1)
-    n = np.nansum(z, axis=1)
-
-    ssx = sumx2 - (sumx * sumx) / n
-    sxy = sumxy - (sumx * sumy) / n
-
-    slope = sxy / ssx
-    intercept = (sumy / n) - slope * (sumx / n)
-    return [slope, intercept]
-
-
-def _linearRegression2(x, y, z, vecExcluded):
-    """A function which calculates the slope and/or the intercept.
-
-    Args:
-        x: The numpy array of the cycles
-        y: The numpy array that contains the values in the WoL
-        z: The logical numpy array
-
-    Returns:
-        An array with the slope and intercept.
-    """
-
-    x2 = x * x
-    xy = x * y
-    sumx = np.nansum(x, axis=1)
-    sumy = np.nansum(y, axis=1)
-    sumx2 = np.nansum(x2, axis=1)
-    sumxy = np.nansum(xy, axis=1)
-    n = np.nansum(z, axis=1)
+    n = np.nansum(useVal, axis=1)
 
     with np.errstate(divide='ignore', invalid='ignore'):
         ssx = sumx2 - (sumx * sumx) / n
@@ -637,10 +609,11 @@ def _linearRegression2(x, y, z, vecExcluded):
         slope = sxy / ssx
         intercept = (sumy / n) - slope * (sumx / n)
 
-    for i in range(len(vecExcluded)):
-        if vecExcluded[i] or n[i] == 1 or np.isnan(slope[i]):
-            slope[i] = 0
-            intercept[i] = 0
+    if vecExcluded is not None:
+        for i in range(len(vecExcluded)):
+            if vecExcluded[i] or n[i] == 1 or np.isnan(slope[i]):
+                slope[i] = 0
+                intercept[i] = 0
 
     return [slope, intercept]
 
@@ -7246,7 +7219,6 @@ class Run:
                     vecCycle = np.arange(1, matBas.shape[1] + 1)
                     matCycleBott = vecCycle * logicalMatrixBott
                     matBott = matBas * logicalMatrixBott
-                    matBott[np.isnan(matBott)] = 0
                     [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
 
                     # Calculation of the slope top values
@@ -7262,7 +7234,6 @@ class Run:
 
                     matCycleTop = vecCycle * logicalMatrixTop
                     matTop = matBas * logicalMatrixTop
-                    matTop[np.isnan(matTop)] = 0
                     [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
 
                     # Calculation of the difference between the two slope vectors
@@ -7370,7 +7341,6 @@ class Run:
 
                             matCycleBott = vecCycle * logicalMatrixBott
                             matBott = matBas * logicalMatrixBott
-                            matBott[np.isnan(matBott)] = 0
                             [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
 
                             # Calculation of the slope top
@@ -7385,7 +7355,6 @@ class Run:
 
                             matCycleTop = vecCycle * logicalMatrixTop
                             matTop = matBas * logicalMatrixTop
-                            matTop[np.isnan(matTop)] = 0
                             [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
 
                             # Calculation of the difference between the two slope vectors
@@ -7597,7 +7566,7 @@ class Run:
             # Setting of the first W-o-L and calculation of the slope
             [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
                                                                  lowerLimit, upperLimit)
-            [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
+            [slopeWoL, interceptWoL] = _linearRegression(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
 
             # Calculation of the coefficient of variation (CV) of the values
             # in the W-o-L
@@ -7624,7 +7593,7 @@ class Run:
                 lowerLimit = 10 ** (math.log10(lowerLimit) - step)
                 [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
                                                                      lowerLimit, upperLimit)
-                [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
+                [slopeWoL, interceptWoL] = _linearRegression(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
                 wolEff = 10 ** slopeWoL
                 keepWolEff = wolEff[np.not_equal(wolEff, 1)]
                 standardDeviation = np.nanstd(keepWolEff)
