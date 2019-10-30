@@ -11,6 +11,7 @@ import zipfile
 import tempfile
 import argparse
 import math
+import warnings
 import numpy as np
 from lxml import etree as ET
 
@@ -582,7 +583,7 @@ def _writeFileInRDML(rdmlName, fileName, data):
             RDMLout.writestr(fileName, data)
 
 
-def _linearRegression(x, y, useVal, vecExcluded=None):
+def _linearRegression(x, y, useVal):
     """A function which calculates the slope and/or the intercept.
 
     Args:
@@ -602,6 +603,34 @@ def _linearRegression(x, y, useVal, vecExcluded=None):
     sumxy = np.nansum(xy, axis=1)
     n = np.nansum(useVal, axis=1)
 
+    ssx = sumx2 - (sumx * sumx) / n
+    sxy = sumxy - (sumx * sumy) / n
+
+    slope = sxy / ssx
+    intercept = (sumy / n) - slope * (sumx / n)
+    return [slope, intercept]
+
+
+def _linearRegression2(x, y, z, vecExcluded):
+    """A function which calculates the slope and/or the intercept.
+
+    Args:
+        x: The numpy array of the cycles
+        y: The numpy array that contains the values in the WoL
+        z: The logical numpy array
+
+    Returns:
+        An array with the slope and intercept.
+    """
+
+    x2 = x * x
+    xy = x * y
+    sumx = np.nansum(x, axis=1)
+    sumy = np.nansum(y, axis=1)
+    sumx2 = np.nansum(x2, axis=1)
+    sumxy = np.nansum(xy, axis=1)
+    n = np.nansum(z, axis=1)
+
     with np.errstate(divide='ignore', invalid='ignore'):
         ssx = sumx2 - (sumx * sumx) / n
         sxy = sumxy - (sumx * sumy) / n
@@ -609,13 +638,150 @@ def _linearRegression(x, y, useVal, vecExcluded=None):
         slope = sxy / ssx
         intercept = (sumy / n) - slope * (sumx / n)
 
-    if vecExcluded is not None:
-        for i in range(len(vecExcluded)):
-            if vecExcluded[i] or n[i] == 1 or np.isnan(slope[i]):
-                slope[i] = 0
-                intercept[i] = 0
+    for i in range(len(vecExcluded)):
+        if vecExcluded[i] or n[i] == 1 or np.isnan(slope[i]):
+            slope[i] = 0
+            intercept[i] = 0
 
     return [slope, intercept]
+
+
+def _findLRstop(fluor, z):
+    """A function which finds the stop cycle.
+
+    Args:
+        fluor: The array with the fluorescence values
+        z: The row to work on
+
+    Returns:
+        An int with the stop cycle.
+    """
+
+    # First and Second Derivative values calculation
+
+    # Shifted matrix of the raw data
+    fluorShift = np.roll(fluor[z], 1, axis=0)  # Shift to right - real position is -0.5
+    fluorShift[0] = np.nan
+
+    # Subtraction of the shifted matrix to the raw data
+    firstDerivative = fluor[z] - fluorShift
+    FDMcycles = np.nanargmax(firstDerivative, axis=0) + 1
+
+    # Shifted matrix of the firstDerivative
+    firstDerivativeShift = np.roll(firstDerivative, -1, axis=0)  # Shift to left
+    firstDerivativeShift[-1] = np.nan
+    # Subtraction of the firstDerivative values to the shifted matrix
+    secondDerivative = firstDerivativeShift - firstDerivative
+
+    # Data may have nan FixME: nan should be ignoread as not present
+    if FDMcycles + 2 <= fluor.shape[1]:
+        if (not np.isnan(fluor[z, FDMcycles - 1]) and
+            not np.isnan(fluor[z, FDMcycles]) and
+            not np.isnan(fluor[z, FDMcycles + 1]) and
+            fluor[z, FDMcycles + 1] > fluor[z, FDMcycles] > fluor[z, FDMcycles - 1]):
+            FDMcycles = FDMcycles + 2
+    else:
+        FDMcycles = fluor.shape[1]
+
+    maxLoopSD = 0.0
+    fstop = fluor.shape[1]
+
+    for j in range(2, FDMcycles):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            tempLoopSD = np.nanmean(secondDerivative[j - 2: j + 1], axis=0)
+        if not np.isnan(tempLoopSD) and tempLoopSD > maxLoopSD:
+            maxLoopSD = tempLoopSD
+            fstop = j
+    if fstop + 2 >= fluor.shape[1]:
+        fstop = fluor.shape[1]
+
+    return fstop
+
+
+def _findLRstart(fluor, z, fstop):
+    """A function which finds the start cycle.
+
+    Args:
+        fluor: The array with the fluorescence values
+        z: The row to work on
+        fstop: The stop cycle
+
+    Returns:
+        An int with the stop cycle.
+    """
+
+    fstart = fstop
+
+    while (fstart > 2 and
+           not np.isnan(fluor[z, fstart - 1]) and
+           not np.isnan(fluor[z, fstart - 2]) and
+           fluor[z, fstart - 1] >= fluor[z, fstart - 2]):
+        fstart -= 1
+
+    fstartfix = fstart
+    if (not np.isnan(fluor[z, fstart]) and
+        not np.isnan(fluor[z, fstart - 1]) and
+        not np.isnan(fluor[z, fstop - 1]) and
+        not np.isnan(fluor[z, fstop - 2])):
+        startstep = np.log10(fluor[z, fstart]) - np.log10(fluor[z, fstart - 1])
+        stopstep = np.log10(fluor[z, fstop - 1]) - np.log10(fluor[z, fstop - 2])
+        if startstep > 1.1 * stopstep:
+            fstartfix += 1
+
+    return [fstart, fstartfix]
+
+
+def _ttestslopes(fluor, samp, fstop, fstart):
+    """A function which finds the start cycle.
+
+    Args:
+        fluor: The array with the fluorescence values
+        samp: The row to work on
+        fstop: The stop cycle
+        fstart: The start cycle
+
+    Returns:
+        An array with [slopelow, slopehigh].
+    """
+
+    # Both start with full range
+    loopStart = [fstart[samp], fstop[samp]]
+    loopStop = [fstart[samp], fstop[samp]]
+
+    # Now find the center ignoring nan
+    while (loopStart[1] - loopStop[0]) > 1:
+        loopStart[1] -= 1
+        loopStop[0] += 1
+        while np.isnan(fluor[samp, loopStart[1] - 1]):
+            loopStart[1] -= 1
+        while np.isnan(fluor[samp, loopStop[1] - 1]):
+            loopStop[0] += 1
+
+    # basic regression per group
+    ssx = [0, 0]
+    sxy = [0, 0]
+    cslope = [0, 0]
+    for j in range(0, 2):
+        sumx = 0
+        sumy = 0
+        sumx2 = 0
+        sumxy = 0
+        nincl = 0
+        for i in range(loopStart[j], loopStop[j] + 1):
+            if not np.isnan(fluor[samp, i - 1]):
+                sumx += i
+                sumy += np.log10(fluor[samp, i - 1])
+                sumx2 += i * i
+                sumxy += i * np.log10(fluor[samp, i - 1])
+                nincl += 1
+        print(str(samp))
+        ssx[j] = sumx2 - sumx * sumx / nincl
+        sxy[j] = sumxy - sumx * sumy / nincl
+        cslope[j] = sxy[j] / ssx[j]
+
+    return [cslope[0], cslope[1]]
+
 
 
 def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit):
@@ -639,7 +805,7 @@ def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperL
 
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
-        np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
+        np.savetxt(fileName, var, fmt='%.16f', delimiter='\t', newline='\n')
 
 
 class Rdml:
@@ -6920,6 +7086,8 @@ class Run:
             A dictionary with the resulting data, presence and format depending on input.
             rawData: A 2d array with the raw fluorescence values
             baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
+            resultsList: A 2d array object.
+            resultsCSV: A csv string.
         """
 
         ##############################
@@ -7037,12 +7205,23 @@ class Run:
         ########################
         # Fixme: Delete
         start_time = dt.datetime.now()
+        outFFile = ""
 
         # Initialization of the vecNoAmplification vector
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
 
         # This is the vector for the baseline error quality check
+        vecNoPlateau = np.zeros(spFl[0], dtype=np.bool)
+
+        # This is the vector for the baseline error quality check
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
+
+        # This is the vector for the skip sample check
+        vecSkipSample = np.zeros(spFl[0], dtype=np.bool)
+
+        vecShortloglin = np.zeros(spFl[0], dtype=np.bool)
+
+        pcreff = np.zeros(spFl[0], dtype=np.float64)
 
         if baselineCorr:
             ####################
@@ -7052,23 +7231,24 @@ class Run:
             # First and Second Derivative values calculation
 
             # Shifted matrix of the raw data
-            rawFluorShift = np.roll(rawFluor, 1, axis=1)
+            rawFluorShift = np.roll(rawFluor, 1, axis=1)  # Shift to right - real position is -0.5
+            rawFluorShift[:, 0] = np.nan
             # Subtraction of the shifted matrix to the raw data
             firstDerivative = rawFluor - rawFluorShift
+
             # Shifted matrix of the firstDerivative
-            firstDerivativeShift = np.roll(firstDerivative, -1, axis=1)
+            firstDerivativeShift = np.roll(firstDerivative, -1, axis=1)  # Shift to left
+            firstDerivativeShift[:, -1] = np.nan
             # Subtraction of the firstDerivative values to the shifted matrix
             secondDerivative = firstDerivativeShift - firstDerivative
 
-            # The three first column and the last one are replaced by zeros
-            firstDerivativeShift[:, -1] = 0  # Fixme: nan
-            secondDerivative[:, 0:2] = 0
-            secondDerivative[:, -1] = 0
-
             # Calculation of the second derivative maximum per well
             # SDM is the max flo value per well and SDMcycles to the corresponding cycle
+            FDM = np.nanmax(firstDerivative, axis=1)
+            FDMcycles = np.nanargmax(firstDerivative, axis=1) + 1
             SDM = np.nanmax(secondDerivative, axis=1)
             SDMcycles = np.nanargmax(secondDerivative, axis=1) + 1
+            _numpyTwoAxisSave(secondDerivative, "linPas/ot_secondDerivative.tsv")
 
             ########################################
             # Start point of the exponential phase #
@@ -7119,26 +7299,79 @@ class Run:
             # the intercept is never used in the code but has to be mentioned otherwise
             # the linearRegression can't be called.
 
-            [slopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], rawFluor, logical)
+            rawFluor[np.isnan(rawFluor)] = 0
+            rawFluor[rawFluor <= 0.00000001] = np.nan
+            [slopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], np.log10(rawFluor), logical)
 
             # Minimum of fluorescence values per well
             minFlu = np.nanmin(rawFluor, axis=1)
-            minFluMat = rawFluor - minFlu[:, np.newaxis]
+            sampmin = minFlu.copy()
+            bgarr = 0.99 * minFlu
+            defbgarr = bgarr.copy()
+            cycleMinFlu = np.nanargmin(rawFluor, axis=1) + 1
+            minFluMat = rawFluor - bgarr[:, np.newaxis]
+
+            minFluMat[np.isnan(minFluMat)] = 0
+            minFluMat[minFluMat <= 0.00000001] = np.nan
+            minFluMatCount = minFluMat.copy()
+            minFluMatMean = minFluMat.copy()
+            for i in range(0, spFl[0]):
+                minFluMatMean[i, cycleMinFlu[i] - 1] = np.nan
+            minFluMatCount[np.isnan(minFluMatCount)] = 0
+            minFluMatCount[minFluMatCount > 0] = 1
+            minFluMatCountSum = np.sum(minFluMatCount, axis=1)
+
+            [minSlopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], np.log10(minFluMat), logical)
 
             # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
 
-            for i in range(0, spFl[0]):
-                if (slopeAmp[i] < 0) or ((minFluMat[i, -1] / np.nanmean(minFluMat[i, 0:10])) < 7):
+            fstop = FDMcycles.copy()  # Fixme: only for correct length
+            fstop2 = FDMcycles.copy()  # Fixme: only for correct length
+            fstart = FDMcycles.copy()  # Fixme: only for correct length
+            fstart2 = FDMcycles.copy()  # Fixme: only for correct length
+
+            for i in range(0, spFl[0]):  # Fixme: use np.nanmean with isnan check
+                if slopeAmp[i] < 0 or minSlopeAmp[i] < (np.log10(7.0) / minFluMatCountSum[i]) or \
+                   ((((minFluMat[i, 8] + minFluMat[i, 9]) / 2) / ((minFluMat[i, 0] + minFluMat[i, 1]) / 2) < 1.2) and
+                    (minFluMat[i, -1] / np.nanmean(minFluMatMean[i, 0:10])) < 7):
                     vecNoAmplification[i] = True
 
-            # Consecutive derivative points near the SDM (caution arrays start at 0, not 1!)
-            for i in range(0, firstDerivativeShift.shape[0]):
-                if not (firstDerivativeShift[i, SDMcycles[i] - 4] <= firstDerivativeShift[i, SDMcycles[i] - 3] <=
-                        firstDerivativeShift[i, SDMcycles[i] - 2] <= firstDerivativeShift[i, SDMcycles[i] - 1] or
-                        firstDerivativeShift[i, SDMcycles[i] - 3] <= firstDerivativeShift[i, SDMcycles[i] - 2] <=
-                        firstDerivativeShift[i, SDMcycles[i] - 1] <= firstDerivativeShift[i, SDMcycles[i]]):
+                if not vecNoAmplification[i]:
+                    fstop[i] = _findLRstop(minFluMat, i)
+                    [fstart[i], fstart2[i]] = _findLRstart(minFluMat, i, fstop[i])
+                    fstop2[i] = fstop[i]
+                else:
+                    vecSkipSample[i] = True
+                    fstop[i] = minFluMat.shape[1]
+                    fstart[i] = 1
+                    fstart2[i] = 1
+
+                if fstop[i] == minFluMat.shape[1]:
+                    vecNoPlateau[i] = True
+
+                if minFluMat[i, fstop[i] - 1] <= minFluMat[i, fstop[i] - 2] <= minFluMat[i, fstop[i] - 3]:
                     vecNoAmplification[i] = True
+                    vecSkipSample[i] = True
+
+            _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification.tsv")
+            _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau.tsv")
+            _numpyTwoAxisSave(minFluMat, "linPas/numpy_fluor_data_1.tsv")
+            _numpyTwoAxisSave(fstop, "linPas/numpy_fstop_1.tsv")
+            _numpyTwoAxisSave(fstart, "linPas/numpy_fstart_1.tsv")
+          #  for i in range(0, spFl[0]):
+           #     fstop[i] = _findLRstop(minFluMat, i)
+           #     [ddldldl, fstart[i]] = _findLRstart(minFluMat, i, fstop[i])
+            _numpyTwoAxisSave(fstop2, "linPas/numpy_fstop_2.tsv")
+            _numpyTwoAxisSave(fstart2, "linPas/numpy_fstart_2.tsv")
+
+            # Consecutive derivative points near the SDM (caution arrays start at 0, not 1!)
+ #           for i in range(0, firstDerivativeShift.shape[0]):
+  #              if not (firstDerivativeShift[i, SDMcycles[i] - 4] <= firstDerivativeShift[i, SDMcycles[i] - 3] <=
+   #                     firstDerivativeShift[i, SDMcycles[i] - 2] <= firstDerivativeShift[i, SDMcycles[i] - 1] or
+    #                    firstDerivativeShift[i, SDMcycles[i] - 3] <= firstDerivativeShift[i, SDMcycles[i] - 2] <=
+     #                   firstDerivativeShift[i, SDMcycles[i] - 1] <= firstDerivativeShift[i, SDMcycles[i]]):
+      #              vecNoAmplification[i] = True
 
             ##################################################
             # Main loop : Calculation of the baseline values #
@@ -7150,285 +7383,150 @@ class Run:
             # The intercept values are not used in the code but could be used later.
             interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
 
+            outStrStuff = ''
+
+            nfluor = np.zeros(spFl, dtype=np.float64)
+            stupVal1 = np.zeros(spFl[0], dtype=np.float64)  # Fixme: print only
+            stupVal2 = np.zeros(spFl[0], dtype=np.float64)  # Fixme: print only
             # The for loop go through all the sample matrix and make calculations well by well
             for z in range(0, spFl[0]):
                 if verbose:
                     print('React: ' + str(z))
+                outFFile += "----Sample: " + str(z) + "\n"  #"{0:0.6f}".format(xxelex) + "\t"
                 # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
                 # minimum fluorescence value assigned as baseline value for the considered reaction :
                 if not vecNoAmplification[z]:
-                    # First minimum slope difference value calculation
-                    # Calculation of the fluorescence value corresponding to the SMD-5 fluorescence value
-                    fluSDMminus5 = rawFluor[z, SDMcycles[z] - 6]
-                    # Difference between the SDM-5 fluo value and the considered well minimum fluo value
-                    diff1 = fluSDMminus5 - 0.9 * minFlu[z]
-                    # Calculation of the step that will be used to create the range of possible baseline values
-                    step = diff1 / 9
-                    miniFLU = 0.9 * minFlu[z]
-                    stepVector = np.array([miniFLU,
-                                           miniFLU + step,
-                                           miniFLU + 2 * step,
-                                           miniFLU + 3 * step,
-                                           miniFLU + 4 * step,
-                                           miniFLU + 5 * step,
-                                           miniFLU + 6 * step,
-                                           miniFLU + 7 * step,
-                                           miniFLU + 8 * step,
-                                           miniFLU + 9 * step],
-                                          dtype=np.float64)
-                    # Matrix of the considered well fluorescence values repeated 10 times (size of stepVector)
-                    LowHighValues = rawFluor[z, :] - stepVector[:, np.newaxis]
-                    # Only the values between the start and the SDM point are kept
-                    mat = LowHighValues[:, (startExpCycles[z] - 1):SDMcycles[z]]
-                    # When the values are negative or equal to zero there are replaces by not a number value.
-                    # Required to shut up error in logic comparison
-                    mat[np.isnan(mat)] = 0
-                    mat[mat <= 0] = np.nan
-                    matReg = np.log10(mat)
-                    # Assigned 1 when it finds a not a number in the matReg matrix and a 0 if not.
-                    a = np.isnan(matReg)
-                    g = np.nansum(a, axis=1)
-                    startOfLine = g + startExpCycles[z]
+                    #  Make sure baseline is overestimated, without using slope criterion
+                    #  increase baseline per cycle till eff > 2 or remaining loglin points < PointsInWoL
+                    #  fastest when bgarr is directly set to 5 point below fstop
+                    start = fstop[z]
+                    subtrCount = 5
+                    while subtrCount > 0 and start > 0:
+                        start -= 1
+                        if not np.isnan(rawFluor[z, start - 1]):
+                            subtrCount -= 1
 
-                    # The logical matrix assigned 1 for the values between startofLine and SDMvector
-                    logicalMatrix = np.zeros(LowHighValues.shape, dtype=np.int)
-                    for i in range(0, LowHighValues.shape[0]):
-                        for j in range(0, LowHighValues.shape[1]):
-                            if (j >= startOfLine[i] - 1) and (j <= SDMcycles[z] - 1):
-                                logicalMatrix[i, j] = 1
+                    bgarr[z] = 0.99 * rawFluor[z, start - 1]
+                    nfluor[z] = rawFluor[z] - bgarr[z]
+                    nfluor[np.isnan(nfluor)] = 0
+                    nfluor[nfluor <= 0.00000001] = np.nan
+                    #  baseline is now certainly too high
 
-                    # Calculation of the slope bottom values
-                    # Values corresponding to the middle cycle of the matrix
-                    mid = SDMcycles[z] - startOfLine
+                    #  1. extend line downwards from fstop[] till slopelow < slopehigh of bgarr[] < sampmin[]
+                    ntrials = 0
+                    while True:
+                        ntrials += 1
+                        fstop[z] = _findLRstop(nfluor, z)
+                        [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
+                        [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
+                        defbgarr[z] = bgarr[z]
 
-                    # Calculation of the start cycle of the bottom values
-                    midBott = np.floor(mid / 2 + startOfLine)
+                        if slopelow >= slopehigh:
+                            bgarr[z] *= 0.99
+                            nfluor[z] = rawFluor[z] - bgarr[z]
+                            nfluor[np.isnan(nfluor)] = 0
+                            nfluor[nfluor <= 0.00000001] = np.nan
 
-                    # The logical matrix assigned 1 for the values between startofLine and midBott values
-                    logicalMatrixBott = np.zeros(LowHighValues.shape, dtype=np.int)
-                    for i in range(0, LowHighValues.shape[0]):
-                        for j in range(0, LowHighValues.shape[1]):
-                            if (j >= startOfLine[i] - 1) and (j <= midBott[i] - 1):
-                                logicalMatrixBott[i, j] = 1
+                        if (slopelow < slopehigh or
+                            bgarr[z] < 0.95 * sampmin[z] or
+                            ntrials > 1000):
+                            break
 
-                    matBase = LowHighValues.copy()
-                    # Required to shut up error in logic comparison
-                    matBase[np.isnan(matBase)] = 0
-                    matBase[matBase <= 0] = np.nan
-                    matBas = np.log10(matBase)
-                    vecCycle = np.arange(1, matBas.shape[1] + 1)
-                    matCycleBott = vecCycle * logicalMatrixBott
-                    matBott = matBas * logicalMatrixBott
-                    [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
-
-                    # Calculation of the slope top values
-                    # Calculation of the start cycle of the top values
-                    midTop = np.ceil(mid / 2 + startOfLine)
-
-                    # The logical matrix assigned 1 for the values between midTop values and SDM value
-                    logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
-                    for i in range(0, LowHighValues.shape[0]):
-                        for j in range(0, LowHighValues.shape[1]):
-                            if (j >= midTop[i] - 1) and (j <= SDMcycles[z] - 1):
-                                logicalMatrixTop[i, j] = 1
-
-                    matCycleTop = vecCycle * logicalMatrixTop
-                    matTop = matBas * logicalMatrixTop
-                    [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
-
-                    # Calculation of the difference between the two slope vectors
-
-                    diffSlopTopBott = slopeTop - slopeBott
-                    minimumDiffSlopTopBott = np.nanmin(np.abs(diffSlopTopBott))
-                    cycleAbscisseMinDif = np.nanargmin(np.abs(diffSlopTopBott))
-
-                    # Second quality check : Baseline error
-                    # Assigned 1 when diffSlopTopBott is a positive value, -1 when negative and let 0 for the zeros values
-                    val = np.sign(diffSlopTopBott)
-                    # Change the 0 into 1
-                    val[val == 0] = 1
-                    # Calculate the sign changes. val=1 when there is one changes val=2 for two changes ...etc
-                    val = sum(val[0:-2] * val[1:-1] == -1)
-
-                    # If there is no sign changes, the baseline value will not be calculated
-                    if val >= 1:
-                        # While loop that will not stop until the 0.0001 is reached.
-                        count = 1000
-                        while minimumDiffSlopTopBott > 0.0001 and count >= 0:
-                            # Step value used to create the stepVector vector of the possible baseline values
-                            step2 = stepVector[1] - stepVector[0]
-
-                            # This if condition is necessary to have a wide enough range of possible baseline value
-                            # when the previous cycle of the minimum slopes difference is at the beginning or the
-                            # end of the vector. Otherwise, the real baseline value will not be included in the chosen range.
-
-                            if cycleAbscisseMinDif == 0 or cycleAbscisseMinDif == 9:
-                                lowValue = stepVector[cycleAbscisseMinDif] - (6 * step2)
-                                highValue = stepVector[cycleAbscisseMinDif] + (6 * step2)
-                            else:
-                                lowValue = stepVector[cycleAbscisseMinDif] - (2 * step2)
-                                highValue = stepVector[cycleAbscisseMinDif] + (2 * step2)
-
-                            Difference = highValue - lowValue
-                            step = Difference / 9
-                            stepVector = np.array([lowValue,
-                                                   lowValue + step,
-                                                   lowValue + 2 * step,
-                                                   lowValue + 3 * step,
-                                                   lowValue + 4 * step,
-                                                   lowValue + 5 * step,
-                                                   lowValue + 6 * step,
-                                                   lowValue + 7 * step,
-                                                   lowValue + 8 * step,
-                                                   lowValue + 9 * step],
-                                                  dtype=np.float64)
-
-                            # Matrix of the considered well fluorescence values repeated 10 times (size of stepVector)
-                            LowHighValues = rawFluor[z, :] - stepVector[:, np.newaxis]
-                            # Only the values between the start and the SDM point are kept
-                            mat = LowHighValues[:, (expoPhaseBaselineEstimation[z] - 1):SDMcycles[z]]
-                            # When the values are negative or equal to zero there are replaces by not a number value.
-                            # Required to shut up error in logic comparison
-                            mat[np.isnan(mat)] = 0
-                            mat[mat <= 0] = np.nan
-                            matReg = np.log10(mat)
-
-                            # Calculation of the logical matrix corresponding to the Values between the
-                            # jump and the second derivative maximum value
-                            a = np.isnan(matReg)
-                            g = np.nansum(a, axis=1)
-                            gbis = g + 1
-                            stopStep = matReg[:, -1] - matReg[:, -2]
-
-                            # Contrary to the previous phase, we now used the start points vector where the points too far
-                            # from the SDM are modified
-                            startOfLine = g + expoPhaseBaselineEstimation[z]
-
-                            # Fixme: The for loop does not happen once in the test. Does it work?
-                            for i in range(0, matReg.shape[0]):
-                                j = gbis[i]
-                                if j > matReg.shape[1] - 1:  # Todo: OK -1???
-                                    if np.abs(np.abs(matReg[i, j]) - np.abs(matReg[i, j + 1])) > 1.1 * stopStep[i]:
-                                        startOfLine[i] = startOfLine[i] + 1
-
-                            # The logical matrix assigned 1 for the values between startofLine and SDMvector
-                            logicalMatrix = np.zeros(LowHighValues.shape, dtype=np.int)
-                            for i in range(0, LowHighValues.shape[0]):
-                                for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= startOfLine[i] - 1) and (j <= SDMcycles[z] - 1):
-                                        logicalMatrix[i, j] = 1
-
-                            # Calculation of the slope bottom
-                            # Values corresponding to the middle cycle of the matrix
-                            mid = SDMcycles[z] - startOfLine
-
-                            # Calculation of the start cycle of the bottom values
-                            midBott = np.floor(mid / 2 + startOfLine)
-
-                            # The logical matrix assigned 1 for the values between startofLine and midBott values
-                            logicalMatrixBott = np.zeros(LowHighValues.shape, dtype=np.int)
-                            for i in range(0, LowHighValues.shape[0]):
-                                for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= startOfLine[i] - 1) and (j <= midBott[i] - 1):
-                                        logicalMatrixBott[i, j] = 1
-
-                            matBase = LowHighValues.copy()
-                            # Required to shut up error in logic comparison
-                            matBase[np.isnan(matBase)] = 0
-                            matBase[matBase <= 0] = np.nan
-                            matBas = np.log10(matBase)
-                            vecCycle = np.arange(1, matBas.shape[1] + 1)
-
-                            matCycleBott = vecCycle * logicalMatrixBott
-                            matBott = matBas * logicalMatrixBott
-                            [slopeBott, interceptBott] = _linearRegression(matCycleBott, matBott, logicalMatrixBott)
-
-                            # Calculation of the slope top
-                            midTop = np.ceil(mid / 2 + startOfLine)
-
-                            # The logical matrix assigned 1 for the values between midTop values and SDM value
-                            logicalMatrixTop = np.zeros(LowHighValues.shape, dtype=np.int)
-                            for i in range(0, LowHighValues.shape[0]):
-                                for j in range(0, LowHighValues.shape[1]):
-                                    if (j >= midTop[i] - 1) and (j <= SDMcycles[z] - 1):
-                                        logicalMatrixTop[i, j] = 1
-
-                            matCycleTop = vecCycle * logicalMatrixTop
-                            matTop = matBas * logicalMatrixTop
-                            [slopeTop, interceptTop] = _linearRegression(matCycleTop, matTop, logicalMatrixTop)
-
-                            # Calculation of the difference between the two slope vectors
-                            diffSlopTopBott = slopeTop - slopeBott
-                            lastMinimumDiffSlopTopBott = minimumDiffSlopTopBott
-                            minimumDiffSlopTopBott = np.nanmin(np.abs(diffSlopTopBott))
-                            cycleAbscisseMinDif = np.nanargmin(np.abs(diffSlopTopBott))
-
-                            # End in case there is no further improvement
-                            if lastMinimumDiffSlopTopBott == minimumDiffSlopTopBott and count > 1:
-                                count = 1
-
-                            # Incrementation
-                            count -= 1
-                            # End of while loop
-                        # Output vectors filling
-                        # The baseline values vector is filled at the end of the while loop with the value that
-                        # satisfied the condition
-                        baselineValues[z] = stepVector[cycleAbscisseMinDif]
-                        interceptDifference[z] = interceptTop[cycleAbscisseMinDif] - interceptBott[cycleAbscisseMinDif]
-
-                        # End of if val >= 1:
-                    else:
-                        # Corresponds to the baseline error sample. The minimum fluorescence value is assigned to
-                        # these sample in order to fill the vector
-                        baselineValues[z] = minFlu[z]
-                        interceptDifference[z] = 0.0
-                        # This vector allows to locate the baseline error sample. When such a sample is detected,
-                        # this vector is filled with a 2
+                    if bgarr[z] < 0.95 * sampmin[z]:
                         vecBaselineError[z] = True
 
-                    # End of if not vecNoAmplification[z]:
+                    # 2. fine tune slope of total line
+                    stepval = 0.005 * bgarr[z]
+                    basestep = 1.0
+                    ntrials = 0
+                    trialstoshift = 0
+                    thisslopediff = 10
+                    thissigndiff = 0
+                    SlopeHasShifted = False
+                    while True:
+                        ntrials += 1
+                        trialstoshift += 1
+                        if trialstoshift > 10 and not SlopeHasShifted:
+                            basestep *= 2
+                            trialstoshift = 0
+
+                        lastsigndiff = thissigndiff
+                        lastslopediff = thisslopediff
+                        defbgarr[z] = bgarr[z]
+                        # apply baseline
+                        nfluor[z] = rawFluor[z] - bgarr[z]
+                        nfluor[np.isnan(nfluor)] = 0
+                        nfluor[nfluor <= 0.00000001] = np.nan
+                        fstop[z] = _findLRstop(nfluor, z)
+                        [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
+                        [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
+                        thisslopediff = np.abs(slopelow - slopehigh)
+                        if (slopelow - slopehigh) > 0.0:
+                            thissigndiff = 1
+                        else:
+                            thissigndiff = -1
+                        # start with baseline that is too low: lowerslope is low
+                        if slopelow < slopehigh:
+                            # increase baseline
+                            bgarr[z] += basestep * stepval
+                        else:
+                            # crossed right baseline
+                            # go two steps back
+                            bgarr[z] -= basestep * stepval * 2
+                            # decrease stepsize
+                            basestep /= 2
+                            SlopeHasShifted = True
+
+                        if (((np.abs(thisslopediff - lastslopediff) < 0.00001) and
+                             (thissigndiff == lastsigndiff) and SlopeHasShifted) or
+                            (np.abs(thisslopediff) < 0.0001) or
+                            (ntrials > 1000)):
+                            break
+
+                    # reinstate samples that reach the slopediff criterion within 0.9 * sampmin
+                    if thisslopediff < 0.0001 and defbgarr[z] > 0.9 * sampmin[z]:
+                        vecBaselineError[z] = False
+
+                    # 3: skip sample when fluor[fstop]/fluor[fstart] < 20
+                    # Fixme: if RelaxLogLinLengthRG.ItemIndex = 0 then
+                    if True:
+                        loglinlen = 20
+                    else:
+                        loglinlen = 10
+                    if nfluor[z, fstop[z] - 1] / nfluor[z, fstart[z] - 1] < loglinlen:
+                        vecShortloglin[z] = True
+
+                    pcreff[z] = np.power(10, slopehigh)
+
+                    stupVal1[z] = nfluor[z, fstop[z] - 1]
+                    stupVal2[z] = nfluor[z, fstart2[z] - 1]
                 else:
-                    # Correspond to the no amplification sample. The minimum fluo value is also assigned to these samples
-                    baselineValues[z] = minFlu[z]
-                    interceptDifference[z] = 0.0
+                    vecSkipSample[j] = True
+                    defbgarr[j] = 0.99 * sampmin[j]
+                    nfluor[z] = rawFluor[z] - defbgarr[z]
+                    nfluor[np.isnan(nfluor)] = 0
+                    nfluor[nfluor <= 0.00000001] = np.nan
 
-                # End of for z in range(0, spFl[0]):
-            # For loop to exclude the negative baseline error problem
-            for i in range(0, spFl[0]):
-                if np.abs(baselineValues[i]) > np.nanmax(rawFluor[i, :]):
-                    baselineValues[i] = minFlu[i]
-                    vecBaselineError[i] = True
+                    fstop[z] = -1
+                    fstart[z] = -1
 
-            ########################
-            # Baseline subtraction #
-            ########################
+                    stupVal1[z] = -1.7234
+                    stupVal2[z] = -1.7234
 
-            # The baseline values are subtracted to the raw data
-            baselineCorrectedData = rawFluor - baselineValues
-            # The negative or null values are replaced with not a number values
-            # Required to shut up error in logic comparison
-            baselineCorrectedData[np.isnan(baselineCorrectedData)] = 0
-            baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
+                if vecBaselineError[j]:
+                    vecSkipSample[j] = True
 
-            # Save the results for tests
-            # np.save("np_baselineCorrectedData.npy", baselineCorrectedData)
-            # np.save("np_vecNoAmp.npy", vecNoAmplification)
-            # np.save("np_vecBaselineError.npy", vecBaselineError)
-            # _numpyTwoAxisSave(baselineValues, "res_arr_1.tsv")
-            # _numpyTwoAxisSave(interceptDifference, "res_arr_2.tsv")
-            # _numpyTwoAxisSave(vecBaselineError, "res_arr_3.tsv")
+            bgarr = defbgarr
 
-            # End of baseline correction:
-        else:
-            baselineCorrectedData = rawFluor
-            # Required to shut up error in logic comparison
-            baselineCorrectedData[np.isnan(baselineCorrectedData)] = 0
-            baselineCorrectedData[baselineCorrectedData <= 0] = np.nan
+            baselineCorrectedData = nfluor
 
-            # Load the test data for now
-            # baselineCorrectedData = np.load("np_baselineCorrectedData.npy")
-            # vecNoAmplification = np.load("np_vecNoAmp.npy")
-            # vecBaselineError = np.load("np_vecBaselineError.npy")
+            with open("linPas/_commandline.txt", "w") as f:
+                f.write(outStrStuff)
+
+            _numpyTwoAxisSave(stupVal1, "linPas/numpy_fstop_3.tsv")
+            _numpyTwoAxisSave(stupVal2, "linPas/numpy_fstart_3.tsv")
+            _numpyTwoAxisSave(nfluor, "linPas/numpy_fluor_data_3.tsv")
+
 
         if saveBaslineCorr:
             rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
@@ -7440,6 +7538,9 @@ class Run:
                     rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
             finalData["baselineCorrectedData"] = rawArr
 
+
+        with open("matlab/numpy_variables.txt", "w") as f:
+            f.write(outFFile)
 
         # Fixme: Delete
         stop_time = dt.datetime.now() - start_time
@@ -7566,7 +7667,7 @@ class Run:
             # Setting of the first W-o-L and calculation of the slope
             [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
                                                                  lowerLimit, upperLimit)
-            [slopeWoL, interceptWoL] = _linearRegression(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
+            [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
 
             # Calculation of the coefficient of variation (CV) of the values
             # in the W-o-L
@@ -7593,7 +7694,7 @@ class Run:
                 lowerLimit = 10 ** (math.log10(lowerLimit) - step)
                 [valuesInWol, logicalMatrix2, cyclesInWol] = _setWol(baselineCorrectedData, zeroBaselineCorrectedData,
                                                                      lowerLimit, upperLimit)
-                [slopeWoL, interceptWoL] = _linearRegression(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
+                [slopeWoL, interceptWoL] = _linearRegression2(cyclesInWol, valuesInWol, logicalMatrix2, vecExcluded)
                 wolEff = 10 ** slopeWoL
                 keepWolEff = wolEff[np.not_equal(wolEff, 1)]
                 standardDeviation = np.nanstd(keepWolEff)
@@ -7734,7 +7835,10 @@ class Run:
                     else:
                         retCSV += str(res[i][j]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
-            return retCSV
+            finalData["resultsCSV"] = retCSV
+
+        if saveResultsList:
+            finalData["resultsList"] = res
 
         return finalData
 
@@ -7759,7 +7863,7 @@ if __name__ == "__main__":
         rt = Rdml(args.doooo)
         xxexp = rt.experiments()
         xxrun = xxexp[0].runs()
-        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, perTarget=False, verbose=False)
+        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, saveResultsCSV=True, perTarget=False, verbose=False)
         if "rawData" in xxres:
             with open("test/temp_out_raw_data.tsv", "w") as f:
                 xxxResStr = ""
@@ -7782,6 +7886,9 @@ if __name__ == "__main__":
                             xxxResStr += str(xxelex) + "\t"
                     xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
                 f.write(xxxResStr)
+        if "resultsCSV" in xxres:
+            with open("test/temp_out_results.tsv", "w") as f:
+                f.write(xxres["resultsCSV"])
 
         # rt.save('new.rdml')
         sys.exit(0)
