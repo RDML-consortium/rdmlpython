@@ -660,6 +660,10 @@ def _findLRstop(fluor, z):
     # First and Second Derivative values calculation
 
     # Shifted matrix of the raw data
+    secondLast = 3
+    while secondLast <= fluor.shape[1] and (np.isnan(fluor[z, secondLast - 1]) or np.isnan(fluor[z, secondLast - 2]) or np.isnan(fluor[z, secondLast - 3])):
+            secondLast += 1
+
     fluorShift = np.roll(fluor[z], 1, axis=0)  # Shift to right - real position is -0.5
     fluorShift[0] = np.nan
 
@@ -686,11 +690,12 @@ def _findLRstop(fluor, z):
     maxLoopSD = 0.0
     fstop = fluor.shape[1]
 
-    for j in range(2, FDMcycles):
+    for j in range(secondLast, FDMcycles):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            tempLoopSD = np.nanmean(secondDerivative[j - 2: j + 1], axis=0)
-        if not np.isnan(tempLoopSD) and tempLoopSD > maxLoopSD:
+            tempLoopSD = np.mean(secondDerivative[j - 2: j + 1], axis=0)
+        # The > 0.000000001 is to avoid float differences to the pascal version
+        if not np.isnan(tempLoopSD) and (tempLoopSD - maxLoopSD) > 0.000000001:
             maxLoopSD = tempLoopSD
             fstop = j
     if fstop + 2 >= fluor.shape[1]:
@@ -711,12 +716,21 @@ def _findLRstart(fluor, z, fstop):
         An int with the stop cycle.
     """
 
-    fstart = fstop
+    fstart = fstop - 1
 
-    while (fstart > 2 and
-           not np.isnan(fluor[z, fstart - 1]) and
+    # Find the first value that is not NaN
+    firstNotNaN = 1  # Cycles so +1 to array
+    while np.isnan(fluor[z, firstNotNaN - 1]) and firstNotNaN < fstop:
+        firstNotNaN += 1
+
+    # fstart might be NaN, so shift it to the first value
+    while fstart > firstNotNaN and np.isnan(fluor[z, fstart - 1]):
+        fstart -= 1
+
+    # As long as there are no NaN and new values are increasing
+    while (fstart >= firstNotNaN and
            not np.isnan(fluor[z, fstart - 2]) and
-           fluor[z, fstart - 1] >= fluor[z, fstart - 2]):
+           fluor[z, fstart - 2] <= fluor[z, fstart - 1]):
         fstart -= 1
 
     fstartfix = fstart
@@ -753,9 +767,9 @@ def _ttestslopes(fluor, samp, fstop, fstart):
     while (loopStart[1] - loopStop[0]) > 1:
         loopStart[1] -= 1
         loopStop[0] += 1
-        while np.isnan(fluor[samp, loopStart[1] - 1]):
+        while (loopStart[1] - loopStop[0]) > 1 and np.isnan(fluor[samp, loopStart[1] - 1]):
             loopStart[1] -= 1
-        while np.isnan(fluor[samp, loopStop[1] - 1]):
+        while (loopStart[1] - loopStop[0]) > 1 and np.isnan(fluor[samp, loopStop[1] - 1]):
             loopStop[0] += 1
 
     # basic regression per group
@@ -763,11 +777,11 @@ def _ttestslopes(fluor, samp, fstop, fstart):
     sxy = [0, 0]
     cslope = [0, 0]
     for j in range(0, 2):
-        sumx = 0
-        sumy = 0
-        sumx2 = 0
-        sumxy = 0
-        nincl = 0
+        sumx = 0.0
+        sumy = 0.0
+        sumx2 = 0.0
+        sumxy = 0.0
+        nincl = 0.0
         for i in range(loopStart[j], loopStop[j] + 1):
             if not np.isnan(fluor[samp, i - 1]):
                 sumx += i
@@ -775,7 +789,6 @@ def _ttestslopes(fluor, samp, fstop, fstart):
                 sumx2 += i * i
                 sumxy += i * np.log10(fluor[samp, i - 1])
                 nincl += 1
-        print(str(samp))
         ssx[j] = sumx2 - sumx * sumx / nincl
         sxy[j] = sumxy - sumx * sumy / nincl
         cslope[j] = sxy[j] / ssx[j]
@@ -7385,7 +7398,7 @@ class Run:
 
             outStrStuff = ''
 
-            nfluor = np.zeros(spFl, dtype=np.float64)
+            nfluor = rawFluor.copy()
             stupVal1 = np.zeros(spFl[0], dtype=np.float64)  # Fixme: print only
             stupVal2 = np.zeros(spFl[0], dtype=np.float64)  # Fixme: print only
             # The for loop go through all the sample matrix and make calculations well by well
@@ -7400,8 +7413,14 @@ class Run:
                     #  increase baseline per cycle till eff > 2 or remaining loglin points < PointsInWoL
                     #  fastest when bgarr is directly set to 5 point below fstop
                     start = fstop[z]
+
+                    # Find the first value that is not NaN
+                    firstNotNaN = 1  # Cycles so +1 to array
+                    while np.isnan(nfluor[z, firstNotNaN - 1]) and firstNotNaN < fstop[z]:
+                        firstNotNaN += 1
+
                     subtrCount = 5
-                    while subtrCount > 0 and start > 0:
+                    while subtrCount > 0 and start > firstNotNaN:
                         start -= 1
                         if not np.isnan(rawFluor[z, start - 1]):
                             subtrCount -= 1
@@ -7418,8 +7437,11 @@ class Run:
                         ntrials += 1
                         fstop[z] = _findLRstop(nfluor, z)
                         [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
-                        [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
-                        defbgarr[z] = bgarr[z]
+                        if fstop[z] - fstart2[z] > 2:
+                            [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
+                            defbgarr[z] = bgarr[z]
+                        else:
+                            break
 
                         if slopelow >= slopehigh:
                             bgarr[z] *= 0.99
@@ -7459,23 +7481,27 @@ class Run:
                         nfluor[nfluor <= 0.00000001] = np.nan
                         fstop[z] = _findLRstop(nfluor, z)
                         [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
-                        [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
-                        thisslopediff = np.abs(slopelow - slopehigh)
-                        if (slopelow - slopehigh) > 0.0:
-                            thissigndiff = 1
+                        if fstop[z] - fstart2[z] > 2:
+                            [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
+                            thisslopediff = np.abs(slopelow - slopehigh)
+                            if (slopelow - slopehigh) > 0.0:
+                                thissigndiff = 1
+                            else:
+                                thissigndiff = -1
+                            # start with baseline that is too low: lowerslope is low
+                            if slopelow < slopehigh:
+                                # increase baseline
+                                bgarr[z] += basestep * stepval
+                            else:
+                                # crossed right baseline
+                                # go two steps back
+                                bgarr[z] -= basestep * stepval * 2
+                                # decrease stepsize
+                                basestep /= 2
+                                SlopeHasShifted = True
+
                         else:
-                            thissigndiff = -1
-                        # start with baseline that is too low: lowerslope is low
-                        if slopelow < slopehigh:
-                            # increase baseline
-                            bgarr[z] += basestep * stepval
-                        else:
-                            # crossed right baseline
-                            # go two steps back
-                            bgarr[z] -= basestep * stepval * 2
-                            # decrease stepsize
-                            basestep /= 2
-                            SlopeHasShifted = True
+                            break
 
                         if (((np.abs(thisslopediff - lastslopediff) < 0.00001) and
                              (thissigndiff == lastsigndiff) and SlopeHasShifted) or
@@ -7496,13 +7522,13 @@ class Run:
                     if nfluor[z, fstop[z] - 1] / nfluor[z, fstart[z] - 1] < loglinlen:
                         vecShortloglin[z] = True
 
-                    pcreff[z] = np.power(10, slopehigh)
+                #    pcreff[z] = np.power(10, slopehigh)
 
                     stupVal1[z] = nfluor[z, fstop[z] - 1]
                     stupVal2[z] = nfluor[z, fstart2[z] - 1]
                 else:
-                    vecSkipSample[j] = True
-                    defbgarr[j] = 0.99 * sampmin[j]
+                    vecSkipSample[z] = True
+                    defbgarr[z] = 0.99 * sampmin[z]
                     nfluor[z] = rawFluor[z] - defbgarr[z]
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
@@ -7513,8 +7539,8 @@ class Run:
                     stupVal1[z] = -1.7234
                     stupVal2[z] = -1.7234
 
-                if vecBaselineError[j]:
-                    vecSkipSample[j] = True
+                if vecBaselineError[z]:
+                    vecSkipSample[z] = True
 
             bgarr = defbgarr
 
