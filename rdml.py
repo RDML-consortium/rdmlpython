@@ -863,7 +863,7 @@ def _GetMeanEff(ampgroup, pcreff, skipsample, noplateau, shortloglin, IsUsedInWo
     return [getmeaneff, effvar, IsUsedInWoL]
 
 
-def _do_cascade(fluor, samp, uplim, lowlim):
+def _do_cascade(fluor, samp, uplim, lowlim, ftval):
     """A function which calculates the mean of the max fluor in the last ten cycles.
 
     Args:
@@ -878,6 +878,8 @@ def _do_cascade(fluor, samp, uplim, lowlim):
         An array with [getmeaneff, effvar, IsUsedInWoL].
     """
 
+    pstart = 0
+    pstop = 0
     fstop = _findLRstop(fluor, samp)
     [start, fstart] = _findLRstart(fluor, samp, fstop)
 
@@ -909,12 +911,39 @@ def _do_cascade(fluor, samp, uplim, lowlim):
                     pstart = i + 1
    # print('find ' + str(samp) + ' pstart[samp]: ' + str(fluor[samp,pstart-1]) + ' pstop[samp]: ' + str(fluor[samp,pstop-1]))
 
-    
+    sumx = 0.0
+    sumy = 0.0
+    sumx2 = 0.0
+    sumy2 = 0.0
+    sumxy = 0.0
+    nincl = 0.0
+    ssx = 0.0
+    ssy = 0.0
+    sxy = 0.0
+    for i in range(pstart, pstop + 1):
+        if not np.isnan(fluor[samp, i - 1]):
+            sumx += i
+            sumy += np.log10(fluor[samp, i - 1])
+            sumx2 += i * i
+       #     sumy2 += np.log10(fluor[samp, i - 1]) * np.log10(fluor[samp, i - 1])
+            sumxy += i * np.log10(fluor[samp, i - 1])
+            nincl += 1
 
+    if nincl > 0:  # Fixme: Should be 1???
+        ssx = sumx2 - sumx * sumx / nincl
+        sxy = sumxy - sumx * sumy / nincl
+    if ssx > 0.0 and nincl > 0.0:
+        cslope = sxy / ssx
+        cinterc = sumy / nincl - cslope * sumx / nincl
+    else:
+        cslope = 0.0
+        cinterc = 0.0
 
-
-
-    return [notinwindow]
+    if cslope > 0:
+        ctvals = (ftval - cinterc) / cslope
+    else:
+        ctvals = 0.0
+    return ctvals
 
 
 def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit):
@@ -7289,6 +7318,9 @@ class Run:
         # spFl is the shape for all fluorescence numpy data arrays
         spFl = (len(reacts), adp_cyc_max)
         rawFluor = np.zeros(spFl, dtype=np.float64)  # Fixme: nan
+        # Initialization of the vecNoAmplification vector
+        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
+
 
         # Now process the data for numpy and create results array
         rowCount = 0
@@ -7311,6 +7343,8 @@ class Run:
                     excl = ""
                 else:
                     excl = _get_first_child_text(react_data, "excl")
+                if not excl == "":
+                    vecExcludedByUser[rowCount] = True
                 res.append([posId, sample, target, excl, "", "", "", "", "", "",
                             "", "", "", "", "", "", "", "", "", "", ""])
                 adps = _get_all_children(react_data, "adp")
@@ -7708,7 +7742,6 @@ class Run:
 
         getmeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, pcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
         grpftval = upwin - np.log10(getmeaneff)
-        ftval = grpftval
 
         # See if cq values are stable with a modified baseline
         checkfluor = np.zeros(spFl, dtype=np.float64)
@@ -7718,7 +7751,7 @@ class Run:
 
         for z in range(0, spFl[0]):
             if vecShortloglin[z] and not vecNoAmplification[z]:
-                print("loglin : " + str(z))
+             #    print("loglin : " + str(z))
                 # No recalculation needed:
                 # checkfluor[z] = rawFluor[z] - bgarr[z]
                 # checkfluor[np.isnan(checkfluor)] = 0
@@ -7737,9 +7770,40 @@ class Run:
 
                 uplim = np.power(10, upwin)  # Fixme: No logs
                 lowlim = np.power(10, lowwin)
-                _do_cascade(nfluor, z, uplim, lowlim)
 
+                checkfluor[z] = rawFluor[z] - 1.05 * bgarr[z]
+                checkfluor[np.isnan(checkfluor)] = 0
+                checkfluor[checkfluor <= 0.00000001] = np.nan
 
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    maxFlour = np.nanmax(checkfluor)
+
+                if np.isnan(maxFlour):
+                    CtShiftUp = _do_cascade(nfluor, z, uplim, lowlim, grpftval)
+                else:
+                    CtShiftUp = _do_cascade(checkfluor, z, uplim, lowlim, grpftval)
+
+                checkfluor[z] = rawFluor[z] - 0.95 * bgarr[z]
+                checkfluor[np.isnan(checkfluor)] = 0
+                checkfluor[checkfluor <= 0.00000001] = np.nan
+                CtShiftDown = _do_cascade(checkfluor, z, uplim, lowlim, grpftval)
+
+                if np.abs(CtShiftUp - CtShiftDown) > 1.0:
+                    vecBaselineError[j] = True
+                    vecSkipSample[j] = True
+                    print("Killed " + str(z))
+                else:
+                    if not vecBaselineError[j]:
+                        vecSkipSample[j] = False
+
+        vecSkipSample[vecExcludedByUser] = True
+        # Update the window
+        print("AAA " + str(meanmax))
+        meanmax = _GetMeanMax(nfluor, None, vecSkipSample, vecNoPlateau)
+        print("BBB " + str(meanmax))
+        upwin = np.log10(0.1 * meanmax)
+        lowwin = np.log10(0.1 * meanmax / 16.0)
 
         _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
 
