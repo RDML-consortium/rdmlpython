@@ -694,8 +694,8 @@ def _findLRstop(fluor, z):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             tempLoopSD = np.mean(secondDerivative[j - 2: j + 1], axis=0)
-        # The > 0.000000001 is to avoid float differences to the pascal version
-        if not np.isnan(tempLoopSD) and (tempLoopSD - maxLoopSD) > 0.000000001:
+        # The > 0.000000000001 is to avoid float differences to the pascal version
+        if not np.isnan(tempLoopSD) and (tempLoopSD - maxLoopSD) > 0.000000000001:
             maxLoopSD = tempLoopSD
             fstop = j
     if fstop + 2 >= fluor.shape[1]:
@@ -796,6 +796,126 @@ def _ttestslopes(fluor, samp, fstop, fstart):
     return [cslope[0], cslope[1]]
 
 
+def _GetMeanMax(fluor, ampgroup, vecSkipSample, vecNoPlateau):
+    """A function which calculates the mean of the max fluor in the last ten cycles.
+
+    Args:
+        fluor: The array with the fluorescence values
+        ampgroup: The target group id
+        vecSkipSample: Skip the sample
+        vecNoPlateau: Sample has no plateau
+
+    Returns:
+        An float with the max mean.
+    """
+
+    maxFlour = np.nanmax(fluor[:, -11:], axis=1)
+
+    maxFlour[vecSkipSample] = np.nan
+    maxFlour[vecNoPlateau] = np.nan
+
+    # Ignore all nan slices, to fix them below
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        maxMean = np.nanmean(maxFlour)
+    if maxMean == np.nan:
+        maxMean = np.nanmax(maxFlour)
+
+    return maxMean
+
+
+def _GetMeanEff(ampgroup, pcreff, skipsample, noplateau, shortloglin, IsUsedInWoL):
+    """A function which calculates the mean of the max fluor in the last ten cycles.
+
+    Args:
+        ampgroup: The target group id
+        pcreff: The array with the PCR efficiencies
+        skipsample: Skip the sample
+        noplateau: Sample ha no plateau
+        shortloglin: Sample has short loglin phase
+        IsUsedInWoL: Sample is used in WoL
+
+    Returns:
+        An array with [getmeaneff, effvar, IsUsedInWoL].
+    """
+
+    cnt = 0
+    sumeff = 0.0
+    sumeff2 = 0.0
+
+    for j in range(0, len(pcreff)):
+        if ampgroup is None or ampgroup[j]:
+            if (not (skipsample[j] or noplateau[j] or shortloglin[j])) and pcreff[j] > 1.0:
+                IsUsedInWoL[j] = True
+                cnt += 1
+                sumeff += pcreff[j]
+                sumeff2 += pcreff[j] * pcreff[j]
+            else:
+                IsUsedInWoL[j] = False
+
+    if cnt > 1:
+        getmeaneff = sumeff / cnt
+        effvar = (sumeff2 - (sumeff * sumeff) / cnt) / (cnt - 1)
+    else:
+        getmeaneff = 1.0
+        effvar = 100
+
+    return [getmeaneff, effvar, IsUsedInWoL]
+
+
+def _do_cascade(fluor, samp, uplim, lowlim):
+    """A function which calculates the mean of the max fluor in the last ten cycles.
+
+    Args:
+        ampgroup: The target group id
+        pcreff: The array with the PCR efficiencies
+        skipsample: Skip the sample
+        noplateau: Sample ha no plateau
+        shortloglin: Sample has short loglin phase
+        IsUsedInWoL: Sample is used in WoL
+
+    Returns:
+        An array with [getmeaneff, effvar, IsUsedInWoL].
+    """
+
+    fstop = _findLRstop(fluor, samp)
+    [start, fstart] = _findLRstart(fluor, samp, fstop)
+
+    stop = np.nanargmax(fluor[samp, fstart - 1:]) + fstart
+
+    if fluor[samp, start - 1] > uplim or fluor[samp, stop - 1] < lowlim:
+        notinwindow = True
+        if fluor[samp, start - 1] > uplim:
+            pstart = start
+            pstop = start
+        if fluor[samp, stop - 1] < lowlim:
+            pstart = stop
+            pstop = stop
+    else:
+        notinwindow = False
+        # look for pstop
+        if fluor[samp, stop - 1] < uplim:
+            pstop = stop
+        else:
+            for i in range(stop, start, -1):
+                if fluor[samp, i - 1] > uplim > fluor[samp, i - 2]:
+                    pstop = i - 1
+        # look for pstart
+        if fluor[samp, fstart - 1] > lowlim:
+            pstart = fstart
+        else:
+            for i in range(stop - 1, start - 1, -1):
+                if fluor[samp, i] > lowlim > fluor[samp, i - 1]:
+                    pstart = i + 1
+   # print('find ' + str(samp) + ' pstart[samp]: ' + str(fluor[samp,pstart-1]) + ' pstop[samp]: ' + str(fluor[samp,pstop-1]))
+
+    
+
+
+
+
+    return [notinwindow]
+
 
 def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit):
     # Function that sets the window of linearity : matWol is the matrix that contains only the log of
@@ -818,7 +938,7 @@ def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperL
 
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
-        np.savetxt(fileName, var, fmt='%.16f', delimiter='\t', newline='\n')
+        np.savetxt(fileName, var, fmt='%.12f', delimiter='\t', newline='\n')
 
 
 class Rdml:
@@ -7234,6 +7354,8 @@ class Run:
 
         vecShortloglin = np.zeros(spFl[0], dtype=np.bool)
 
+        vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
+
         pcreff = np.zeros(spFl[0], dtype=np.float64)
 
         if baselineCorr:
@@ -7312,17 +7434,18 @@ class Run:
             # the intercept is never used in the code but has to be mentioned otherwise
             # the linearRegression can't be called.
 
-            rawFluor[np.isnan(rawFluor)] = 0
-            rawFluor[rawFluor <= 0.00000001] = np.nan
-            [slopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], np.log10(rawFluor), logical)
+            rawMod = rawFluor.copy()
+            rawMod[np.isnan(rawMod)] = 0
+            rawMod[rawMod <= 0.00000001] = np.nan
+            [slopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], np.log10(rawMod), logical)
 
             # Minimum of fluorescence values per well
-            minFlu = np.nanmin(rawFluor, axis=1)
+            minFlu = np.nanmin(rawMod, axis=1)
             sampmin = minFlu.copy()
             bgarr = 0.99 * minFlu
             defbgarr = bgarr.copy()
-            cycleMinFlu = np.nanargmin(rawFluor, axis=1) + 1
-            minFluMat = rawFluor - bgarr[:, np.newaxis]
+            cycleMinFlu = np.nanargmin(rawMod, axis=1) + 1
+            minFluMat = rawMod - bgarr[:, np.newaxis]
 
             minFluMat[np.isnan(minFluMat)] = 0
             minFluMat[minFluMat <= 0.00000001] = np.nan
@@ -7366,6 +7489,11 @@ class Run:
                 if minFluMat[i, fstop[i] - 1] <= minFluMat[i, fstop[i] - 2] <= minFluMat[i, fstop[i] - 3]:
                     vecNoAmplification[i] = True
                     vecSkipSample[i] = True
+
+            # Set an initial window
+            meanmax = _GetMeanMax(minFluMat, None, vecSkipSample, vecNoPlateau)
+            upwin = np.log10(0.1 * meanmax)
+            lowwin = np.log10(0.1 * meanmax / 16.0)
 
             _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification.tsv")
             _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau.tsv")
@@ -7481,6 +7609,9 @@ class Run:
                         nfluor[nfluor <= 0.00000001] = np.nan
                         fstop[z] = _findLRstop(nfluor, z)
                         [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
+                        outStrStuff += "loop " + str(z + 1) + " " + str(fstop[z]) + "-" + str(fstart[z]) + " " + str(
+                            nfluor[z, fstop[z] - 1]) + " " + str(nfluor[z, fstart[z] - 1]) + "\n"
+
                         if fstop[z] - fstart2[z] > 2:
                             [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
                             thisslopediff = np.abs(slopelow - slopehigh)
@@ -7516,13 +7647,15 @@ class Run:
                     # 3: skip sample when fluor[fstop]/fluor[fstart] < 20
                     # Fixme: if RelaxLogLinLengthRG.ItemIndex = 0 then
                     if True:
-                        loglinlen = 20
+                        loglinlen = 20.0
                     else:
-                        loglinlen = 10
-                    if nfluor[z, fstop[z] - 1] / nfluor[z, fstart[z] - 1] < loglinlen:
+                        loglinlen = 10.0
+
+                    outStrStuff += "log " + str(z + 1) + " " + str(fstop[z]) + "-" + str(fstart[z]) + " " + str(nfluor[z, fstop[z] - 1]) + " " + str(nfluor[z, fstart[z] - 1]) + "\n"
+                    if nfluor[z, fstop[z] - 1] / nfluor[z, fstart2[z] - 1] < loglinlen:
                         vecShortloglin[z] = True
 
-                #    pcreff[z] = np.power(10, slopehigh)
+                    pcreff[z] = np.power(10, slopehigh)
 
                     stupVal1[z] = nfluor[z, fstop[z] - 1]
                     stupVal2[z] = nfluor[z, fstart2[z] - 1]
@@ -7530,11 +7663,14 @@ class Run:
                     vecSkipSample[z] = True
                     defbgarr[z] = 0.99 * sampmin[z]
                     nfluor[z] = rawFluor[z] - defbgarr[z]
+                    # Fixme is this intended for all??
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
 
                     fstop[z] = -1
                     fstart[z] = -1
+
+                    pcreff[z] = np.nan
 
                     stupVal1[z] = -1.7234
                     stupVal2[z] = -1.7234
@@ -7546,12 +7682,18 @@ class Run:
 
             baselineCorrectedData = nfluor
 
-            with open("linPas/_commandline.txt", "w") as f:
+            with open("linPas/_np_commandline.txt", "w") as f:
                 f.write(outStrStuff)
 
             _numpyTwoAxisSave(stupVal1, "linPas/numpy_fstop_3.tsv")
             _numpyTwoAxisSave(stupVal2, "linPas/numpy_fstart_3.tsv")
             _numpyTwoAxisSave(nfluor, "linPas/numpy_fluor_data_3.tsv")
+            _numpyTwoAxisSave(pcreff, "linPas/numpy_pcreff_3.tsv")
+            _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification_3.tsv")
+            _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau_3.tsv")
+            _numpyTwoAxisSave(vecBaselineError, "linPas/numpy_vecBaselineError_3.tsv")
+            _numpyTwoAxisSave(vecSkipSample, "linPas/numpy_vecSkipSample_3.tsv")
+            _numpyTwoAxisSave(vecShortloglin, "linPas/numpy_vecShortloglin_3.tsv")
 
 
         if saveBaslineCorr:
@@ -7563,6 +7705,43 @@ class Run:
                 for k in range(0, spFl[1]):
                     rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
             finalData["baselineCorrectedData"] = rawArr
+
+        getmeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, pcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+        grpftval = upwin - np.log10(getmeaneff)
+        ftval = grpftval
+
+        # See if cq values are stable with a modified baseline
+        checkfluor = np.zeros(spFl, dtype=np.float64)
+        checkstop = FDMcycles.copy()  # Fixme: only for correct length
+        checkstart = FDMcycles.copy()  # Fixme: only for correct length
+        checkstart2 = FDMcycles.copy()  # Fixme: only for correct length
+
+        for z in range(0, spFl[0]):
+            if vecShortloglin[z] and not vecNoAmplification[z]:
+                print("loglin : " + str(z))
+                # No recalculation needed:
+                # checkfluor[z] = rawFluor[z] - bgarr[z]
+                # checkfluor[np.isnan(checkfluor)] = 0
+                # checkfluor[checkfluor <= 0.00000001] = np.nan
+                # checkstop[z] = _findLRstop(checkfluor, z)
+                # [checkstart[z], checkstart2[z]] = _findLRstart(checkfluor, z, checkstop[z])
+
+
+            #    for i in range(0, spFl[1]):
+            #        if np.abs(nfluor[z, i] - checkfluor[z, i]) > 0.0000000000001:
+            #            print("Size Diff" + str(z) + " : " + str(i + 1) + " " + str(nfluor[z, i]) + " " + str(checkfluor[z, i]))
+            #        if not (checkstop[z] == fstop[z]):
+            #            print("Stop Diff" + str(z) + " : " + str(i + 1) + " " + str(fstop[z]) + " " + str(checkstop[z]))
+            #        if not (checkstop[z] == fstop[z]):
+            #            print("Start Diff" + str(z) + " : " + str(i + 1) + " " + str(fstart2[z]) + " " + str(checkstart2[z]))
+
+                uplim = np.power(10, upwin)  # Fixme: No logs
+                lowlim = np.power(10, lowwin)
+                _do_cascade(nfluor, z, uplim, lowlim)
+
+
+
+        _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
 
 
         with open("matlab/numpy_variables.txt", "w") as f:
@@ -7907,7 +8086,7 @@ if __name__ == "__main__":
                 for xxxrow in xxres["baselineCorrectedData"]:
                     for xxelex in xxxrow:
                         if type(xxelex) is float:
-                            xxxResStr += "{0:0.6f}".format(xxelex) + "\t"
+                            xxxResStr += "{0:0.12f}".format(xxelex) + "\t"
                         else:
                             xxxResStr += str(xxelex) + "\t"
                     xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
