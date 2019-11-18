@@ -7517,17 +7517,17 @@ class Run:
                    "sample",  # 1
                    "target",   # 2
                    "excluded",   # 3
-                   "threshold",   # 4
-                   "Cq",   # 5
-                   "N0",   # 6
-                   "N0 with efficiency outliers",   # 7
-                   "N0 with no pateau",   # 8
-                   "N0 with efficiency outliers and no plateau",   # 9
-                   "individual PCR efficiency",   # 10
-                   "mean PCR efficiency",   # 11
-                   "mean PCR efficiency with efficiency outliers",  # 12
-                   "mean PCR efficiency with no plateau",   # 13
-                   "mean PCR efficiency with efficiency outliers and no plateau",  # 14
+                   "baseline",   # 4
+                   "lower limit",   # 5
+                   "threshold",   # 6
+                   "upper limit",   # 7
+                   "n included",   # 8
+                   "Cq",   # 9
+                   "indiv PCR eff",   # 10
+                   "N0 (indiv eff)",   # 11
+                   "R2",   # 12
+                   "mean PCR eff",   # 13
+                   "N0 (mean eff)",   # 14
                    "no amplification",   # 15
                    "baseline error",   # 16
                    "no plateau",   # 17
@@ -7537,17 +7537,17 @@ class Run:
         rar_sample = 1
         rar_tar = 2
         rar_excl = 3
-        rar_threshold = 4
-        rar_Cq = 5
-        rar_N0 = 6
-        rar_N0_eff = 7
-        rar_N0_plat = 8
-        rar_N0_eff_plat = 9
-        rar_individual_PCR_efficiency = 10
-        rar_mean_PCR_efficiency = 11
-        rar_mean_PCR_efficiency_eff = 12
-        rar_mean_PCR_efficiency_plat = 13
-        rar_mean_PCR_efficiency_eff_plat = 14
+        rar_baseline = 4
+        rar_lower_limit = 5
+        rar_threshold = 6
+        rar_upper_limit = 7
+        rar_n_included = 8
+        rar_Cq = 9
+        rar_indiv_PCR_eff = 10
+        rar_N0_indiv_eff = 11
+        rar_R2 = 12
+        rar_mean_PCR_eff = 13
+        rar_N0_mean_eff = 14
         rar_no_amplification = 15
         rar_baseline_error = 16
         rar_no_plateau = 17
@@ -8115,19 +8115,16 @@ class Run:
             upwin[t] = upwin[0]
             lowwin[t] = lowwin[0]
 
-
         for t in range(1, targetsCount):
             ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart2, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             # AssignNoPlateau(k)
 
-
-
-        print("----------------------------" + str(grpftval))
-
-        print("----------------------------" + str(np.log10(0.5 * upwin[0])))
+        # Assign no plateau
 
 
 
+
+        print("----------------------------")
 
 
         _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
@@ -8147,13 +8144,18 @@ class Run:
 
         for i in range(0, len(res)):
            # if not vecExcludedByUser[i]:
-            res[i][rar_threshold] = 0 # calculThreshold
-     #       res[i][rar_Cq] = Cq[i]
-      #      res[i][rar_N0] = N0[i]
-       #     res[i][rar_N0_eff] = N0_eff[i]
-        #    res[i][rar_N0_plat] = N0_plat[i]
-         #   res[i][rar_N0_eff_plat] = N0_eff_plat[i]
-            res[i][rar_individual_PCR_efficiency] = pcreff[i]
+            res[i][rar_baseline] = np.log10(bgarr[i])
+            res[i][rar_lower_limit] = np.power(10, lowwin[vecTarget[i]])
+            res[i][rar_threshold] = grpftval
+            res[i][rar_upper_limit] = np.power(10, upwin[vecTarget[i]])
+            res[i][rar_n_included] = ninclu[i]
+            res[i][rar_Cq] = ctvals[i]
+            res[i][rar_indiv_PCR_eff] = pcreff[i]
+            res[i][rar_N0_indiv_eff] = nnulls[i]
+            res[i][rar_R2] = correl[i] * correl[i]
+            res[i][rar_mean_PCR_eff] = 0  # calculThreshold
+            res[i][rar_N0_mean_eff] = 0  # calculThreshold
+
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
     #        res[i][rar_no_plateau] = vecExcludedNoPlateau[i]
