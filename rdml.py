@@ -7659,7 +7659,9 @@ class Run:
 
         vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
 
-        pcreff = np.zeros(spFl[0], dtype=np.float64)
+        vecEffOutlier = np.zeros(spFl[0], dtype=np.bool)
+
+        pcreff = np.ones(spFl[0], dtype=np.float64)
 
         if baselineCorr:
             ####################
@@ -7973,7 +7975,7 @@ class Run:
                     fstop[z] = -1
                     fstart[z] = -1
 
-                    pcreff[z] = np.nan
+                    pcreff[z] = 1.0
 
                     stupVal1[z] = -1.7234
                     stupVal2[z] = -1.7234
@@ -8018,10 +8020,12 @@ class Run:
         checkstart = FDMcycles.copy()  # Fixme: only for correct length
         checkstart2 = FDMcycles.copy()  # Fixme: only for correct length
         ctvals = np.zeros(spFl[0], dtype=np.float64)
-        pcreff = np.zeros(spFl[0], dtype=np.float64)
-        nnulls = np.zeros(spFl[0], dtype=np.float64)
+        pcreff = np.ones(spFl[0], dtype=np.float64)
+        nnulls = np.ones(spFl[0], dtype=np.float64)
         ninclu = np.zeros(spFl[0], dtype=np.int)
         correl = np.zeros(spFl[0], dtype=np.float64)
+        mean_eff = np.zeros(spFl[0], dtype=np.float64)
+        nnull_mean = np.zeros(spFl[0], dtype=np.float64)
 
         for z in range(0, spFl[0]):
             if vecShortloglin[z] and not vecNoAmplification[z]:
@@ -8119,9 +8123,53 @@ class Run:
             ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart2, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             # AssignNoPlateau(k)
 
-        # Assign no plateau
+            # Assign no plateau
 
 
+        # Median values calculation
+        exclusamp = vecNoAmplification.copy()
+        exclusamp[vecBaselineError] = True
+
+        # User choices
+        exclusamp[vecSkipSample] = True
+        exclusamp[vecNoPlateau] = True
+
+        inclu_crit = 0.05
+
+        # Fixme: TooLowCqEff
+
+        for t in range(1, targetsCount):
+            pcreffTarget = pcreff.copy()
+            pcreffTarget[exclusamp] = np.nan
+            pcreffTarget[~(vecTarget == t)] = np.nan
+            # Fixme: catch empy slice
+            pcreffMedian = np.nanmedian(pcreffTarget)
+            for z in range(0, spFl[0]):
+                if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
+                    vecEffOutlier[z] = True
+            pcreffTarget[vecEffOutlier] = np.nan
+            pcreffMedian = np.nanmedian(pcreffTarget)
+            for z in range(0, spFl[0]):
+                if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
+                    vecEffOutlier[z] = True
+
+            # User choices
+            pcreffTarget[vecEffOutlier] = np.nan
+
+            exclusamp[vecEffOutlier] = True
+
+            exclusamp[pcreff < 1.001] = True
+
+            pcreffTarget[exclusamp] = np.nan
+
+            # Fixme: catch empy slice
+            mean_eff_val = np.nanmean(pcreffTarget)
+
+            mean_eff[~exclusamp] = mean_eff_val
+
+            for z in range(0, spFl[0]):
+                if not np.isnan(pcreff[z]) and mean_eff[z] > 0.0 and 0.0 < ctvals[z] < 2 * spFl[1]:
+                    nnull_mean[z] = np.power(10, grpftval) / np.power(mean_eff[z], ctvals[z])
 
 
         print("----------------------------")
@@ -8153,8 +8201,8 @@ class Run:
             res[i][rar_indiv_PCR_eff] = pcreff[i]
             res[i][rar_N0_indiv_eff] = nnulls[i]
             res[i][rar_R2] = correl[i] * correl[i]
-            res[i][rar_mean_PCR_eff] = 0  # calculThreshold
-            res[i][rar_N0_mean_eff] = 0  # calculThreshold
+            res[i][rar_mean_PCR_eff] = mean_eff[i]
+            res[i][rar_N0_mean_eff] = nnull_mean[i]
 
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
