@@ -909,7 +909,6 @@ def _do_cascade(fluor, samp, uplim, lowlim, ftval):
             for i in range(stop - 1, start - 1, -1):
                 if fluor[samp, i] > lowlim > fluor[samp, i - 1]:
                     pstart = i + 1
-   # print('find ' + str(samp) + ' pstart[samp]: ' + str(fluor[samp,pstart-1]) + ' pstop[samp]: ' + str(fluor[samp,pstop-1]))
 
     sumx = 0.0
     sumy = 0.0
@@ -1032,29 +1031,25 @@ def _GetMaxFluStart(fluor, tarGroup, vecTarget, fstop, fstart, skipsample, nopla
         for j in range(0, fluor.shape[0]):
             if not skipsample[j]:
                 if fluor[j, fstart[j] - 1] > maxstart:
-                    maxstart = fluor[j, fstart[j]]
+                    maxstart = fluor[j, fstart[j] - 1]
     else:
         for j in range(0, fluor.shape[0]):
             if tarGroup == vecTarget[j] and not skipsample[j]:
                 if fluor[j, fstart[j] - 1] > maxstart:
-                    maxstart = fluor[j, fstart[j]]
+                    maxstart = fluor[j, fstart[j] - 1]
 
     return 0.999 * maxstart
 
 
-def _ApplyLogWindow(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin):
+def _ApplyLogWindow(tarGroup, uplimIn, foldwidth, upwin, lowwin, yaxismax, yaxismin):
     # Fixme: No rounding needed
-    uplim = np.round(1000 * uplim) / 1000
-    lowlim = np.round(1000 * (uplim - foldwidth)) / 1000
+    uplim = np.round(1000 * uplimIn) / 1000
+    lowlim = np.round(1000 * (uplimIn - foldwidth)) / 1000
 
     uplim = np.minimum(uplim, yaxismax)
     uplim = np.maximum(uplim, yaxismin)
     lowlim = np.minimum(lowlim, yaxismax)
     lowlim = np.maximum(lowlim, yaxismin)
-
-    # Fixme: No fix needed
-  #  if lowlim < 0.0:
-   #     lowlim += 0.001
 
     if tarGroup is None:
         upwin[0] = uplim
@@ -1082,7 +1077,7 @@ def _GetLogStepStop(fluor, tarGroup, vecTarget, fstop, skipsample, noplateau):
 
 def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
     for i in range(0, fluor.shape[0]):
-        if tarGroup == vecTarget[i]:
+        if tarGroup is not None and tarGroup == vecTarget[i]:
             if fstop[i] == fluor.shape[1]:
                 vecNoPlateau[i] = True
             else:
@@ -1154,6 +1149,7 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ni
                 lastuplim = uplim
             else:
                 thisvareff = 0.0
+
             if k >= 60 or uplim - foldwidth / (PointsInWoL / 2.0) < minlim or thisvareff < 0.00000000001:
                 break
 
@@ -7995,17 +7991,6 @@ class Run:
             with open("linPas/_np_commandline.txt", "w") as f:
                 f.write(outStrStuff)
 
-            _numpyTwoAxisSave(stupVal1, "linPas/numpy_fstop_3.tsv")
-            _numpyTwoAxisSave(stupVal2, "linPas/numpy_fstart_3.tsv")
-            _numpyTwoAxisSave(nfluor, "linPas/numpy_fluor_data_3.tsv")
-            _numpyTwoAxisSave(pcreff, "linPas/numpy_pcreff_3.tsv")
-            _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification_3.tsv")
-            _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau_3.tsv")
-            _numpyTwoAxisSave(vecBaselineError, "linPas/numpy_vecBaselineError_3.tsv")
-            _numpyTwoAxisSave(vecSkipSample, "linPas/numpy_vecSkipSample_3.tsv")
-            _numpyTwoAxisSave(vecShortloglin, "linPas/numpy_vecShortloglin_3.tsv")
-
-
         if saveBaslineCorr:
             rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
             for i in range(0, spFl[1]):
@@ -8016,7 +8001,7 @@ class Run:
                     rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
             finalData["baselineCorrectedData"] = rawArr
 
-        getmeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, None, pcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+        getmeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], pcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
         grpftval = upwin[0] - np.log10(getmeaneff)
 
         # See if cq values are stable with a modified baseline
@@ -8081,13 +8066,13 @@ class Run:
         PointsInWoL = 4
 
         if not skipgroup:
-            step = PointsInWoL * _GetLogStepStop(nfluor, None, None, fstop, vecSkipSample, vecNoPlateau)
+            step = PointsInWoL * _GetLogStepStop(nfluor, None, [], fstop, vecSkipSample, vecNoPlateau)
             upwin, lowwin = _ApplyLogWindow(None, maxlim, step, upwin, lowwin, yaxismax, yaxismin)
             # Fixme: no rounding needed
             grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
-            tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, None, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+            tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                           grpftval, vecSkipSample, vecNoPlateau)
-            thismeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, None, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            thismeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             if thismeaneff < 1.001:
                 skipgroup = True
 
@@ -8104,11 +8089,15 @@ class Run:
             lowwin[t] = lowwin[0]
 
         for t in range(1, targetsCount):
-            ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart2, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             # AssignNoPlateau(k)
 
-            # Assign no plateau
+        # If there is only one target, use different threshold
+        if targetsCount == 2:
+            grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[1])) / 1000)
+            ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, 1, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
 
+        # Assign no plateau
 
         # Median values calculation
         exclusamp = vecNoAmplification.copy()
@@ -8175,7 +8164,6 @@ class Run:
         # Fixme: update cq in RDML
 
         for i in range(0, len(res)):
-           # if not vecExcludedByUser[i]:
             res[i][rar_baseline] = bgarr[i]
             res[i][rar_lower_limit] = np.power(10, lowwin[vecTarget[i]])
             res[i][rar_threshold] = np.power(10, grpftval)
@@ -8191,31 +8179,10 @@ class Run:
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
             res[i][rar_no_plateau] = vecNoPlateau[i]
-    #        res[i][rar_noisy_sample] = vecExcludedNoisySample[i]
-    #        res[i][rar_PCR_efficiency_outside] = vecExcludedPCREfficiency[i]
 
         # Fixme: Delete
         stop_time = dt.datetime.now() - start_time
         print("Done All: " + str(stop_time) + "sec")
-
-
-        # optimalLowerLimit, optimalUpperLimit,
-
-
-
-     #   print(str(calculThreshold) + " " + str(meanEfficiency) + " " + str(CVmin) + " " + str(optimalUpperLimit))
-     #   print(str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit) + " " + str(optimalLowerLimit))
-
-   #     _numpyTwoAxisSave(indexOutliers, "res_arr_5.tsv")
-  #      _numpyTwoAxisSave(vecExcludedPCREfficiency, "res_arr_6.tsv")
-  #      _numpyTwoAxisSave(vecExcludedNoisySample, "res_arr_7.tsv")
-
-
-       # allGenes   rowRes[][rar_tar]
-      #  vecExcludedByUser = [rowRes[rar_excl] for rowRes in res]
-     #   rar_excl
-
-        # print(geneNames)
 
         if saveResultsCSV:
             retCSV = ""
