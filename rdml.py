@@ -1207,16 +1207,14 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ni
 
 def _AssignNoPlateau(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
     NewNoPlateau = False
-    tempGrpftval = np.power(10, np.round(1000 * grpftval) / 1000)
     for j in range(0, fluor.shape[0]):
-        if (tarGroup is None or tarGroup == vecTarget[j]) and not (vecNoAmplification[j] or vecBaselineError[j]):
-            ExpectedFluor = (tempGrpftval / np.power(pcreff[j], ctvals[j])) * np.power(pcreff[j], fluor.shape[1])
-            print("Assign: " + str(j +1) + ' - tempGrpftval: ' + str(tempGrpftval) + ' pcreff[j]: ' + str(pcreff[j]) + ' ctvals[j]: ' + str(ctvals[j]) + ' Expected: ' + str(ExpectedFluor) + ' Real: ' + str(fluor[j, fluor.shape[1] - 1]) + ' Diff: ' + str(ExpectedFluor / fluor[j, fluor.shape[1] - 1]))
+        if (tarGroup is None or tarGroup == vecTarget[j]) and not (vecNoAmplification[j] or
+                                                                   vecBaselineError[j] or
+                                                                   vecNoPlateau[j]):
+            ExpectedFluor = nnulls[j] * np.power(pcreff[j], fluor.shape[1])
             if ExpectedFluor / fluor[j, fluor.shape[1] - 1] < 5:
-                if not vecNoPlateau[j]:
-                    NewNoPlateau = True
+                NewNoPlateau = True
                 vecNoPlateau[j] = True
-                print("Assign: No Plateau ")
 
     if NewNoPlateau:
         ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(fluor, tarGroup, vecTarget,
@@ -7817,12 +7815,12 @@ class Run:
                     fstart[i] = 1
                     fstart2[i] = 1
 
-                if fstop[i] == minFluMat.shape[1]:
-                    vecNoPlateau[i] = True
-
                 if minFluMat[i, fstop[i] - 1] <= minFluMat[i, fstop[i] - 2] <= minFluMat[i, fstop[i] - 3]:
                     vecNoAmplification[i] = True
                     vecSkipSample[i] = True
+
+                if vecNoAmplification[j] or vecBaselineError[j] or fstop[i] == minFluMat.shape[1]:
+                    vecNoPlateau[i] = True
 
             # Set an initial window
             meanmax = _GetMeanMax(minFluMat, None, vecSkipSample, vecNoPlateau)
@@ -8108,12 +8106,7 @@ class Run:
             lowwin[t] = lowwin[0]
 
         for i in range(0, spFl[0]):
-            newstop = _findLRstop(nfluor, i)
-            if (newstop == fstop[i]):
-                print("Fstop " + str(i) + ": " + str(fstop[i]))
-            else:
-                print("Fstop " + str(i) + ": " + str(fstop[i]) + " new: " + str(newstop))
-            if fstop[i] == spFl[1]:
+            if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == spFl[1]:
                 vecNoPlateau[i] = True
             else:
                 vecNoPlateau[i] = False
