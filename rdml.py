@@ -955,7 +955,7 @@ def _do_cascade(fluor, samp, uplim, lowlim, ftval):
     return ctvals, pcreff, nnulls, ninclu, correl
 
 
-def _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, ftval, skipsample, noplateau):
+def _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, ftval, vecNoAmplification, vecBaselineError, skipsample, noplateau):
     """A function which calculates the mean of the max fluor in the last ten cycles.
 
     Args:
@@ -979,7 +979,7 @@ def _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, 
 
     for z in range(0, fluor.shape[0]):
         if tarGroup is None or tarGroup == vecTarget[z]:
-            if not skipsample[z]:
+            if not (vecNoAmplification[z] or vecBaselineError[z]):
                 ctvals[z], pcreff[z], nnulls[z], ninclu[z], correl[z] = _do_cascade(fluor, z, uplim, lowlim, ftval)
             else:
                 ctvals[z] = 0.0
@@ -1018,7 +1018,6 @@ def _GetMeanFluStop(fluor, tarGroup, vecTarget, fstop, skipsample, noplateau):
                         if fluor[j, i] > maxfluor:
                             maxfluor = fluor[j, i]
 
-    print('_GetMeanFluStop: ' + str(cnt))
     if cnt > 0:
         meanmax = meanmax / cnt
     else:
@@ -1076,7 +1075,7 @@ def _GetLogStepStop(fluor, tarGroup, vecTarget, fstop, skipsample, noplateau):
     return step
 
 
-def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
+def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
     skipgroup = False
     stepsize = 0.2  # was 0.5, smaller steps help in finding WoL
     vareffar = np.zeros(60, dtype=np.float64)
@@ -1097,12 +1096,10 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ni
     thismeaneff = 1.0
     if not skipgroup:
         foldwidth = PointsInWoL * _GetLogStepStop(fluor, tarGroup, vecTarget, fstop, vecSkipSample, vecNoPlateau)
-        print('In Wol: maxlim: ' + str(maxlim) + " - foldwidth: " + str(foldwidth))
         upwin, lowwin = _ApplyLogWindow(tarGroup, maxlim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
-        print('In Wol: ' + str(upwin[tarGroup]) + " - " + str(lowwin[tarGroup]))
 
         tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                      grpftval, vecSkipSample, vecNoPlateau)
+                                                                      threshold[0], vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
         thismeaneff, thisvareff, vecIsUsedInWoL = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin,
                                                               vecIsUsedInWoL)
         if thismeaneff < 1.001:
@@ -1120,10 +1117,8 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ni
             uplim = maxlim - k * stepsize * step
             if uplim < lastuplim:
                 upwin, lowwin = _ApplyLogWindow(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
-                print('Loop: ' + str(k) + ' ' + str(upwin[tarGroup]) + " - " + str(lowwin[tarGroup]))
-
                 tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                              grpftval, vecSkipSample, vecNoPlateau)
+                                                                              threshold[0], vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
                 thismeaneff, thisvareff, vecIsUsedInWoL = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
                                                                       vecNoPlateau, vecShortloglin,
                                                                       vecIsUsedInWoL)
@@ -1131,10 +1126,9 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ni
                 if foldwidth < 0.5:
                     foldwidth = 0.5  # to avoid width = 0 above fstop
                 upwin, lowwin = _ApplyLogWindow(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
-                print('Loop if: ' + str(upwin[tarGroup]) + " - " + str(lowwin[tarGroup]))
 
                 tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                              grpftval, vecSkipSample, vecNoPlateau)
+                                                                              threshold[0], vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
                 thismeaneff, thisvareff, vecIsUsedInWoL = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
                                                                       vecNoPlateau, vecShortloglin,
                                                                       vecIsUsedInWoL)
@@ -1198,14 +1192,17 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ni
 
         # Calculate the final values again
         upwin, lowwin = _ApplyLogWindow(tarGroup, uplimar[minstep], foldwidthar[minstep], upwin, lowwin, yaxismax, yaxismin)
-        print('Calc: ' + str(upwin[tarGroup]) + " - " + str(lowwin[tarGroup]))
+        if tarGroup is None:
+            threshold[0] = (0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
+        else:
+            threshold[tarGroup] = (0.5 * np.round(1000 * np.power(10, upwin[tarGroup])) / 1000)
 
         ctvals, pcreff, nnulls, ninclu, correl = _do_all_cascade(fluor, tarGroup, vecTarget, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                 grpftval, vecSkipSample, vecNoPlateau)
-    return ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL
+                                                                 threshold[0], vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
+    return ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL
 
 
-def _AssignNoPlateau(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
+def _AssignNoPlateau(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
     NewNoPlateau = False
     for j in range(0, fluor.shape[0]):
         if (tarGroup is None or tarGroup == vecTarget[j]) and not (vecNoAmplification[j] or
@@ -1217,15 +1214,17 @@ def _AssignNoPlateau(fluor, tarGroup, vecTarget, PointsInWoL, ctvals, pcreff, nn
                 vecNoPlateau[j] = True
 
     if NewNoPlateau:
-        ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(fluor, tarGroup, vecTarget,
-                                                                                         PointsInWoL, ctvals, pcreff,
-                                                                                         nnulls, ninclu, correl, upwin,
-                                                                                         lowwin, yaxismax, yaxismin,
-                                                                                         fstop, fstart, grpftval,
-                                                                                         vecSkipSample, vecNoPlateau,
-                                                                                         vecShortloglin, vecIsUsedInWoL)
+        ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(fluor, tarGroup, vecTarget,
+                                                                                                    PointsInWoL, ctvals, pcreff,
+                                                                                                    nnulls, ninclu, correl, upwin,
+                                                                                                    lowwin, yaxismax, yaxismin,
+                                                                                                    fstop, fstart, threshold,
+                                                                                                    vecNoAmplification,
+                                                                                                    vecBaselineError,
+                                                                                                    vecSkipSample, vecNoPlateau,
+                                                                                                    vecShortloglin, vecIsUsedInWoL)
 
-    return ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL, vecNoPlateau
+    return ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau
 
 
 def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperLimit):
@@ -7546,40 +7545,44 @@ class Run:
                    "excluded",   # 3
                    "baseline",   # 4
                    "lower limit",   # 5
-                   "threshold",   # 6
-                   "upper limit",   # 7
-                   "n included",   # 8
-                   "Cq",   # 9
-                   "indiv PCR eff",   # 10
-                   "N0 (indiv eff)",   # 11
-                   "R2",   # 12
-                   "mean PCR eff",   # 13
-                   "N0 (mean eff)",   # 14
-                   "no amplification",   # 15
-                   "baseline error",   # 16
-                   "no plateau",   # 17
-                   "noisy sample",   # 18
-                   "PCR efficiency outside 5%"]]   # 19
+                   "upper limit",   # 6
+                   "n included",   # 7
+                   "indiv PCR eff",   # 8
+                   "N0 (indiv eff)",   # 9
+                   "R2",   # 10
+                   "group threshold",  # 11
+                   "group Cq",  # 12
+                   "common threshold",  # 13
+                   "common Cq",  # 14
+                   "mean PCR eff",   # 15
+                   "N0 (mean eff)",   # 16
+                   "no amplification",   # 17
+                   "baseline error",   # 18
+                   "no plateau",   # 19
+                   "noisy sample",   # 20
+                   "PCR efficiency outside 5%"]]   # 21
         rar_id = 0
         rar_sample = 1
         rar_tar = 2
         rar_excl = 3
         rar_baseline = 4
         rar_lower_limit = 5
-        rar_threshold = 6
-        rar_upper_limit = 7
-        rar_n_included = 8
-        rar_Cq = 9
-        rar_indiv_PCR_eff = 10
-        rar_N0_indiv_eff = 11
-        rar_R2 = 12
-        rar_mean_PCR_eff = 13
-        rar_N0_mean_eff = 14
-        rar_no_amplification = 15
-        rar_baseline_error = 16
-        rar_no_plateau = 17
-        rar_noisy_sample = 18
-        rar_PCR_efficiency_outside = 19
+        rar_upper_limit = 6
+        rar_n_included = 7
+        rar_indiv_PCR_eff = 8
+        rar_N0_indiv_eff = 9
+        rar_R2 = 10
+        rar_threshold_group = 11
+        rar_Cq_grp = 12
+        rar_threshold_common = 13
+        rar_Cq_common = 14
+        rar_mean_PCR_eff = 15
+        rar_N0_mean_eff = 16
+        rar_no_amplification = 17
+        rar_baseline_error = 18
+        rar_no_plateau = 19
+        rar_noisy_sample = 20
+        rar_PCR_efficiency_outside = 21
 
         res = []
         finalData = {}
@@ -7662,6 +7665,7 @@ class Run:
             vecTarget[i] = tarWinLookup[res[i][2]]
         upwin = np.zeros(targetsCount, dtype=np.float64)
         lowwin = np.zeros(targetsCount, dtype=np.float64)
+        threshold = np.zeros(targetsCount, dtype=np.float64)
 
         ########################
         # Baseline correction  #
@@ -8023,7 +8027,8 @@ class Run:
 
         # See if cq values are stable with a modified baseline
         checkfluor = np.zeros(spFl, dtype=np.float64)
-        ctvals = np.zeros(spFl[0], dtype=np.float64)
+        CqGrp = np.zeros(spFl[0], dtype=np.float64)
+        CqMean = np.zeros(spFl[0], dtype=np.float64)
         nnulls = np.ones(spFl[0], dtype=np.float64)
         ninclu = np.zeros(spFl[0], dtype=np.int)
         correl = np.zeros(spFl[0], dtype=np.float64)
@@ -8087,8 +8092,8 @@ class Run:
             upwin, lowwin = _ApplyLogWindow(None, maxlim, step, upwin, lowwin, yaxismax, yaxismin)
             # Fixme: no rounding needed
             grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
-            tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                          grpftval, vecSkipSample, vecNoPlateau)
+            tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+                                                                          grpftval, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
             thismeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             if thismeaneff < 1.001:
                 skipgroup = True
@@ -8110,20 +8115,32 @@ class Run:
                 vecNoPlateau[i] = True
             else:
                 vecNoPlateau[i] = False
-
+        sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL = _Set_WoL(nfluor, None, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+        sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL, svecNoPlateau = _AssignNoPlateau(nfluor, None, vecTarget, PointsInWoL, sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, svecIsUsedInWoL)
+        for i in range(0, spFl[0]):
+            if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == spFl[1]:
+                vecNoPlateau[i] = True
+            else:
+                vecNoPlateau[i] = False
         for t in range(1, targetsCount):
-            ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-            ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax,yaxismin, fstop, fstart, grpftval, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            for j in range(0, spFl[0]):
+                if t is None or t == vecTarget[j]:
+                    if pcreff[j] > 1.0001 and not (vecNoAmplification[j] or vecBaselineError[j]):
+                        CqGrp[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
+                        CqMean[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
+                    else:
+                        CqGrp[j] = 0.0
+                        CqMean[j] = 0.0
 
         _numpyTwoAxisSave(vecNoAmplification, "linPas/np_vecNoAmplification.tsv")
         _numpyTwoAxisSave(vecBaselineError, "linPas/np_vecBaselineError.tsv")
         _numpyTwoAxisSave(vecNoPlateau, "linPas/np_vecNoPlateau.tsv")
         _numpyTwoAxisSave(vecSkipSample, "linPas/np_vecSkipSample.tsv")
 
-        # If there is only one target, use different threshold
-        if targetsCount == 2:
-            grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[1])) / 1000)
-            ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecIsUsedInWoL = _Set_WoL(nfluor, 1, vecTarget, PointsInWoL, ctvals, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, grpftval, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+        for t in range(0, targetsCount):
+            print("Treshold " + str(t) + ": " + str(threshold[t]))
 
         # Assign no plateau
 
@@ -8132,8 +8149,8 @@ class Run:
         exclusamp[vecBaselineError] = True
 
         # User choices
-        exclusamp[vecSkipSample] = True
-        exclusamp[vecNoPlateau] = True
+    #    exclusamp[vecSkipSample] = True
+    #    exclusamp[vecNoPlateau] = True
 
         inclu_crit = 0.05
 
@@ -8170,8 +8187,8 @@ class Run:
             mean_eff[exclusamp] = -999.0
 
             for z in range(0, spFl[0]):
-                if not np.isnan(pcreff[z]) and mean_eff[z] > 0.0 and 0.0 < ctvals[z] < 2 * spFl[1]:
-                    nnull_mean[z] = np.power(10, grpftval) / np.power(mean_eff[z], ctvals[z])
+                if not np.isnan(pcreff[z]) and mean_eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
+                    nnull_mean[z] = np.power(10, grpftval) / np.power(mean_eff[z], CqGrp[z])
 
 
         print("----------------------------")
@@ -8195,13 +8212,18 @@ class Run:
         for i in range(0, len(res)):
             res[i][rar_baseline] = bgarr[i]
             res[i][rar_lower_limit] = np.power(10, lowwin[vecTarget[i]])
-            res[i][rar_threshold] = np.power(10, grpftval)
             res[i][rar_upper_limit] = np.power(10, upwin[vecTarget[i]])
             res[i][rar_n_included] = ninclu[i]
-            res[i][rar_Cq] = ctvals[i]
             res[i][rar_indiv_PCR_eff] = pcreff[i]
             res[i][rar_N0_indiv_eff] = nnulls[i]
             res[i][rar_R2] = correl[i] * correl[i]
+
+            res[i][rar_threshold_group] = threshold[vecTarget[i]]
+            res[i][rar_Cq_grp] = CqGrp[i]
+            res[i][rar_threshold_common] = threshold[0]
+            res[i][rar_Cq_common] = CqMean[i]
+
+
             res[i][rar_mean_PCR_eff] = mean_eff[i]
             res[i][rar_N0_mean_eff] = nnull_mean[i]
 
