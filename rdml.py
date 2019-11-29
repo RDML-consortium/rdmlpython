@@ -8129,7 +8129,7 @@ class Run:
                 if t is None or t == vecTarget[j]:
                     if pcreff[j] > 1.0001 and not (vecNoAmplification[j] or vecBaselineError[j]):
                         CqGrp[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
-                        CqMean[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
+                        CqMean[j] = (np.log10(threshold[0]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
                     else:
                         CqGrp[j] = 0.0
                         CqMean[j] = 0.0
@@ -8139,29 +8139,25 @@ class Run:
         _numpyTwoAxisSave(vecNoPlateau, "linPas/np_vecNoPlateau.tsv")
         _numpyTwoAxisSave(vecSkipSample, "linPas/np_vecSkipSample.tsv")
 
-        for t in range(0, targetsCount):
-            print("Treshold " + str(t) + ": " + str(threshold[t]))
-
-        # Assign no plateau
-
         # Median values calculation
-        exclusamp = vecNoAmplification.copy()
-        exclusamp[vecBaselineError] = True
-
-        # User choices
-    #    exclusamp[vecSkipSample] = True
-    #    exclusamp[vecNoPlateau] = True
-
-        inclu_crit = 0.05
-
-        # Fixme: TooLowCqEff
-
         for t in range(1, targetsCount):
+
+            exclusamp = vecSkipSample.copy()
+
+            # User choices
+        #    exclusamp[vecNoPlateau] = True
+
+            inclu_crit = 0.05
+
+            # Fixme: TooLowCqEff
+
             pcreffTarget = pcreff.copy()
             pcreffTarget[exclusamp] = np.nan
             pcreffTarget[~(vecTarget == t)] = np.nan
             # Fixme: catch empy slice
             pcreffMedian = np.nanmedian(pcreffTarget)
+            print(str(t) + " median: " + str(pcreffMedian))
+
             for z in range(0, spFl[0]):
                 if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
                     vecEffOutlier[z] = True
