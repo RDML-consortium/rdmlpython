@@ -8022,6 +8022,10 @@ class Run:
                     rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
             finalData["baselineCorrectedData"] = rawArr
 
+        # Fixme: Delete
+        stop_time = dt.datetime.now() - start_time
+        print("Done Baseline: " + str(stop_time) + "sec")
+
         getmeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], pcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
         grpftval = upwin[0] - np.log10(getmeaneff)
 
@@ -8156,22 +8160,24 @@ class Run:
             pcreffTarget[~(vecTarget == t)] = np.nan
             # Fixme: catch empy slice
             pcreffMedian = np.nanmedian(pcreffTarget)
-            print(str(t) + " median: " + str(pcreffMedian))
-
             for z in range(0, spFl[0]):
-                if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
-                    vecEffOutlier[z] = True
-            pcreffTarget[vecEffOutlier] = np.nan
-            pcreffMedian = np.nanmedian(pcreffTarget)
+                if t == vecTarget[z]:
+                    if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
+                        vecEffOutlier[z] = True
+            excluTarget = pcreffTarget.copy()
+            excluTarget[vecEffOutlier] = np.nan
+            pcreffMedian = np.nanmedian(excluTarget)
             for z in range(0, spFl[0]):
-                if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
-                    vecEffOutlier[z] = True
+                if t is None or t == vecTarget[z]:
+                    if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
+                        vecEffOutlier[z] = True
+                    else:
+                        vecEffOutlier[z] = False
 
             # User choices
-            pcreffTarget[vecEffOutlier] = np.nan
+          #  exclusamp[vecEffOutlier] = True
 
-            exclusamp[vecEffOutlier] = True
-
+            # For all
             exclusamp[pcreff < 1.001] = True
 
             pcreffTarget[exclusamp] = np.nan
@@ -8179,13 +8185,17 @@ class Run:
             # Fixme: catch empy slice
             mean_eff_val = np.nanmean(pcreffTarget)
 
-            mean_eff[~exclusamp] = mean_eff_val
-            mean_eff[exclusamp] = -999.0
+            print(str(t) + " - " + str(mean_eff_val))
 
             for z in range(0, spFl[0]):
-                if not np.isnan(pcreff[z]) and mean_eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
-                    nnull_mean[z] = np.power(10, grpftval) / np.power(mean_eff[z], CqGrp[z])
-
+                if t == vecTarget[z]:
+                    mean_eff[z] = mean_eff_val
+                    if not np.isnan(pcreff[z]) and pcreff[z] > 0.0 and mean_eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
+                        nnull_mean[z] = threshold[vecTarget[z]] / np.power(mean_eff[z], CqGrp[z])
+                    else:
+                        nnull_mean[z] = -999.0
+                    if exclusamp[z]:
+                        nnull_mean[z] = -999.0
 
         print("----------------------------")
 
@@ -8195,10 +8205,6 @@ class Run:
 
         with open("matlab/numpy_variables.txt", "w") as f:
             f.write(outFFile)
-
-        # Fixme: Delete
-        stop_time = dt.datetime.now() - start_time
-        print("Done Baseline: " + str(stop_time) + "sec")
 
         #################################
         # CALCULATION OF A WOL PER GENE #
