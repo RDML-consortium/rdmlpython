@@ -773,6 +773,7 @@ def _ttestslopes(fluor, samp, fstop, fstart):
             loopStop[0] += 1
 
     # basic regression per group
+    # Fixme: Correct initialisation
     ssx = [0, 0]
     sxy = [0, 0]
     cslope = [0, 0]
@@ -863,7 +864,7 @@ def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin,
     return [getmeaneff, effvar, IsUsedInWoL]
 
 
-def _do_cascade(fluor, samp, uplim, lowlim, ftval):
+def _find_pstat_pstop(fluor, samp, uplim, lowlim):
     """A function which calculates the mean of the max fluor in the last ten cycles.
 
     Args:
@@ -909,6 +910,25 @@ def _do_cascade(fluor, samp, uplim, lowlim, ftval):
             for i in range(stop - 1, start - 1, -1):
                 if fluor[samp, i] > lowlim > fluor[samp, i - 1]:
                     pstart = i + 1
+    return pstart, pstop, notinwindow
+
+
+def _do_cascade(fluor, samp, uplim, lowlim, ftval):
+    """A function which calculates the mean of the max fluor in the last ten cycles.
+
+    Args:
+        ampgroup: The target group id
+        pcreff: The array with the PCR efficiencies
+        skipsample: Skip the sample
+        noplateau: Sample ha no plateau
+        shortloglin: Sample has short loglin phase
+        IsUsedInWoL: Sample is used in WoL
+
+    Returns:
+        An array with [getmeaneff, effvar, IsUsedInWoL].
+    """
+
+    pstart, pstop, notinwindow = _find_pstat_pstop(fluor, samp, uplim, lowlim)
 
     sumx = 0.0
     sumy = 0.0
@@ -7683,6 +7703,8 @@ class Run:
         # This is the vector for the baseline error quality check
         vecNoPlateau = np.zeros(spFl[0], dtype=np.bool)
 
+        vecNoisySample = np.zeros(spFl[0], dtype=np.bool)
+
         # This is the vector for the skip sample check
         vecSkipSample = np.zeros(spFl[0], dtype=np.bool)
 
@@ -7787,8 +7809,8 @@ class Run:
             minFluMat[minFluMat <= 0.00000001] = np.nan
             minFluMatCount = minFluMat.copy()
             minFluMatMean = minFluMat.copy()
-            for i in range(0, spFl[0]):
-                minFluMatMean[i, cycleMinFlu[i] - 1] = np.nan
+     #       for i in range(0, spFl[0]):
+     #           minFluMatMean[i, cycleMinFlu[i] - 1] = np.nan
             minFluMatCount[np.isnan(minFluMatCount)] = 0
             minFluMatCount[minFluMatCount > 0] = 1
             minFluMatCountSum = np.sum(minFluMatCount, axis=1)
@@ -7801,13 +7823,38 @@ class Run:
             fstop = FDMcycles.copy()  # Fixme: only for correct length
             fstop2 = FDMcycles.copy()  # Fixme: only for correct length
             fstart = FDMcycles.copy()  # Fixme: only for correct length
-            fstart2 = FDMcycles.copy()  # Fixme: only for correct length
+            fstart2 = FDMcycles.copy()  # Fixme: only for correct length = np.zeros(spFl[0], dtype=np.float64)
+
+            _numpyTwoAxisSave(minFluMat, "linPas/numpy_fluor_data_1.tsv")
 
             for i in range(0, spFl[0]):  # Fixme: use np.nanmean with isnan check
-                if slopeAmp[i] < 0 or minSlopeAmp[i] < (np.log10(7.0) / minFluMatCountSum[i]) or \
-                   ((((minFluMat[i, 8] + minFluMat[i, 9]) / 2) / ((minFluMat[i, 0] + minFluMat[i, 1]) / 2) < 1.2) and
-                    (minFluMat[i, -1] / np.nanmean(minFluMatMean[i, 0:10])) < 7):
+                if slopeAmp[i] < 0 or minSlopeAmp[i] < (np.log10(7.0) / minFluMatCountSum[i]):
                     vecNoAmplification[i] = True
+
+                # Get the positions ignoring nan values
+                posCount = 0
+                posZero = 0
+                posOne = 0
+                posEight = 0
+                posNine = 0
+                for realPos in range(0, spFl[1]):
+                    if not np.isnan(minFluMat[i, realPos]):
+                        if posCount == 0:
+                            posZero = realPos
+                        if posCount == 1:
+                            posOne = realPos
+                        if posCount == 8:
+                            posEight = realPos
+                        if posCount == 9:
+                            posNine = realPos
+                        if posCount > 9:
+                            break
+                        posCount += 1
+                posTen = posNine + 1
+
+                if ((minFluMat[i, posEight] + minFluMat[i, posNine]) / 2) / ((minFluMat[i, posZero] + minFluMat[i, posOne]) / 2) < 1.2:
+                    if minFluMat[i, -1] / np.nanmean(minFluMatMean[i, posZero:posTen]) < 7:
+                        vecNoAmplification[i] = True
 
                 if not vecNoAmplification[i]:
                     fstop[i] = _findLRstop(minFluMat, i)
@@ -7819,21 +7866,40 @@ class Run:
                     fstart[i] = 1
                     fstart2[i] = 1
 
-                if minFluMat[i, fstop[i] - 1] <= minFluMat[i, fstop[i] - 2] <= minFluMat[i, fstop[i] - 3]:
+                # Get the positions ignoring nan values
+                posCount = 0
+                posMinOne = 0
+                posMinTwo = 0
+                print(fstop[i])
+                for realPos in range(fstop[i] - 2, 0, -1):
+                    print(realPos)
+                    if not np.isnan(minFluMat[i, realPos - 1]):
+                        print("use" + str(realPos + 1))
+                        if posCount == 0:
+                            posMinOne = realPos + 1
+                        if posCount > 0:
+                            posMinTwo = realPos + 1
+                            break
+                        posCount += 1
+
+                if not (minFluMat[i, fstop[i] - 1] > minFluMat[i, posMinOne - 1] > minFluMat[i, posMinTwo - 1]):
                     vecNoAmplification[i] = True
                     vecSkipSample[i] = True
+
+                print(str(i) + " - A: " + str(minFluMat[i, fstop[i] - 1]) + " B: " + str(minFluMat[i, posMinOne - 1]) + " C: " + str(minFluMat[i, posMinTwo - 1]))
 
                 if vecNoAmplification[j] or vecBaselineError[j] or fstop[i] == minFluMat.shape[1]:
                     vecNoPlateau[i] = True
 
             # Set an initial window
+            print(str(vecNoAmplification))
+
             meanmax = _GetMeanMax(minFluMat, None, vecSkipSample, vecNoPlateau)
             upwin[0] = np.log10(0.1 * meanmax)
             lowwin[0] = np.log10(0.1 * meanmax / 16.0)
 
             _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification.tsv")
             _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau.tsv")
-            _numpyTwoAxisSave(minFluMat, "linPas/numpy_fluor_data_1.tsv")
             _numpyTwoAxisSave(fstop, "linPas/numpy_fstop_1.tsv")
             _numpyTwoAxisSave(fstart, "linPas/numpy_fstart_1.tsv")
           #  for i in range(0, spFl[0]):
@@ -7895,6 +7961,7 @@ class Run:
 
                     #  1. extend line downwards from fstop[] till slopelow < slopehigh of bgarr[] < sampmin[]
                     ntrials = 0
+                    slopehigh = 0.0
                     while True:
                         ntrials += 1
                         fstop[z] = _findLRstop(nfluor, z)
@@ -8080,6 +8147,7 @@ class Run:
         if yaxismin < yaxismax - 5:
             yaxismin = yaxismax - 5
 
+        # Fixme: Per group
         # CheckNoisiness
         skipgroup = False
         maxlim = _GetMeanFluStop(nfluor, None, None, fstop, vecSkipSample, vecNoPlateau)
@@ -8102,12 +8170,27 @@ class Run:
             if thismeaneff < 1.001:
                 skipgroup = True
 
-        SetIsNoisy = False
         if not skipgroup:
             foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
             upwin, lowwin = _ApplyLogWindow(None, maxlim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
+            # compare to Log(1.01*lowlim) to compensate for
+            # the truncation in cuplimedit with + 0.0043
+            lowlim = maxlim - foldwidth + 0.0043
+            uplim2 = np.power(10, upwin[0])  # Fixme: No logs
+            lowlim2 = np.power(10, lowwin[0])
 
-        # FixMe: Still a lot missing for noisy
+            for j in range(0, spFl[0]):
+                if not vecSkipSample[j]:
+                    pstart, pstop, notinwindow = _find_pstat_pstop(nfluor, j, uplim2, lowlim2)
+                    nextstep = np.log10(nfluor[j, pstart - 1]) - np.log10(nfluor[j, pstart - 2])
+                    stopstep = np.log10(nfluor[j, pstop - 1]) - np.log10(nfluor[j, pstop - 2])
+                    if (not np.isnan(nfluor[j, pstart - 2]) and
+                        (np.log10(nfluor[j, pstart - 2]) > lowlim and not
+                         (nfluor[j, pstart - 2] < nfluor[j, pstart - 1] and
+                          nextstep < 1.2 * stopstep))):
+                        vecNoisySample[j] = True
+                        vecSkipSample[j] = True
+                        print("Noisy Sample!!!  " + str(j))
 
         # Calculate the WoL per group
         for t in range(1, targetsCount):
@@ -8131,7 +8214,7 @@ class Run:
             CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             for j in range(0, spFl[0]):
                 if t is None or t == vecTarget[j]:
-                    if pcreff[j] > 1.0001 and not (vecNoAmplification[j] or vecBaselineError[j]):
+                    if pcreff[j] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[j] or vecBaselineError[j]):
                         CqGrp[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
                         CqMean[j] = (np.log10(threshold[0]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
                     else:
@@ -8232,6 +8315,7 @@ class Run:
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
             res[i][rar_no_plateau] = vecNoPlateau[i]
+            res[i][rar_noisy_sample] = vecNoisySample[i]
 
         # Fixme: Delete
         stop_time = dt.datetime.now() - start_time
