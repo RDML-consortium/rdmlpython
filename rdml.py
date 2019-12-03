@@ -728,6 +728,7 @@ def _findLRstart(fluor, z, fstop):
         fstart -= 1
 
     # As long as there are no NaN and new values are increasing
+    # Fixme: really >= and not > ??
     while (fstart >= firstNotNaN and
            not np.isnan(fluor[z, fstart - 2]) and
            fluor[z, fstart - 2] <= fluor[z, fstart - 1]):
@@ -764,13 +765,15 @@ def _ttestslopes(fluor, samp, fstop, fstart):
     loopStop = [fstart[samp], fstop[samp]]
 
     # Now find the center ignoring nan
-    while (loopStart[1] - loopStop[0]) > 1:
+    while True:
         loopStart[1] -= 1
         loopStop[0] += 1
         while (loopStart[1] - loopStop[0]) > 1 and np.isnan(fluor[samp, loopStart[1] - 1]):
             loopStart[1] -= 1
         while (loopStart[1] - loopStop[0]) > 1 and np.isnan(fluor[samp, loopStop[1] - 1]):
             loopStop[0] += 1
+        if (loopStart[1] - loopStop[0]) <= 1:
+            break
 
     # basic regression per group
     # Fixme: Correct initialisation
@@ -7870,11 +7873,8 @@ class Run:
                 posCount = 0
                 posMinOne = 0
                 posMinTwo = 0
-                print(fstop[i])
                 for realPos in range(fstop[i] - 2, 0, -1):
-                    print(realPos)
                     if not np.isnan(minFluMat[i, realPos - 1]):
-                        print("use" + str(realPos + 1))
                         if posCount == 0:
                             posMinOne = realPos + 1
                         if posCount > 0:
@@ -7886,14 +7886,10 @@ class Run:
                     vecNoAmplification[i] = True
                     vecSkipSample[i] = True
 
-                print(str(i) + " - A: " + str(minFluMat[i, fstop[i] - 1]) + " B: " + str(minFluMat[i, posMinOne - 1]) + " C: " + str(minFluMat[i, posMinTwo - 1]))
-
                 if vecNoAmplification[j] or vecBaselineError[j] or fstop[i] == minFluMat.shape[1]:
                     vecNoPlateau[i] = True
 
             # Set an initial window
-            print(str(vecNoAmplification))
-
             meanmax = _GetMeanMax(minFluMat, None, vecSkipSample, vecNoPlateau)
             upwin[0] = np.log10(0.1 * meanmax)
             lowwin[0] = np.log10(0.1 * meanmax / 16.0)
@@ -7962,11 +7958,12 @@ class Run:
                     #  1. extend line downwards from fstop[] till slopelow < slopehigh of bgarr[] < sampmin[]
                     ntrials = 0
                     slopehigh = 0.0
+                    slopelow = 0.0
                     while True:
                         ntrials += 1
                         fstop[z] = _findLRstop(nfluor, z)
                         [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
-                        if fstop[z] - fstart2[z] > 2:
+                        if fstop[z] - fstart2[z] > 0:
                             [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
                             defbgarr[z] = bgarr[z]
                         else:
@@ -8010,10 +8007,8 @@ class Run:
                         nfluor[nfluor <= 0.00000001] = np.nan
                         fstop[z] = _findLRstop(nfluor, z)
                         [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
-                        outStrStuff += "loop " + str(z + 1) + " " + str(fstop[z]) + "-" + str(fstart[z]) + " " + str(
-                            nfluor[z, fstop[z] - 1]) + " " + str(nfluor[z, fstart[z] - 1]) + "\n"
 
-                        if fstop[z] - fstart2[z] > 2:
+                        if fstop[z] - fstart2[z] > 0:
                             [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
                             thisslopediff = np.abs(slopelow - slopehigh)
                             if (slopelow - slopehigh) > 0.0:
@@ -8052,7 +8047,6 @@ class Run:
                     else:
                         loglinlen = 10.0
 
-                    outStrStuff += "log " + str(z + 1) + " " + str(fstop[z]) + "-" + str(fstart[z]) + " " + str(nfluor[z, fstop[z] - 1]) + " " + str(nfluor[z, fstart[z] - 1]) + "\n"
                     if nfluor[z, fstop[z] - 1] / nfluor[z, fstart2[z] - 1] < loglinlen:
                         vecShortloglin[z] = True
 
@@ -8249,6 +8243,7 @@ class Run:
                         vecEffOutlier[z] = True
             excluTarget = pcreffTarget.copy()
             excluTarget[vecEffOutlier] = np.nan
+            # Fixme: catch empy slice
             pcreffMedian = np.nanmedian(excluTarget)
             for z in range(0, spFl[0]):
                 if t is None or t == vecTarget[z]:
