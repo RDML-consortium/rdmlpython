@@ -7532,13 +7532,12 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def linRegPCR(self, perTarget=True, baselineCorr=True, commaConv=False, ignoreExclusion=False,
+    def linRegPCR(self, baselineCorr=True, commaConv=False, ignoreExclusion=False,
                   saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
-            perTarget: If true, calculate efficiency per target, if false, for all samples.
             baselineCorr: If true, do baseline correction for all samples.
             commaConv: If true, convert comma separator to dot.
             ignoreExclusion: If true, ignore the RDML exclusion strings.
@@ -7569,21 +7568,31 @@ class Run:
                    "baseline",   # 4
                    "lower limit",   # 5
                    "upper limit",   # 6
-                   "n included",   # 7
-                   "indiv PCR eff",   # 8
-                   "N0 (indiv eff)",   # 9
-                   "R2",   # 10
-                   "group threshold",  # 11
-                   "group Cq",  # 12
-                   "common threshold",  # 13
-                   "common Cq",  # 14
-                   "mean PCR eff",   # 15
-                   "N0 (mean eff)",   # 16
-                   "no amplification",   # 17
-                   "baseline error",   # 18
-                   "no plateau",   # 19
-                   "noisy sample",   # 20
-                   "PCR efficiency outside 5%"]]   # 21
+                   "n in log phase",   # 7
+                   "last log cycle",   # 8
+                   "n included",   # 9
+                   "indiv PCR eff",   # 10
+                   "N0 (indiv eff)",   # 11
+                   "R2",   # 12
+                   "group threshold",  # 13
+                   "group Cq",  # 14
+                   "common threshold",  # 15
+                   "common Cq",  # 16
+                   "mean PCR eff + no plateau + efficiency outliers",   # 17
+                   "N0 (mean eff) + no plateau + efficiency outliers",   # 18
+                   "mean PCR eff + efficiency outliers",   # 19
+                   "N0 (mean eff) + efficiency outliers",   # 20
+                   "mean PCR eff + no plateau",   # 21
+                   "N0 (mean eff) + no plateau",   # 22
+                   "mean PCR eff",   # 23
+                   "N0 (mean eff)",   # 24
+                   "no amplification",   # 25
+                   "baseline error",   # 26
+                   "no plateau",   # 27
+                   "noisy sample",   # 28
+                   "PCR efficiency outside rage",   # 29
+                   "PCR efficiency outside rage + no plateau",   # 30
+                   "used for W-o-L setting"]]   # 31
         rar_id = 0
         rar_sample = 1
         rar_tar = 2
@@ -7591,21 +7600,31 @@ class Run:
         rar_baseline = 4
         rar_lower_limit = 5
         rar_upper_limit = 6
-        rar_n_included = 7
-        rar_indiv_PCR_eff = 8
-        rar_N0_indiv_eff = 9
-        rar_R2 = 10
-        rar_threshold_group = 11
-        rar_Cq_grp = 12
-        rar_threshold_common = 13
-        rar_Cq_common = 14
-        rar_mean_PCR_eff = 15
-        rar_N0_mean_eff = 16
-        rar_no_amplification = 17
-        rar_baseline_error = 18
-        rar_no_plateau = 19
-        rar_noisy_sample = 20
-        rar_PCR_efficiency_outside = 21
+        rar_n_log = 7
+        rar_stop_log = 8
+        rar_n_included = 9
+        rar_indiv_PCR_eff = 10
+        rar_N0_indiv_eff = 11
+        rar_R2 = 12
+        rar_threshold_group = 13
+        rar_Cq_grp = 14
+        rar_threshold_common = 15
+        rar_Cq_common = 16
+        rar_meanEff_Skip = 17
+        rar_meanN0_Skip = 18
+        rar_meanEff_Skip_Plat = 19
+        rar_meanN0_Skip_Plat = 20
+        rar_meanEff_Skip_Eff = 21
+        rar_meanN0_Skip_Eff = 22
+        rar_meanEff_Skip_Plat_Eff = 23
+        rar_meanN0_Skip_Plat_Eff = 24
+        rar_no_amplification = 25
+        rar_baseline_error = 26
+        rar_no_plateau = 27
+        rar_noisy_sample = 28
+        rar_effOutlier_Skip = 29
+        rar_effOutlier_Skip_Plat = 30
+        rar_isUsedInWoL = 31
 
         res = []
         finalData = {}
@@ -7654,8 +7673,10 @@ class Run:
                     excl = _get_first_child_text(react_data, "excl")
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
-                res.append([posId, sample, target, excl, "", "", "", "", "", "",
-                            "", "", "", "", "", "", "", "", "", "", ""])
+                res.append([posId, sample, target, excl, "",  "", "", "", "", "",
+                            "", "", "", "", "",  "", "", "", "", "",
+                            "", "", "", "", "",  "", "", "", "", "",
+                            "", ""])
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -7715,7 +7736,9 @@ class Run:
 
         vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
 
-        vecEffOutlier = np.zeros(spFl[0], dtype=np.bool)
+        vecEffOutlier_Skip = np.zeros(spFl[0], dtype=np.bool)
+
+        vecEffOutlier_Skip_Plat = np.zeros(spFl[0], dtype=np.bool)
 
         pcreff = np.ones(spFl[0], dtype=np.float64)
 
@@ -8059,8 +8082,9 @@ class Run:
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
 
-           #         fstop[z] = spFl[1]
-           #         fstart[z] = 1
+                    fstop[z] = spFl[1]
+                    fstart[z] = spFl[1]
+                    fstart2[z] = spFl[1]
 
                     pcreff[z] = 1.0
                 if vecBaselineError[z]:
@@ -8097,8 +8121,14 @@ class Run:
         nnulls = np.ones(spFl[0], dtype=np.float64)
         ninclu = np.zeros(spFl[0], dtype=np.int)
         correl = np.zeros(spFl[0], dtype=np.float64)
-        mean_eff = np.zeros(spFl[0], dtype=np.float64)
-        nnull_mean = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
 
         for z in range(0, spFl[0]):
             if vecShortloglin[z] and not vecNoAmplification[z]:
@@ -8184,7 +8214,6 @@ class Run:
                           nextstep < 1.2 * stopstep))):
                         vecNoisySample[j] = True
                         vecSkipSample[j] = True
-                        print("Noisy Sample!!!  " + str(j))
 
         # Calculate the WoL per group
         for t in range(1, targetsCount):
@@ -8221,59 +8250,106 @@ class Run:
         _numpyTwoAxisSave(vecSkipSample, "linPas/np_vecSkipSample.tsv")
 
         # Median values calculation
+        vecSkipSample_Plat = vecSkipSample.copy()
+        vecSkipSample_Plat[vecNoPlateau] = True
+
         for t in range(1, targetsCount):
-
-            exclusamp = vecSkipSample.copy()
-
-            # User choices
-        #    exclusamp[vecNoPlateau] = True
-
+            # Calculating all choices takes less time then to recalculate
             inclu_crit = 0.05
 
             # Fixme: TooLowCqEff
 
-            pcreffTarget = pcreff.copy()
-            pcreffTarget[exclusamp] = np.nan
-            pcreffTarget[~(vecTarget == t)] = np.nan
+            pcreff_Skip = pcreff.copy()
+            pcreff_Skip[vecSkipSample] = np.nan
+            pcreff_Skip[~(vecTarget == t)] = np.nan
+
+            pcreff_Skip_Plat = pcreff_Skip.copy()
+            pcreff_Skip_Plat[vecSkipSample_Plat] = np.nan
+
             # Fixme: catch empy slice
-            pcreffMedian = np.nanmedian(pcreffTarget)
+            pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
+            pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat)
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
-                    if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
-                        vecEffOutlier[z] = True
-            excluTarget = pcreffTarget.copy()
-            excluTarget[vecEffOutlier] = np.nan
+                    if not np.isnan(pcreff[z]):
+                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip + inclu_crit):
+                            vecEffOutlier_Skip[z] = True
+                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
+                            vecEffOutlier_Skip_Plat[z] = True
+
+            pcreff_Skip_Eff = pcreff_Skip.copy()
+            pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
+            pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
+            pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
+
             # Fixme: catch empy slice
-            pcreffMedian = np.nanmedian(excluTarget)
+            pcreffMedian_Skip = np.nanmedian(pcreff_Skip_Eff)
+            pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat_Eff)
             for z in range(0, spFl[0]):
                 if t is None or t == vecTarget[z]:
-                    if not np.isnan(pcreff[z]) and not (pcreffMedian - inclu_crit <= pcreff[z] <= pcreffMedian + inclu_crit):
-                        vecEffOutlier[z] = True
+                    if not np.isnan(pcreff[z]):
+                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip + inclu_crit):
+                            vecEffOutlier_Skip[z] = True
+                        else:
+                            vecEffOutlier_Skip[z] = False
+                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
+                            vecEffOutlier_Skip_Plat[z] = True
+                        else:
+                            vecEffOutlier_Skip_Plat[z] = False
                     else:
-                        vecEffOutlier[z] = False
+                        vecEffOutlier_Skip[z] = False
+                        vecEffOutlier_Skip_Plat[z] = False
 
-            # User choices
-          #  exclusamp[vecEffOutlier] = True
+            pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
+            pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
 
-            # For all
-            exclusamp[pcreff < 1.001] = True
-
-            pcreffTarget[exclusamp] = np.nan
+            pcreff_Skip[pcreff < 1.001] = np.nan
+            pcreff_Skip_Plat[pcreff < 1.001] = np.nan
+            pcreff_Skip_Eff[pcreff < 1.001] = np.nan
+            pcreff_Skip_Plat_Eff[pcreff < 1.001] = np.nan
 
             # Fixme: catch empy slice
-            mean_eff_val = np.nanmean(pcreffTarget)
+            tempMeanEff_Skip = np.nanmean(pcreff_Skip)
+            tempMeanEff_Skip_Plat = np.nanmean(pcreff_Skip_Plat)
+            tempMeanEff_Skip_Eff = np.nanmean(pcreff_Skip_Eff)
+            tempMeanEff_Skip_Plat_Eff = np.nanmean(pcreff_Skip_Plat_Eff)
 
-            print(str(t) + " - " + str(mean_eff_val))
+            print(str(t) + " - " + str(tempMeanEff_Skip))
 
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
-                    mean_eff[z] = mean_eff_val
-                    if not np.isnan(pcreff[z]) and pcreff[z] > 0.0 and mean_eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
-                        nnull_mean[z] = threshold[vecTarget[z]] / np.power(mean_eff[z], CqGrp[z])
+                    meanEff_Skip[z] = tempMeanEff_Skip
+                    meanEff_Skip_Plat[z] = tempMeanEff_Skip_Plat
+                    meanEff_Skip_Eff[z] = tempMeanEff_Skip_Eff
+                    meanEff_Skip_Plat_Eff[z] = tempMeanEff_Skip_Plat_Eff
+                    if not np.isnan(pcreff[z]) and pcreff[z] > 0.0:
+                        if meanEff_Skip[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
+                            meanNnull_Skip[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip[z], CqGrp[z])
+                        else:
+                            meanNnull_Skip[z] = -999.0
+                        if meanEff_Skip_Plat[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
+                            meanNnull_Skip_Plat[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Plat[z], CqGrp[z])
+                        else:
+                            meanNnull_Skip_Plat[z] = -999.0
+                        if meanEff_Skip_Eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
+                            meanNnull_Skip_Eff[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Eff[z], CqGrp[z])
+                        else:
+                            meanNnull_Skip_Eff[z] = -999.0
+                        if meanEff_Skip_Plat_Eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
+                            meanNnull_Skip_Plat_Eff[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Plat_Eff[z], CqGrp[z])
+                        else:
+                            meanNnull_Skip_Plat_Eff[z] = -999.0
                     else:
-                        nnull_mean[z] = -999.0
-                    if exclusamp[z]:
-                        nnull_mean[z] = -999.0
+                        meanNnull_Skip[z] = -999.0
+                        meanNnull_Skip_Plat[z] = -999.0
+                        meanNnull_Skip_Eff[z] = -999.0
+                        meanNnull_Skip_Plat_Eff[z] = -999.0
+
+                    if vecNoPlateau[z] and vecEffOutlier_Skip[z]:
+                        meanNnull_Skip[z] = -999.0
+                        meanNnull_Skip_Plat[z] = -999.0
+                        meanNnull_Skip_Eff[z] = -999.0
+                        meanNnull_Skip_Plat_Eff[z] = -999.0
 
         print("----------------------------")
 
@@ -8293,6 +8369,8 @@ class Run:
             res[i][rar_baseline] = bgarr[i]
             res[i][rar_lower_limit] = np.power(10, lowwin[vecTarget[i]])
             res[i][rar_upper_limit] = np.power(10, upwin[vecTarget[i]])
+            res[i][rar_n_log] = fstop[i] - fstart2[i] + 1
+            res[i][rar_stop_log] = fstop[i]
             res[i][rar_n_included] = ninclu[i]
             res[i][rar_indiv_PCR_eff] = pcreff[i]
             res[i][rar_N0_indiv_eff] = nnulls[i]
@@ -8303,14 +8381,22 @@ class Run:
             res[i][rar_threshold_common] = threshold[0]
             res[i][rar_Cq_common] = CqMean[i]
 
-
-            res[i][rar_mean_PCR_eff] = mean_eff[i]
-            res[i][rar_N0_mean_eff] = nnull_mean[i]
+            res[i][rar_meanEff_Skip] = meanEff_Skip[i]
+            res[i][rar_meanN0_Skip] = meanNnull_Skip[i]
+            res[i][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[i]
+            res[i][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[i]
+            res[i][rar_meanEff_Skip_Eff] = meanEff_Skip_Eff[i]
+            res[i][rar_meanN0_Skip_Eff] = meanNnull_Skip_Eff[i]
+            res[i][rar_meanEff_Skip_Plat_Eff] = meanEff_Skip_Plat_Eff[i]
+            res[i][rar_meanN0_Skip_Plat_Eff] = meanNnull_Skip_Plat_Eff[i]
 
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
             res[i][rar_no_plateau] = vecNoPlateau[i]
             res[i][rar_noisy_sample] = vecNoisySample[i]
+            res[i][rar_effOutlier_Skip] = vecEffOutlier_Skip[i]
+            res[i][rar_effOutlier_Skip_Plat] = vecEffOutlier_Skip_Plat[i]
+            res[i][rar_isUsedInWoL] = vecIsUsedInWoL[i]
 
         # Fixme: Delete
         stop_time = dt.datetime.now() - start_time
@@ -8324,7 +8410,8 @@ class Run:
 
             for i in range(0, len(res)):
                 for j in range(0, len(res[i])):
-                    if j in [rar_no_amplification, rar_baseline_error, rar_no_plateau, rar_noisy_sample, rar_PCR_efficiency_outside]:
+                    if j in [rar_no_amplification, rar_baseline_error, rar_no_plateau, rar_noisy_sample,
+                             rar_effOutlier_Skip, rar_effOutlier_Skip_Plat, rar_isUsedInWoL]:
                         if res[i][j]:
                             retCSV += str(res[i][j]) + "\t"
                         else:
@@ -8360,7 +8447,7 @@ if __name__ == "__main__":
         rt = Rdml(args.doooo)
         xxexp = rt.experiments()
         xxrun = xxexp[0].runs()
-        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, saveResultsCSV=True, perTarget=False, verbose=False)
+        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, saveResultsCSV=True, verbose=False)
         if "rawData" in xxres:
             with open("test/temp_out_raw_data.tsv", "w") as f:
                 xxxResStr = ""
