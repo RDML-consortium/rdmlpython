@@ -8082,9 +8082,10 @@ class Run:
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
 
+                    # This values are used for the table
                     fstop[z] = spFl[1]
-                    fstart[z] = spFl[1]
-                    fstart2[z] = spFl[1]
+                    fstart[z] = spFl[1] + 1
+                    fstart2[z] = spFl[1] + 1
 
                     pcreff[z] = 1.0
                 if vecBaselineError[z]:
@@ -8274,12 +8275,12 @@ class Run:
                     if not np.isnan(pcreff[z]):
                         if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip + inclu_crit):
                             vecEffOutlier_Skip[z] = True
-                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
+                        if not (pcreffMedian_Skip_Plat - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
                             vecEffOutlier_Skip_Plat[z] = True
 
             pcreff_Skip_Eff = pcreff_Skip.copy()
-            pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
             pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
+            pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
 
             # Fixme: catch empy slice
@@ -8292,7 +8293,7 @@ class Run:
                             vecEffOutlier_Skip[z] = True
                         else:
                             vecEffOutlier_Skip[z] = False
-                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
+                        if not (pcreffMedian_Skip_Plat - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
                             vecEffOutlier_Skip_Plat[z] = True
                         else:
                             vecEffOutlier_Skip_Plat[z] = False
@@ -8300,7 +8301,9 @@ class Run:
                         vecEffOutlier_Skip[z] = False
                         vecEffOutlier_Skip_Plat[z] = False
 
+            pcreff_Skip_Eff = pcreff_Skip.copy()
             pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
+            pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
 
             pcreff_Skip[pcreff < 1.001] = np.nan
@@ -8345,11 +8348,12 @@ class Run:
                         meanNnull_Skip_Eff[z] = -999.0
                         meanNnull_Skip_Plat_Eff[z] = -999.0
 
-                    if vecNoPlateau[z] and vecEffOutlier_Skip[z]:
-                        meanNnull_Skip[z] = -999.0
+                    if vecNoPlateau[z]:
                         meanNnull_Skip_Plat[z] = -999.0
-                        meanNnull_Skip_Eff[z] = -999.0
-                        meanNnull_Skip_Plat_Eff[z] = -999.0
+                        if vecEffOutlier_Skip[z]:
+                            meanNnull_Skip_Eff[z] = -999.0
+                        if vecEffOutlier_Skip_Plat[z]:
+                            meanNnull_Skip_Plat_Eff[z] = -999.0
 
         print("----------------------------")
 
