@@ -7579,20 +7579,24 @@ class Run:
                    "common threshold",  # 15
                    "common Cq",  # 16
                    "mean PCR eff + no plateau + efficiency outliers",   # 17
-                   "N0 (mean eff) + no plateau + efficiency outliers",   # 18
-                   "mean PCR eff + efficiency outliers",   # 19
-                   "N0 (mean eff) + efficiency outliers",   # 20
-                   "mean PCR eff + no plateau",   # 21
-                   "N0 (mean eff) + no plateau",   # 22
-                   "mean PCR eff",   # 23
-                   "N0 (mean eff)",   # 24
-                   "no amplification",   # 25
-                   "baseline error",   # 26
-                   "no plateau",   # 27
-                   "noisy sample",   # 28
-                   "PCR efficiency outside rage",   # 29
-                   "PCR efficiency outside rage + no plateau",   # 30
-                   "used for W-o-L setting"]]   # 31
+                   "N0 (mean eff - group) + no plateau + efficiency outliers",   # 18
+                   "N0 (mean eff - common) + no plateau + efficiency outliers",   # 19
+                   "mean PCR eff + efficiency outliers",   # 20
+                   "N0 (mean eff - group) + efficiency outliers",   # 21
+                   "N0 (mean eff - common) + efficiency outliers",   # 22
+                   "mean PCR eff + no plateau",   # 23
+                   "N0 (mean eff - group) + no plateau",   # 24
+                   "N0 (mean eff - common) + no plateau",   # 25
+                   "mean PCR eff",   # 26
+                   "N0 (mean eff - group)",   # 27
+                   "N0 (mean eff - common)",   # 28
+                   "no amplification",   # 29
+                   "baseline error",   # 30
+                   "no plateau",   # 31
+                   "noisy sample",   # 32
+                   "PCR efficiency outside rage",   # 33
+                   "PCR efficiency outside rage + no plateau",   # 34
+                   "used for W-o-L setting"]]   # 35
         rar_id = 0
         rar_sample = 1
         rar_tar = 2
@@ -7611,20 +7615,24 @@ class Run:
         rar_threshold_common = 15
         rar_Cq_common = 16
         rar_meanEff_Skip = 17
-        rar_meanN0_Skip = 18
-        rar_meanEff_Skip_Plat = 19
-        rar_meanN0_Skip_Plat = 20
-        rar_meanEff_Skip_Eff = 21
-        rar_meanN0_Skip_Eff = 22
-        rar_meanEff_Skip_Plat_Eff = 23
-        rar_meanN0_Skip_Plat_Eff = 24
-        rar_no_amplification = 25
-        rar_baseline_error = 26
-        rar_no_plateau = 27
-        rar_noisy_sample = 28
-        rar_effOutlier_Skip = 29
-        rar_effOutlier_Skip_Plat = 30
-        rar_isUsedInWoL = 31
+        rar_meanN0_Grp_Skip = 18
+        rar_meanN0_Com_Skip = 19
+        rar_meanEff_Skip_Plat = 20
+        rar_meanN0_Grp_Skip_Plat = 21
+        rar_meanN0_Com_Skip_Plat = 22
+        rar_meanEff_Skip_Eff = 23
+        rar_meanN0_Grp_Skip_Eff = 24
+        rar_meanN0_Com_Skip_Eff = 25
+        rar_meanEff_Skip_Plat_Eff = 26
+        rar_meanN0_Grp_Skip_Plat_Eff = 27
+        rar_meanN0_Com_Skip_Plat_Eff = 28
+        rar_no_amplification = 29
+        rar_baseline_error = 30
+        rar_no_plateau = 31
+        rar_noisy_sample = 32
+        rar_effOutlier_Skip = 33
+        rar_effOutlier_Skip_Plat = 34
+        rar_isUsedInWoL = 35
 
         res = []
         finalData = {}
@@ -7676,7 +7684,7 @@ class Run:
                 res.append([posId, sample, target, excl, "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", ""])
+                            "", "", "", "", "",  ""])
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -8117,8 +8125,8 @@ class Run:
 
         # See if cq values are stable with a modified baseline
         checkfluor = np.zeros(spFl, dtype=np.float64)
-        CqGrp = np.zeros(spFl[0], dtype=np.float64)
-        CqMean = np.zeros(spFl[0], dtype=np.float64)
+        Cq_Grp = np.zeros(spFl[0], dtype=np.float64)
+        Cq_Com = np.zeros(spFl[0], dtype=np.float64)
         nnulls = np.ones(spFl[0], dtype=np.float64)
         ninclu = np.zeros(spFl[0], dtype=np.int)
         correl = np.zeros(spFl[0], dtype=np.float64)
@@ -8126,10 +8134,14 @@ class Run:
         meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
         meanEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
         meanEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Grp_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Grp_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Grp_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Grp_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Com_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Com_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Com_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Com_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
 
         for z in range(0, spFl[0]):
             if vecShortloglin[z] and not vecNoAmplification[z]:
@@ -8189,7 +8201,7 @@ class Run:
             upwin, lowwin = _ApplyLogWindow(None, maxlim, step, upwin, lowwin, yaxismax, yaxismin)
             # Fixme: no rounding needed
             grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
-            tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+            tctvals, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], Cq_Grp, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                           grpftval, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
             thismeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             if thismeaneff < 1.001:
@@ -8226,24 +8238,30 @@ class Run:
                 vecNoPlateau[i] = True
             else:
                 vecNoPlateau[i] = False
-        sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL = _Set_WoL(nfluor, None, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-        sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL, svecNoPlateau = _AssignNoPlateau(nfluor, None, vecTarget, PointsInWoL, sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, svecIsUsedInWoL)
-        for i in range(0, spFl[0]):
-            if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == spFl[1]:
-                vecNoPlateau[i] = True
-            else:
-                vecNoPlateau[i] = False
+    #    sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL = _Set_WoL(nfluor, None, vecTarget, PointsInWoL, Cq_Grp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+    #    sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL, svecNoPlateau = _AssignNoPlateau(nfluor, None, vecTarget, PointsInWoL, sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, svecIsUsedInWoL)
+    #    for i in range(0, spFl[0]):
+    #        if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == spFl[1]:
+    #            vecNoPlateau[i] = True
+    #        else:
+    #            vecNoPlateau[i] = False
         for t in range(1, targetsCount):
-            CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-            CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, CqGrp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            Cq_Grp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, Cq_Grp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            Cq_Grp, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, Cq_Grp, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+
+        threshold[0] = np.mean(threshold[1:])
+        for t in range(1, targetsCount):
             for j in range(0, spFl[0]):
                 if t is None or t == vecTarget[j]:
                     if pcreff[j] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[j] or vecBaselineError[j]):
-                        CqGrp[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
-                        CqMean[j] = (np.log10(threshold[0]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
+                        Cq_Grp[j] = (np.log10(threshold[t]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
+                        Cq_Com[j] = (np.log10(threshold[0]) - np.log10(nnulls[j]))/np.log10(pcreff[j])
                     else:
-                        CqGrp[j] = 0.0
-                        CqMean[j] = 0.0
+                        Cq_Grp[j] = 0.0
+                        Cq_Com[j] = 0.0
+
+        for t in range(0, targetsCount):
+            print("threshold " + str(t) + ": " + str(threshold[t]))
 
         _numpyTwoAxisSave(vecNoAmplification, "linPas/np_vecNoAmplification.tsv")
         _numpyTwoAxisSave(vecBaselineError, "linPas/np_vecBaselineError.tsv")
@@ -8262,6 +8280,7 @@ class Run:
 
             pcreff_Skip = pcreff.copy()
             pcreff_Skip[vecSkipSample] = np.nan
+            pcreff_Skip[pcreff < 1.001] = np.nan
             pcreff_Skip[~(vecTarget == t)] = np.nan
 
             pcreff_Skip_Plat = pcreff_Skip.copy()
@@ -8306,11 +8325,6 @@ class Run:
             pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
 
-            pcreff_Skip[pcreff < 1.001] = np.nan
-            pcreff_Skip_Plat[pcreff < 1.001] = np.nan
-            pcreff_Skip_Eff[pcreff < 1.001] = np.nan
-            pcreff_Skip_Plat_Eff[pcreff < 1.001] = np.nan
-
             # Fixme: catch empy slice
             tempMeanEff_Skip = np.nanmean(pcreff_Skip)
             tempMeanEff_Skip_Plat = np.nanmean(pcreff_Skip_Plat)
@@ -8326,34 +8340,46 @@ class Run:
                     meanEff_Skip_Eff[z] = tempMeanEff_Skip_Eff
                     meanEff_Skip_Plat_Eff[z] = tempMeanEff_Skip_Plat_Eff
                     if not np.isnan(pcreff[z]) and pcreff[z] > 0.0:
-                        if meanEff_Skip[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
-                            meanNnull_Skip[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip[z], CqGrp[z])
+                        if meanEff_Skip[z] > 0.0 and 0.0 < Cq_Grp[z] < 2 * spFl[1]:
+                            meanNnull_Grp_Skip[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip[z], Cq_Grp[z])
+                            meanNnull_Com_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], Cq_Com[z])
                         else:
-                            meanNnull_Skip[z] = -999.0
-                        if meanEff_Skip_Plat[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
-                            meanNnull_Skip_Plat[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Plat[z], CqGrp[z])
+                            meanNnull_Grp_Skip[z] = -999.0
+                            meanNnull_Com_Skip[z] = -999.0
+                        if meanEff_Skip_Plat[z] > 0.0 and 0.0 < Cq_Grp[z] < 2 * spFl[1]:
+                            meanNnull_Grp_Skip_Plat[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Plat[z], Cq_Grp[z])
+                            meanNnull_Com_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], Cq_Com[z])
                         else:
-                            meanNnull_Skip_Plat[z] = -999.0
-                        if meanEff_Skip_Eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
-                            meanNnull_Skip_Eff[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Eff[z], CqGrp[z])
+                            meanNnull_Grp_Skip_Plat[z] = -999.0
+                            meanNnull_Com_Skip_Plat[z] = -999.0
+                        if meanEff_Skip_Eff[z] > 0.0 and 0.0 < Cq_Grp[z] < 2 * spFl[1]:
+                            meanNnull_Grp_Skip_Eff[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Eff[z], Cq_Grp[z])
+                            meanNnull_Com_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], Cq_Com[z])
                         else:
-                            meanNnull_Skip_Eff[z] = -999.0
-                        if meanEff_Skip_Plat_Eff[z] > 0.0 and 0.0 < CqGrp[z] < 2 * spFl[1]:
-                            meanNnull_Skip_Plat_Eff[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Plat_Eff[z], CqGrp[z])
+                            meanNnull_Grp_Skip_Eff[z] = -999.0
+                            meanNnull_Com_Skip_Eff[z] = -999.0
+                        if meanEff_Skip_Plat_Eff[z] > 0.0 and 0.0 < Cq_Grp[z] < 2 * spFl[1]:
+                            meanNnull_Grp_Skip_Plat_Eff[z] = threshold[vecTarget[z]] / np.power(meanEff_Skip_Plat_Eff[z], Cq_Grp[z])
+                            meanNnull_Com_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], Cq_Com[z])
                         else:
-                            meanNnull_Skip_Plat_Eff[z] = -999.0
+                            meanNnull_Grp_Skip_Plat_Eff[z] = -999.0
+                            meanNnull_Com_Skip_Plat_Eff[z] = -999.0
                     else:
-                        meanNnull_Skip[z] = -999.0
-                        meanNnull_Skip_Plat[z] = -999.0
-                        meanNnull_Skip_Eff[z] = -999.0
-                        meanNnull_Skip_Plat_Eff[z] = -999.0
+                        meanNnull_Grp_Skip[z] = -999.0
+                        meanNnull_Grp_Skip_Plat[z] = -999.0
+                        meanNnull_Grp_Skip_Eff[z] = -999.0
+                        meanNnull_Grp_Skip_Plat_Eff[z] = -999.0
+                        meanNnull_Com_Skip[z] = -999.0
+                        meanNnull_Com_Skip_Plat[z] = -999.0
+                        meanNnull_Com_Skip_Eff[z] = -999.0
+                        meanNnull_Com_Skip_Plat_Eff[z] = -999.0
 
                     if vecNoPlateau[z]:
-                        meanNnull_Skip_Plat[z] = -999.0
+                        meanNnull_Grp_Skip_Plat[z] = -999.0
                         if vecEffOutlier_Skip[z]:
-                            meanNnull_Skip_Eff[z] = -999.0
+                            meanNnull_Grp_Skip_Eff[z] = -999.0
                         if vecEffOutlier_Skip_Plat[z]:
-                            meanNnull_Skip_Plat_Eff[z] = -999.0
+                            meanNnull_Grp_Skip_Plat_Eff[z] = -999.0
 
         print("----------------------------")
 
@@ -8381,18 +8407,22 @@ class Run:
             res[i][rar_R2] = correl[i] * correl[i]
 
             res[i][rar_threshold_group] = threshold[vecTarget[i]]
-            res[i][rar_Cq_grp] = CqGrp[i]
+            res[i][rar_Cq_grp] = Cq_Grp[i]
             res[i][rar_threshold_common] = threshold[0]
-            res[i][rar_Cq_common] = CqMean[i]
+            res[i][rar_Cq_common] = Cq_Com[i]
 
             res[i][rar_meanEff_Skip] = meanEff_Skip[i]
-            res[i][rar_meanN0_Skip] = meanNnull_Skip[i]
+            res[i][rar_meanN0_Grp_Skip] = meanNnull_Grp_Skip[i]
+            res[i][rar_meanN0_Com_Skip] = meanNnull_Com_Skip[i]
             res[i][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[i]
-            res[i][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[i]
+            res[i][rar_meanN0_Grp_Skip_Plat] = meanNnull_Grp_Skip_Plat[i]
+            res[i][rar_meanN0_Com_Skip_Plat] = meanNnull_Com_Skip_Plat[i]
             res[i][rar_meanEff_Skip_Eff] = meanEff_Skip_Eff[i]
-            res[i][rar_meanN0_Skip_Eff] = meanNnull_Skip_Eff[i]
+            res[i][rar_meanN0_Grp_Skip_Eff] = meanNnull_Grp_Skip_Eff[i]
+            res[i][rar_meanN0_Com_Skip_Eff] = meanNnull_Com_Skip_Eff[i]
             res[i][rar_meanEff_Skip_Plat_Eff] = meanEff_Skip_Plat_Eff[i]
-            res[i][rar_meanN0_Skip_Plat_Eff] = meanNnull_Skip_Plat_Eff[i]
+            res[i][rar_meanN0_Grp_Skip_Plat_Eff] = meanNnull_Grp_Skip_Plat_Eff[i]
+            res[i][rar_meanN0_Com_Skip_Plat_Eff] = meanNnull_Com_Skip_Plat_Eff[i]
 
             res[i][rar_no_amplification] = vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
