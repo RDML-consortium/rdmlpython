@@ -12,11 +12,27 @@ import tempfile
 import argparse
 import math
 import warnings
+import json
 import numpy as np
 from lxml import etree as ET
 
 # Fixme: Delete
 import datetime as dt
+
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NpEncoder, self).default(obj)
+
 
 class RdmlError(Exception):
     """Basic exception for errors raised by the RDML-Python library"""
@@ -7532,13 +7548,67 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def linRegPCR(self, baselineCorr=True, commaConv=False, ignoreExclusion=False,
-                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False, verbose=False):
-        """Performs LinRegPCR on the run. Mofifies the cq values and returns a json with additional data.
+    def webAppLinRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False):
+        """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
             baselineCorr: If true, do baseline correction for all samples.
+            pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
+            updateRDML: If true, update the RDML data with the calculated values.
+            commaConv: If true, convert comma separator to dot.
+            ignoreExclusion: If true, ignore the RDML exclusion strings.
+            saveRaw: If true, no raw values are given in the returned data
+            saveBaslineCorr: If true, no baseline corrected values are given in the returned data
+            saveResultsList: If true, return a 2d array object.
+            saveResultsCSV: If true, return a csv string.
+            verbose: If true, comment every performed step.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            rawData: A 2d array with the raw fluorescence values
+            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
+            resultsList: A 2d array object.
+            resultsCSV: A csv string.
+        """
+
+        allData = self.getreactjson()
+        res = self.linRegPCR(baselineCorr=baselineCorr,
+                             pcrEfficiencyExl=pcrEfficiencyExl,
+                             updateRDML=updateRDML,
+                             saveRaw=False,
+                             saveBaslineCorr=True,
+                             saveResultsList=True,
+                             saveResultsCSV=False,
+                             verbose=False)
+      #  if "baselineCorrectedData" in res:
+      #      with open("test/temp_out_baseline_corrected_data.tsv", "w") as f:
+      #          xxxResStr = ""
+      #          for xxxrow in res["baselineCorrectedData"]:
+      #              for xxelex in xxxrow:
+      #                  if type(xxelex) is float:
+      #                      xxxResStr += "{0:0.12f}".format(xxelex) + "\t"
+      #                  else:
+      #                      xxxResStr += str(xxelex) + "\t"
+      #              xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
+      #          f.write(xxxResStr)
+        if "resultsList" in res:
+            header = res["resultsList"].pop(0)
+            resList = sorted(res["resultsList"], key=_sort_list_int)
+            allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
+
+        return allData
+
+    def linRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False,
+                  commaConv=False, ignoreExclusion=False,
+                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False, verbose=False):
+        """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            baselineCorr: If true, do baseline correction for all samples.
+            pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
+            updateRDML: If true, update the RDML data with the calculated values.
             commaConv: If true, convert comma separator to dot.
             ignoreExclusion: If true, ignore the RDML exclusion strings.
             saveRaw: If true, no raw values are given in the returned data
@@ -7637,6 +7707,7 @@ class Run:
         res = []
         finalData = {}
         adp_cyc_max = 0
+        pcrEfficiencyExl = float(pcrEfficiencyExl)
 
         reacts = _get_all_children(self._node, "react")
 
@@ -7775,7 +7846,7 @@ class Run:
             FDMcycles = np.nanargmax(firstDerivative, axis=1) + 1
             SDM = np.nanmax(secondDerivative, axis=1)
             SDMcycles = np.nanargmax(secondDerivative, axis=1) + 1
-            _numpyTwoAxisSave(secondDerivative, "linPas/ot_secondDerivative.tsv")
+        #    _numpyTwoAxisSave(secondDerivative, "linPas/ot_secondDerivative.tsv")
 
             ########################################
             # Start point of the exponential phase #
@@ -7859,7 +7930,7 @@ class Run:
             fstart = FDMcycles.copy()  # Fixme: only for correct length
             fstart2 = FDMcycles.copy()  # Fixme: only for correct length = np.zeros(spFl[0], dtype=np.float64)
 
-            _numpyTwoAxisSave(minFluMat, "linPas/numpy_fluor_data_1.tsv")
+         #   _numpyTwoAxisSave(minFluMat, "linPas/numpy_fluor_data_1.tsv")
 
             for i in range(0, spFl[0]):  # Fixme: use np.nanmean with isnan check
                 if slopeAmp[i] < 0 or minSlopeAmp[i] < (np.log10(7.0) / minFluMatCountSum[i]):
@@ -7925,15 +7996,15 @@ class Run:
             upwin[0] = np.log10(0.1 * meanmax)
             lowwin[0] = np.log10(0.1 * meanmax / 16.0)
 
-            _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification.tsv")
-            _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau.tsv")
-            _numpyTwoAxisSave(fstop, "linPas/numpy_fstop_1.tsv")
-            _numpyTwoAxisSave(fstart, "linPas/numpy_fstart_1.tsv")
+       #     _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification.tsv")
+        #    _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau.tsv")
+      #      _numpyTwoAxisSave(fstop, "linPas/numpy_fstop_1.tsv")
+      #      _numpyTwoAxisSave(fstart, "linPas/numpy_fstart_1.tsv")
           #  for i in range(0, spFl[0]):
            #     fstop[i] = _findLRstop(minFluMat, i)
            #     [ddldldl, fstart[i]] = _findLRstart(minFluMat, i, fstop[i])
-            _numpyTwoAxisSave(fstop2, "linPas/numpy_fstop_2.tsv")
-            _numpyTwoAxisSave(fstart2, "linPas/numpy_fstart_2.tsv")
+        #    _numpyTwoAxisSave(fstop2, "linPas/numpy_fstop_2.tsv")
+      #      _numpyTwoAxisSave(fstart2, "linPas/numpy_fstart_2.tsv")
 
             # Consecutive derivative points near the SDM (caution arrays start at 0, not 1!)
  #           for i in range(0, firstDerivativeShift.shape[0]):
@@ -8103,8 +8174,8 @@ class Run:
 
             baselineCorrectedData = nfluor
 
-            with open("linPas/_np_commandline.txt", "w") as f:
-                f.write(outStrStuff)
+      #      with open("linPas/_np_commandline.txt", "w") as f:
+       #         f.write(outStrStuff)
 
         if saveBaslineCorr:
             rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
@@ -8263,10 +8334,10 @@ class Run:
         for t in range(0, targetsCount):
             print("threshold " + str(t) + ": " + str(threshold[t]))
 
-        _numpyTwoAxisSave(vecNoAmplification, "linPas/np_vecNoAmplification.tsv")
-        _numpyTwoAxisSave(vecBaselineError, "linPas/np_vecBaselineError.tsv")
-        _numpyTwoAxisSave(vecNoPlateau, "linPas/np_vecNoPlateau.tsv")
-        _numpyTwoAxisSave(vecSkipSample, "linPas/np_vecSkipSample.tsv")
+      #  _numpyTwoAxisSave(vecNoAmplification, "linPas/np_vecNoAmplification.tsv")
+    #    _numpyTwoAxisSave(vecBaselineError, "linPas/np_vecBaselineError.tsv")
+      #  _numpyTwoAxisSave(vecNoPlateau, "linPas/np_vecNoPlateau.tsv")
+      #  _numpyTwoAxisSave(vecSkipSample, "linPas/np_vecSkipSample.tsv")
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
@@ -8274,7 +8345,6 @@ class Run:
 
         for t in range(1, targetsCount):
             # Calculating all choices takes less time then to recalculate
-            inclu_crit = 0.05
 
             # Fixme: TooLowCqEff
 
@@ -8292,9 +8362,9 @@ class Run:
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
                     if not np.isnan(pcreff[z]):
-                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip + inclu_crit):
+                        if not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl):
                             vecEffOutlier_Skip[z] = True
-                        if not (pcreffMedian_Skip_Plat - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
+                        if not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl):
                             vecEffOutlier_Skip_Plat[z] = True
 
             pcreff_Skip_Eff = pcreff_Skip.copy()
@@ -8308,11 +8378,11 @@ class Run:
             for z in range(0, spFl[0]):
                 if t is None or t == vecTarget[z]:
                     if not np.isnan(pcreff[z]):
-                        if not (pcreffMedian_Skip - inclu_crit <= pcreff[z] <= pcreffMedian_Skip + inclu_crit):
+                        if not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl):
                             vecEffOutlier_Skip[z] = True
                         else:
                             vecEffOutlier_Skip[z] = False
-                        if not (pcreffMedian_Skip_Plat - inclu_crit <= pcreff[z] <= pcreffMedian_Skip_Plat + inclu_crit):
+                        if not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl):
                             vecEffOutlier_Skip_Plat[z] = True
                         else:
                             vecEffOutlier_Skip_Plat[z] = False
@@ -8384,11 +8454,11 @@ class Run:
         print("----------------------------")
 
 
-        _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
+     #   _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
 
 
-        with open("matlab/numpy_variables.txt", "w") as f:
-            f.write(outFFile)
+  #      with open("matlab/numpy_variables.txt", "w") as f:
+   #         f.write(outFFile)
 
         #################################
         # CALCULATION OF A WOL PER GENE #
@@ -8456,7 +8526,7 @@ class Run:
             finalData["resultsCSV"] = retCSV
 
         if saveResultsList:
-            finalData["resultsList"] = res
+            finalData["resultsList"] = header + res
 
         return finalData
 
