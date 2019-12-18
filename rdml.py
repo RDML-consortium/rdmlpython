@@ -7581,17 +7581,30 @@ class Run:
                              saveResultsList=True,
                              saveResultsCSV=False,
                              verbose=False)
-      #  if "baselineCorrectedData" in res:
-      #      with open("test/temp_out_baseline_corrected_data.tsv", "w") as f:
-      #          xxxResStr = ""
-      #          for xxxrow in res["baselineCorrectedData"]:
-      #              for xxelex in xxxrow:
-      #                  if type(xxelex) is float:
-      #                      xxxResStr += "{0:0.12f}".format(xxelex) + "\t"
-      #                  else:
-      #                      xxxResStr += str(xxelex) + "\t"
-      #              xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
-      #          f.write(xxxResStr)
+        if "baselineCorrectedData" in res:
+            bas_cyc_max = len(res["baselineCorrectedData"][0]) - 4
+            bas_fluor_min = 99999999
+            bas_fluor_max = 0.0
+            for row in range(1, len(res["baselineCorrectedData"])):
+                bass_json = []
+                for col in range(4, len(res["baselineCorrectedData"][row])):
+                    cyc = res["baselineCorrectedData"][0][col]
+                    fluor = res["baselineCorrectedData"][row][col]
+                    if not (np.isnan(fluor) or fluor <= 0.0):
+                        bas_fluor_min = min(bas_fluor_min, float(fluor))
+                        bas_fluor_max = max(bas_fluor_max, float(fluor))
+                        in_bas = [cyc, fluor, ""]
+                        bass_json.append(in_bas)
+                # Fixme do not loop over all, use sorted data and clever moving
+                for react in allData["reacts"]:
+                    if react["sample"] == res["baselineCorrectedData"][row][1]:
+                        for data in react["datas"]:
+                            if data["tar"] == res["baselineCorrectedData"][row][2]:
+                                data["bass"] = bass_json.copy()
+            allData["bas_cyc_max"] = bas_cyc_max
+            allData["bas_fluor_min"] = bas_fluor_min
+            allData["bas_fluor_max"] = bas_fluor_max
+
         if "resultsList" in res:
             header = res["resultsList"].pop(0)
             resList = sorted(res["resultsList"], key=_sort_list_int)
