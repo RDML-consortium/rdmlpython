@@ -7597,7 +7597,7 @@ class Run:
                         bass_json.append(in_bas)
                 # Fixme do not loop over all, use sorted data and clever moving
                 for react in allData["reacts"]:
-                    if react["sample"] == res["baselineCorrectedData"][row][1]:
+                    if react["id"] == res["baselineCorrectedData"][row][0]:
                         for data in react["datas"]:
                             if data["tar"] == res["baselineCorrectedData"][row][2]:
                                 data["bass"] = bass_json.copy()
