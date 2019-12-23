@@ -1289,7 +1289,7 @@ def _setWol(baselineCorrectedData, zeroBaselineCorrectedData, lowerLimit, upperL
 
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
-        np.savetxt(fileName, var, fmt='%.12f', delimiter='\t', newline='\n')
+        np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
 
 
 class Rdml:
@@ -8251,10 +8251,10 @@ class Run:
                 if np.isnan(maxFlour):
                     tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(nfluor, z, uplim, lowlim)
                 else:
-                    tempMeanX, tempMeanY, tempPCReff, xnulls, xninclu, xcorrel = _do_cascade(checkfluor, z, uplim, lowlim)
+                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, z, uplim, lowlim)
 
                 if tempPCReff > 1.000000000001:
-                    CtShiftUp = tempMeanX + (np.log10(grpftval) - tempMeanY) / np.log10(2.0) # tempPCReff)
+                    CtShiftUp = tempMeanX + (grpftval - tempMeanY) / np.log10(tempPCReff)
                 else:
                     CtShiftUp = 0.0
 
@@ -8264,7 +8264,7 @@ class Run:
                 tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, z, uplim, lowlim)
 
                 if tempPCReff > 1.000000000001:
-                    CtShiftDown = tempMeanX + (np.log10(grpftval) - tempMeanY) / np.log10(2.0) # tempPCReff)
+                    CtShiftDown = tempMeanX + (grpftval - tempMeanY) / np.log10(tempPCReff)
                 else:
                     CtShiftDown = 0.0
 
@@ -8360,7 +8360,8 @@ class Run:
         vecSkipSample_Plat = vecSkipSample.copy()
         vecSkipSample_Plat[vecNoPlateau] = True
 
-        threshold[0] = np.mean(threshold[1:])
+        logThreshold = np.log10(threshold[1:])
+        threshold[0] = np.power(10, np.mean(logThreshold))
 
         for t in range(1, targetsCount):
             # Calculating all choices takes less time then to recalculate
@@ -8420,8 +8421,6 @@ class Run:
             tempMeanEff_Skip_Eff = np.nanmean(pcreff_Skip_Eff)
             tempMeanEff_Skip_Plat_Eff = np.nanmean(pcreff_Skip_Plat_Eff)
 
-            print(str(t) + " - " + str(tempMeanEff_Skip))
-
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
                     meanEff_Skip[z] = tempMeanEff_Skip
@@ -8429,37 +8428,35 @@ class Run:
                     meanEff_Skip_Eff[z] = tempMeanEff_Skip_Eff
                     meanEff_Skip_Plat_Eff[z] = tempMeanEff_Skip_Plat_Eff
 
-                    if pcreff[z] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z]):
+                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z]):
                         indivCq[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z])
                         indivCq_Grp[z] = indMeanX[z] + (np.log10(threshold[t]) - indMeanY[z]) / np.log10(pcreff[z])
                     else:
                         indivCq[z] = 0.0
                         indivCq_Grp[z] = 0.0
 
-                    if pcreff[z] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z]):
-                        indivCq[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z])
-                    else:
-                        indivCq[z] = 0.0
-
-                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0001:
+                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0 and 0.0 < indivCq[z] < 2 * spFl[1]:
                         if meanEff_Skip[z] > 0.0:
                             meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z])
                             meanNnul_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
                         else:
                             meanCq_Skip[z] = 0.0
                             meanNnul_Skip[z] = -999.0
+
                         if meanEff_Skip_Plat[z] > 0.0:
                             meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z])
                             meanNnull_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], meanCq_Skip_Plat[z])
                         else:
                             meanCq_Skip_Plat[z] = 0.0
                             meanNnull_Skip_Plat[z] = -999.0
+
                         if meanEff_Skip_Eff[z] > 0.0:
                             meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z])
                             meanNnull_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], meanCq_Skip_Eff[z])
                         else:
                             meanCq_Skip_Eff[z] = 0.0
                             meanNnull_Skip_Eff[z] = -999.0
+
                         if meanEff_Skip_Plat_Eff[z] > 0.0:
                             meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z])
                             meanNnull_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], meanCq_Skip_Plat_Eff[z])
@@ -8485,8 +8482,6 @@ class Run:
                         if vecEffOutlier_Skip_Plat[z]:
                             meanNnull_Skip_Plat_Eff[z] = -999.0
                             meanCq_Skip_Plat_Eff[z] = 0.0
-
-        print("----------------------------")
 
 
      #   _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
@@ -8606,7 +8601,7 @@ if __name__ == "__main__":
                 for xxxrow in xxres["baselineCorrectedData"]:
                     for xxelex in xxxrow:
                         if type(xxelex) is float:
-                            xxxResStr += "{0:0.12f}".format(xxelex) + "\t"
+                            xxxResStr += "{0:0.6f}".format(xxelex) + "\t"
                         else:
                             xxxResStr += str(xxelex) + "\t"
                     xxxResStr = re.sub(r"\t$", "\n", xxxResStr)
