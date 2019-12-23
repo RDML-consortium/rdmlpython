@@ -8474,12 +8474,14 @@ class Run:
                         meanCq_Skip_Plat_Eff[z] = 0.0
 
                     if vecNoPlateau[z]:
-                        meanNnull_Skip_Plat[z] = -999.0
-                        meanCq_Skip_Plat[z] = 0.0
                         if vecEffOutlier_Skip[z]:
+                            meanNnul_Skip[z] = -999.0
+                            meanCq_Skip[z] = 0.0
                             meanNnull_Skip_Eff[z] = -999.0
                             meanCq_Skip_Eff[z] = 0.0
                         if vecEffOutlier_Skip_Plat[z]:
+                            meanNnull_Skip_Plat[z] = -999.0
+                            meanCq_Skip_Plat[z] = 0.0
                             meanNnull_Skip_Plat_Eff[z] = -999.0
                             meanCq_Skip_Plat_Eff[z] = 0.0
 
