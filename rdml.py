@@ -959,12 +959,14 @@ def _do_cascade(fluor, samp, uplim, lowlim):
     ssy = 0.0
     sxy = 0.0
     for i in range(pstart, pstop + 1):
-        if not np.isnan(fluor[samp, i - 1]):
+        fluorSamp = fluor[samp, i - 1]
+        if not np.isnan(fluorSamp):
+            logFluorSamp = np.log10(fluorSamp)
             sumx += i
-            sumy += np.log10(fluor[samp, i - 1])
+            sumy += logFluorSamp
             sumx2 += i * i
-            sumy2 += np.log10(fluor[samp, i - 1]) * np.log10(fluor[samp, i - 1])
-            sumxy += i * np.log10(fluor[samp, i - 1])
+            sumy2 += logFluorSamp * logFluorSamp
+            sumxy += i * logFluorSamp
             nincl += 1
 
     if nincl > 0:  # Fixme: Should be 1???
@@ -1240,6 +1242,13 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
 
         indMeanX, indMeanY, pcreff, nnulls, ninclu, correl = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                              vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
+        for j in range(0, len(pcreff)):
+            if tarGroup is None or tarGroup == vecTarget[j]:
+                if (not (vecSkipSample[j] or vecNoPlateau[j] or vecShortloglin[j])) and pcreff[j] > 1.0:
+                    vecIsUsedInWoL[j] = True
+                else:
+                    vecIsUsedInWoL[j] = False
+
     return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL
 
 
@@ -7602,7 +7611,7 @@ class Run:
                     if react["id"] == res["baselineCorrectedData"][row][0]:
                         for data in react["datas"]:
                             if data["tar"] == res["baselineCorrectedData"][row][2]:
-                                data["bass"] = bass_json.copy()
+                                data["bass"] = list(bass_json)
             allData["bas_cyc_max"] = bas_cyc_max
             allData["bas_fluor_min"] = bas_fluor_min
             allData["bas_fluor_max"] = bas_fluor_max
@@ -7677,12 +7686,12 @@ class Run:
                    "mean PCR eff",   # 28
                    "N0 (mean eff)",   # 29
                    "Cq (mean eff)",   # 30
-                   "no amplification",   # 31
+                   "amplification",   # 31
                    "baseline error",   # 32
-                   "no plateau",   # 33
+                   "plateau",   # 33
                    "noisy sample",   # 34
-                   "PCR efficiency outside rage",   # 35
-                   "PCR efficiency outside rage + no plateau",   # 36
+                   "PCR efficiency outside rage + no plateau",   # 35
+                   "PCR efficiency outside rage",   # 36
                    "used for W-o-L setting"]]   # 37
         rar_id = 0
         rar_sample = 1
@@ -7715,9 +7724,9 @@ class Run:
         rar_meanEff_Skip_Plat_Eff = 28
         rar_meanN0_Skip_Plat_Eff = 29
         rar_Cq_Skip_Plat_Eff = 30
-        rar_no_amplification = 31
+        rar_amplification = 31
         rar_baseline_error = 32
-        rar_no_plateau = 33
+        rar_plateau = 33
         rar_noisy_sample = 34
         rar_effOutlier_Skip = 35
         rar_effOutlier_Skip_Plat = 36
@@ -7741,7 +7750,7 @@ class Run:
         adp_cyc_max = math.ceil(adp_cyc_max)
 
         # spFl is the shape for all fluorescence numpy data arrays
-        spFl = (len(reacts), adp_cyc_max)
+        spFl = (len(reacts), int(adp_cyc_max))
         rawFluor = np.zeros(spFl, dtype=np.float64)  # Fixme: nan
         # Initialization of the vecNoAmplification vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
@@ -8435,55 +8444,65 @@ class Run:
                         indivCq[z] = 0.0
                         indivCq_Grp[z] = 0.0
 
-                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0 and 0.0 < indivCq[z] < 2 * spFl[1]:
-                        if meanEff_Skip[z] > 0.0:
+                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0:
+                        if meanEff_Skip[z] > 1.001:
                             meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z])
-                            meanNnul_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
                         else:
                             meanCq_Skip[z] = 0.0
-                            meanNnul_Skip[z] = -999.0
 
-                        if meanEff_Skip_Plat[z] > 0.0:
+                        if meanEff_Skip_Plat[z] > 1.001:
                             meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z])
-                            meanNnull_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], meanCq_Skip_Plat[z])
                         else:
                             meanCq_Skip_Plat[z] = 0.0
-                            meanNnull_Skip_Plat[z] = -999.0
 
-                        if meanEff_Skip_Eff[z] > 0.0:
+                        if meanEff_Skip_Eff[z] > 1.001:
                             meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z])
-                            meanNnull_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], meanCq_Skip_Eff[z])
                         else:
                             meanCq_Skip_Eff[z] = 0.0
-                            meanNnull_Skip_Eff[z] = -999.0
 
-                        if meanEff_Skip_Plat_Eff[z] > 0.0:
+                        if meanEff_Skip_Plat_Eff[z] > 1.001:
                             meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z])
-                            meanNnull_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], meanCq_Skip_Plat_Eff[z])
                         else:
                             meanCq_Skip_Plat_Eff[z] = 0.0
+                    else:
+                        meanCq_Skip[z] = 0.0
+                        meanCq_Skip_Plat[z] = 0.0
+                        meanCq_Skip_Eff[z] = 0.0
+                        meanCq_Skip_Plat_Eff[z] = 0.0
+
+                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0 and 0.0 < indivCq[z] < 2 * spFl[1]:
+                        if meanEff_Skip[z] > 1.001:
+                            meanNnul_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
+                        else:
+                            meanNnul_Skip[z] = -999.0
+
+                        if meanEff_Skip_Plat[z] > 1.001:
+                            meanNnull_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], meanCq_Skip_Plat[z])
+                        else:
+                            meanNnull_Skip_Plat[z] = -999.0
+
+                        if meanEff_Skip_Eff[z] > 1.001:
+                            meanNnull_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], meanCq_Skip_Eff[z])
+                        else:
+                            meanNnull_Skip_Eff[z] = -999.0
+
+                        if meanEff_Skip_Plat_Eff[z] > 1.001:
+                            meanNnull_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], meanCq_Skip_Plat_Eff[z])
+                        else:
                             meanNnull_Skip_Plat_Eff[z] = -999.0
                     else:
                         meanNnul_Skip[z] = -999.0
                         meanNnull_Skip_Plat[z] = -999.0
                         meanNnull_Skip_Eff[z] = -999.0
                         meanNnull_Skip_Plat_Eff[z] = -999.0
-                        meanCq_Skip[z] = 0.0
-                        meanCq_Skip_Plat[z] = 0.0
-                        meanCq_Skip_Eff[z] = 0.0
-                        meanCq_Skip_Plat_Eff[z] = 0.0
 
                     if vecNoPlateau[z]:
                         if vecEffOutlier_Skip[z]:
                             meanNnul_Skip[z] = -999.0
-                            meanCq_Skip[z] = 0.0
                             meanNnull_Skip_Eff[z] = -999.0
-                            meanCq_Skip_Eff[z] = 0.0
                         if vecEffOutlier_Skip_Plat[z]:
                             meanNnull_Skip_Plat[z] = -999.0
-                            meanCq_Skip_Plat[z] = 0.0
                             meanNnull_Skip_Plat_Eff[z] = -999.0
-                            meanCq_Skip_Plat_Eff[z] = 0.0
 
 
      #   _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
@@ -8528,9 +8547,9 @@ class Run:
             res[i][rar_meanN0_Skip_Plat_Eff] = meanNnull_Skip_Plat_Eff[i]
             res[i][rar_Cq_Skip_Plat_Eff] = meanCq_Skip_Plat_Eff[i]
 
-            res[i][rar_no_amplification] = vecNoAmplification[i]
+            res[i][rar_amplification] = not vecNoAmplification[i]
             res[i][rar_baseline_error] = vecBaselineError[i]
-            res[i][rar_no_plateau] = vecNoPlateau[i]
+            res[i][rar_plateau] = not vecNoPlateau[i]
             res[i][rar_noisy_sample] = vecNoisySample[i]
             res[i][rar_effOutlier_Skip] = vecEffOutlier_Skip[i]
             res[i][rar_effOutlier_Skip_Plat] = vecEffOutlier_Skip_Plat[i]
@@ -8548,12 +8567,12 @@ class Run:
 
             for i in range(0, len(res)):
                 for j in range(0, len(res[i])):
-                    if j in [rar_no_amplification, rar_baseline_error, rar_no_plateau, rar_noisy_sample,
+                    if j in [rar_amplification, rar_baseline_error, rar_plateau, rar_noisy_sample,
                              rar_effOutlier_Skip, rar_effOutlier_Skip_Plat, rar_isUsedInWoL]:
                         if res[i][j]:
-                            retCSV += str(res[i][j]) + "\t"
+                            retCSV += "Yes\t"
                         else:
-                            retCSV += "\t"
+                            retCSV += "No\t"
                     else:
                         retCSV += str(res[i][j]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
