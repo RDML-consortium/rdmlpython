@@ -844,7 +844,7 @@ def _GetMeanMax(fluor, ampgroup, vecSkipSample, vecNoPlateau):
     return maxMean
 
 
-def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin, IsUsedInWoL):
+def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin):
     """A function which calculates the mean of the max fluor in the last ten cycles.
 
     Args:
@@ -853,7 +853,6 @@ def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin,
         skipsample: Skip the sample
         noplateau: Sample ha no plateau
         shortloglin: Sample has short loglin phase
-        IsUsedInWoL: Sample is used in WoL - recalculated for samples in ampgroup
 
     Returns:
         An array with [getmeaneff, effvar, IsUsedInWoL].
@@ -866,12 +865,9 @@ def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin,
     for j in range(0, len(pcreff)):
         if tarGroup is None or tarGroup == vecTarget[j]:
             if (not (skipsample[j] or noplateau[j] or shortloglin[j])) and pcreff[j] > 1.0:
-                IsUsedInWoL[j] = True
                 cnt += 1
                 sumeff += pcreff[j]
                 sumeff2 += pcreff[j] * pcreff[j]
-            else:
-                IsUsedInWoL[j] = False
 
     if cnt > 1:
         getmeaneff = sumeff / cnt
@@ -880,7 +876,7 @@ def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin,
         getmeaneff = 1.0
         effvar = 100
 
-    return [getmeaneff, effvar, IsUsedInWoL]
+    return [getmeaneff, effvar]
 
 
 def _find_pstat_pstop(fluor, samp, uplim, lowlim):
@@ -1143,8 +1139,7 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
 
         tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                                    vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-        thismeaneff, thisvareff, vecIsUsedInWoL = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin,
-                                                              vecIsUsedInWoL)
+        thismeaneff, thisvareff  = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
         if thismeaneff < 1.001:
             skipgroup = True
 
@@ -1162,9 +1157,8 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
                 upwin, lowwin = _ApplyLogWindow(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
                 tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                                            vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-                thismeaneff, thisvareff, vecIsUsedInWoL = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
-                                                                      vecNoPlateau, vecShortloglin,
-                                                                      vecIsUsedInWoL)
+                thismeaneff, thisvareff = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
+                                                      vecNoPlateau, vecShortloglin)
                 foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
                 if foldwidth < 0.5:
                     foldwidth = 0.5  # to avoid width = 0 above fstop
@@ -1172,9 +1166,8 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
 
                 tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                                            vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-                thismeaneff, thisvareff, vecIsUsedInWoL = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
-                                                                      vecNoPlateau, vecShortloglin,
-                                                                      vecIsUsedInWoL)
+                thismeaneff, thisvareff = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau,
+                                                      vecShortloglin)
                 if thisvareff > 0.0:
                     vareffar[k] = np.sqrt(thisvareff) / thismeaneff
                 else:
@@ -8219,7 +8212,7 @@ class Run:
         stop_time = dt.datetime.now() - start_time
         print("Done Baseline: " + str(stop_time) + "sec")
 
-        getmeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], pcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+        getmeaneff, effvar = _GetMeanEff(None, [], pcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
         grpftval = upwin[0] - np.log10(getmeaneff)
 
         # See if cq values are stable with a modified baseline
@@ -8314,7 +8307,7 @@ class Run:
             grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
             tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                                        vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-            thismeaneff, effvar, vecIsUsedInWoL = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            thismeaneff, effvar = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
             if thismeaneff < 1.001:
                 skipgroup = True
 
