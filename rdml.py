@@ -7586,12 +7586,12 @@ class Run:
                              saveResultsCSV=False,
                              verbose=False)
         if "baselineCorrectedData" in res:
-            bas_cyc_max = len(res["baselineCorrectedData"][0]) - 4
+            bas_cyc_max = len(res["baselineCorrectedData"][0]) - 5
             bas_fluor_min = 99999999
             bas_fluor_max = 0.0
             for row in range(1, len(res["baselineCorrectedData"])):
                 bass_json = []
-                for col in range(4, len(res["baselineCorrectedData"][row])):
+                for col in range(5, len(res["baselineCorrectedData"][row])):
                     cyc = res["baselineCorrectedData"][0][col]
                     fluor = res["baselineCorrectedData"][row][col]
                     if not (np.isnan(fluor) or fluor <= 0.0):
@@ -7603,7 +7603,7 @@ class Run:
                 for react in allData["reacts"]:
                     if react["id"] == res["baselineCorrectedData"][row][0]:
                         for data in react["datas"]:
-                            if data["tar"] == res["baselineCorrectedData"][row][2]:
+                            if data["tar"] == res["baselineCorrectedData"][row][3]:
                                 data["bass"] = list(bass_json)
             allData["bas_cyc_max"] = bas_cyc_max
             allData["bas_fluor_min"] = bas_fluor_min
@@ -7649,81 +7649,83 @@ class Run:
         # res is a 2 dimensional array accessed only by
         # variables, so columns might be added here
         header = [["id",  # 0
-                   "sample",  # 1
-                   "target",   # 2
-                   "excluded",   # 3
-                   "baseline",   # 4
-                   "lower limit",   # 5
-                   "upper limit",   # 6
-                   "common threshold",  # 7
-                   "group threshold",  # 8
-                   "n in log phase",   # 9
-                   "last log cycle",   # 10
-                   "n included",   # 11
-                   "log lin cycle",  # 12
-                   "log lin fluorescence",  # 13
-                   "indiv PCR eff",   # 14
-                   "R2",   # 15
-                   "N0 (indiv eff - for debug use)",   # 16
-                   "Cq (indiv eff - for debug use)",  # 17
-                   "Cq with group threshold (indiv eff - for debug use)",  # 18
-                   "mean PCR eff + no plateau + efficiency outliers",   # 19
-                   "N0 (mean eff) + no plateau + efficiency outliers",   # 20
-                   "Cq (mean eff) + no plateau + efficiency outliers",   # 21
-                   "mean PCR eff + efficiency outliers",   # 22
-                   "N0 (mean eff) + efficiency outliers",   # 23
-                   "Cq (mean eff) + efficiency outliers",   # 24
-                   "mean PCR eff + no plateau",   # 25
-                   "N0 (mean eff) + no plateau",   # 26
-                   "Cq (mean eff) + no plateau",   # 27
-                   "mean PCR eff",   # 28
-                   "N0 (mean eff)",   # 29
-                   "Cq (mean eff)",   # 30
-                   "amplification",   # 31
-                   "baseline error",   # 32
-                   "plateau",   # 33
-                   "noisy sample",   # 34
-                   "PCR efficiency outside rage + no plateau",   # 35
-                   "PCR efficiency outside rage",   # 36
-                   "used for W-o-L setting"]]   # 37
+                   "well",  # 1
+                   "sample",  # 2
+                   "target",   # 3
+                   "excluded",   # 4
+                   "baseline",   # 5
+                   "lower limit",   # 6
+                   "upper limit",   # 7
+                   "common threshold",  # 8
+                   "group threshold",  # 9
+                   "n in log phase",   # 10
+                   "last log cycle",   # 11
+                   "n included",   # 12
+                   "log lin cycle",  # 13
+                   "log lin fluorescence",  # 14
+                   "indiv PCR eff",   # 15
+                   "R2",   # 16
+                   "N0 (indiv eff - for debug use)",   # 17
+                   "Cq (indiv eff - for debug use)",  # 18
+                   "Cq with group threshold (indiv eff - for debug use)",  # 19
+                   "mean PCR eff + no plateau + efficiency outliers",   # 20
+                   "N0 (mean eff) + no plateau + efficiency outliers",   # 21
+                   "Cq (mean eff) + no plateau + efficiency outliers",   # 22
+                   "mean PCR eff + efficiency outliers",   # 23
+                   "N0 (mean eff) + efficiency outliers",   # 24
+                   "Cq (mean eff) + efficiency outliers",   # 25
+                   "mean PCR eff + no plateau",   # 26
+                   "N0 (mean eff) + no plateau",   # 27
+                   "Cq (mean eff) + no plateau",   # 28
+                   "mean PCR eff",   # 29
+                   "N0 (mean eff)",   # 30
+                   "Cq (mean eff)",   # 31
+                   "amplification",   # 32
+                   "baseline error",   # 33
+                   "plateau",   # 34
+                   "noisy sample",   # 35
+                   "PCR efficiency outside rage + no plateau",   # 36
+                   "PCR efficiency outside rage",   # 37
+                   "used for W-o-L setting"]]   # 38
         rar_id = 0
-        rar_sample = 1
-        rar_tar = 2
-        rar_excl = 3
-        rar_baseline = 4
-        rar_lower_limit = 5
-        rar_upper_limit = 6
-        rar_threshold_common = 7
-        rar_threshold_group = 8
-        rar_n_log = 9
-        rar_stop_log = 10
-        rar_n_included = 11
-        rar_log_lin_cycle = 12
-        rar_log_lin_fluorescence = 13
-        rar_indiv_PCR_eff = 14
-        rar_R2 = 15
-        rar_N0_indiv_eff = 16
-        rar_Cq_common = 17
-        rar_Cq_grp = 18
-        rar_meanEff_Skip = 19
-        rar_meanN0_Skip = 20
-        rar_Cq_Skip = 21
-        rar_meanEff_Skip_Plat = 22
-        rar_meanN0_Skip_Plat = 23
-        rar_Cq_Skip_Plat = 24
-        rar_meanEff_Skip_Eff = 25
-        rar_meanN0_Skip_Eff = 26
-        rar_Cq_Skip_Eff = 27
-        rar_meanEff_Skip_Plat_Eff = 28
-        rar_meanN0_Skip_Plat_Eff = 29
-        rar_Cq_Skip_Plat_Eff = 30
-        rar_amplification = 31
-        rar_baseline_error = 32
-        rar_plateau = 33
-        rar_noisy_sample = 34
-        rar_effOutlier_Skip = 35
-        rar_effOutlier_Skip_Plat = 36
-        rar_isUsedInWoL = 37
+        rar_well = 1
+        rar_sample = 2
+        rar_tar = 3
+        rar_excl = 4
+        rar_baseline = 5
+        rar_lower_limit = 6
+        rar_upper_limit = 7
+        rar_threshold_common = 8
+        rar_threshold_group = 9
+        rar_n_log = 10
+        rar_stop_log = 11
+        rar_n_included = 12
+        rar_log_lin_cycle = 13
+        rar_log_lin_fluorescence = 14
+        rar_indiv_PCR_eff = 15
+        rar_R2 = 16
+        rar_N0_indiv_eff = 17
+        rar_Cq_common = 18
+        rar_Cq_grp = 19
+        rar_meanEff_Skip = 20
+        rar_meanN0_Skip = 21
+        rar_Cq_Skip = 22
+        rar_meanEff_Skip_Plat = 23
+        rar_meanN0_Skip_Plat = 24
+        rar_Cq_Skip_Plat = 25
+        rar_meanEff_Skip_Eff = 26
+        rar_meanN0_Skip_Eff = 27
+        rar_Cq_Skip_Eff = 28
+        rar_meanEff_Skip_Plat_Eff = 29
+        rar_meanN0_Skip_Plat_Eff = 30
+        rar_Cq_Skip_Plat_Eff = 31
+        rar_amplification = 32
+        rar_baseline_error = 33
+        rar_plateau = 34
+        rar_noisy_sample = 35
+        rar_effOutlier_Skip = 36
+        rar_effOutlier_Skip_Plat = 37
+        rar_isUsedInWoL = 38
 
         res = []
         finalData = {}
@@ -7754,6 +7756,9 @@ class Run:
         rowCount = 0
         for react in reacts:
             posId = react.get('id')
+            pIdNumber = int(posId) % int(self["pcrFormat_columns"])
+            pIdLetter = chr(ord("A") + int(int(posId) / int(self["pcrFormat_columns"])))
+            pWell = pIdLetter + str(pIdNumber)
             sample = ""
             forId = _get_first_child(react, "sample")
             if forId is not None:
@@ -7773,10 +7778,10 @@ class Run:
                     excl = _get_first_child_text(react_data, "excl")
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
-                res.append([posId, sample, target, excl, "",  "", "", "", "", "",
+                res.append([posId, pWell, sample, target, excl, "",  "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", ""])  # Must match header length
+                            "", "", "", "", "",  "", "", "", ""])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -7788,11 +7793,11 @@ class Run:
                 rowCount += 1
 
         if saveRaw:
-            rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
+            rawArr = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
             for i in range(0, spFl[1]):
                 rawArr[0].append(i + 1)
             for i in range(0, spFl[0]):
-                rawArr.append([res[i][rar_id], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
+                rawArr.append([res[i][rar_id], res[i][rar_well], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
                 for k in range(0, spFl[1]):
                     rawArr[i + 1].append(float(rawFluor[i, k]))
             finalData["rawData"] = rawArr
@@ -7802,11 +7807,11 @@ class Run:
         targetsCount = 1
         tarWinLookup = {}
         for i in range(0, spFl[0]):
-            if res[i][2] not in tarWinLookup:
-                tarWinLookup[res[i][2]] = targetsCount
+            if res[i][rar_tar] not in tarWinLookup:
+                tarWinLookup[res[i][rar_tar]] = targetsCount
                 vecTarget[i] = targetsCount
                 targetsCount += 1
-            vecTarget[i] = tarWinLookup[res[i][2]]
+            vecTarget[i] = tarWinLookup[res[i][rar_tar]]
         upwin = np.zeros(targetsCount, dtype=np.float64)
         lowwin = np.zeros(targetsCount, dtype=np.float64)
         threshold = np.zeros(targetsCount, dtype=np.float64)
@@ -8199,11 +8204,11 @@ class Run:
        #         f.write(outStrStuff)
 
         if saveBaslineCorr:
-            rawArr = [[header[0][rar_id], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
+            rawArr = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
             for i in range(0, spFl[1]):
                 rawArr[0].append(i + 1)
             for i in range(0, spFl[0]):
-                rawArr.append([res[i][rar_id], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
+                rawArr.append([res[i][rar_id], res[i][rar_well], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
                 for k in range(0, spFl[1]):
                     rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
             finalData["baselineCorrectedData"] = rawArr

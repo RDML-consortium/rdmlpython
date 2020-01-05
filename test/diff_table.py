@@ -24,6 +24,22 @@ else:
     aFile = re.sub(r"\r\n", "\n", aFile)
     bFile = re.sub(r"\r\n", "\n", bFile)
 
+    # Useful if a column was added
+    if False:
+        aFile = re.sub(r"\n+$", "", aFile)
+        bFile = re.sub(r"\n+$", "", bFile)
+
+        tAA = aFile.split('\n')
+        oua = ""
+        for gg in tAA:
+            ll = gg.split('\t')
+            for i in range(0, len(ll)):
+                if i != 1:
+                    oua += ll[i] + "\t"
+            oua = re.sub(r"\t$", "\n", oua)
+        aFile = oua
+        aFile = re.sub(r"\n+$", "", aFile)
+
     # Fix different NaN styles
     aFile = re.sub(r"NaN", "nan", aFile)
     bFile = re.sub(r"NaN", "nan", bFile)
