@@ -48,5 +48,16 @@ python3 test/diff_table.py test/temp_4_out_raw_data.tsv test/test_4_out_raw_data
 python3 test/diff_table.py test/temp_4_out_baseline_corrected_data.tsv test/test_4_out_baseline_corrected_data.tsv "Test 4 - baseline corrected data" 20 N Y
 python3 test/diff_table.py test/temp_4_out_results.tsv test/test_4_out_results.tsv "Test 4 - results" 20 N Y
 
+echo "Run Test 5:"
+python3 rdml.py -d test/test_5_raw_data.rdml
+
+mv test/temp_out_raw_data.tsv test/temp_5_out_raw_data.tsv
+mv test/temp_out_baseline_corrected_data.tsv test/temp_5_out_baseline_corrected_data.tsv
+mv test/temp_out_results.tsv test/temp_5_out_results.tsv
+
+python3 test/diff_table.py test/temp_5_out_raw_data.tsv test/test_5_out_raw_data.tsv "Test 5 - raw data" 20 N Y
+python3 test/diff_table.py test/temp_5_out_baseline_corrected_data.tsv test/test_5_out_baseline_corrected_data.tsv "Test 5 - baseline corrected data" 20 N Y
+python3 test/diff_table.py test/temp_5_out_results.tsv test/test_5_out_results.tsv "Test 5 - results" 20 N Y
+
 
 

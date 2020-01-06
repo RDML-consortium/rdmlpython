@@ -1314,7 +1314,7 @@ class Rdml:
         Returns:
             No return value. Function may raise RdmlError if required.
         """
-        
+
         self._rdmlData = None
         self._rdmlFilename = None
         self._node = None
@@ -1391,7 +1391,7 @@ class Rdml:
 
         Returns:
             No return value. Function may raise RdmlError if required.
-        """    
+        """
 
         if zipfile.is_zipfile(filename):
             self._rdmlFilename = filename
@@ -8328,12 +8328,22 @@ class Run:
             for j in range(0, spFl[0]):
                 if not vecSkipSample[j]:
                     pstart, pstop, notinwindow = _find_pstat_pstop(nfluor, j, uplim2, lowlim2)
-                    nextstep = np.log10(nfluor[j, pstart - 1]) - np.log10(nfluor[j, pstart - 2])
+                    minpstart = pstart - 1
+                    while np.isnan(nfluor[j, minpstart - 1]) and minpstart > 1:
+                        minpstart -= 1
+                    minpstop = pstop - 1
+                    while np.isnan(nfluor[j, minpstop - 1]) and minpstop > 2:
+                        minpstop -= 1
+
+                    minStartFlour = nfluor[j, minpstart - 1]
+                    if np.isnan(minStartFlour):
+                        minStartFlour = 0.00001
+
+                    nextstep = np.log10(nfluor[j, pstart - 1]) - np.log10(minStartFlour)
                     stopstep = np.log10(nfluor[j, pstop - 1]) - np.log10(nfluor[j, pstop - 2])
-                    if (not np.isnan(nfluor[j, pstart - 2]) and
-                        (np.log10(nfluor[j, pstart - 2]) > lowlim and not
-                         (nfluor[j, pstart - 2] < nfluor[j, pstart - 1] and
-                          nextstep < 1.2 * stopstep))):
+                    if (np.log10(minStartFlour) > lowlim and not
+                        ((minStartFlour < nfluor[j, pstart - 1] and nextstep < 1.2 * stopstep) or
+                         (pstart - minpstart > 1.2))):
                         vecNoisySample[j] = True
                         vecSkipSample[j] = True
 
@@ -8383,15 +8393,18 @@ class Run:
             pcreff_Skip_Plat = pcreff_Skip.copy()
             pcreff_Skip_Plat[vecSkipSample_Plat] = np.nan
 
-            # Fixme: catch empy slice
-            pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
-            pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
+                pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat)
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
                     if not np.isnan(pcreff[z]):
-                        if not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl):
+                        if (np.isnan(pcreffMedian_Skip) or
+                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl)):
                             vecEffOutlier_Skip[z] = True
-                        if not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl):
+                        if (np.isnan(pcreffMedian_Skip_Plat) or
+                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
                             vecEffOutlier_Skip_Plat[z] = True
 
             pcreff_Skip_Eff = pcreff_Skip.copy()
@@ -8399,17 +8412,20 @@ class Run:
             pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
 
-            # Fixme: catch empy slice
-            pcreffMedian_Skip = np.nanmedian(pcreff_Skip_Eff)
-            pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat_Eff)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                pcreffMedian_Skip = np.nanmedian(pcreff_Skip_Eff)
+                pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat_Eff)
             for z in range(0, spFl[0]):
                 if t is None or t == vecTarget[z]:
                     if not np.isnan(pcreff[z]):
-                        if not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl):
+                        if (np.isnan(pcreffMedian_Skip) or
+                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl)):
                             vecEffOutlier_Skip[z] = True
                         else:
                             vecEffOutlier_Skip[z] = False
-                        if not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl):
+                        if (np.isnan(pcreffMedian_Skip_Plat) or
+                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
                             vecEffOutlier_Skip_Plat[z] = True
                         else:
                             vecEffOutlier_Skip_Plat[z] = False
@@ -8422,11 +8438,21 @@ class Run:
             pcreff_Skip_Plat_Eff = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Eff[vecEffOutlier_Skip_Plat] = np.nan
 
-            # Fixme: catch empy slice
-            tempMeanEff_Skip = np.nanmean(pcreff_Skip)
-            tempMeanEff_Skip_Plat = np.nanmean(pcreff_Skip_Plat)
-            tempMeanEff_Skip_Eff = np.nanmean(pcreff_Skip_Eff)
-            tempMeanEff_Skip_Plat_Eff = np.nanmean(pcreff_Skip_Plat_Eff)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                tempMeanEff_Skip = np.nanmean(pcreff_Skip)
+                tempMeanEff_Skip_Plat = np.nanmean(pcreff_Skip_Plat)
+                tempMeanEff_Skip_Eff = np.nanmean(pcreff_Skip_Eff)
+                tempMeanEff_Skip_Plat_Eff = np.nanmean(pcreff_Skip_Plat_Eff)
+
+            if np.isnan(tempMeanEff_Skip):
+                tempMeanEff_Skip = 1.0
+            if np.isnan(tempMeanEff_Skip_Plat):
+                tempMeanEff_Skip_Plat = 1.0
+            if np.isnan(tempMeanEff_Skip_Eff):
+                tempMeanEff_Skip_Eff = 1.0
+            if np.isnan(tempMeanEff_Skip_Plat_Eff):
+                tempMeanEff_Skip_Plat_Eff = 1.0
 
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
@@ -8443,22 +8469,22 @@ class Run:
                         indivCq_Grp[z] = 0.0
 
                     if not np.isnan(pcreff[z]) and pcreff[z] > 1.0:
-                        if meanEff_Skip[z] > 1.001:
+                        if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
                             meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z])
                         else:
                             meanCq_Skip[z] = 0.0
 
-                        if meanEff_Skip_Plat[z] > 1.001:
+                        if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
                             meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z])
                         else:
                             meanCq_Skip_Plat[z] = 0.0
 
-                        if meanEff_Skip_Eff[z] > 1.001:
+                        if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
                             meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z])
                         else:
                             meanCq_Skip_Eff[z] = 0.0
 
-                        if meanEff_Skip_Plat_Eff[z] > 1.001:
+                        if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
                             meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z])
                         else:
                             meanCq_Skip_Plat_Eff[z] = 0.0
@@ -8469,22 +8495,22 @@ class Run:
                         meanCq_Skip_Plat_Eff[z] = 0.0
 
                     if not np.isnan(pcreff[z]) and pcreff[z] > 1.0 and 0.0 < indivCq[z] < 2 * spFl[1]:
-                        if meanEff_Skip[z] > 1.001:
+                        if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
                             meanNnul_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
                         else:
                             meanNnul_Skip[z] = -999.0
 
-                        if meanEff_Skip_Plat[z] > 1.001:
+                        if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
                             meanNnull_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], meanCq_Skip_Plat[z])
                         else:
                             meanNnull_Skip_Plat[z] = -999.0
 
-                        if meanEff_Skip_Eff[z] > 1.001:
+                        if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
                             meanNnull_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], meanCq_Skip_Eff[z])
                         else:
                             meanNnull_Skip_Eff[z] = -999.0
 
-                        if meanEff_Skip_Plat_Eff[z] > 1.001:
+                        if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
                             meanNnull_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], meanCq_Skip_Plat_Eff[z])
                         else:
                             meanNnull_Skip_Plat_Eff[z] = -999.0
