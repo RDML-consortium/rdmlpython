@@ -1879,12 +1879,22 @@ class Rdml:
             ret.append(hint)
 
         exp1 = _get_all_children(self._node, "target")
+        hint = ""
         for node1 in exp1:
-            hint = ""
             exp2 = _get_all_children(node1, "meltingTemperature")
             for node2 in exp2:
                 node1.remove(node2)
-                hint = "Migration to v1.2 deleted target \"meltingTemperature\" element."
+                hint = "Migration to v1.2 deleted target \"meltingTemperature\" elements."
+        if hint != "":
+            ret.append(hint)
+
+        exp1 = _get_all_children(self._node, "dye")
+        hint = ""
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "dyeChemistry")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.2 deleted dye \"dyeChemistry\" elements."
         if hint != "":
             ret.append(hint)
 
@@ -3286,7 +3296,7 @@ class Dye:
 
         if key == "id":
             return self._node.get('id')
-        if key == "description":
+        if key in ["description", "dyeChemistry"]:
             var = _get_first_child_text(self._node, key)
             if var == "":
                 return None
@@ -3305,11 +3315,24 @@ class Dye:
         Returns:
             No return value, changes self. Function may raise RdmlError if required.
         """
+
+        if key == "dyeChemistry":
+            if value not in ["DNA binding dye", "Molecular Beacon", "hybridization probe",
+                             "Light-Up probe", "hydrolysis probe", "NuPCR system",
+                             "LUX primer", "Scorpion probe", "Sunrise probe",
+                             "QZyme probe"]:
+                raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
+
         if key == "id":
             self.change_id(value, merge_with_id=False)
             return
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.3":
+            if key == "dyeChemistry":
+                return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
 
     def change_id(self, value, merge_with_id=False):
@@ -3351,7 +3374,7 @@ class Dye:
             A list of the key strings.
         """
 
-        return ["id", "description"]
+        return ["id", "description", "dyeChemistry"]
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -3379,6 +3402,7 @@ class Dye:
             "id": self._node.get('id'),
         }
         _add_first_child_to_dic(self._node, data, True, "description")
+        _add_first_child_to_dic(self._node, data, True, "dyeChemistry")
         return data
 
 
