@@ -1875,7 +1875,16 @@ class Rdml:
                     if len(exp5) == 0:
                         hint = "Migration to v1.2 deleted run \"react\" elements."
                         node2.remove(node3)
+        if hint != "":
+            ret.append(hint)
 
+        exp1 = _get_all_children(self._node, "target")
+        for node1 in exp1:
+            hint = ""
+            exp2 = _get_all_children(node1, "meltingTemperature")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.2 deleted target \"meltingTemperature\" element."
         if hint != "":
             ret.append(hint)
 
