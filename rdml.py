@@ -4049,7 +4049,8 @@ class Target:
             return self._node.get('id')
         if key == "type":
             return _get_first_child_text(self._node, key)
-        if key in ["description", "amplificationEfficiencyMethod", "amplificationEfficiency", "detectionLimit"]:
+        if key in ["description", "amplificationEfficiencyMethod", "amplificationEfficiency",
+                   "amplificationEfficiencySE", "meltingTemperature", "detectionLimit"]:
             var = _get_first_child_text(self._node, key)
             if var == "":
                 return None
@@ -4132,10 +4133,11 @@ class Target:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
+        par = self._node.getparent()
+        ver = par.get('version')
         if key == "type":
             if value not in ["ref", "toi"]:
                 raise RdmlError('Unknown or unsupported target type value "' + value + '".')
-
         if key == "id":
             self.change_id(value, merge_with_id=False)
             return
@@ -4145,6 +4147,12 @@ class Target:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key in ["amplificationEfficiency", "detectionLimit"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
+        if ver == "1.2" or ver == "1.3":
+            if key == "amplificationEfficiencySE":
+                return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
+        if ver == "1.3":
+            if key == "meltingTemperature":
+                return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         if key == "dyeId":
             forId = _get_or_create_subelement(self._node, "dyeId", self.xmlkeys())
             if value is not None and value != "":
@@ -4330,7 +4338,8 @@ class Target:
         """
 
         return ["id", "description", "type", "amplificationEfficiencyMethod", "amplificationEfficiency",
-                "detectionLimit", "dyeId", "sequences_forwardPrimer_threePrimeTag",
+                "amplificationEfficiencySE", "meltingTemperature", "detectionLimit", "dyeId",
+                "sequences_forwardPrimer_threePrimeTag",
                 "sequences_forwardPrimer_fivePrimeTag", "sequences_forwardPrimer_sequence",
                 "sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
                 "sequences_reversePrimer_sequence", "sequences_probe1_threePrimeTag",
@@ -4350,7 +4359,8 @@ class Target:
         """
 
         return ["description", "documentation", "xRef", "type", "amplificationEfficiencyMethod",
-                "amplificationEfficiency", "detectionLimit", "dyeId", "sequences", "commercialAssay"]
+                "amplificationEfficiency", "amplificationEfficiencySE", "meltingTemperature",
+                "detectionLimit", "dyeId", "sequences", "commercialAssay"]
 
     def xrefs(self):
         """Returns a list of the xrefs in the xml file.
@@ -4523,6 +4533,8 @@ class Target:
         _add_first_child_to_dic(self._node, data, False, "type")
         _add_first_child_to_dic(self._node, data, True, "amplificationEfficiencyMethod")
         _add_first_child_to_dic(self._node, data, True, "amplificationEfficiency")
+        _add_first_child_to_dic(self._node, data, True, "amplificationEfficiencySE")
+        _add_first_child_to_dic(self._node, data, True, "meltingTemperature")
         _add_first_child_to_dic(self._node, data, True, "detectionLimit")
         forId = _get_first_child(self._node, "dyeId")
         if forId is not None:
