@@ -1878,6 +1878,22 @@ class Rdml:
         if hint != "":
             ret.append(hint)
 
+        exp1 = _get_all_children(self._node, "sample")
+        hint = ""
+        hint2 = ""
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "type")
+            if "targetId" in exp2[0].attrib:
+                del exp2[0].attrib["targetId"]
+                hint = "Migration to v1.2 deleted sample type \"targetId\" attribute."
+            for elCount in range(1, len(exp2)):
+                node1.remove(exp2[elCount])
+                hint2 = "Migration to v1.2 deleted sample \"type\" elements."
+        if hint != "":
+            ret.append(hint)
+        if hint2 != "":
+            ret.append(hint2)
+
         exp1 = _get_all_children(self._node, "target")
         hint = ""
         for node1 in exp1:
@@ -2030,6 +2046,12 @@ class Rdml:
                 mess += "Recreated sample: " + used_id + "\n"
         # Find lost target
         foundIds = {}
+        allExp = _get_all_children(self._node, "sample")
+        for node in allExp:
+            subNodes = _get_all_children(node, "type")
+            for subNode in subNodes:
+                if "targetId" in subNode.attrib:
+                    foundIds[subNode.attrib['targetId']] = 0
         allExp = _get_all_children(self._node, "experiment")
         for node in allExp:
             subNodes = _get_all_children(node, "run")
@@ -2483,13 +2505,14 @@ class Rdml:
             ret.append(Sample(node))
         return ret
 
-    def new_sample(self, id, type, newposition=None):
+    def new_sample(self, id, type, targetId=None, newposition=None):
         """Creates a new sample element.
 
         Args:
             self: The class self parameter.
             id: Sample unique id (required)
             type: Sample type (required)
+            targetId: The target linked to the type (makes sense in "pos" or "ntp" context) (optional)
             newposition: Experimenters position in the list of experimenters (optional)
 
         Returns:
@@ -2499,7 +2522,10 @@ class Rdml:
         if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
             raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
         new_node = _create_new_element(self._node, "sample", id)
-        _add_new_subelement(new_node, "sample", "type", type, False)
+        ET.SubElement(new_node, "type").text = type
+        ver = self._node.get('version')
+    #    if ver == "1.3" and targetId is not None or not targetId == "":
+    #        typeEL.attrib["targetId"] = targetId
         place = _get_tag_pos(self._node, "sample", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
 
@@ -3441,8 +3467,6 @@ class Sample:
 
         if key == "id":
             return self._node.get('id')
-        if key == "type":
-            return _get_first_child_text(self._node, key)
         if key == "description":
             var = _get_first_child_text(self._node, key)
             if var == "":
@@ -3523,15 +3547,9 @@ class Sample:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        if key == "type":
-            if value not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
-                raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
-
         if key == "id":
             self.change_id(value, merge_with_id=False)
             return
-        if key == "type":
-            return _change_subelement(self._node, key, self.xmlkeys(), value, False, "string")
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key in ["interRunCalibrator", "calibratorSample"]:
@@ -3671,11 +3689,11 @@ class Sample:
         par = self._node.getparent()
         ver = par.get('version')
         if ver == "1.1":
-            return ["id", "description", "type", "interRunCalibrator", "quantity", "calibratorSample",
+            return ["id", "description", "interRunCalibrator", "quantity", "calibratorSample",
                     "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                     "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
                     "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
-        return ["id", "description", "annotation", "type", "interRunCalibrator", "quantity", "calibratorSample",
+        return ["id", "description", "annotation", "interRunCalibrator", "quantity", "calibratorSample",
                 "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                 "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
                 "templateQuantity"]
@@ -3698,6 +3716,118 @@ class Sample:
                     "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
         return ["description", "documentation", "xRef", "annotation", "type", "interRunCalibrator",
                 "quantity", "calibratorSample", "cdnaSynthesisMethod", "templateQuantity"]
+
+    def types(self):
+        """Returns a list of the types in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of dics with type and id strings.
+        """
+
+        typesList = _get_all_children(self._node, "type")
+        ret = []
+        for node in typesList:
+            data = {}
+            data["type"] = node.text
+            if "targetId" in node.attrib:
+                data["targetId"] = node.attrib["targetId"]
+            else:
+                data["targetId"] = ""
+            ret.append(data)
+        return ret
+
+    def new_type(self, type, targetId=None, newposition=None):
+        """Creates a new type element.
+
+        Args:
+            self: The class self parameter.
+            type: The "unkn", "ntc", "nac", "std", "ntp", "nrt", "pos" or "opt" type of sample
+            targetId: The target linked to the type (makes sense in "pos" or "ntp" context)
+            newposition: The new position of the element
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
+            raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
+        new_node = ET.Element("type")
+        new_node.text = type
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.3":
+            if targetId is not None or not targetId == "":
+                new_node.attrib["targetId"] = targetId
+        place = _get_tag_pos(self._node, "type", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def edit_type(self, type, oldposition, newposition=None, targetId=None):
+        """Edits a type element.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+            type: The "unkn", "ntc", "nac", "std", "ntp", "nrt", "pos" or "opt" type of sample
+            targetId: The target linked to the type (makes sense in "pos" or "ntp" context)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
+            raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
+        if oldposition is None:
+            raise RdmlError('A oldposition is required to edit a type.')
+
+        pos = _get_tag_pos(self._node, "type", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "type", None, oldposition)
+        ele.text = type
+        par = self._node.getparent()
+        ver = par.get('version')
+        if "targetId" in ele.attrib:
+            del ele.attrib["targetId"]
+        if ver == "1.3":
+            if targetId is not None or not targetId == "":
+                ele.attrib["targetId"] = targetId
+        self._node.insert(pos, ele)
+
+    def move_type(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "type", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "type", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def delete_type(self, byposition):
+        """Deletes an type element.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        ls = self.types()
+        if len(ls) < 2:
+            return
+
+        elem = _get_first_child_by_pos_or_id(self._node, "type", None, byposition)
+        self._node.remove(elem)
 
     def xrefs(self):
         """Returns a list of the xrefs in the xml file.
@@ -3986,7 +4116,7 @@ class Sample:
         data["xRefs"] = self.xrefs()
         if ver == "1.2" or ver == "1.3":
             data["annotations"] = self.annotations()
-        _add_first_child_to_dic(self._node, data, False, "type")
+        data["types"] = self.types()
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
         elem = _get_first_child(self._node, "quantity")
         if elem is not None:
@@ -4290,6 +4420,13 @@ class Target:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError('The ' + groupTag + ' id "' + value + '" does not exist.')
+            allExp = _get_all_children(par, "sample")
+            for node in allExp:
+                subNodes = _get_all_children(node, "type")
+                for subNode in subNodes:
+                    if "targetId" in subNode.attrib:
+                        if subNode.attrib['targetId'] == oldValue:
+                            subNode.attrib['targetId'] = value
             allExp = _get_all_children(par, "experiment")
             for node in allExp:
                 subNodes = _get_all_children(node, "run")
