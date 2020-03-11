@@ -13,6 +13,7 @@ import argparse
 import math
 import warnings
 import json
+import csv
 import numpy as np
 from lxml import etree as ET
 
@@ -1294,6 +1295,10 @@ def _numpyTwoAxisSave(var, fileName):
         np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
 
 
+def _getXMLDataType():
+    return ["tar", "cq", "ampEffMet", "ampEff", "ampEffSE", "meltTemp", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
+
+
 class Rdml:
     """RDML-Python library
     
@@ -1860,6 +1865,10 @@ class Rdml:
             raise RdmlError('RDML version for migration has to be v1.3.')
 
         hint = ""
+        hint2 = ""
+        hint3 = ""
+        hint4 = ""
+        hint5 = ""
         exp1 = _get_all_children(self._node, "experiment")
         for node1 in exp1:
             exp2 = _get_all_children(node1, "run")
@@ -1875,7 +1884,34 @@ class Rdml:
                     if len(exp5) == 0:
                         hint = "Migration to v1.2 deleted run \"react\" elements."
                         node2.remove(node3)
+
+                    exp4b = _get_all_children(node3, "data")
+                    for node4 in exp4b:
+                        exp5 = _get_all_children(node4, "ampEffMet")
+                        for node5 in exp5:
+                            hint2 = "Migration to v1.2 deleted react data \"ampEffMet\" elements."
+                            node4.remove(node5)
+                        exp5 = _get_all_children(node4, "ampEff")
+                        for node5 in exp5:
+                            hint3 = "Migration to v1.2 deleted react data \"ampEff\" elements."
+                            node4.remove(node5)
+                        exp5 = _get_all_children(node4, "ampEffSE")
+                        for node5 in exp5:
+                            hint4 = "Migration to v1.2 deleted react data \"ampEffSE\" elements."
+                            node4.remove(node5)
+                        exp5 = _get_all_children(node4, "meltTemp")
+                        for node5 in exp5:
+                            hint5 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
+                            node4.remove(node5)
         if hint != "":
+            ret.append(hint)
+        if hint2 != "":
+            ret.append(hint)
+        if hint3 != "":
+            ret.append(hint)
+        if hint4 != "":
+            ret.append(hint)
+        if hint5 != "":
             ret.append(hint)
 
         exp1 = _get_all_children(self._node, "sample")
@@ -3343,10 +3379,9 @@ class Dye:
         """
 
         if key == "dyeChemistry":
-            if value not in ["DNA binding dye", "Molecular Beacon", "hybridization probe",
-                             "Light-Up probe", "hydrolysis probe", "NuPCR system",
-                             "LUX primer", "Scorpion probe", "Sunrise probe",
-                             "QZyme probe"]:
+            if value not in ["non-saturating DNA binding dye", "saturating DNA binding dye", "hybridization probe",
+                             "hydrolysis probe", "labelled forward primer", "labelled reverse primer",
+                             "DNA-zyme probe"]:
                 raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
 
         if key == "id":
@@ -4516,7 +4551,7 @@ class Target:
                 "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
                 "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence", "sequences_amplicon_threePrimeTag",
                 "sequences_amplicon_fivePrimeTag", "sequences_amplicon_sequence", "commercialAssay_company",
-                "commercialAssay_orderNumber"]
+                "commercialAssay_orderNumber"]  # Also change in LinRegPCR save RDML
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -6371,7 +6406,7 @@ class Run:
                 data = new_node
                 new_node = ET.Element("tar", id=sLin[3])
                 place = _get_tag_pos(data, "tar",
-                                     ["tar", "cq", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"],
+                                     _getXMLDataType(),
                                      9999999)
                 data.insert(place, new_node)
 
@@ -6385,7 +6420,7 @@ class Run:
                     for col in sLin[6:]:
                         new_node = ET.Element("adp")
                         place = _get_tag_pos(data, "adp",
-                                             ["tar", "cq", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"],
+                                             _getXMLDataType(),
                                              9999999)
                         data.insert(place, new_node)
                         new_sub = ET.Element("cyc")
@@ -6407,7 +6442,7 @@ class Run:
                     for col in sLin[6:]:
                         new_node = ET.Element("mdp")
                         place = _get_tag_pos(data, "mdp",
-                                             ["tar", "cq", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"],
+                                             _getXMLDataType(),
                                              9999999)
                         data.insert(place, new_node)
                         new_sub = ET.Element("tmp")
@@ -6469,14 +6504,8 @@ class Run:
 
         # Work the overview file
         if filename is not None:
-            with open(filename, "r") as tfile:
-                fileContent = tfile.read()
-
-                newlineFix = fileContent.replace("\r\n", "\n")
-                tabLines = newlineFix.split("\n")
-
+            with open(filename, newline='') as tfile:  # add encoding='utf-8' ?
                 posCount = 0
-
                 posWell = 0
                 posSample = -1
                 posSampleType = -1
@@ -6498,8 +6527,8 @@ class Run:
                 posFilename = -1
 
                 if fileformat == "RDML":
-                    head = tabLines[0].split("\t")
-                    for hInfo in head:
+                    tabLines = list(csv.reader(tfile, delimiter='\t'))
+                    for hInfo in tabLines[0]:
                         if hInfo == "Sample":
                             posSample = posCount
                         if hInfo == "SampleType":
@@ -6526,8 +6555,8 @@ class Run:
                             posFilename = posCount
                         posCount += 1
                 elif fileformat == "Bio-Rad":
-                    head = tabLines[0].split(";")
-                    for hInfo in head:
+                    tabLines = list(csv.reader(tfile, delimiter=','))
+                    for hInfo in tabLines[0]:
                         if hInfo == "Sample":
                             posSample = posCount
                         if hInfo in ["TargetType", "TypeAssay"]:
@@ -6543,8 +6572,8 @@ class Run:
                         posCount += 1
                 elif fileformat == "Stilla":
                     posWell = 1
-                    head = tabLines[0].split(",")
-                    for hInfo in head:
+                    tabLines = list(csv.reader(tfile, delimiter=','))
+                    for hInfo in tabLines[0]:
                         hInfo = re.sub(r"^ +", '', hInfo)
                         if hInfo == "SampleName":
                             posSample = posCount
@@ -6594,25 +6623,19 @@ class Run:
                     raise RdmlError('The overview tab-format is not valid, negatives columns are missing.')
 
                 # Process the lines
-                for tabLine in tabLines[1:]:
-                    if fileformat == "RDML":
-                        sLin = tabLine.split("\t")
-                        emptyLine = tabLine.replace("\t", "")
-                    elif fileformat == "Bio-Rad":
-                        sLin = tabLine.split(";")
-                        emptyLine = tabLine.replace(";", "")
-                    elif fileformat == "Stilla":
-                        tabLine = re.sub(r'^ +', '', tabLine)
-                        tabLine = re.sub(r', +', ',', tabLine)
-                        sLin = tabLine.split(",")
-                        emptyLine1 = tabLine.replace(",", "")
-                        emptyLine = emptyLine1.replace(" ", "")
-                    else:
-                        sLin = tabLine.split("\t")
-                        emptyLine = tabLine.replace("\t", "")
-
-                    if len(sLin) < 7 or len(emptyLine) < 5:
+                for rowNr in range(1, len(tabLines)):
+                    emptyLine = True
+                    if len(tabLines[rowNr]) < 7:
                         continue
+                    for colNr in range(0, len(tabLines[rowNr])):
+                        if tabLines[rowNr][colNr] != "":
+                            emptyLine = False
+                            tabLines[rowNr][colNr] = re.sub(r'^ +', '', tabLines[rowNr][colNr])
+                            tabLines[rowNr][colNr] = re.sub(r' +$', '', tabLines[rowNr][colNr])
+                    if emptyLine is True:
+                        continue
+                    sLin = tabLines[rowNr]
+
                     if sLin[posSample] not in samTypeLookup:
                         posSampleTypeName = "unkn"
                         if posSampleType != -1:
@@ -6657,7 +6680,7 @@ class Run:
                     data = None
 
                     # Get the position number if required
-                    wellPos = sLin[posWell]
+                    wellPos = re.sub(r"\"", "", sLin[posWell])
                     if fileformat == "Stilla":
                         wellPos = re.sub(r'^\d+-', '', wellPos)
 
@@ -6935,13 +6958,17 @@ class Run:
 
             # print(finalFileName)
 
-            with open(fileLookup[well], "r") as wellfile:
-                wellFileContent = wellfile.read()
-                newlineFix = wellFileContent.replace("\r\n", "\n")
-                wellLines = newlineFix.split("\n")
+            with open(fileLookup[well], newline='') as wellfile:  # add encoding='utf-8' ?
+
+  #          with open(fileLookup[well], "r") as wellfile:
+   #             wellFileContent = wellfile.read()
+    #            newlineFix = wellFileContent.replace("\r\n", "\n")
+     #           wellLines = newlineFix.split("\n")
 
                 if fileformat == "RDML":
-                    _writeFileInRDML(self._rdmlFilename, finalFileName, newlineFix)
+                    wellLines = list(csv.reader(wellfile, delimiter='\t'))
+                    wellFileContent = wellfile.read()
+                    _writeFileInRDML(self._rdmlFilename, finalFileName, wellFileContent)
 
                     delElem = _get_first_child(partit, "endPtTable")
                     if delElem is not None:
@@ -6951,7 +6978,7 @@ class Run:
                     place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
                     partit.insert(place, new_node)
 
-                    header = wellLines[0].split("\t")
+                    header = wellLines[0]
 
                     for col in range(0, len(header), 2):
                         cPos = 0
@@ -7032,6 +7059,7 @@ class Run:
                                 data.insert(place, new_node)
 
                 elif fileformat == "Bio-Rad":
+                    wellLines = list(csv.reader(wellfile, delimiter=','))
                     ch1Pos = "0"
                     ch1Neg = "0"
                     ch1sum = 0
@@ -7051,14 +7079,13 @@ class Run:
                         headerLookup[well] = {}
                         dyes = ["Ch1", "Ch2"]
                         if len(wellLines) > 1:
-                            isThereData = wellLines[1].split(",")
                             ch1Pos = ""
                             ch1Neg = ""
                             ch2Pos = ""
                             ch2Neg = ""
-                            if re.search(r"\d", isThereData[0]):
+                            if re.search(r"\d", wellLines[1][0]):
                                 keepCh1 = True
-                            if len(isThereData) > 1 and re.search(r"\d", isThereData[1]):
+                            if len(wellLines[1]) > 1 and re.search(r"\d", wellLines[1][1]):
                                 keepCh2 = True
                             for dye in dyes:
                                 if dye not in dyeLookup:
@@ -7124,8 +7151,7 @@ class Run:
 
                         if ch1Pos == "" and ch1Neg == "" and ch2Pos == "" and ch2Neg == "":
                             countPart = 0
-                            for line in wellLines[1:]:
-                                splitLine = line.split(",")
+                            for splitLine in wellLines[1:]:
                                 if len(splitLine[0]) < 2:
                                     continue
                                 if keepCh1:
@@ -7175,8 +7201,7 @@ class Run:
                             ch2Arr = []
                             ch1Cut = 0
                             ch2Cut = 0
-                            for line in wellLines[1:]:
-                                splitLine = line.split(",")
+                            for splitLine in wellLines[1:]:
                                 if len(splitLine) < 2:
                                     continue
                                 if keepCh1:
@@ -7193,8 +7218,7 @@ class Run:
                                 if 0 < int(ch2Neg) <= len(ch2Arr):
                                     ch2Cut = ch2Arr[int(ch2Neg) - 1]
 
-                            for line in wellLines[1:]:
-                                splitLine = line.split(",")
+                            for splitLine in wellLines[1:]:
                                 if len(splitLine) < 2:
                                     continue
                                 if keepCh1:
@@ -7221,6 +7245,7 @@ class Run:
                     else:
                         react.remove(partit)
                 elif fileformat == "Stilla":
+                    wellLines = list(csv.reader(wellfile, delimiter=','))
                     ch1Pos = "0"
                     ch1Neg = "0"
                     ch1sum = 0
@@ -7246,18 +7271,17 @@ class Run:
                         headerLookup[well] = {}
                         dyes = ["Ch1", "Ch2", "Ch3"]
                         if len(wellLines) > 1:
-                            isThereData = wellLines[1].split(",")
                             ch1Pos = ""
                             ch1Neg = ""
                             ch2Pos = ""
                             ch2Neg = ""
                             ch3Pos = ""
                             ch3Neg = ""
-                            if re.search(r"\d", isThereData[0]):
+                            if re.search(r"\d", wellLines[1][0]):
                                 keepCh1 = True
-                            if len(isThereData) > 1 and re.search(r"\d", isThereData[1]):
+                            if len(wellLines[1]) > 1 and re.search(r"\d", wellLines[1][1]):
                                 keepCh2 = True
-                            if len(isThereData) > 2 and re.search(r"\d", isThereData[2]):
+                            if len(wellLines[1]) > 2 and re.search(r"\d", wellLines[1][2]):
                                 keepCh3 = True
                             for dye in dyes:
                                 if dye not in dyeLookup:
@@ -7341,8 +7365,7 @@ class Run:
 
                         if ch1Pos == "" and ch1Neg == "" and ch2Pos == "" and ch2Neg == "" and ch3Pos == "" and ch3Neg == "":
                             countPart = 0
-                            for line in wellLines[1:]:
-                                splitLine = line.split(",")
+                            for splitLine in wellLines[1:]:
                                 if len(splitLine[0]) < 2:
                                     continue
                                 if keepCh1:
@@ -7419,8 +7442,7 @@ class Run:
                             ch1Cut = 0
                             ch2Cut = 0
                             ch3Cut = 0
-                            for line in wellLines[1:]:
-                                splitLine = line.split(",")
+                            for splitLine in wellLines[1:]:
                                 if len(splitLine) < 3:
                                     continue
                                 if keepCh1:
@@ -7443,8 +7465,7 @@ class Run:
                                 if 0 < int(ch3Neg) <= len(ch3Arr):
                                     ch3Cut = ch3Arr[int(ch3Neg) - 1]
 
-                            for line in wellLines[1:]:
-                                splitLine = line.split(",")
+                            for splitLine in wellLines[1:]:
                                 if len(splitLine) < 2:
                                     continue
                                 if keepCh1:
@@ -7668,6 +7689,10 @@ class Run:
                     if forId.attrib['id'] != "":
                         in_react["tar"] = forId.attrib['id']
                 _add_first_child_to_dic(react_data, in_react, True, "cq")
+                _add_first_child_to_dic(react_data, in_react, True, "ampEffMet")
+                _add_first_child_to_dic(react_data, in_react, True, "ampEff")
+                _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
+                _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "endPt")
                 _add_first_child_to_dic(react_data, in_react, True, "bgFluor")
@@ -7734,7 +7759,8 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def webAppLinRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False):
+    def webAppLinRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False,
+                        excludeNoPlateau=True, excludeEfficiency=True):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -7742,13 +7768,8 @@ class Run:
             baselineCorr: If true, do baseline correction for all samples.
             pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
             updateRDML: If true, update the RDML data with the calculated values.
-            commaConv: If true, convert comma separator to dot.
-            ignoreExclusion: If true, ignore the RDML exclusion strings.
-            saveRaw: If true, no raw values are given in the returned data
-            saveBaslineCorr: If true, no baseline corrected values are given in the returned data
-            saveResultsList: If true, return a 2d array object.
-            saveResultsCSV: If true, return a csv string.
-            verbose: If true, comment every performed step.
+            excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
+            excludeEfficiency: If true, samples with extreme values are excluded from mean PCR efficiency calculation.
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -7762,6 +7783,8 @@ class Run:
         res = self.linRegPCR(baselineCorr=baselineCorr,
                              pcrEfficiencyExl=pcrEfficiencyExl,
                              updateRDML=updateRDML,
+                             excludeNoPlateau=excludeNoPlateau,
+                             excludeEfficiency=excludeEfficiency,
                              saveRaw=False,
                              saveBaslineCorr=True,
                              saveResultsList=True,
@@ -7799,6 +7822,7 @@ class Run:
         return allData
 
     def linRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False,
+                  excludeNoPlateau=True, excludeEfficiency=True,
                   commaConv=False, ignoreExclusion=False,
                   saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
@@ -7808,6 +7832,8 @@ class Run:
             baselineCorr: If true, do baseline correction for all samples.
             pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
             updateRDML: If true, update the RDML data with the calculated values.
+            excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
+            excludeEfficiency: If true, samples with extreme values are excluded from mean PCR efficiency calculation.
             commaConv: If true, convert comma separator to dot.
             ignoreExclusion: If true, ignore the RDML exclusion strings.
             saveRaw: If true, no raw values are given in the returned data
@@ -7833,81 +7859,103 @@ class Run:
         header = [["id",  # 0
                    "well",  # 1
                    "sample",  # 2
-                   "target",   # 3
-                   "excluded",   # 4
-                   "baseline",   # 5
-                   "lower limit",   # 6
-                   "upper limit",   # 7
-                   "common threshold",  # 8
-                   "group threshold",  # 9
-                   "n in log phase",   # 10
-                   "last log cycle",   # 11
-                   "n included",   # 12
-                   "log lin cycle",  # 13
-                   "log lin fluorescence",  # 14
-                   "indiv PCR eff",   # 15
-                   "R2",   # 16
-                   "N0 (indiv eff - for debug use)",   # 17
-                   "Cq (indiv eff - for debug use)",  # 18
-                   "Cq with group threshold (indiv eff - for debug use)",  # 19
-                   "mean PCR eff + no plateau + efficiency outliers",   # 20
-                   "N0 (mean eff) + no plateau + efficiency outliers",   # 21
-                   "Cq (mean eff) + no plateau + efficiency outliers",   # 22
-                   "mean PCR eff + efficiency outliers",   # 23
-                   "N0 (mean eff) + efficiency outliers",   # 24
-                   "Cq (mean eff) + efficiency outliers",   # 25
-                   "mean PCR eff + no plateau",   # 26
-                   "N0 (mean eff) + no plateau",   # 27
-                   "Cq (mean eff) + no plateau",   # 28
-                   "mean PCR eff",   # 29
-                   "N0 (mean eff)",   # 30
-                   "Cq (mean eff)",   # 31
-                   "amplification",   # 32
-                   "baseline error",   # 33
-                   "plateau",   # 34
-                   "noisy sample",   # 35
-                   "PCR efficiency outside rage + no plateau",   # 36
-                   "PCR efficiency outside rage",   # 37
-                   "used for W-o-L setting"]]   # 38
+                   "sample type",  # 3
+                   "sample nucleotide",  # 4
+                   "target",   # 5
+                   "target chemistry",  # 6
+                   "excluded",   # 7
+                   "baseline",   # 8
+                   "lower limit",   # 9
+                   "upper limit",   # 10
+                   "common threshold",  # 11
+                   "group threshold",  # 12
+                   "n in log phase",   # 13
+                   "last log cycle",   # 14
+                   "n included",   # 15
+                   "log lin cycle",  # 16
+                   "log lin fluorescence",  # 17
+                   "indiv PCR eff",   # 18
+                   "R2",   # 19
+                   "N0 (indiv eff - for debug use)",   # 20
+                   "Cq (indiv eff - for debug use)",  # 21
+                   "Cq with group threshold (indiv eff - for debug use)",  # 22
+                   "mean PCR eff + no plateau + efficiency outliers",   # 23
+                   "standard error of the mean PCR eff + no plateau + efficiency outliers",   # 24
+                   "N0 (mean eff) + no plateau + efficiency outliers",   # 25
+                   "Cq (mean eff) + no plateau + efficiency outliers",   # 26
+                   "mean PCR eff + efficiency outliers",   # 27
+                   "standard error of the mean PCR eff + efficiency outliers",   # 28
+                   "N0 (mean eff) + efficiency outliers",   # 29
+                   "Cq (mean eff) + efficiency outliers",   # 30
+                   "mean PCR eff + no plateau",   # 31
+                   "standard error of the mean PCR eff + no plateau",   # 32
+                   "N0 (mean eff) + no plateau",   # 33
+                   "Cq (mean eff) + no plateau",   # 34
+                   "mean PCR eff",   # 35
+                   "standard error of the mean PCR eff",   # 36
+                   "N0 (mean eff)",   # 37
+                   "Cq (mean eff)",   # 38
+                   "amplification",   # 39
+                   "baseline error",   # 40
+                   "plateau",   # 41
+                   "noisy sample",   # 42
+                   "PCR efficiency outside rage + no plateau",   # 43
+                   "PCR efficiency outside rage",   # 44
+                   "short log lin phase",   # 45
+                   "Cq is shifting",   # 46
+                   "too low Cq eff",   # 47
+                   "too low Cq N0",   # 48
+                   "used for W-o-L setting"]]   # 49
         rar_id = 0
         rar_well = 1
         rar_sample = 2
-        rar_tar = 3
-        rar_excl = 4
-        rar_baseline = 5
-        rar_lower_limit = 6
-        rar_upper_limit = 7
-        rar_threshold_common = 8
-        rar_threshold_group = 9
-        rar_n_log = 10
-        rar_stop_log = 11
-        rar_n_included = 12
-        rar_log_lin_cycle = 13
-        rar_log_lin_fluorescence = 14
-        rar_indiv_PCR_eff = 15
-        rar_R2 = 16
-        rar_N0_indiv_eff = 17
-        rar_Cq_common = 18
-        rar_Cq_grp = 19
-        rar_meanEff_Skip = 20
-        rar_meanN0_Skip = 21
-        rar_Cq_Skip = 22
-        rar_meanEff_Skip_Plat = 23
-        rar_meanN0_Skip_Plat = 24
-        rar_Cq_Skip_Plat = 25
-        rar_meanEff_Skip_Eff = 26
-        rar_meanN0_Skip_Eff = 27
-        rar_Cq_Skip_Eff = 28
-        rar_meanEff_Skip_Plat_Eff = 29
-        rar_meanN0_Skip_Plat_Eff = 30
-        rar_Cq_Skip_Plat_Eff = 31
-        rar_amplification = 32
-        rar_baseline_error = 33
-        rar_plateau = 34
-        rar_noisy_sample = 35
-        rar_effOutlier_Skip = 36
-        rar_effOutlier_Skip_Plat = 37
-        rar_isUsedInWoL = 38
+        rar_sample_type = 3
+        rar_sample_nucleotide = 4
+        rar_tar = 5
+        rar_tar_chemistry = 6
+        rar_excl = 7
+        rar_baseline = 8
+        rar_lower_limit = 9
+        rar_upper_limit = 10
+        rar_threshold_common = 11
+        rar_threshold_group = 12
+        rar_n_log = 13
+        rar_stop_log = 14
+        rar_n_included = 15
+        rar_log_lin_cycle = 16
+        rar_log_lin_fluorescence = 17
+        rar_indiv_PCR_eff = 18
+        rar_R2 = 19
+        rar_N0_indiv_eff = 20
+        rar_Cq_common = 21
+        rar_Cq_grp = 22
+        rar_meanEff_Skip = 23
+        rar_stdEff_Skip = 24
+        rar_meanN0_Skip = 25
+        rar_Cq_Skip = 26
+        rar_meanEff_Skip_Plat = 27
+        rar_stdEff_Skip_Plat = 28
+        rar_meanN0_Skip_Plat = 29
+        rar_Cq_Skip_Plat = 30
+        rar_meanEff_Skip_Eff = 31
+        rar_stdEff_Skip_Eff = 32
+        rar_meanN0_Skip_Eff = 33
+        rar_Cq_Skip_Eff = 34
+        rar_meanEff_Skip_Plat_Eff = 35
+        rar_stdEff_Skip_Plat_Eff = 36
+        rar_meanN0_Skip_Plat_Eff = 37
+        rar_Cq_Skip_Plat_Eff = 38
+        rar_amplification = 39
+        rar_baseline_error = 40
+        rar_plateau = 41
+        rar_noisy_sample = 42
+        rar_effOutlier_Skip = 43
+        rar_effOutlier_Skip_Plat = 44
+        rar_shortLogLinPhase = 45
+        rar_CqIsShifting = 46
+        rar_tooLowCqEff = 47
+        rar_tooLowCqN0 = 48
+        rar_isUsedInWoL = 49
 
         res = []
         finalData = {}
@@ -7933,13 +7981,14 @@ class Run:
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
         vecTarget = np.zeros(spFl[0], dtype=np.int)
         vecTarget[vecTarget <= 0] = -1
+        rdmlElemData = []
 
         # Now process the data for numpy and create results array
         rowCount = 0
         for react in reacts:
             posId = react.get('id')
-            pIdNumber = int(posId) % int(self["pcrFormat_columns"])
-            pIdLetter = chr(ord("A") + int(int(posId) / int(self["pcrFormat_columns"])))
+            pIdNumber = (int(posId) - 1) % int(self["pcrFormat_columns"]) + 1
+            pIdLetter = chr(ord("A") + int((int(posId) - 1) / int(self["pcrFormat_columns"])))
             pWell = pIdLetter + str(pIdNumber)
             sample = ""
             forId = _get_first_child(react, "sample")
@@ -7960,10 +8009,12 @@ class Run:
                     excl = _get_first_child_text(react_data, "excl")
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
-                res.append([posId, pWell, sample, target, excl, "",  "", "", "", "",
+                rdmlElemData.append(react_data)
+                res.append([posId, pWell, sample, "",  "",  target, "", excl, "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", ""])  # Must match header length
+                            "", "", "", "", "",  "", "", "", "", "",
+                            "", "", "", "", "",  "", "", "", "", ""])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -7973,6 +8024,55 @@ class Run:
                         fluor = noDot.replace(",", ".")
                     rawFluor[rowCount, cyc] = float(fluor)
                 rowCount += 1
+
+        # Look up sample and target information
+        parExp = self._node.getparent()
+        parRoot = parExp.getparent()
+
+        dicLU_dyes = {}
+        luDyes = _get_all_children(parRoot, "dye")
+        for lu_dye in luDyes:
+            lu_chemistry = _get_first_child_text(lu_dye, "dyeChemistry")
+            if lu_chemistry == "":
+                lu_chemistry = "non-saturating DNA binding dye"
+            if lu_dye.attrib['id'] != "":
+                dicLU_dyes[lu_dye.attrib['id']] = lu_chemistry
+
+        dicLU_targets = {}
+        luTargets = _get_all_children(parRoot, "target")
+        for lu_target in luTargets:
+            forId = _get_first_child(lu_target, "dyeId")
+            lu_dyeId = ""
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    lu_dyeId = forId.attrib['id']
+            if lu_dyeId == "" or lu_dyeId not in dicLU_dyes:
+                dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
+            if lu_target.attrib['id'] != "":
+                dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
+
+        dicLU_samType = {}
+        dicLU_samNucl = {}
+        luSamples = _get_all_children(parRoot, "sample")
+        for lu_sample in luSamples:
+            lu_type = _get_first_child_text(lu_sample, "type")
+            lu_Nucl = ""
+            forUnit = _get_first_child(lu_sample, "templateQuantity")
+            if forUnit is not None:
+                lu_Nucl = _get_first_child_text(forUnit, "nucleotide")
+            if lu_Nucl == "":
+                lu_Nucl = "cDNA"
+            if lu_sample.attrib['id'] != "":
+                dicLU_samType[lu_sample.attrib['id']] = lu_type
+                dicLU_samNucl[lu_sample.attrib['id']] = lu_Nucl
+
+        # Update the table with dictionary help
+        for i in range(0, spFl[0]):
+            if res[i][rar_sample] != "":
+                res[i][rar_sample_type] = dicLU_samType[res[i][rar_sample]]
+                res[i][rar_sample_nucleotide] = dicLU_samNucl[res[i][rar_sample]]
+            if res[i][rar_tar] != "":
+                res[i][rar_tar_chemistry] = dicLU_targets[res[i][rar_tar]]
 
         if saveRaw:
             rawArr = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
@@ -7991,7 +8091,7 @@ class Run:
         for i in range(0, spFl[0]):
             if res[i][rar_tar] not in tarWinLookup:
                 tarWinLookup[res[i][rar_tar]] = targetsCount
-                vecTarget[i] = targetsCount
+                vecTarget[i] = targetsCount  # FixMe: Delete
                 targetsCount += 1
             vecTarget[i] = tarWinLookup[res[i][rar_tar]]
         upwin = np.zeros(targetsCount, dtype=np.float64)
@@ -8021,11 +8121,17 @@ class Run:
 
         vecShortloglin = np.zeros(spFl[0], dtype=np.bool)
 
+        vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool)
+
         vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
 
         vecEffOutlier_Skip = np.zeros(spFl[0], dtype=np.bool)
 
         vecEffOutlier_Skip_Plat = np.zeros(spFl[0], dtype=np.bool)
+
+        vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool)
+
+        vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool)
 
         pcreff = np.ones(spFl[0], dtype=np.float64)
 
@@ -8415,6 +8521,10 @@ class Run:
         meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
         meanEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
         meanEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
         meanNnul_Skip = np.zeros(spFl[0], dtype=np.float64)
         meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
         meanNnull_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
@@ -8460,6 +8570,7 @@ class Run:
                 if np.abs(CtShiftUp - CtShiftDown) > 1.0:
                     vecBaselineError[z] = True
                     vecSkipSample[z] = True
+                    vecCtIsShifting[z] = True
                 else:
                     if not vecBaselineError[z]:
                         vecSkipSample[z] = False
@@ -8562,12 +8673,41 @@ class Run:
         logThreshold = np.log10(threshold[1:])
         threshold[0] = np.power(10, np.mean(logThreshold))
 
+        # Create the warnings for the different chemistries
+        # Chem Arr     0     1     2     3     4     5     6     7     8     9    10
+        CritCqEff = [28.0, 28.0, 19.0, 16.0, 14.0, 12.0, 11.0, 11.0, 10.0, 10.0,  9.0]  # For error Eff < 0.01
+        CritCqN0 = [40.0, 40.0, 27.0, 19.0, 16.0, 13.0, 12.0, 11.0, 10.0,  9.0,  9.0]  # For bias N0 < 0.95
+        for z in range(0, spFl[0]):
+            if res[z][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
+                CritCqOffset = 0.0
+                if (res[z][rar_tar_chemistry] == "labelled reverse primer" and
+                        res[z][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
+                    CritCqOffset = 1.0
+                if (res[z][rar_tar_chemistry] == "DNA-zyme probe" and
+                        res[z][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
+                    CritCqOffset = 4.0
+                if (res[z][rar_tar_chemistry] == "DNA-zyme probe" and
+                        res[z][rar_sample_nucleotide] in ["cDNA", "RNA"]):
+                    CritCqOffset = 6.0
+                if (not np.isnan(pcreff[z]) and pcreff[z] > 1.0001 and
+                        threshold[vecTarget[z]] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z])):
+                    effIndex = np.trunc(10 * pcreff[z] + 1 - 10)
+                    effIndex = np.max(0, effIndex)
+                    effIndex = np.min(10, effIndex)
+                    tempCq_Grp = indMeanX[z] + (np.log10(threshold[vecTarget[z]]) - indMeanY[z]) / np.log10(pcreff[z])
+                    if tempCq_Grp > 0.0:
+                        if tempCq_Grp < CritCqEff[effIndex] + CritCqOffset:
+                            vecTooLowCqEff[z] = True
+                        if tempCq_Grp < CritCqN0[effIndex] + CritCqOffset:
+                            vecTooLowCqN0[z] = True
+
         for t in range(1, targetsCount):
             # Calculating all choices takes less time then to recalculate
 
             # Fixme: TooLowCqEff
 
             pcreff_Skip = pcreff.copy()
+            pcreff_Skip[vecTooLowCqEff] = np.nan
             pcreff_Skip[vecSkipSample] = np.nan
             pcreff_Skip[pcreff < 1.001] = np.nan
             pcreff_Skip[~(vecTarget == t)] = np.nan
@@ -8626,6 +8766,10 @@ class Run:
                 tempMeanEff_Skip_Plat = np.nanmean(pcreff_Skip_Plat)
                 tempMeanEff_Skip_Eff = np.nanmean(pcreff_Skip_Eff)
                 tempMeanEff_Skip_Plat_Eff = np.nanmean(pcreff_Skip_Plat_Eff)
+                tempStdEff_Skip = np.nanstd(pcreff_Skip)
+                tempStdEff_Skip_Plat = np.nanstd(pcreff_Skip_Plat)
+                tempStdEff_Skip_Eff = np.nanstd(pcreff_Skip_Eff)
+                tempStdEff_Skip_Plat_Eff = np.nanstd(pcreff_Skip_Plat_Eff)
 
             if np.isnan(tempMeanEff_Skip):
                 tempMeanEff_Skip = 1.0
@@ -8643,31 +8787,51 @@ class Run:
                     meanEff_Skip_Eff[z] = tempMeanEff_Skip_Eff
                     meanEff_Skip_Plat_Eff[z] = tempMeanEff_Skip_Plat_Eff
 
+                    stdEff_Skip[z] = tempStdEff_Skip
+                    stdEff_Skip_Plat[z] = tempStdEff_Skip_Plat
+                    stdEff_Skip_Eff[z] = tempStdEff_Skip_Eff
+                    stdEff_Skip_Plat_Eff[z] = tempStdEff_Skip_Plat_Eff
+
+                    # Correction of the different chemistries
+                    cqCorrection = 0.0
+                    if res[z][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
+                        cqCorrection = -1.0
+
                     if not np.isnan(pcreff[z]) and pcreff[z] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z]):
-                        indivCq[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z])
-                        indivCq_Grp[z] = indMeanX[z] + (np.log10(threshold[t]) - indMeanY[z]) / np.log10(pcreff[z])
+                        if res[z][rar_tar_chemistry] == "DNA-zyme probe":
+                            cqCorrection = -1.0 + np.log10(1/(1-(1/pcreff[z])))/np.log10(pcreff[z])
+                        indivCq[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z]) + cqCorrection
+                        indivCq_Grp[z] = indMeanX[z] + (np.log10(threshold[t]) - indMeanY[z]) / np.log10(pcreff[z]) + cqCorrection
                     else:
                         indivCq[z] = 0.0
                         indivCq_Grp[z] = 0.0
 
                     if not np.isnan(pcreff[z]) and pcreff[z] > 1.0:
                         if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
-                            meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z])
+                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip[z]))) / np.log10(meanEff_Skip[z])
+                            meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z]) + cqCorrection
                         else:
                             meanCq_Skip[z] = 0.0
 
                         if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
-                            meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z])
+                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat[z]))) / np.log10(meanEff_Skip_Plat[z])
+                            meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z]) + cqCorrection
                         else:
                             meanCq_Skip_Plat[z] = 0.0
 
                         if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
-                            meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z])
+                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Eff[z]))) / np.log10(meanEff_Skip_Eff[z])
+                            meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z]) + cqCorrection
                         else:
                             meanCq_Skip_Eff[z] = 0.0
 
                         if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
-                            meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z])
+                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat_Eff[z]))) / np.log10(meanEff_Skip_Plat_Eff[z])
+                            meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z]) + cqCorrection
                         else:
                             meanCq_Skip_Plat_Eff[z] = 0.0
                     else:
@@ -8717,10 +8881,54 @@ class Run:
   #      with open("matlab/numpy_variables.txt", "w") as f:
    #         f.write(outFFile)
 
-        #################################
-        # CALCULATION OF A WOL PER GENE #
-        #################################
-        # Fixme: update cq in RDML
+        #########################
+        # write out the results #
+        #########################
+        if updateRDML is True:
+            expParent = self._node.getparent()
+            rootPar = expParent.getparent()
+            ver = rootPar.get('version')
+
+            self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
+            self["cqDetectionMethod"] = 'automated threshold and baseline settings'
+            dataXMLelements = _getXMLDataType()
+            for i in range(0, len(res)):
+                if rdmlElemData[i] is not None:
+                    cqVal = np.NaN
+                    meanEffVal = np.NaN
+                    stdEffVal = np.NaN
+                    if excludeNoPlateau is False and excludeEfficiency is False:
+                        cqVal = meanCq_Skip[i]
+                        meanEffVal = meanEff_Skip[i]
+                        stdEffVal = stdEff_Skip[i]
+                    if excludeNoPlateau is True and excludeEfficiency is False:
+                        cqVal = meanCq_Skip_Plat[i]
+                        meanEffVal = meanEff_Skip_Plat[i]
+                        stdEffVal = stdEff_Skip_Plat[i]
+                    if excludeNoPlateau is False and excludeEfficiency is True:
+                        cqVal = meanCq_Skip_Eff[i]
+                        meanEffVal = meanEff_Skip_Eff[i]
+                        stdEffVal = stdEff_Skip_Eff[i]
+                    if excludeNoPlateau is True and excludeEfficiency is True:
+                        cqVal = meanCq_Skip_Plat_Eff[i]
+                        meanEffVal = meanEff_Skip_Plat_Eff[i]
+                        stdEffVal = stdEff_Skip_Plat_Eff[i]
+
+                    if cqVal == np.NaN or cqVal == 0:
+                        goodVal = "-1.0"
+                    else:
+                        goodVal = "{:.3f}".format(cqVal)
+                    _change_subelement(rdmlElemData[i], "cq", dataXMLelements, goodVal, True, "string")
+                    if ver == "1.3":
+                        _change_subelement(rdmlElemData[i], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
+                        goodVal = "{:.3f}".format(meanEffVal)
+                        _change_subelement(rdmlElemData[i], "ampEff", dataXMLelements, goodVal, True, "string")
+                        goodVal = "{:.3f}".format(stdEffVal)
+                        _change_subelement(rdmlElemData[i], "ampEffSE", dataXMLelements, goodVal, True, "string")
+                    goodVal = "{:.3f}".format(bgarr[i])
+                    _change_subelement(rdmlElemData[i], "bgFluor", dataXMLelements, goodVal, True, "string")
+                    goodVal = "{:.3f}".format(threshold[0])
+                    _change_subelement(rdmlElemData[i], "quantFluor", dataXMLelements, goodVal, True, "string")
 
         for i in range(0, len(res)):
             res[i][rar_baseline] = bgarr[i]
@@ -8741,15 +8949,19 @@ class Run:
             res[i][rar_Cq_grp] = indivCq_Grp[i]
 
             res[i][rar_meanEff_Skip] = meanEff_Skip[i]
+            res[i][rar_stdEff_Skip] = stdEff_Skip[i]
             res[i][rar_meanN0_Skip] = meanNnul_Skip[i]
             res[i][rar_Cq_Skip] = meanCq_Skip[i]
             res[i][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[i]
+            res[i][rar_stdEff_Skip_Plat] = stdEff_Skip_Plat[i]
             res[i][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[i]
             res[i][rar_Cq_Skip_Plat] = meanCq_Skip_Plat[i]
             res[i][rar_meanEff_Skip_Eff] = meanEff_Skip_Eff[i]
+            res[i][rar_stdEff_Skip_Eff] = stdEff_Skip_Eff[i]
             res[i][rar_meanN0_Skip_Eff] = meanNnull_Skip_Eff[i]
             res[i][rar_Cq_Skip_Eff] = meanCq_Skip_Eff[i]
             res[i][rar_meanEff_Skip_Plat_Eff] = meanEff_Skip_Plat_Eff[i]
+            res[i][rar_stdEff_Skip_Plat_Eff] = stdEff_Skip_Plat_Eff[i]
             res[i][rar_meanN0_Skip_Plat_Eff] = meanNnull_Skip_Plat_Eff[i]
             res[i][rar_Cq_Skip_Plat_Eff] = meanCq_Skip_Plat_Eff[i]
 
@@ -8759,6 +8971,10 @@ class Run:
             res[i][rar_noisy_sample] = vecNoisySample[i]
             res[i][rar_effOutlier_Skip] = vecEffOutlier_Skip[i]
             res[i][rar_effOutlier_Skip_Plat] = vecEffOutlier_Skip_Plat[i]
+            res[i][rar_shortLogLinPhase] = vecShortloglin[i]
+            res[i][rar_CqIsShifting] = vecCtIsShifting[i]
+            res[i][rar_tooLowCqEff] = vecTooLowCqEff[i]
+            res[i][rar_tooLowCqN0] = vecTooLowCqN0[i]
             res[i][rar_isUsedInWoL] = vecIsUsedInWoL[i]
 
         # Fixme: Delete
