@@ -970,26 +970,26 @@ def _do_cascade(fluor, samp, uplim, lowlim):
         ssx = sumx2 - sumx * sumx / nincl
         ssy = sumy2 - sumy * sumy / nincl
         sxy = sumxy - sumx * sumy / nincl
+
     if ssx > 0.0 and ssy > 0.0 and nincl > 0.0:
-        correl = sxy / np.sqrt(ssx * ssy)
         cslope = sxy / ssx
         cinterc = sumy / nincl - cslope * sumx / nincl
+        correl = sxy / np.sqrt(ssx * ssy)
         indMeanX = sumx / nincl
         indMeanY = sumy / nincl
+        pcreff = np.power(10, cslope)
+        nnulls = np.power(10, cinterc)
     else:
-        correl = 0.0
-        cslope = 0.0
-        cinterc = 0.0
-        indMeanX = 0.0
-        indMeanY = 0.0
+        correl = np.nan
+        indMeanX = np.nan
+        indMeanY = np.nan
+        pcreff = np.nan
+        nnulls = np.nan
 
     if notinwindow:
         ninclu = 0
     else:
         ninclu = pstop - pstart + 1
-
-    pcreff = np.power(10, cslope)
-    nnulls = np.power(10, cinterc)
 
     return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl
 
@@ -1021,12 +1021,12 @@ def _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnul
             if not (vecNoAmplification[z] or vecBaselineError[z]):
                 indMeanX[z], indMeanY[z], pcreff[z], nnulls[z], ninclu[z], correl[z] = _do_cascade(fluor, z, uplim, lowlim)
             else:
-                indMeanX[z] = 0.0
-                indMeanY[z] = 0.0
-                pcreff[z] = 1.0
-                nnulls[z] = -999.0
-                ninclu[z] = 0.0
-                correl[z] = 0.0
+                correl[z] = np.nan
+                indMeanX[z] = np.nan
+                indMeanY[z] = np.nan
+                pcreff[z] = np.nan
+                nnulls[z] = np.nan
+                ninclu[z] = 0
 
     return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl
 
@@ -7817,6 +7817,13 @@ class Run:
         if "resultsList" in res:
             header = res["resultsList"].pop(0)
             resList = sorted(res["resultsList"], key=_sort_list_int)
+            for i in range(0, len(resList)):
+                for k in range(0, len(resList[i])):
+                    if isinstance(resList[i][k], np.float64) and np.isnan(resList[i][k]):
+                        resList[i][k] = ""
+                    if isinstance(resList[i][k], float) and math.isnan(resList[i][k]):
+                        resList[i][k] = ""
+            isinstance(i, float)
             allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
 
         return allData
@@ -8510,10 +8517,6 @@ class Run:
 
         # See if cq values are stable with a modified baseline
         checkfluor = np.zeros(spFl, dtype=np.float64)
-        indMeanX = np.zeros(spFl[0], dtype=np.float64)
-        indMeanY = np.zeros(spFl[0], dtype=np.float64)
-        indivCq_Grp = np.zeros(spFl[0], dtype=np.float64)
-        indivCq = np.zeros(spFl[0], dtype=np.float64)
         nnulls = np.ones(spFl[0], dtype=np.float64)
         ninclu = np.zeros(spFl[0], dtype=np.int)
         correl = np.zeros(spFl[0], dtype=np.float64)
@@ -8525,7 +8528,12 @@ class Run:
         stdEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
         stdEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
         stdEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanNnul_Skip = np.zeros(spFl[0], dtype=np.float64)
+
+        indMeanX = np.zeros(spFl[0], dtype=np.float64)
+        indMeanY = np.zeros(spFl[0], dtype=np.float64)
+        indivCq = np.zeros(spFl[0], dtype=np.float64)
+        indivCq_Grp = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
         meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
         meanNnull_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
         meanNnull_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
@@ -8533,6 +8541,20 @@ class Run:
         meanCq_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
         meanCq_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
         meanCq_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+
+        # Set all to nan
+        indMeanX[:] = np.nan
+        indMeanY[:] = np.nan
+        indivCq[:] = np.nan
+        indivCq_Grp[:] = np.nan
+        meanNnull_Skip[:] = np.nan
+        meanNnull_Skip_Plat[:] = np.nan
+        meanNnull_Skip_Eff[:] = np.nan
+        meanNnull_Skip_Plat_Eff[:] = np.nan
+        meanCq_Skip[:] = np.nan
+        meanCq_Skip_Plat[:] = np.nan
+        meanCq_Skip_Eff[:] = np.nan
+        meanCq_Skip_Plat_Eff[:] = np.nan
 
         for z in range(0, spFl[0]):
             if vecShortloglin[z] and not vecNoAmplification[z]:
@@ -8661,11 +8683,6 @@ class Run:
             indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
             indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
 
-      #  _numpyTwoAxisSave(vecNoAmplification, "linPas/np_vecNoAmplification.tsv")
-    #    _numpyTwoAxisSave(vecBaselineError, "linPas/np_vecBaselineError.tsv")
-      #  _numpyTwoAxisSave(vecNoPlateau, "linPas/np_vecNoPlateau.tsv")
-      #  _numpyTwoAxisSave(vecSkipSample, "linPas/np_vecSkipSample.tsv")
-
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
         vecSkipSample_Plat[vecNoPlateau] = True
@@ -8701,6 +8718,8 @@ class Run:
                         if tempCq_Grp < CritCqN0[effIndex] + CritCqOffset:
                             vecTooLowCqN0[z] = True
 
+        pcreff_NoNaN = pcreff.copy()
+        pcreff_NoNaN[np.isnan(pcreff)] = 0.0
         for t in range(1, targetsCount):
             # Calculating all choices takes less time then to recalculate
 
@@ -8709,7 +8728,7 @@ class Run:
             pcreff_Skip = pcreff.copy()
             pcreff_Skip[vecTooLowCqEff] = np.nan
             pcreff_Skip[vecSkipSample] = np.nan
-            pcreff_Skip[pcreff < 1.001] = np.nan
+            pcreff_Skip[pcreff_NoNaN < 1.001] = np.nan
             pcreff_Skip[~(vecTarget == t)] = np.nan
 
             pcreff_Skip_Plat = pcreff_Skip.copy()
@@ -8752,8 +8771,8 @@ class Run:
                         else:
                             vecEffOutlier_Skip_Plat[z] = False
                     else:
-                        vecEffOutlier_Skip[z] = False
-                        vecEffOutlier_Skip_Plat[z] = False
+                        vecEffOutlier_Skip[z] = True
+                        vecEffOutlier_Skip_Plat[z] = True
 
             pcreff_Skip_Eff = pcreff_Skip.copy()
             pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
@@ -8770,15 +8789,6 @@ class Run:
                 tempStdEff_Skip_Plat = np.nanstd(pcreff_Skip_Plat)
                 tempStdEff_Skip_Eff = np.nanstd(pcreff_Skip_Eff)
                 tempStdEff_Skip_Plat_Eff = np.nanstd(pcreff_Skip_Plat_Eff)
-
-            if np.isnan(tempMeanEff_Skip):
-                tempMeanEff_Skip = 1.0
-            if np.isnan(tempMeanEff_Skip_Plat):
-                tempMeanEff_Skip_Plat = 1.0
-            if np.isnan(tempMeanEff_Skip_Eff):
-                tempMeanEff_Skip_Eff = 1.0
-            if np.isnan(tempMeanEff_Skip_Plat_Eff):
-                tempMeanEff_Skip_Plat_Eff = 1.0
 
             for z in range(0, spFl[0]):
                 if t == vecTarget[z]:
@@ -8802,84 +8812,48 @@ class Run:
                             cqCorrection = -1.0 + np.log10(1/(1-(1/pcreff[z])))/np.log10(pcreff[z])
                         indivCq[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z]) + cqCorrection
                         indivCq_Grp[z] = indMeanX[z] + (np.log10(threshold[t]) - indMeanY[z]) / np.log10(pcreff[z]) + cqCorrection
-                    else:
-                        indivCq[z] = 0.0
-                        indivCq_Grp[z] = 0.0
 
                     if not np.isnan(pcreff[z]) and pcreff[z] > 1.0:
                         if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
                             if res[z][rar_tar_chemistry] == "DNA-zyme probe":
                                 cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip[z]))) / np.log10(meanEff_Skip[z])
                             meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z]) + cqCorrection
-                        else:
-                            meanCq_Skip[z] = 0.0
 
                         if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
                             if res[z][rar_tar_chemistry] == "DNA-zyme probe":
                                 cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat[z]))) / np.log10(meanEff_Skip_Plat[z])
                             meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z]) + cqCorrection
-                        else:
-                            meanCq_Skip_Plat[z] = 0.0
 
                         if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
                             if res[z][rar_tar_chemistry] == "DNA-zyme probe":
                                 cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Eff[z]))) / np.log10(meanEff_Skip_Eff[z])
                             meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z]) + cqCorrection
-                        else:
-                            meanCq_Skip_Eff[z] = 0.0
 
                         if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
                             if res[z][rar_tar_chemistry] == "DNA-zyme probe":
                                 cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat_Eff[z]))) / np.log10(meanEff_Skip_Plat_Eff[z])
                             meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z]) + cqCorrection
-                        else:
-                            meanCq_Skip_Plat_Eff[z] = 0.0
-                    else:
-                        meanCq_Skip[z] = 0.0
-                        meanCq_Skip_Plat[z] = 0.0
-                        meanCq_Skip_Eff[z] = 0.0
-                        meanCq_Skip_Plat_Eff[z] = 0.0
 
                     if not np.isnan(pcreff[z]) and pcreff[z] > 1.0 and 0.0 < indivCq[z] < 2 * spFl[1]:
                         if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
-                            meanNnul_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
-                        else:
-                            meanNnul_Skip[z] = -999.0
+                            meanNnull_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
 
                         if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
                             meanNnull_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], meanCq_Skip_Plat[z])
-                        else:
-                            meanNnull_Skip_Plat[z] = -999.0
 
                         if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
                             meanNnull_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], meanCq_Skip_Eff[z])
-                        else:
-                            meanNnull_Skip_Eff[z] = -999.0
 
                         if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
                             meanNnull_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], meanCq_Skip_Plat_Eff[z])
-                        else:
-                            meanNnull_Skip_Plat_Eff[z] = -999.0
-                    else:
-                        meanNnul_Skip[z] = -999.0
-                        meanNnull_Skip_Plat[z] = -999.0
-                        meanNnull_Skip_Eff[z] = -999.0
-                        meanNnull_Skip_Plat_Eff[z] = -999.0
 
                     if vecNoPlateau[z]:
                         if vecEffOutlier_Skip[z]:
-                            meanNnul_Skip[z] = -999.0
-                            meanNnull_Skip_Eff[z] = -999.0
+                            meanNnull_Skip[z] = np.nan
+                            meanNnull_Skip_Eff[z] = np.nan
                         if vecEffOutlier_Skip_Plat[z]:
-                            meanNnull_Skip_Plat[z] = -999.0
-                            meanNnull_Skip_Plat_Eff[z] = -999.0
-
-
-     #   _numpyTwoAxisSave(vecIsUsedInWoL, "linPas/numpy_vecIsUsedInWoL_3.tsv")
-
-
-  #      with open("matlab/numpy_variables.txt", "w") as f:
-   #         f.write(outFFile)
+                            meanNnull_Skip_Plat[z] = np.nan
+                            meanNnull_Skip_Plat_Eff[z] = np.nan
 
         #########################
         # write out the results #
@@ -8914,7 +8888,7 @@ class Run:
                         meanEffVal = meanEff_Skip_Plat_Eff[i]
                         stdEffVal = stdEff_Skip_Plat_Eff[i]
 
-                    if cqVal == np.NaN or cqVal == 0:
+                    if cqVal == np.NaN:
                         goodVal = "-1.0"
                     else:
                         goodVal = "{:.3f}".format(cqVal)
@@ -8950,7 +8924,7 @@ class Run:
 
             res[i][rar_meanEff_Skip] = meanEff_Skip[i]
             res[i][rar_stdEff_Skip] = stdEff_Skip[i]
-            res[i][rar_meanN0_Skip] = meanNnul_Skip[i]
+            res[i][rar_meanN0_Skip] = meanNnull_Skip[i]
             res[i][rar_Cq_Skip] = meanCq_Skip[i]
             res[i][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[i]
             res[i][rar_stdEff_Skip_Plat] = stdEff_Skip_Plat[i]
