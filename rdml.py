@@ -21,6 +21,16 @@ from lxml import etree as ET
 import datetime as dt
 
 
+def get_rdml_lib_version():
+    """Return the version string of the RDML library.
+
+    Returns:
+        The version string of the RDML library.
+    """
+
+    return "0.8.0"
+
+
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
