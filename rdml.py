@@ -3804,8 +3804,9 @@ class Sample:
         par = self._node.getparent()
         ver = par.get('version')
         if ver == "1.3":
-            if targetId is not None or not targetId == "":
-                new_node.attrib["targetId"] = targetId
+            if targetId is not None:
+                if not targetId == "":
+                    new_node.attrib["targetId"] = targetId
         place = _get_tag_pos(self._node, "type", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
 
@@ -3836,8 +3837,9 @@ class Sample:
         if "targetId" in ele.attrib:
             del ele.attrib["targetId"]
         if ver == "1.3":
-            if targetId is not None or not targetId == "":
-                ele.attrib["targetId"] = targetId
+            if targetId is not None:
+                if not targetId == "":
+                    ele.attrib["targetId"] = targetId
         self._node.insert(pos, ele)
 
     def move_type(self, oldposition, newposition):
@@ -8718,14 +8720,16 @@ class Run:
                     CritCqOffset = 6.0
                 if (not np.isnan(pcreff[z]) and pcreff[z] > 1.0001 and
                         threshold[vecTarget[z]] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z])):
-                    effIndex = np.trunc(10 * pcreff[z] + 1 - 10)
-                    effIndex = np.max(0, effIndex)
-                    effIndex = np.min(10, effIndex)
-                    tempCq_Grp = indMeanX[z] + (np.log10(threshold[vecTarget[z]]) - indMeanY[z]) / np.log10(pcreff[z])
+                    effIndex = int(np.trunc(10 * pcreff[z] + 1 - 10))
+                    if effIndex < 0:
+                        effIndex = 0
+                    if effIndex > 10:
+                        effIndex = 10
+                    tempCq_Grp = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z])
                     if tempCq_Grp > 0.0:
-                        if tempCq_Grp < CritCqEff[effIndex] + CritCqOffset:
+                        if tempCq_Grp < (CritCqEff[effIndex] + CritCqOffset):
                             vecTooLowCqEff[z] = True
-                        if tempCq_Grp < CritCqN0[effIndex] + CritCqOffset:
+                        if tempCq_Grp < (CritCqN0[effIndex] + CritCqOffset):
                             vecTooLowCqN0[z] = True
 
         pcreff_NoNaN = pcreff.copy()
