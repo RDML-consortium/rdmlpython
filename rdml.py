@@ -1306,7 +1306,8 @@ def _numpyTwoAxisSave(var, fileName):
 
 
 def _getXMLDataType():
-    return ["tar", "cq", "ampEffMet", "ampEff", "ampEffSE", "meltTemp", "excl", "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
+    return ["tar", "cq", "ampEffMet", "ampEff", "ampEffSE", "meltTemp", "excl", "note",
+            "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
 
 
 class Rdml:
@@ -1879,6 +1880,7 @@ class Rdml:
         hint3 = ""
         hint4 = ""
         hint5 = ""
+        hint6 = ""
         exp1 = _get_all_children(self._node, "experiment")
         for node1 in exp1:
             exp2 = _get_all_children(node1, "run")
@@ -1913,6 +1915,10 @@ class Rdml:
                         for node5 in exp5:
                             hint5 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
                             node4.remove(node5)
+                        exp5 = _get_all_children(node4, "note")
+                        for node5 in exp5:
+                            hint6 = "Migration to v1.2 deleted react data \"note\" elements."
+                            node4.remove(node5)
         if hint != "":
             ret.append(hint)
         if hint2 != "":
@@ -1922,6 +1928,8 @@ class Rdml:
         if hint4 != "":
             ret.append(hint)
         if hint5 != "":
+            ret.append(hint)
+        if hint6 != "":
             ret.append(hint)
 
         exp1 = _get_all_children(self._node, "sample")
@@ -7706,6 +7714,7 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
+                _add_first_child_to_dic(react_data, in_react, True, "note")
                 _add_first_child_to_dic(react_data, in_react, True, "endPt")
                 _add_first_child_to_dic(react_data, in_react, True, "bgFluor")
                 _add_first_child_to_dic(react_data, in_react, True, "bgFluorSlp")
@@ -7883,48 +7892,49 @@ class Run:
                    "target",   # 5
                    "target chemistry",  # 6
                    "excluded",   # 7
-                   "baseline",   # 8
-                   "lower limit",   # 9
-                   "upper limit",   # 10
-                   "common threshold",  # 11
-                   "group threshold",  # 12
-                   "n in log phase",   # 13
-                   "last log cycle",   # 14
-                   "n included",   # 15
-                   "log lin cycle",  # 16
-                   "log lin fluorescence",  # 17
-                   "indiv PCR eff",   # 18
-                   "R2",   # 19
-                   "N0 (indiv eff - for debug use)",   # 20
-                   "Cq (indiv eff - for debug use)",  # 21
-                   "Cq with group threshold (indiv eff - for debug use)",  # 22
-                   "mean PCR eff + no plateau + efficiency outliers",   # 23
-                   "standard error of the mean PCR eff + no plateau + efficiency outliers",   # 24
-                   "N0 (mean eff) + no plateau + efficiency outliers",   # 25
-                   "Cq (mean eff) + no plateau + efficiency outliers",   # 26
-                   "mean PCR eff + efficiency outliers",   # 27
-                   "standard error of the mean PCR eff + efficiency outliers",   # 28
-                   "N0 (mean eff) + efficiency outliers",   # 29
-                   "Cq (mean eff) + efficiency outliers",   # 30
-                   "mean PCR eff + no plateau",   # 31
-                   "standard error of the mean PCR eff + no plateau",   # 32
-                   "N0 (mean eff) + no plateau",   # 33
-                   "Cq (mean eff) + no plateau",   # 34
-                   "mean PCR eff",   # 35
-                   "standard error of the mean PCR eff",   # 36
-                   "N0 (mean eff)",   # 37
-                   "Cq (mean eff)",   # 38
-                   "amplification",   # 39
-                   "baseline error",   # 40
-                   "plateau",   # 41
-                   "noisy sample",   # 42
-                   "PCR efficiency outside rage + no plateau",   # 43
-                   "PCR efficiency outside rage",   # 44
-                   "short log lin phase",   # 45
-                   "Cq is shifting",   # 46
-                   "too low Cq eff",   # 47
-                   "too low Cq N0",   # 48
-                   "used for W-o-L setting"]]   # 49
+                   "note",   # 8
+                   "baseline",   # 9
+                   "lower limit",   # 10
+                   "upper limit",   # 11
+                   "common threshold",  # 12
+                   "group threshold",  # 13
+                   "n in log phase",   # 14
+                   "last log cycle",   # 15
+                   "n included",   # 16
+                   "log lin cycle",  # 17
+                   "log lin fluorescence",  # 18
+                   "indiv PCR eff",   # 19
+                   "R2",   # 20
+                   "N0 (indiv eff - for debug use)",   # 21
+                   "Cq (indiv eff - for debug use)",  # 22
+                   "Cq with group threshold (indiv eff - for debug use)",  # 23
+                   "mean PCR eff + no plateau + efficiency outliers",   # 24
+                   "standard error of the mean PCR eff + no plateau + efficiency outliers",   # 25
+                   "N0 (mean eff) + no plateau + efficiency outliers",   # 26
+                   "Cq (mean eff) + no plateau + efficiency outliers",   # 27
+                   "mean PCR eff + efficiency outliers",   # 28
+                   "standard error of the mean PCR eff + efficiency outliers",   # 29
+                   "N0 (mean eff) + efficiency outliers",   # 30
+                   "Cq (mean eff) + efficiency outliers",   # 31
+                   "mean PCR eff + no plateau",   # 32
+                   "standard error of the mean PCR eff + no plateau",   # 33
+                   "N0 (mean eff) + no plateau",   # 34
+                   "Cq (mean eff) + no plateau",   # 35
+                   "mean PCR eff",   # 36
+                   "standard error of the mean PCR eff",   # 37
+                   "N0 (mean eff)",   # 38
+                   "Cq (mean eff)",   # 39
+                   "amplification",   # 40
+                   "baseline error",   # 41
+                   "plateau",   # 42
+                   "noisy sample",   # 43
+                   "PCR efficiency outside rage + no plateau",   # 44
+                   "PCR efficiency outside rage",   # 45
+                   "short log lin phase",   # 46
+                   "Cq is shifting",   # 47
+                   "too low Cq eff",   # 48
+                   "too low Cq N0",   # 49
+                   "used for W-o-L setting"]]   # 50
         rar_id = 0
         rar_well = 1
         rar_sample = 2
@@ -7933,48 +7943,49 @@ class Run:
         rar_tar = 5
         rar_tar_chemistry = 6
         rar_excl = 7
-        rar_baseline = 8
-        rar_lower_limit = 9
-        rar_upper_limit = 10
-        rar_threshold_common = 11
-        rar_threshold_group = 12
-        rar_n_log = 13
-        rar_stop_log = 14
-        rar_n_included = 15
-        rar_log_lin_cycle = 16
-        rar_log_lin_fluorescence = 17
-        rar_indiv_PCR_eff = 18
-        rar_R2 = 19
-        rar_N0_indiv_eff = 20
-        rar_Cq_common = 21
-        rar_Cq_grp = 22
-        rar_meanEff_Skip = 23
-        rar_stdEff_Skip = 24
-        rar_meanN0_Skip = 25
-        rar_Cq_Skip = 26
-        rar_meanEff_Skip_Plat = 27
-        rar_stdEff_Skip_Plat = 28
-        rar_meanN0_Skip_Plat = 29
-        rar_Cq_Skip_Plat = 30
-        rar_meanEff_Skip_Eff = 31
-        rar_stdEff_Skip_Eff = 32
-        rar_meanN0_Skip_Eff = 33
-        rar_Cq_Skip_Eff = 34
-        rar_meanEff_Skip_Plat_Eff = 35
-        rar_stdEff_Skip_Plat_Eff = 36
-        rar_meanN0_Skip_Plat_Eff = 37
-        rar_Cq_Skip_Plat_Eff = 38
-        rar_amplification = 39
-        rar_baseline_error = 40
-        rar_plateau = 41
-        rar_noisy_sample = 42
-        rar_effOutlier_Skip = 43
-        rar_effOutlier_Skip_Plat = 44
-        rar_shortLogLinPhase = 45
-        rar_CqIsShifting = 46
-        rar_tooLowCqEff = 47
-        rar_tooLowCqN0 = 48
-        rar_isUsedInWoL = 49
+        rar_note = 8
+        rar_baseline = 9
+        rar_lower_limit = 10
+        rar_upper_limit = 11
+        rar_threshold_common = 12
+        rar_threshold_group = 13
+        rar_n_log = 14
+        rar_stop_log = 15
+        rar_n_included = 16
+        rar_log_lin_cycle = 17
+        rar_log_lin_fluorescence = 18
+        rar_indiv_PCR_eff = 19
+        rar_R2 = 20
+        rar_N0_indiv_eff = 21
+        rar_Cq_common = 22
+        rar_Cq_grp = 23
+        rar_meanEff_Skip = 24
+        rar_stdEff_Skip = 25
+        rar_meanN0_Skip = 26
+        rar_Cq_Skip = 27
+        rar_meanEff_Skip_Plat = 28
+        rar_stdEff_Skip_Plat = 29
+        rar_meanN0_Skip_Plat = 30
+        rar_Cq_Skip_Plat = 31
+        rar_meanEff_Skip_Eff = 32
+        rar_stdEff_Skip_Eff = 33
+        rar_meanN0_Skip_Eff = 34
+        rar_Cq_Skip_Eff = 35
+        rar_meanEff_Skip_Plat_Eff = 36
+        rar_stdEff_Skip_Plat_Eff = 37
+        rar_meanN0_Skip_Plat_Eff = 38
+        rar_Cq_Skip_Plat_Eff = 39
+        rar_amplification = 40
+        rar_baseline_error = 41
+        rar_plateau = 42
+        rar_noisy_sample = 43
+        rar_effOutlier_Skip = 44
+        rar_effOutlier_Skip_Plat = 45
+        rar_shortLogLinPhase = 46
+        rar_CqIsShifting = 47
+        rar_tooLowCqEff = 48
+        rar_tooLowCqN0 = 49
+        rar_isUsedInWoL = 50
 
         res = []
         finalData = {}
@@ -8028,12 +8039,14 @@ class Run:
                     excl = _get_first_child_text(react_data, "excl")
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
+                noteVal = _get_first_child_text(react_data, "note")
                 rdmlElemData.append(react_data)
-                res.append([posId, pWell, sample, "",  "",  target, "", excl, "", "",
+                res.append([posId, pWell, sample, "",  "",  target, "", excl, noteVal, "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", ""])  # Must match header length
+                            "", "", "", "", "",  "", "", "", "", "",
+                            ""])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -8868,6 +8881,16 @@ class Run:
                         if vecEffOutlier_Skip_Plat[z]:
                             meanNnull_Skip_Plat[z] = np.nan
                             meanNnull_Skip_Plat_Eff[z] = np.nan
+
+        ###################################
+        # calculate excl and note strings #
+        ###################################
+        for i in range(0, len(res)):
+            exclVal = res[i][rar_excl] + ";"
+            noteVal = res[i][rar_note] + ";"
+
+
+
 
         #########################
         # write out the results #
