@@ -849,7 +849,7 @@ def _GetMeanMax(fluor, ampgroup, vecSkipSample, vecNoPlateau):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
         maxMean = np.nanmean(maxFlour)
-    if maxMean == np.nan:
+    if np.isnan(maxMean):
         maxMean = np.nanmax(maxFlour)
 
     return maxMean
@@ -8083,11 +8083,11 @@ class Run:
             if lu_target.attrib['id'] != "":
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
 
-        dicLU_samType = {}
+        dicLU_samSpecType = {}
+        dicLU_samGenType = {}
         dicLU_samNucl = {}
         luSamples = _get_all_children(parRoot, "sample")
         for lu_sample in luSamples:
-            lu_type = _get_first_child_text(lu_sample, "type")
             lu_Nucl = ""
             forUnit = _get_first_child(lu_sample, "templateQuantity")
             if forUnit is not None:
@@ -8095,13 +8095,26 @@ class Run:
             if lu_Nucl == "":
                 lu_Nucl = "cDNA"
             if lu_sample.attrib['id'] != "":
-                dicLU_samType[lu_sample.attrib['id']] = lu_type
+                dicLU_TypeData = {}
+                typesList = _get_all_children(lu_sample, "type")
+                for node in typesList:
+                    if "targetId" in node.attrib:
+                        dicLU_TypeData[node.attrib["targetId"]] = node.text
+                    else:
+                        dicLU_samGenType[lu_sample.attrib['id']] = node.text
+                dicLU_samSpecType[lu_sample.attrib['id']] = dicLU_TypeData
                 dicLU_samNucl[lu_sample.attrib['id']] = lu_Nucl
 
         # Update the table with dictionary help
         for i in range(0, spFl[0]):
             if res[i][rar_sample] != "":
-                res[i][rar_sample_type] = dicLU_samType[res[i][rar_sample]]
+                # Try to get specific type information else general else "unkn"
+                if res[i][rar_tar] in dicLU_samSpecType[res[i][rar_sample]]:
+                    res[i][rar_sample_type] = dicLU_samSpecType[res[i][rar_sample]][res[i][rar_tar]]
+                elif res[i][rar_sample] in dicLU_samGenType:
+                    res[i][rar_sample_type] = dicLU_samGenType[res[i][rar_sample]]
+                else:
+                    res[i][rar_sample_type] = "unkn"
                 res[i][rar_sample_nucleotide] = dicLU_samNucl[res[i][rar_sample]]
             if res[i][rar_tar] != "":
                 res[i][rar_tar_chemistry] = dicLU_targets[res[i][rar_tar]]
@@ -8882,65 +8895,9 @@ class Run:
                             meanNnull_Skip_Plat[z] = np.nan
                             meanNnull_Skip_Plat_Eff[z] = np.nan
 
-        ###################################
-        # calculate excl and note strings #
-        ###################################
-        for i in range(0, len(res)):
-            exclVal = res[i][rar_excl] + ";"
-            noteVal = res[i][rar_note] + ";"
-
-
-
-
         #########################
         # write out the results #
         #########################
-        if updateRDML is True:
-            expParent = self._node.getparent()
-            rootPar = expParent.getparent()
-            ver = rootPar.get('version')
-
-            self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
-            self["cqDetectionMethod"] = 'automated threshold and baseline settings'
-            dataXMLelements = _getXMLDataType()
-            for i in range(0, len(res)):
-                if rdmlElemData[i] is not None:
-                    cqVal = np.NaN
-                    meanEffVal = np.NaN
-                    stdEffVal = np.NaN
-                    if excludeNoPlateau is False and excludeEfficiency is False:
-                        cqVal = meanCq_Skip[i]
-                        meanEffVal = meanEff_Skip[i]
-                        stdEffVal = stdEff_Skip[i]
-                    if excludeNoPlateau is True and excludeEfficiency is False:
-                        cqVal = meanCq_Skip_Plat[i]
-                        meanEffVal = meanEff_Skip_Plat[i]
-                        stdEffVal = stdEff_Skip_Plat[i]
-                    if excludeNoPlateau is False and excludeEfficiency is True:
-                        cqVal = meanCq_Skip_Eff[i]
-                        meanEffVal = meanEff_Skip_Eff[i]
-                        stdEffVal = stdEff_Skip_Eff[i]
-                    if excludeNoPlateau is True and excludeEfficiency is True:
-                        cqVal = meanCq_Skip_Plat_Eff[i]
-                        meanEffVal = meanEff_Skip_Plat_Eff[i]
-                        stdEffVal = stdEff_Skip_Plat_Eff[i]
-
-                    if cqVal == np.NaN:
-                        goodVal = "-1.0"
-                    else:
-                        goodVal = "{:.3f}".format(cqVal)
-                    _change_subelement(rdmlElemData[i], "cq", dataXMLelements, goodVal, True, "string")
-                    if ver == "1.3":
-                        _change_subelement(rdmlElemData[i], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
-                        goodVal = "{:.3f}".format(meanEffVal)
-                        _change_subelement(rdmlElemData[i], "ampEff", dataXMLelements, goodVal, True, "string")
-                        goodVal = "{:.3f}".format(stdEffVal)
-                        _change_subelement(rdmlElemData[i], "ampEffSE", dataXMLelements, goodVal, True, "string")
-                    goodVal = "{:.3f}".format(bgarr[i])
-                    _change_subelement(rdmlElemData[i], "bgFluor", dataXMLelements, goodVal, True, "string")
-                    goodVal = "{:.3f}".format(threshold[0])
-                    _change_subelement(rdmlElemData[i], "quantFluor", dataXMLelements, goodVal, True, "string")
-
         for i in range(0, len(res)):
             res[i][rar_baseline] = bgarr[i]
             res[i][rar_lower_limit] = np.power(10, lowwin[vecTarget[i]])
@@ -8987,6 +8944,138 @@ class Run:
             res[i][rar_tooLowCqEff] = vecTooLowCqEff[i]
             res[i][rar_tooLowCqN0] = vecTooLowCqN0[i]
             res[i][rar_isUsedInWoL] = vecIsUsedInWoL[i]
+
+        ###################################
+        # calculate excl and note strings #
+        ###################################
+        for i in range(0, len(res)):
+            exclVal = res[i][rar_excl] + ";"
+            noteVal = res[i][rar_note] + ";"
+
+            cqVal = np.NaN
+            meanEffVal = np.NaN
+            diffMeanEff = False
+            if excludeNoPlateau is False and excludeEfficiency is False:
+                cqVal = meanCq_Skip[i]
+                meanEffVal = meanEff_Skip[i]
+                diffMeanEff = res[i][rar_effOutlier_Skip]
+            if excludeNoPlateau is True and excludeEfficiency is False:
+                cqVal = meanCq_Skip_Plat[i]
+                meanEffVal = meanEff_Skip_Plat[i]
+                diffMeanEff = res[i][rar_effOutlier_Skip_Plat]
+            if excludeNoPlateau is False and excludeEfficiency is True:
+                cqVal = meanCq_Skip_Eff[i]
+                meanEffVal = meanEff_Skip_Eff[i]
+                diffMeanEff = res[i][rar_effOutlier_Skip]
+            if excludeNoPlateau is True and excludeEfficiency is True:
+                cqVal = meanCq_Skip_Plat_Eff[i]
+                meanEffVal = meanEff_Skip_Plat_Eff[i]
+                diffMeanEff = res[i][rar_effOutlier_Skip_Plat]
+
+            if res[i][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
+                if 10 < cqVal < 36:
+                    exclVal += "amplification in negative control;"
+
+                if res[i][rar_amplification]:
+                    noteVal += "amplification in negative control;"
+                if res[i][rar_plateau]:
+                    noteVal += "plateau in negative control;"
+
+            if res[i][rar_sample_type] in ["std", "pos"]:
+                if not (10 < cqVal < 36):
+                    exclVal += "no amplification in positive control;"
+
+                if not res[i][rar_amplification]:
+                    noteVal += "no amplification in positive control;"
+                if res[i][rar_baseline_error]:
+                    noteVal += "baseline error in positive control;"
+                if not res[i][rar_plateau]:
+                    noteVal += "no plateau in positive control;"
+                if res[i][rar_noisy_sample]:
+                    noteVal += "noisy sample in positive control;"
+
+                if res[i][rar_n_log] < 8:
+                    noteVal += "only " + str(res[i][rar_n_log]) + " values in log phase;"
+                if res[i][rar_indiv_PCR_eff] < 1.7:
+                    noteVal += "indiv PCR eff is " + "{:.3f}".format(res[i][rar_indiv_PCR_eff]) + " < 1.7;"
+                if diffMeanEff:
+                    noteVal += "indiv PCR eff differs from mean PCR eff by "
+                    noteVal += "{:.3f}".format(res[i][rar_indiv_PCR_eff] - meanEffVal) + ";"
+
+            if res[i][rar_sample_type] in ["unkn"]:
+                if not res[i][rar_amplification]:
+                    noteVal += "no amplification;"
+                if res[i][rar_baseline_error]:
+                    noteVal += "baseline error;"
+                if not res[i][rar_plateau]:
+                    noteVal += "no plateau;"
+                if res[i][rar_noisy_sample]:
+                    noteVal += "noisy sample;"
+
+                if res[i][rar_n_log] < 8:
+                    noteVal += "only " + str(res[i][rar_n_log]) + " values in log phase;"
+                if res[i][rar_indiv_PCR_eff] < 1.7:
+                    noteVal += "indiv PCR eff is " + "{:.3f}".format(res[i][rar_indiv_PCR_eff]) + " < 1.7;"
+                if diffMeanEff:
+                    noteVal += "indiv PCR eff differs from mean PCR eff by "
+                    noteVal += "{:.3f}".format(res[i][rar_indiv_PCR_eff] - meanEffVal) + ";"
+
+            # Write back
+            exclVal = re.sub(r'^;|;$', '', exclVal)
+            noteVal = re.sub(r'^;|;$', '', noteVal)
+            res[i][rar_excl] = exclVal
+            res[i][rar_note] = noteVal
+
+        ##############################
+        # write out the rdml results #
+        ##############################
+        if updateRDML is True:
+            expParent = self._node.getparent()
+            rootPar = expParent.getparent()
+            ver = rootPar.get('version')
+
+            self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
+            self["cqDetectionMethod"] = 'automated threshold and baseline settings'
+            dataXMLelements = _getXMLDataType()
+            for i in range(0, len(res)):
+                if rdmlElemData[i] is not None:
+                    cqVal = np.NaN
+                    meanEffVal = np.NaN
+                    stdEffVal = np.NaN
+                    if excludeNoPlateau is False and excludeEfficiency is False:
+                        cqVal = meanCq_Skip[i]
+                        meanEffVal = meanEff_Skip[i]
+                        stdEffVal = stdEff_Skip[i]
+                    if excludeNoPlateau is True and excludeEfficiency is False:
+                        cqVal = meanCq_Skip_Plat[i]
+                        meanEffVal = meanEff_Skip_Plat[i]
+                        stdEffVal = stdEff_Skip_Plat[i]
+                    if excludeNoPlateau is False and excludeEfficiency is True:
+                        cqVal = meanCq_Skip_Eff[i]
+                        meanEffVal = meanEff_Skip_Eff[i]
+                        stdEffVal = stdEff_Skip_Eff[i]
+                    if excludeNoPlateau is True and excludeEfficiency is True:
+                        cqVal = meanCq_Skip_Plat_Eff[i]
+                        meanEffVal = meanEff_Skip_Plat_Eff[i]
+                        stdEffVal = stdEff_Skip_Plat_Eff[i]
+
+                    if np.isnan(cqVal):
+                        goodVal = "-1.0"
+                    else:
+                        goodVal = "{:.3f}".format(cqVal)
+                    _change_subelement(rdmlElemData[i], "cq", dataXMLelements, goodVal, True, "string")
+                    _change_subelement(rdmlElemData[i], "excl", dataXMLelements, res[i][rar_excl], True, "string")
+                    if ver == "1.3":
+                        _change_subelement(rdmlElemData[i], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
+                        goodVal = "{:.3f}".format(meanEffVal)
+                        _change_subelement(rdmlElemData[i], "ampEff", dataXMLelements, goodVal, True, "string")
+                        goodVal = "{:.3f}".format(stdEffVal)
+                        _change_subelement(rdmlElemData[i], "ampEffSE", dataXMLelements, goodVal, True, "string")
+                        _change_subelement(rdmlElemData[i], "note", dataXMLelements, res[i][rar_note], True, "string")
+                    goodVal = "{:.3f}".format(bgarr[i])
+                    _change_subelement(rdmlElemData[i], "bgFluor", dataXMLelements, goodVal, True, "string")
+                    goodVal = "{:.3f}".format(threshold[0])
+                    _change_subelement(rdmlElemData[i], "quantFluor", dataXMLelements, goodVal, True, "string")
 
         # Fixme: Delete
         stop_time = dt.datetime.now() - start_time
