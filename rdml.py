@@ -7780,6 +7780,34 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
+    def setExclNote(self, vReact, vTar, vExcl, vNote):
+        """Saves the note and excl string for one react/data combination.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        expParent = self._node.getparent()
+        rootPar = expParent.getparent()
+        ver = rootPar.get('version')
+        dataXMLelements = _getXMLDataType()
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    forId = _get_first_child(react_data, "tar")
+                    if forId is not None:
+                        if forId.attrib['id'] == vTar:
+                            _change_subelement(react_data, "excl", dataXMLelements, vExcl, True, "string")
+                            if ver == "1.3":
+                                _change_subelement(react_data, "note", dataXMLelements, vNote, True, "string")
+        return
+
     def webAppLinRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False,
                         excludeNoPlateau=True, excludeEfficiency=True):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
@@ -8949,8 +8977,8 @@ class Run:
         # calculate excl and note strings #
         ###################################
         for i in range(0, len(res)):
-            exclVal = res[i][rar_excl] + ";"
-            noteVal = res[i][rar_note] + ";"
+            exclVal = ";"
+            noteVal = ";"
 
             cqVal = np.NaN
             meanEffVal = np.NaN
@@ -8973,7 +9001,7 @@ class Run:
                 diffMeanEff = res[i][rar_effOutlier_Skip_Plat]
 
             if res[i][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
-                if 10 < cqVal < 36:
+                if cqVal > 0.0:
                     exclVal += "amplification in negative control;"
 
                 if res[i][rar_amplification]:
@@ -8982,7 +9010,7 @@ class Run:
                     noteVal += "plateau in negative control;"
 
             if res[i][rar_sample_type] in ["std", "pos"]:
-                if not (10 < cqVal < 36):
+                if not (cqVal > 0.0):
                     exclVal += "no amplification in positive control;"
 
                 if not res[i][rar_amplification]:
@@ -8994,13 +9022,25 @@ class Run:
                 if res[i][rar_noisy_sample]:
                     noteVal += "noisy sample in positive control;"
 
-                if res[i][rar_n_log] < 8:
+                if -0.0001 < cqVal < 10.0:
+                    noteVal += "Cq < 10;N0 unreliable;"
+                if cqVal > 34.0:
+                    noteVal += "Cq > 34;N0 unreliable;"
+                if res[i][rar_n_log] < 5:
                     noteVal += "only " + str(res[i][rar_n_log]) + " values in log phase;"
                 if res[i][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[i][rar_indiv_PCR_eff]) + " < 1.7;"
                 if diffMeanEff:
-                    noteVal += "indiv PCR eff differs from mean PCR eff by "
-                    noteVal += "{:.3f}".format(res[i][rar_indiv_PCR_eff] - meanEffVal) + ";"
+                    if np.isnan(res[i][rar_indiv_PCR_eff]):
+                        noteVal += "no indiv PCR eff can be calculated;"
+                    else:
+                        diffFromMean = res[i][rar_indiv_PCR_eff] - meanEffVal
+                        if diffFromMean > 0.0:
+                            noteVal += "indiv PCR eff is higher than mean PCR eff by "
+                            noteVal += "{:.3f}".format(diffFromMean) + ";"
+                        else:
+                            noteVal += "indiv PCR eff is lower than mean PCR eff by "
+                            noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
             if res[i][rar_sample_type] in ["unkn"]:
                 if not res[i][rar_amplification]:
@@ -9012,13 +9052,25 @@ class Run:
                 if res[i][rar_noisy_sample]:
                     noteVal += "noisy sample;"
 
-                if res[i][rar_n_log] < 8:
+                if -0.0001 < cqVal < 10.0:
+                    noteVal += "Cq < 10;N0 unreliable;"
+                if cqVal > 34.0:
+                    noteVal += "Cq > 34;N0 unreliable;"
+                if res[i][rar_n_log] < 5:
                     noteVal += "only " + str(res[i][rar_n_log]) + " values in log phase;"
                 if res[i][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[i][rar_indiv_PCR_eff]) + " < 1.7;"
                 if diffMeanEff:
-                    noteVal += "indiv PCR eff differs from mean PCR eff by "
-                    noteVal += "{:.3f}".format(res[i][rar_indiv_PCR_eff] - meanEffVal) + ";"
+                    if np.isnan(res[i][rar_indiv_PCR_eff]):
+                        noteVal += "no indiv PCR eff can be calculated;"
+                    else:
+                        diffFromMean = res[i][rar_indiv_PCR_eff] - meanEffVal
+                        if diffFromMean > 0.0:
+                            noteVal += "indiv PCR eff is higher than mean PCR eff by "
+                            noteVal += "{:.3f}".format(diffFromMean) + ";"
+                        else:
+                            noteVal += "indiv PCR eff is lower than mean PCR eff by "
+                            noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
             # Write back
             exclVal = re.sub(r'^;|;$', '', exclVal)
