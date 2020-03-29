@@ -8375,7 +8375,7 @@ class Run:
                     vecNoAmplification[i] = True
                     vecSkipSample[i] = True
 
-                if vecNoAmplification[j] or vecBaselineError[j] or fstop[i] == minFluMat.shape[1]:
+                if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == minFluMat.shape[1]:
                     vecNoPlateau[i] = True
 
             # Set an initial window
