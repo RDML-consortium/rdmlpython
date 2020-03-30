@@ -611,7 +611,7 @@ def _writeFileInRDML(rdmlName, fileName, data):
 
 
 def _lrp_linReg(xIn, yUse):
-    """A function which calculates the slope and/or the intercept by linear regression.
+    """A function which calculates the slope or the intercept by linear regression.
 
     Args:
         xUse: The numpy array of the cycles
@@ -699,7 +699,7 @@ def _lrp_findStopCyc(fluor, aRow):
 
 
 def _lrp_findStartCyc(fluor, aRow, stopCyc):
-    """A function which finds the start cycle.
+    """A function which finds the start cycle of the log lin phase in fluor.
 
     Args:
         fluor: The array with the fluorescence values
@@ -707,35 +707,32 @@ def _lrp_findStartCyc(fluor, aRow, stopCyc):
         stopCyc: The stop cycle
 
     Returns:
-        An int with the stop cycle.
+        An array [int, int] with the start cycle and the fixed start cycle.
     """
 
     startCyc = stopCyc - 1
 
-    # Find the first value that is not NaN
-    firstNotNaN = 1  # Cycles so +1 to array
-    while np.isnan(fluor[aRow, firstNotNaN - 1]) and firstNotNaN < stopCyc:  # Fixme no -1
-        firstNotNaN += 1
-
     # startCyc might be NaN, so shift it to the first value
+    firstNotNaN = 1  # Cycles so +1 to array
+    while np.isnan(fluor[aRow, firstNotNaN - 1]) and firstNotNaN < startCyc:
+        firstNotNaN += 1
     while startCyc > firstNotNaN and np.isnan(fluor[aRow, startCyc - 1]):
         startCyc -= 1
 
     # As long as there are no NaN and new values are increasing
-    # Fixme: really >= and not > ??
-    while (startCyc >= firstNotNaN and
+    while (startCyc > firstNotNaN and
            not np.isnan(fluor[aRow, startCyc - 2]) and
            fluor[aRow, startCyc - 2] <= fluor[aRow, startCyc - 1]):
         startCyc -= 1
 
     startCycFix = startCyc
     if (not np.isnan(fluor[aRow, startCyc]) and
-        not np.isnan(fluor[aRow, startCyc - 1]) and
-        not np.isnan(fluor[aRow, stopCyc - 1]) and
-        not np.isnan(fluor[aRow, stopCyc - 2])):
-        startstep = np.log10(fluor[aRow, startCyc]) - np.log10(fluor[aRow, startCyc - 1])
-        stopstep = np.log10(fluor[aRow, stopCyc - 1]) - np.log10(fluor[aRow, stopCyc - 2])
-        if startstep > 1.1 * stopstep:
+            not np.isnan(fluor[aRow, startCyc - 1]) and
+            not np.isnan(fluor[aRow, stopCyc - 1]) and
+            not np.isnan(fluor[aRow, stopCyc - 2])):
+        startStep = np.log10(fluor[aRow, startCyc]) - np.log10(fluor[aRow, startCyc - 1])
+        stopStep = np.log10(fluor[aRow, stopCyc - 1]) - np.log10(fluor[aRow, stopCyc - 2])
+        if startStep > 1.1 * stopStep:
             startCycFix += 1
 
     return [startCyc, startCycFix]
@@ -8222,7 +8219,7 @@ class Run:
                             break
                         posCount += 1
 
-                # There must be an increase in flourescence over the amplification.
+                # There must be an increase in fluorescence after the amplification.
                 if ((minFluMat[oRow, posEight] + minFluMat[oRow, posNine]) / 2) / ((minFluMat[oRow, posZero] + minFluMat[oRow, posOne]) / 2) < 1.2:
                     if minFluMat[oRow, -1] / np.nanmean(minFluMatMean[oRow, posZero:posNine + 1]) < 7:
                         vecNoAmplification[oRow] = True
