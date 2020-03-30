@@ -610,25 +610,21 @@ def _writeFileInRDML(rdmlName, fileName, data):
             RDMLout.writestr(fileName, data)
 
 
-def _lrp_linReg(xUse, yUse, useVal):
+def _lrp_linReg(xIn, yUse):
     """A function which calculates the slope and/or the intercept by linear regression.
 
     Args:
         xUse: The numpy array of the cycles
-        yUse: The numpy array that contains the fluorescence
-        useVal: The logical numpy array
+        yIn: The numpy array that contains the fluorescence
 
     Returns:
         An array with the slope and intercept.
     """
 
- #   counts = np.ones(yIn.shape)
-
-
- #   print(counts)
-    #   logical[rawMod <= 0.00000001] = np.nan
-    #   vecCycles[rawMod <= 0.00000001] = np.nan
-  #  [slopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(rawMod), logical)
+    counts = np.ones(yUse.shape)
+    xUse = xIn.copy()
+    xUse[np.isnan(yUse)] = 0
+    counts[np.isnan(yUse)] = 0
 
     cycSqared = xUse * xUse
     cycFluor = xUse * yUse
@@ -636,7 +632,7 @@ def _lrp_linReg(xUse, yUse, useVal):
     sumFluor = np.nansum(yUse, axis=1)
     sumCycSquared = np.nansum(cycSqared, axis=1)
     sumCycFluor = np.nansum(cycFluor, axis=1)
-    n = np.nansum(useVal, axis=1)
+    n = np.nansum(counts, axis=1)
 
     ssx = sumCycSquared - (sumCyc * sumCyc) / n
     sxy = sumCycFluor - (sumCyc * sumFluor) / n
@@ -8008,10 +8004,12 @@ class Run:
         spFl = (len(reacts), int(adp_cyc_max))
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor <= 0.00000001] = np.nan
+
+        # Create a matrix with the cycle for each rawFluor value
+        vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int), (spFl[0], 1))
+
         # Initialization of the vecNoAmplification vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
-        vecTarget = np.zeros(spFl[0], dtype=np.int)
-        vecTarget[vecTarget <= 0] = -1
         rdmlElemData = []
 
         # Now process the data for numpy and create results array
@@ -8131,6 +8129,8 @@ class Run:
 
         # Count the targets and create the target variables
         # Position 0 is for the general over all window without targets
+        vecTarget = np.zeros(spFl[0], dtype=np.int)
+        vecTarget[vecTarget <= 0] = -1
         targetsCount = 1
         tarWinLookup = {}
         for oRow in range(0, spFl[0]):
@@ -8170,18 +8170,11 @@ class Run:
             # First quality check : Is there enough amplification during the reaction #
             ###########################################################################
 
-            # Create a matrix with the cycle for each rawFluor value
-            vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int), (spFl[0], 1))
-
             # Slope calculation per react/target - the intercept is never used for now
             rawMod = rawFluor.copy()
             rawMod[np.isnan(rawMod)] = 0
             rawMod[rawMod <= 0.00000001] = np.nan
-
-            logical = np.ones(spFl)
-         #   logical[rawMod <= 0.00000001] = np.nan
-         #   vecCycles[rawMod <= 0.00000001] = np.nan
-            [slopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(rawMod), logical)
+            [slopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(rawMod))
 
             # Minimum of fluorescence values per well
             minFlu = np.nanmin(rawMod, axis=1)
@@ -8201,7 +8194,7 @@ class Run:
             minFluMatCount[minFluMatCount > 0] = 1
             minFluMatCountSum = np.sum(minFluMatCount, axis=1)
 
-            [minSlopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(minFluMat), logical)
+            [minSlopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(minFluMat))
 
             # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
