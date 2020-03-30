@@ -28,7 +28,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.8.0"
+    return "0.8.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -610,66 +610,39 @@ def _writeFileInRDML(rdmlName, fileName, data):
             RDMLout.writestr(fileName, data)
 
 
-def _linearRegression(x, y, useVal):
-    """A function which calculates the slope and/or the intercept.
+def _lrp_linReg(xUse, yUse, useVal):
+    """A function which calculates the slope and/or the intercept by linear regression.
 
     Args:
-        x: The numpy array of the cycles
-        y: The numpy array that contains the values in the WoL
+        xUse: The numpy array of the cycles
+        yUse: The numpy array that contains the fluorescence
         useVal: The logical numpy array
 
     Returns:
         An array with the slope and intercept.
     """
 
-    x2 = x * x
-    xy = x * y
-    sumx = np.nansum(x, axis=1)
-    sumy = np.nansum(y, axis=1)
-    sumx2 = np.nansum(x2, axis=1)
-    sumxy = np.nansum(xy, axis=1)
+ #   counts = np.ones(yIn.shape)
+
+
+ #   print(counts)
+    #   logical[rawMod <= 0.00000001] = np.nan
+    #   vecCycles[rawMod <= 0.00000001] = np.nan
+  #  [slopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(rawMod), logical)
+
+    cycSqared = xUse * xUse
+    cycFluor = xUse * yUse
+    sumCyc = np.nansum(xUse, axis=1)
+    sumFluor = np.nansum(yUse, axis=1)
+    sumCycSquared = np.nansum(cycSqared, axis=1)
+    sumCycFluor = np.nansum(cycFluor, axis=1)
     n = np.nansum(useVal, axis=1)
 
-    ssx = sumx2 - (sumx * sumx) / n
-    sxy = sumxy - (sumx * sumy) / n
+    ssx = sumCycSquared - (sumCyc * sumCyc) / n
+    sxy = sumCycFluor - (sumCyc * sumFluor) / n
 
     slope = sxy / ssx
-    intercept = (sumy / n) - slope * (sumx / n)
-    return [slope, intercept]
-
-
-def _linearRegression2(x, y, z, vecExcluded):
-    """A function which calculates the slope and/or the intercept.
-
-    Args:
-        x: The numpy array of the cycles
-        y: The numpy array that contains the values in the WoL
-        z: The logical numpy array
-
-    Returns:
-        An array with the slope and intercept.
-    """
-
-    x2 = x * x
-    xy = x * y
-    sumx = np.nansum(x, axis=1)
-    sumy = np.nansum(y, axis=1)
-    sumx2 = np.nansum(x2, axis=1)
-    sumxy = np.nansum(xy, axis=1)
-    n = np.nansum(z, axis=1)
-
-    with np.errstate(divide='ignore', invalid='ignore'):
-        ssx = sumx2 - (sumx * sumx) / n
-        sxy = sumxy - (sumx * sumy) / n
-
-        slope = sxy / ssx
-        intercept = (sumy / n) - slope * (sumx / n)
-
-    for i in range(len(vecExcluded)):
-        if vecExcluded[i] or n[i] == 1 or np.isnan(slope[i]):
-            slope[i] = 0
-            intercept[i] = 0
-
+    intercept = (sumFluor / n) - slope * (sumCyc / n)
     return [slope, intercept]
 
 
@@ -707,9 +680,9 @@ def _findLRstop(fluor, z):
     # Data may have nan FixME: nan should be ignoread as not present
     if FDMcycles + 2 <= fluor.shape[1]:
         if (not np.isnan(fluor[z, FDMcycles - 1]) and
-            not np.isnan(fluor[z, FDMcycles]) and
-            not np.isnan(fluor[z, FDMcycles + 1]) and
-            fluor[z, FDMcycles + 1] > fluor[z, FDMcycles] > fluor[z, FDMcycles - 1]):
+                not np.isnan(fluor[z, FDMcycles]) and
+                not np.isnan(fluor[z, FDMcycles + 1]) and
+                fluor[z, FDMcycles + 1] > fluor[z, FDMcycles] > fluor[z, FDMcycles - 1]):
             FDMcycles = FDMcycles + 2
     else:
         FDMcycles = fluor.shape[1]
@@ -2578,8 +2551,9 @@ class Rdml:
         new_node = _create_new_element(self._node, "sample", id)
         ET.SubElement(new_node, "type").text = type
         ver = self._node.get('version')
-    #    if ver == "1.3" and targetId is not None or not targetId == "":
-    #        typeEL.attrib["targetId"] = targetId
+    #    if ver == "1.3":
+    #        if targetId is not None or not targetId == "":
+    #            typeEL.attrib["targetId"] = targetId
         place = _get_tag_pos(self._node, "sample", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
 
@@ -6330,8 +6304,8 @@ class Run:
         tabLines = newlineFix.split("\n")
 
         head = tabLines[0].split("\t")
-        if head[0] != "Well" or head[1] != "Sample" or head[2] != "Sample Type" or head[3] != "Target" \
-            or head[4] != "Target Type" or head[5] != "Dye":
+        if (head[0] != "Well" or head[1] != "Sample" or head[2] != "Sample Type" or
+                head[3] != "Target" or head[4] != "Target Type" or head[5] != "Dye"):
             raise RdmlError('The tab-format is not valid, essential columns are missing.')
 
         # Get the information for the lookup dictionaries
@@ -6381,18 +6355,18 @@ class Run:
 
             # Get the position number if required
             wellPos = sLin[0]
-            if re.search("\D\d+", sLin[0]):
-                old_letter = ord(re.sub("\d", "", sLin[0]).upper()) - ord("A")
-                old_nr = int(re.sub("\D", "", sLin[0]))
+            if re.search(r"\D\d+", sLin[0]):
+                old_letter = ord(re.sub(r"\d", "", sLin[0]).upper()) - ord("A")
+                old_nr = int(re.sub(r"\D", "", sLin[0]))
                 newId = old_nr + old_letter * int(self["pcrFormat_columns"])
                 wellPos = str(newId)
-            if re.search("\D\d+\D\d+", sLin[0]):
-                old_left = re.sub("\D\d+$", "", sLin[0])
-                old_left_letter = ord(re.sub("\d", "", old_left).upper()) - ord("A")
-                old_left_nr = int(re.sub("\D", "", old_left)) - 1
-                old_right = re.sub("^\D\d+", "", sLin[0])
-                old_right_letter = ord(re.sub("\d", "", old_right).upper()) - ord("A")
-                old_right_nr = int(re.sub("\D", "", old_right))
+            if re.search(r"\D\d+\D\d+", sLin[0]):
+                old_left = re.sub(r"\D\d+$", "", sLin[0])
+                old_left_letter = ord(re.sub(r"\d", "", old_left).upper()) - ord("A")
+                old_left_nr = int(re.sub(r"\D", "", old_left)) - 1
+                old_right = re.sub(r"^\D\d+", "", sLin[0])
+                old_right_letter = ord(re.sub(r"\d", "", old_right).upper()) - ord("A")
+                old_right_nr = int(re.sub(r"\D", "", old_right))
                 newId = old_left_nr * 8 + old_right_nr + old_left_letter * 768 + old_right_letter * 96
                 wellPos = str(newId)
 
@@ -6979,12 +6953,6 @@ class Run:
             # print(finalFileName)
 
             with open(fileLookup[well], newline='') as wellfile:  # add encoding='utf-8' ?
-
-  #          with open(fileLookup[well], "r") as wellfile:
-   #             wellFileContent = wellfile.read()
-    #            newlineFix = wellFileContent.replace("\r\n", "\n")
-     #           wellLines = newlineFix.split("\n")
-
                 if fileformat == "RDML":
                     wellLines = list(csv.reader(wellfile, delimiter='\t'))
                     wellFileContent = wellfile.read()
@@ -7631,14 +7599,13 @@ class Run:
         """
 
         react = None
-        partit = None
         retVal = ""
 
         # Get the position number if required
         wellPos = str(reactPos)
-        if re.search("\D\d+", wellPos):
-            old_letter = ord(re.sub("\d", "", wellPos.upper())) - ord("A")
-            old_nr = int(re.sub("\D", "", wellPos))
+        if re.search(r"\D\d+", wellPos):
+            old_letter = ord(re.sub(r"\d", "", wellPos.upper())) - ord("A")
+            old_nr = int(re.sub(r"\D", "", wellPos))
             newId = old_nr + old_letter * int(self["pcrFormat_columns"])
             wellPos = str(newId)
 
@@ -7785,9 +7752,13 @@ class Run:
 
         Args:
             self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
+            vExcl: The exclusion string to save.
+            vNote: The note string to save.
 
         Returns:
-            A json of the data.
+            Nothing, updates RDML data.
         """
 
         expParent = self._node.getparent()
@@ -7866,13 +7837,12 @@ class Run:
         if "resultsList" in res:
             header = res["resultsList"].pop(0)
             resList = sorted(res["resultsList"], key=_sort_list_int)
-            for i in range(0, len(resList)):
-                for k in range(0, len(resList[i])):
-                    if isinstance(resList[i][k], np.float64) and np.isnan(resList[i][k]):
-                        resList[i][k] = ""
-                    if isinstance(resList[i][k], float) and math.isnan(resList[i][k]):
-                        resList[i][k] = ""
-            isinstance(i, float)
+            for rRow in range(0, len(resList)):
+                for rCol in range(0, len(resList[rRow])):
+                    if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
+                        resList[rRow][rCol] = ""
+                    if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
+                        resList[rRow][rCol] = ""
             allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
 
         return allData
@@ -7880,7 +7850,8 @@ class Run:
     def linRegPCR(self, baselineCorr=True, pcrEfficiencyExl=0.05, updateRDML=False,
                   excludeNoPlateau=True, excludeEfficiency=True,
                   commaConv=False, ignoreExclusion=False,
-                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False, verbose=False):
+                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False,
+                  timeRun=False, verbose=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -7896,6 +7867,7 @@ class Run:
             saveBaslineCorr: If true, no baseline corrected values are given in the returned data
             saveResultsList: If true, return a 2d array object.
             saveResultsCSV: If true, return a csv string.
+            timeRun: If true, print runtime for baseline and total.
             verbose: If true, comment every performed step.
 
         Returns:
@@ -8034,7 +8006,8 @@ class Run:
 
         # spFl is the shape for all fluorescence numpy data arrays
         spFl = (len(reacts), int(adp_cyc_max))
-        rawFluor = np.zeros(spFl, dtype=np.float64)  # Fixme: nan
+        rawFluor = np.zeros(spFl, dtype=np.float64)
+        rawFluor[rawFluor <= 0.00000001] = np.nan
         # Initialization of the vecNoAmplification vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
         vecTarget = np.zeros(spFl[0], dtype=np.int)
@@ -8060,7 +8033,6 @@ class Run:
                 if forId is not None:
                     if forId.attrib['id'] != "":
                         target = forId.attrib['id']
-                # _add_first_child_to_dic(react_data, in_react, True, "cq")
                 if ignoreExclusion:
                     excl = ""
                 else:
@@ -8134,39 +8106,38 @@ class Run:
                 dicLU_samNucl[lu_sample.attrib['id']] = lu_Nucl
 
         # Update the table with dictionary help
-        for i in range(0, spFl[0]):
-            if res[i][rar_sample] != "":
+        for oRow in range(0, spFl[0]):
+            if res[oRow][rar_sample] != "":
                 # Try to get specific type information else general else "unkn"
-                if res[i][rar_tar] in dicLU_samSpecType[res[i][rar_sample]]:
-                    res[i][rar_sample_type] = dicLU_samSpecType[res[i][rar_sample]][res[i][rar_tar]]
-                elif res[i][rar_sample] in dicLU_samGenType:
-                    res[i][rar_sample_type] = dicLU_samGenType[res[i][rar_sample]]
+                if res[oRow][rar_tar] in dicLU_samSpecType[res[oRow][rar_sample]]:
+                    res[oRow][rar_sample_type] = dicLU_samSpecType[res[oRow][rar_sample]][res[oRow][rar_tar]]
+                elif res[oRow][rar_sample] in dicLU_samGenType:
+                    res[oRow][rar_sample_type] = dicLU_samGenType[res[oRow][rar_sample]]
                 else:
-                    res[i][rar_sample_type] = "unkn"
-                res[i][rar_sample_nucleotide] = dicLU_samNucl[res[i][rar_sample]]
-            if res[i][rar_tar] != "":
-                res[i][rar_tar_chemistry] = dicLU_targets[res[i][rar_tar]]
+                    res[oRow][rar_sample_type] = "unkn"
+                res[oRow][rar_sample_nucleotide] = dicLU_samNucl[res[oRow][rar_sample]]
+            if res[oRow][rar_tar] != "":
+                res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
 
         if saveRaw:
             rawArr = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
-            for i in range(0, spFl[1]):
-                rawArr[0].append(i + 1)
-            for i in range(0, spFl[0]):
-                rawArr.append([res[i][rar_id], res[i][rar_well], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
-                for k in range(0, spFl[1]):
-                    rawArr[i + 1].append(float(rawFluor[i, k]))
+            for oCol in range(0, spFl[1]):
+                rawArr[0].append(oCol + 1)
+            for oRow in range(0, spFl[0]):
+                rawArr.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
+                for oCol in range(0, spFl[1]):
+                    rawArr[oRow + 1].append(float(rawFluor[oRow, oCol]))
             finalData["rawData"] = rawArr
 
-        # Create the target variables
+        # Count the targets and create the target variables
         # Position 0 is for the general over all window without targets
         targetsCount = 1
         tarWinLookup = {}
-        for i in range(0, spFl[0]):
-            if res[i][rar_tar] not in tarWinLookup:
-                tarWinLookup[res[i][rar_tar]] = targetsCount
-                vecTarget[i] = targetsCount  # FixMe: Delete
+        for oRow in range(0, spFl[0]):
+            if res[oRow][rar_tar] not in tarWinLookup:
+                tarWinLookup[res[oRow][rar_tar]] = targetsCount
                 targetsCount += 1
-            vecTarget[i] = tarWinLookup[res[i][rar_tar]]
+            vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
         upwin = np.zeros(targetsCount, dtype=np.float64)
         lowwin = np.zeros(targetsCount, dtype=np.float64)
         threshold = np.zeros(targetsCount, dtype=np.float64)
@@ -8174,120 +8145,43 @@ class Run:
         ########################
         # Baseline correction  #
         ########################
-        # Fixme: Delete
-        start_time = dt.datetime.now()
-        outFFile = ""
+        if timeRun:
+            start_time = dt.datetime.now()
 
-        # Initialization of the vecNoAmplification vector
+        # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
-
-        # This is the vector for the baseline error quality check
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
-
-        # This is the vector for the baseline error quality check
         vecNoPlateau = np.zeros(spFl[0], dtype=np.bool)
-
         vecNoisySample = np.zeros(spFl[0], dtype=np.bool)
-
-        # This is the vector for the skip sample check
         vecSkipSample = np.zeros(spFl[0], dtype=np.bool)
-
         vecShortloglin = np.zeros(spFl[0], dtype=np.bool)
-
         vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool)
-
         vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
-
         vecEffOutlier_Skip = np.zeros(spFl[0], dtype=np.bool)
-
         vecEffOutlier_Skip_Plat = np.zeros(spFl[0], dtype=np.bool)
-
         vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool)
-
         vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool)
 
+        # Initialization of the PCR efficiency vectors
         pcreff = np.ones(spFl[0], dtype=np.float64)
 
         if baselineCorr:
-            ####################
-            # SDM calculation  #
-            ####################
-
-            # First and Second Derivative values calculation
-
-            # Shifted matrix of the raw data
-            rawFluorShift = np.roll(rawFluor, 1, axis=1)  # Shift to right - real position is -0.5
-            rawFluorShift[:, 0] = np.nan
-            # Subtraction of the shifted matrix to the raw data
-            firstDerivative = rawFluor - rawFluorShift
-
-            # Shifted matrix of the firstDerivative
-            firstDerivativeShift = np.roll(firstDerivative, -1, axis=1)  # Shift to left
-            firstDerivativeShift[:, -1] = np.nan
-            # Subtraction of the firstDerivative values to the shifted matrix
-            secondDerivative = firstDerivativeShift - firstDerivative
-
-            # Calculation of the second derivative maximum per well
-            # SDM is the max flo value per well and SDMcycles to the corresponding cycle
-            FDM = np.nanmax(firstDerivative, axis=1)
-            FDMcycles = np.nanargmax(firstDerivative, axis=1) + 1
-            SDM = np.nanmax(secondDerivative, axis=1)
-            SDMcycles = np.nanargmax(secondDerivative, axis=1) + 1
-        #    _numpyTwoAxisSave(secondDerivative, "linPas/ot_secondDerivative.tsv")
-
-            ########################################
-            # Start point of the exponential phase #
-            ########################################
-
-            # For loop which determine the start of the exponential phase
-
-            # This first loop creates the vector that will be used during the
-            # initialisation phase of the baseline estimation
-
-            # Initialisation
-            startExpPhase = np.zeros(spFl[0], dtype=np.float64)
-            startExpCycles = np.zeros(spFl[0], dtype=np.int)
-
-            # for each row of the data
-            for i in range(0, spFl[0]):
-                # the loop starts from the SDM cycle of each row
-                j = SDMcycles[i]
-                while rawFluor[i, j] >= rawFluor[i, j - 1] and j > 1:
-                    j = j - 1
-                startExpPhase[i] = rawFluor[i, j]
-                startExpCycles[i] = j + 1
-
-            # For loop which modifies the start cycle if too far from the SDM cycle
-
-            # This loop looks for the cases where the previously calculated start point cycle is
-            # more than 10 cycles far from the SDM point. When it finds such a case, it replaces
-            # the start cycle by the SDM cycle minus 10. This vector will be used after the initialization
-            # phase
-
-            # Initialization of the expoPhaseBaselineEstimation vector
-            expoPhaseBaselineEstimation = startExpCycles.copy()
-
-     #       expoPhaseBaselineEstimation[SDMcycles - startExpCycles > 10] = SDMcycles - 10
-            for i in range(0, startExpCycles.shape[0]):
-                if SDMcycles[i] - startExpCycles[i] > 10:
-                    expoPhaseBaselineEstimation[i] = SDMcycles[i] - 10
-
             ###########################################################################
             # First quality check : Is there enough amplification during the reaction #
             ###########################################################################
 
-            # Slope calculation per well
+            # Create a matrix with the cycle for each rawFluor value
+            vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int), (spFl[0], 1))
 
-            logical = np.ones(spFl)
-            vecCycle2 = np.arange(1, (spFl[1] + 1), dtype=np.int)
-
-            # the intercept is never used in the code but has to be mentioned otherwise
-            # the linearRegression can't be called.
-
+            # Slope calculation per react/target - the intercept is never used for now
             rawMod = rawFluor.copy()
             rawMod[np.isnan(rawMod)] = 0
             rawMod[rawMod <= 0.00000001] = np.nan
-            [slopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], np.log10(rawMod), logical)
+
+            logical = np.ones(spFl)
+         #   logical[rawMod <= 0.00000001] = np.nan
+         #   vecCycles[rawMod <= 0.00000001] = np.nan
+            [slopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(rawMod), logical)
 
             # Minimum of fluorescence values per well
             minFlu = np.nanmin(rawMod, axis=1)
@@ -8301,27 +8195,25 @@ class Run:
             minFluMat[minFluMat <= 0.00000001] = np.nan
             minFluMatCount = minFluMat.copy()
             minFluMatMean = minFluMat.copy()
-     #       for i in range(0, spFl[0]):
-     #           minFluMatMean[i, cycleMinFlu[i] - 1] = np.nan
+     #       for oRow in range(0, spFl[0]):
+     #           minFluMatMean[oRow, cycleMinFlu[oRow] - 1] = np.nan
             minFluMatCount[np.isnan(minFluMatCount)] = 0
             minFluMatCount[minFluMatCount > 0] = 1
             minFluMatCountSum = np.sum(minFluMatCount, axis=1)
 
-            [minSlopeAmp, interceptAmp] = _linearRegression(vecCycle2[np.newaxis, :], np.log10(minFluMat), logical)
+            [minSlopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(minFluMat), logical)
 
             # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
 
-            fstop = FDMcycles.copy()  # Fixme: only for correct length
-            fstop2 = FDMcycles.copy()  # Fixme: only for correct length
-            fstart = FDMcycles.copy()  # Fixme: only for correct length
-            fstart2 = FDMcycles.copy()  # Fixme: only for correct length = np.zeros(spFl[0], dtype=np.float64)
+            fstop = np.zeros(spFl[0], dtype=np.int64)
+            fstop2 = np.zeros(spFl[0], dtype=np.int64)
+            fstart = np.zeros(spFl[0], dtype=np.int64)
+            fstart2 = np.zeros(spFl[0], dtype=np.int64)
 
-         #   _numpyTwoAxisSave(minFluMat, "linPas/numpy_fluor_data_1.tsv")
-
-            for i in range(0, spFl[0]):  # Fixme: use np.nanmean with isnan check
-                if slopeAmp[i] < 0 or minSlopeAmp[i] < (np.log10(7.0) / minFluMatCountSum[i]):
-                    vecNoAmplification[i] = True
+            for oRow in range(0, spFl[0]):  # Fixme: use np.nanmean with isnan check
+                if slopeAmp[oRow] < 0 or minSlopeAmp[oRow] < (np.log10(7.0) / minFluMatCountSum[oRow]):
+                    vecNoAmplification[oRow] = True
 
                 # Get the positions ignoring nan values
                 posCount = 0
@@ -8330,7 +8222,7 @@ class Run:
                 posEight = 0
                 posNine = 0
                 for realPos in range(0, spFl[1]):
-                    if not np.isnan(minFluMat[i, realPos]):
+                    if not np.isnan(minFluMat[oRow, realPos]):
                         if posCount == 0:
                             posZero = realPos
                         if posCount == 1:
@@ -8344,26 +8236,26 @@ class Run:
                         posCount += 1
                 posTen = posNine + 1
 
-                if ((minFluMat[i, posEight] + minFluMat[i, posNine]) / 2) / ((minFluMat[i, posZero] + minFluMat[i, posOne]) / 2) < 1.2:
-                    if minFluMat[i, -1] / np.nanmean(minFluMatMean[i, posZero:posTen]) < 7:
-                        vecNoAmplification[i] = True
+                if ((minFluMat[oRow, posEight] + minFluMat[oRow, posNine]) / 2) / ((minFluMat[oRow, posZero] + minFluMat[oRow, posOne]) / 2) < 1.2:
+                    if minFluMat[oRow, -1] / np.nanmean(minFluMatMean[oRow, posZero:posTen]) < 7:
+                        vecNoAmplification[oRow] = True
 
-                if not vecNoAmplification[i]:
-                    fstop[i] = _findLRstop(minFluMat, i)
-                    [fstart[i], fstart2[i]] = _findLRstart(minFluMat, i, fstop[i])
-                    fstop2[i] = fstop[i]
+                if not vecNoAmplification[oRow]:
+                    fstop[oRow] = _findLRstop(minFluMat, oRow)
+                    [fstart[oRow], fstart2[oRow]] = _findLRstart(minFluMat, oRow, fstop[oRow])
+                    fstop2[oRow] = fstop[oRow]
                 else:
-                    vecSkipSample[i] = True
-                    fstop[i] = minFluMat.shape[1]
-                    fstart[i] = 1
-                    fstart2[i] = 1
+                    vecSkipSample[oRow] = True
+                    fstop[oRow] = minFluMat.shape[1]
+                    fstart[oRow] = 1
+                    fstart2[oRow] = 1
 
                 # Get the positions ignoring nan values
                 posCount = 0
                 posMinOne = 0
                 posMinTwo = 0
-                for realPos in range(fstop[i] - 2, 0, -1):
-                    if not np.isnan(minFluMat[i, realPos - 1]):
+                for realPos in range(fstop[oRow] - 2, 0, -1):
+                    if not np.isnan(minFluMat[oRow, realPos - 1]):
                         if posCount == 0:
                             posMinOne = realPos + 1
                         if posCount > 0:
@@ -8371,75 +8263,48 @@ class Run:
                             break
                         posCount += 1
 
-                if not (minFluMat[i, fstop[i] - 1] > minFluMat[i, posMinOne - 1] > minFluMat[i, posMinTwo - 1]):
-                    vecNoAmplification[i] = True
-                    vecSkipSample[i] = True
+                if not (minFluMat[oRow, fstop[oRow] - 1] > minFluMat[oRow, posMinOne - 1] > minFluMat[oRow, posMinTwo - 1]):
+                    vecNoAmplification[oRow] = True
+                    vecSkipSample[oRow] = True
 
-                if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == minFluMat.shape[1]:
-                    vecNoPlateau[i] = True
+                if vecNoAmplification[oRow] or vecBaselineError[oRow] or fstop[oRow] == minFluMat.shape[1]:
+                    vecNoPlateau[oRow] = True
 
             # Set an initial window
             meanmax = _GetMeanMax(minFluMat, None, vecSkipSample, vecNoPlateau)
             upwin[0] = np.log10(0.1 * meanmax)
             lowwin[0] = np.log10(0.1 * meanmax / 16.0)
 
-       #     _numpyTwoAxisSave(vecNoAmplification, "linPas/numpy_vecNoAmplification.tsv")
-        #    _numpyTwoAxisSave(vecNoPlateau, "linPas/numpy_vecNoPlateau.tsv")
-      #      _numpyTwoAxisSave(fstop, "linPas/numpy_fstop_1.tsv")
-      #      _numpyTwoAxisSave(fstart, "linPas/numpy_fstart_1.tsv")
-          #  for i in range(0, spFl[0]):
-           #     fstop[i] = _findLRstop(minFluMat, i)
-           #     [ddldldl, fstart[i]] = _findLRstart(minFluMat, i, fstop[i])
-        #    _numpyTwoAxisSave(fstop2, "linPas/numpy_fstop_2.tsv")
-      #      _numpyTwoAxisSave(fstart2, "linPas/numpy_fstart_2.tsv")
-
-            # Consecutive derivative points near the SDM (caution arrays start at 0, not 1!)
- #           for i in range(0, firstDerivativeShift.shape[0]):
-  #              if not (firstDerivativeShift[i, SDMcycles[i] - 4] <= firstDerivativeShift[i, SDMcycles[i] - 3] <=
-   #                     firstDerivativeShift[i, SDMcycles[i] - 2] <= firstDerivativeShift[i, SDMcycles[i] - 1] or
-    #                    firstDerivativeShift[i, SDMcycles[i] - 3] <= firstDerivativeShift[i, SDMcycles[i] - 2] <=
-     #                   firstDerivativeShift[i, SDMcycles[i] - 1] <= firstDerivativeShift[i, SDMcycles[i]]):
-      #              vecNoAmplification[i] = True
-
             ##################################################
             # Main loop : Calculation of the baseline values #
             ##################################################
 
-            # The output vector of the main for loops need to be initialized before the start of the loop :
-            # This will be the baseline values vector. It has the same size of the SDMcycles vector
-            baselineValues = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
-            # The intercept values are not used in the code but could be used later.
-            interceptDifference = np.zeros((SDMcycles.shape[0], 1), dtype=np.float64)
-
-            outStrStuff = ''
-
             nfluor = rawFluor.copy()
             # The for loop go through all the sample matrix and make calculations well by well
-            for z in range(0, spFl[0]):
+            for oRow in range(0, spFl[0]):
                 if verbose:
-                    print('React: ' + str(z))
-                outFFile += "----Sample: " + str(z) + "\n"  #"{0:0.6f}".format(xxelex) + "\t"
+                    print('React: ' + str(oRow))
                 # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
                 # minimum fluorescence value assigned as baseline value for the considered reaction :
-                if not vecNoAmplification[z]:
+                if not vecNoAmplification[oRow]:
                     #  Make sure baseline is overestimated, without using slope criterion
                     #  increase baseline per cycle till eff > 2 or remaining loglin points < PointsInWoL
                     #  fastest when bgarr is directly set to 5 point below fstop
-                    start = fstop[z]
+                    start = fstop[oRow]
 
                     # Find the first value that is not NaN
                     firstNotNaN = 1  # Cycles so +1 to array
-                    while np.isnan(nfluor[z, firstNotNaN - 1]) and firstNotNaN < fstop[z]:
+                    while np.isnan(nfluor[oRow, firstNotNaN - 1]) and firstNotNaN < fstop[oRow]:
                         firstNotNaN += 1
 
                     subtrCount = 5
                     while subtrCount > 0 and start > firstNotNaN:
                         start -= 1
-                        if not np.isnan(rawFluor[z, start - 1]):
+                        if not np.isnan(rawFluor[oRow, start - 1]):
                             subtrCount -= 1
 
-                    bgarr[z] = 0.99 * rawFluor[z, start - 1]
-                    nfluor[z] = rawFluor[z] - bgarr[z]
+                    bgarr[oRow] = 0.99 * rawFluor[oRow, start - 1]
+                    nfluor[oRow] = rawFluor[oRow] - bgarr[oRow]
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
                     #  baseline is now certainly too high
@@ -8450,30 +8315,30 @@ class Run:
                     slopelow = 0.0
                     while True:
                         ntrials += 1
-                        fstop[z] = _findLRstop(nfluor, z)
-                        [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
-                        if fstop[z] - fstart2[z] > 0:
-                            [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
-                            defbgarr[z] = bgarr[z]
+                        fstop[oRow] = _findLRstop(nfluor, oRow)
+                        [fstart[oRow], fstart2[oRow]] = _findLRstart(nfluor, oRow, fstop[oRow])
+                        if fstop[oRow] - fstart2[oRow] > 0:
+                            [slopelow, slopehigh] = _ttestslopes(nfluor, oRow, fstop, fstart2)
+                            defbgarr[oRow] = bgarr[oRow]
                         else:
                             break
 
                         if slopelow >= slopehigh:
-                            bgarr[z] *= 0.99
-                            nfluor[z] = rawFluor[z] - bgarr[z]
+                            bgarr[oRow] *= 0.99
+                            nfluor[oRow] = rawFluor[oRow] - bgarr[oRow]
                             nfluor[np.isnan(nfluor)] = 0
                             nfluor[nfluor <= 0.00000001] = np.nan
 
                         if (slopelow < slopehigh or
-                            bgarr[z] < 0.95 * sampmin[z] or
+                            bgarr[oRow] < 0.95 * sampmin[oRow] or
                             ntrials > 1000):
                             break
 
-                    if bgarr[z] < 0.95 * sampmin[z]:
-                        vecBaselineError[z] = True
+                    if bgarr[oRow] < 0.95 * sampmin[oRow]:
+                        vecBaselineError[oRow] = True
 
                     # 2. fine tune slope of total line
-                    stepval = 0.005 * bgarr[z]
+                    stepval = 0.005 * bgarr[oRow]
                     basestep = 1.0
                     ntrials = 0
                     trialstoshift = 0
@@ -8489,16 +8354,16 @@ class Run:
 
                         lastsigndiff = thissigndiff
                         lastslopediff = thisslopediff
-                        defbgarr[z] = bgarr[z]
+                        defbgarr[oRow] = bgarr[oRow]
                         # apply baseline
-                        nfluor[z] = rawFluor[z] - bgarr[z]
+                        nfluor[oRow] = rawFluor[oRow] - bgarr[oRow]
                         nfluor[np.isnan(nfluor)] = 0
                         nfluor[nfluor <= 0.00000001] = np.nan
-                        fstop[z] = _findLRstop(nfluor, z)
-                        [fstart[z], fstart2[z]] = _findLRstart(nfluor, z, fstop[z])
+                        fstop[oRow] = _findLRstop(nfluor, oRow)
+                        [fstart[oRow], fstart2[oRow]] = _findLRstart(nfluor, oRow, fstop[oRow])
 
-                        if fstop[z] - fstart2[z] > 0:
-                            [slopelow, slopehigh] = _ttestslopes(nfluor, z, fstop, fstart2)
+                        if fstop[oRow] - fstart2[oRow] > 0:
+                            [slopelow, slopehigh] = _ttestslopes(nfluor, oRow, fstop, fstart2)
                             thisslopediff = np.abs(slopelow - slopehigh)
                             if (slopelow - slopehigh) > 0.0:
                                 thissigndiff = 1
@@ -8507,11 +8372,11 @@ class Run:
                             # start with baseline that is too low: lowerslope is low
                             if slopelow < slopehigh:
                                 # increase baseline
-                                bgarr[z] += basestep * stepval
+                                bgarr[oRow] += basestep * stepval
                             else:
                                 # crossed right baseline
                                 # go two steps back
-                                bgarr[z] -= basestep * stepval * 2
+                                bgarr[oRow] -= basestep * stepval * 2
                                 # decrease stepsize
                                 basestep /= 2
                                 SlopeHasShifted = True
@@ -8526,57 +8391,50 @@ class Run:
                             break
 
                     # reinstate samples that reach the slopediff criterion within 0.9 * sampmin
-                    if thisslopediff < 0.0001 and defbgarr[z] > 0.9 * sampmin[z]:
-                        vecBaselineError[z] = False
+                    if thisslopediff < 0.0001 and defbgarr[oRow] > 0.9 * sampmin[oRow]:
+                        vecBaselineError[oRow] = False
 
                     # 3: skip sample when fluor[fstop]/fluor[fstart] < 20
-                    # Fixme: if RelaxLogLinLengthRG.ItemIndex = 0 then
-                    if True:
-                        loglinlen = 20.0
-                    else:
-                        loglinlen = 10.0
+                    loglinlen = 20.0  # RelaxLogLinLengthRG in Pascal may choose 10.0
 
-                    if nfluor[z, fstop[z] - 1] / nfluor[z, fstart2[z] - 1] < loglinlen:
-                        vecShortloglin[z] = True
+                    if nfluor[oRow, fstop[oRow] - 1] / nfluor[oRow, fstart2[oRow] - 1] < loglinlen:
+                        vecShortloglin[oRow] = True
 
-                    pcreff[z] = np.power(10, slopehigh)
+                    pcreff[oRow] = np.power(10, slopehigh)
                 else:
-                    vecSkipSample[z] = True
-                    defbgarr[z] = 0.99 * sampmin[z]
-                    nfluor[z] = rawFluor[z] - defbgarr[z]
+                    vecSkipSample[oRow] = True
+                    defbgarr[oRow] = 0.99 * sampmin[oRow]
+                    nfluor[oRow] = rawFluor[oRow] - defbgarr[oRow]
                     # Fixme is this intended for all??
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
 
                     # This values are used for the table
-                    fstop[z] = spFl[1]
-                    fstart[z] = spFl[1] + 1
-                    fstart2[z] = spFl[1] + 1
+                    fstop[oRow] = spFl[1]
+                    fstart[oRow] = spFl[1] + 1
+                    fstart2[oRow] = spFl[1] + 1
 
-                    pcreff[z] = 1.0
-                if vecBaselineError[z]:
-                    vecSkipSample[z] = True
+                    pcreff[oRow] = 1.0
+                if vecBaselineError[oRow]:
+                    vecSkipSample[oRow] = True
 
             bgarr = defbgarr
 
             baselineCorrectedData = nfluor
 
-      #      with open("linPas/_np_commandline.txt", "w") as f:
-       #         f.write(outStrStuff)
-
         if saveBaslineCorr:
             rawArr = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
-            for i in range(0, spFl[1]):
-                rawArr[0].append(i + 1)
-            for i in range(0, spFl[0]):
-                rawArr.append([res[i][rar_id], res[i][rar_well], res[i][rar_sample], res[i][rar_tar], res[i][rar_excl]])
-                for k in range(0, spFl[1]):
-                    rawArr[i + 1].append(float(baselineCorrectedData[i, k]))
+            for oCol in range(0, spFl[1]):
+                rawArr[0].append(oCol + 1)
+            for oRow in range(0, spFl[0]):
+                rawArr.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
+                for oCol in range(0, spFl[1]):
+                    rawArr[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
             finalData["baselineCorrectedData"] = rawArr
 
-        # Fixme: Delete
-        stop_time = dt.datetime.now() - start_time
-        print("Done Baseline: " + str(stop_time) + "sec")
+        if timeRun:
+            stop_time = dt.datetime.now() - start_time
+            print("Done Baseline: " + str(stop_time) + "sec")
 
         getmeaneff, effvar = _GetMeanEff(None, [], pcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
         grpftval = upwin[0] - np.log10(getmeaneff)
@@ -8622,12 +8480,12 @@ class Run:
         meanCq_Skip_Eff[:] = np.nan
         meanCq_Skip_Plat_Eff[:] = np.nan
 
-        for z in range(0, spFl[0]):
-            if vecShortloglin[z] and not vecNoAmplification[z]:
+        for oRow in range(0, spFl[0]):
+            if vecShortloglin[oRow] and not vecNoAmplification[oRow]:
                 uplim = np.power(10, upwin[0])  # Fixme: No logs
                 lowlim = np.power(10, lowwin[0])
 
-                checkfluor[z] = rawFluor[z] - 1.05 * bgarr[z]
+                checkfluor[oRow] = rawFluor[oRow] - 1.05 * bgarr[oRow]
                 checkfluor[np.isnan(checkfluor)] = 0
                 checkfluor[checkfluor <= 0.00000001] = np.nan
 
@@ -8636,19 +8494,19 @@ class Run:
                     maxFlour = np.nanmax(checkfluor)
 
                 if np.isnan(maxFlour):
-                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(nfluor, z, uplim, lowlim)
+                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(nfluor, oRow, uplim, lowlim)
                 else:
-                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, z, uplim, lowlim)
+                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, oRow, uplim, lowlim)
 
                 if tempPCReff > 1.000000000001:
                     CtShiftUp = tempMeanX + (grpftval - tempMeanY) / np.log10(tempPCReff)
                 else:
                     CtShiftUp = 0.0
 
-                checkfluor[z] = rawFluor[z] - 0.95 * bgarr[z]
+                checkfluor[oRow] = rawFluor[oRow] - 0.95 * bgarr[oRow]
                 checkfluor[np.isnan(checkfluor)] = 0
                 checkfluor[checkfluor <= 0.00000001] = np.nan
-                tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, z, uplim, lowlim)
+                tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, oRow, uplim, lowlim)
 
                 if tempPCReff > 1.000000000001:
                     CtShiftDown = tempMeanX + (grpftval - tempMeanY) / np.log10(tempPCReff)
@@ -8656,12 +8514,12 @@ class Run:
                     CtShiftDown = 0.0
 
                 if np.abs(CtShiftUp - CtShiftDown) > 1.0:
-                    vecBaselineError[z] = True
-                    vecSkipSample[z] = True
-                    vecCtIsShifting[z] = True
+                    vecBaselineError[oRow] = True
+                    vecSkipSample[oRow] = True
+                    vecCtIsShifting[oRow] = True
                 else:
-                    if not vecBaselineError[z]:
-                        vecSkipSample[z] = False
+                    if not vecBaselineError[oRow]:
+                        vecSkipSample[oRow] = False
 
         vecSkipSample[vecExcludedByUser] = True
         # Update the window
@@ -8689,8 +8547,7 @@ class Run:
         if not skipgroup:
             step = PointsInWoL * _GetLogStepStop(nfluor, None, [], fstop, vecSkipSample, vecNoPlateau)
             upwin, lowwin = _ApplyLogWindow(None, maxlim, step, upwin, lowwin, yaxismax, yaxismin)
-            # Fixme: no rounding needed
-            grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
+            # grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
             tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
                                                                                        vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
             thismeaneff, effvar = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
@@ -8706,48 +8563,42 @@ class Run:
             uplim2 = np.power(10, upwin[0])  # Fixme: No logs
             lowlim2 = np.power(10, lowwin[0])
 
-            for j in range(0, spFl[0]):
-                if not vecSkipSample[j]:
-                    pstart, pstop, notinwindow = _find_pstat_pstop(nfluor, j, uplim2, lowlim2)
+            for oRow in range(0, spFl[0]):
+                if not vecSkipSample[oRow]:
+                    pstart, pstop, notinwindow = _find_pstat_pstop(nfluor, oRow, uplim2, lowlim2)
                     minpstart = pstart - 1
-                    while np.isnan(nfluor[j, minpstart - 1]) and minpstart > 1:
+                    while np.isnan(nfluor[oRow, minpstart - 1]) and minpstart > 1:
                         minpstart -= 1
                     minpstop = pstop - 1
-                    while np.isnan(nfluor[j, minpstop - 1]) and minpstop > 2:
+                    while np.isnan(nfluor[oRow, minpstop - 1]) and minpstop > 2:
                         minpstop -= 1
 
-                    minStartFlour = nfluor[j, minpstart - 1]
+                    minStartFlour = nfluor[oRow, minpstart - 1]
                     if np.isnan(minStartFlour):
                         minStartFlour = 0.00001
 
-                    nextstep = np.log10(nfluor[j, pstart - 1]) - np.log10(minStartFlour)
-                    stopstep = np.log10(nfluor[j, pstop - 1]) - np.log10(nfluor[j, pstop - 2])
+                    nextstep = np.log10(nfluor[oRow, pstart - 1]) - np.log10(minStartFlour)
+                    stopstep = np.log10(nfluor[oRow, pstop - 1]) - np.log10(nfluor[oRow, pstop - 2])
                     if (np.log10(minStartFlour) > lowlim and not
-                        ((minStartFlour < nfluor[j, pstart - 1] and nextstep < 1.2 * stopstep) or
+                        ((minStartFlour < nfluor[oRow, pstart - 1] and nextstep < 1.2 * stopstep) or
                          (pstart - minpstart > 1.2))):
-                        vecNoisySample[j] = True
-                        vecSkipSample[j] = True
+                        vecNoisySample[oRow] = True
+                        vecSkipSample[oRow] = True
 
         # Calculate the WoL per group
-        for t in range(1, targetsCount):
-            upwin[t] = upwin[0]
-            lowwin[t] = lowwin[0]
+        for tar in range(1, targetsCount):
+            upwin[tar] = upwin[0]
+            lowwin[tar] = lowwin[0]
 
-        for i in range(0, spFl[0]):
-            if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == spFl[1]:
-                vecNoPlateau[i] = True
+        for oRow in range(0, spFl[0]):
+            if vecNoAmplification[oRow] or vecBaselineError[oRow] or fstop[oRow] == spFl[1]:
+                vecNoPlateau[oRow] = True
             else:
-                vecNoPlateau[i] = False
-    #    sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL = _Set_WoL(nfluor, None, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-    #    sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, threshold, svecIsUsedInWoL, svecNoPlateau = _AssignNoPlateau(nfluor, None, vecTarget, PointsInWoL, sCqGrp, spcreff, snnulls, sninclu, scorrel, supwin, slowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, svecIsUsedInWoL)
-    #    for i in range(0, spFl[0]):
-    #        if vecNoAmplification[i] or vecBaselineError[i] or fstop[i] == spFl[1]:
-    #            vecNoPlateau[i] = True
-    #        else:
-    #            vecNoPlateau[i] = False
-        for t in range(1, targetsCount):
-            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, t, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, t, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+                vecNoPlateau[oRow] = False
+
+        for tar in range(1, targetsCount):
+            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
@@ -8760,44 +8611,41 @@ class Run:
         # Chem Arr     0     1     2     3     4     5     6     7     8     9    10
         CritCqEff = [28.0, 28.0, 19.0, 16.0, 14.0, 12.0, 11.0, 11.0, 10.0, 10.0,  9.0]  # For error Eff < 0.01
         CritCqN0 = [40.0, 40.0, 27.0, 19.0, 16.0, 13.0, 12.0, 11.0, 10.0,  9.0,  9.0]  # For bias N0 < 0.95
-        for z in range(0, spFl[0]):
-            if res[z][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
+        for oRow in range(0, spFl[0]):
+            if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
                 CritCqOffset = 0.0
-                if (res[z][rar_tar_chemistry] == "labelled reverse primer" and
-                        res[z][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
+                if (res[oRow][rar_tar_chemistry] == "labelled reverse primer" and
+                        res[oRow][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
                     CritCqOffset = 1.0
-                if (res[z][rar_tar_chemistry] == "DNA-zyme probe" and
-                        res[z][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
+                if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
+                        res[oRow][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
                     CritCqOffset = 4.0
-                if (res[z][rar_tar_chemistry] == "DNA-zyme probe" and
-                        res[z][rar_sample_nucleotide] in ["cDNA", "RNA"]):
+                if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
+                        res[oRow][rar_sample_nucleotide] in ["cDNA", "RNA"]):
                     CritCqOffset = 6.0
-                if (not np.isnan(pcreff[z]) and pcreff[z] > 1.0001 and
-                        threshold[vecTarget[z]] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z])):
-                    effIndex = int(np.trunc(10 * pcreff[z] + 1 - 10))
+                if (not np.isnan(pcreff[oRow]) and pcreff[oRow] > 1.0001 and
+                        threshold[vecTarget[oRow]] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow])):
+                    effIndex = int(np.trunc(10 * pcreff[oRow] + 1 - 10))
                     if effIndex < 0:
                         effIndex = 0
                     if effIndex > 10:
                         effIndex = 10
-                    tempCq_Grp = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z])
+                    tempCq_Grp = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(pcreff[oRow])
                     if tempCq_Grp > 0.0:
                         if tempCq_Grp < (CritCqEff[effIndex] + CritCqOffset):
-                            vecTooLowCqEff[z] = True
+                            vecTooLowCqEff[oRow] = True
                         if tempCq_Grp < (CritCqN0[effIndex] + CritCqOffset):
-                            vecTooLowCqN0[z] = True
+                            vecTooLowCqN0[oRow] = True
 
         pcreff_NoNaN = pcreff.copy()
         pcreff_NoNaN[np.isnan(pcreff)] = 0.0
-        for t in range(1, targetsCount):
+        for tar in range(1, targetsCount):
             # Calculating all choices takes less time then to recalculate
-
-            # Fixme: TooLowCqEff
-
             pcreff_Skip = pcreff.copy()
             pcreff_Skip[vecTooLowCqEff] = np.nan
             pcreff_Skip[vecSkipSample] = np.nan
             pcreff_Skip[pcreff_NoNaN < 1.001] = np.nan
-            pcreff_Skip[~(vecTarget == t)] = np.nan
+            pcreff_Skip[~(vecTarget == tar)] = np.nan
 
             pcreff_Skip_Plat = pcreff_Skip.copy()
             pcreff_Skip_Plat[vecSkipSample_Plat] = np.nan
@@ -8806,15 +8654,15 @@ class Run:
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
                 pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat)
-            for z in range(0, spFl[0]):
-                if t == vecTarget[z]:
-                    if not np.isnan(pcreff[z]):
+            for oRow in range(0, spFl[0]):
+                if tar == vecTarget[oRow]:
+                    if not np.isnan(pcreff[oRow]):
                         if (np.isnan(pcreffMedian_Skip) or
-                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip[z] = True
+                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
+                            vecEffOutlier_Skip[oRow] = True
                         if (np.isnan(pcreffMedian_Skip_Plat) or
-                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip_Plat[z] = True
+                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[oRow] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
+                            vecEffOutlier_Skip_Plat[oRow] = True
 
             pcreff_Skip_Eff = pcreff_Skip.copy()
             pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
@@ -8825,22 +8673,22 @@ class Run:
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 pcreffMedian_Skip = np.nanmedian(pcreff_Skip_Eff)
                 pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat_Eff)
-            for z in range(0, spFl[0]):
-                if t is None or t == vecTarget[z]:
-                    if not np.isnan(pcreff[z]):
+            for oRow in range(0, spFl[0]):
+                if tar is None or tar == vecTarget[oRow]:
+                    if not np.isnan(pcreff[oRow]):
                         if (np.isnan(pcreffMedian_Skip) or
-                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip[z] = True
+                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcreff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
+                            vecEffOutlier_Skip[oRow] = True
                         else:
-                            vecEffOutlier_Skip[z] = False
+                            vecEffOutlier_Skip[oRow] = False
                         if (np.isnan(pcreffMedian_Skip_Plat) or
-                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[z] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip_Plat[z] = True
+                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcreff[oRow] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
+                            vecEffOutlier_Skip_Plat[oRow] = True
                         else:
-                            vecEffOutlier_Skip_Plat[z] = False
+                            vecEffOutlier_Skip_Plat[oRow] = False
                     else:
-                        vecEffOutlier_Skip[z] = True
-                        vecEffOutlier_Skip_Plat[z] = True
+                        vecEffOutlier_Skip[oRow] = True
+                        vecEffOutlier_Skip_Plat[oRow] = True
 
             pcreff_Skip_Eff = pcreff_Skip.copy()
             pcreff_Skip_Eff[vecEffOutlier_Skip] = np.nan
@@ -8858,125 +8706,125 @@ class Run:
                 tempStdEff_Skip_Eff = np.nanstd(pcreff_Skip_Eff)
                 tempStdEff_Skip_Plat_Eff = np.nanstd(pcreff_Skip_Plat_Eff)
 
-            for z in range(0, spFl[0]):
-                if t == vecTarget[z]:
-                    meanEff_Skip[z] = tempMeanEff_Skip
-                    meanEff_Skip_Plat[z] = tempMeanEff_Skip_Plat
-                    meanEff_Skip_Eff[z] = tempMeanEff_Skip_Eff
-                    meanEff_Skip_Plat_Eff[z] = tempMeanEff_Skip_Plat_Eff
+            for oRow in range(0, spFl[0]):
+                if tar == vecTarget[oRow]:
+                    meanEff_Skip[oRow] = tempMeanEff_Skip
+                    meanEff_Skip_Plat[oRow] = tempMeanEff_Skip_Plat
+                    meanEff_Skip_Eff[oRow] = tempMeanEff_Skip_Eff
+                    meanEff_Skip_Plat_Eff[oRow] = tempMeanEff_Skip_Plat_Eff
 
-                    stdEff_Skip[z] = tempStdEff_Skip
-                    stdEff_Skip_Plat[z] = tempStdEff_Skip_Plat
-                    stdEff_Skip_Eff[z] = tempStdEff_Skip_Eff
-                    stdEff_Skip_Plat_Eff[z] = tempStdEff_Skip_Plat_Eff
+                    stdEff_Skip[oRow] = tempStdEff_Skip
+                    stdEff_Skip_Plat[oRow] = tempStdEff_Skip_Plat
+                    stdEff_Skip_Eff[oRow] = tempStdEff_Skip_Eff
+                    stdEff_Skip_Plat_Eff[oRow] = tempStdEff_Skip_Plat_Eff
 
                     # Correction of the different chemistries
                     cqCorrection = 0.0
-                    if res[z][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
+                    if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
                         cqCorrection = -1.0
 
-                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0001 and threshold[t] > 0.0001 and not (vecNoAmplification[z] or vecBaselineError[z]):
-                        if res[z][rar_tar_chemistry] == "DNA-zyme probe":
-                            cqCorrection = -1.0 + np.log10(1/(1-(1/pcreff[z])))/np.log10(pcreff[z])
-                        indivCq[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(pcreff[z]) + cqCorrection
-                        indivCq_Grp[z] = indMeanX[z] + (np.log10(threshold[t]) - indMeanY[z]) / np.log10(pcreff[z]) + cqCorrection
+                    if not np.isnan(pcreff[oRow]) and pcreff[oRow] > 1.0001 and threshold[tar] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow]):
+                        if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            cqCorrection = -1.0 + np.log10(1 / (1 - (1 / pcreff[oRow]))) / np.log10(pcreff[oRow])
+                        indivCq[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(pcreff[oRow]) + cqCorrection
+                        indivCq_Grp[oRow] = indMeanX[oRow] + (np.log10(threshold[tar]) - indMeanY[oRow]) / np.log10(pcreff[oRow]) + cqCorrection
 
-                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0:
-                        if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
-                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip[z]))) / np.log10(meanEff_Skip[z])
-                            meanCq_Skip[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip[z]) + cqCorrection
+                    if not np.isnan(pcreff[oRow]) and pcreff[oRow] > 1.0:
+                        if not np.isnan(meanEff_Skip[oRow]) and meanEff_Skip[oRow] > 1.001:
+                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip[oRow]))) / np.log10(meanEff_Skip[oRow])
+                            meanCq_Skip[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip[oRow]) + cqCorrection
 
-                        if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
-                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat[z]))) / np.log10(meanEff_Skip_Plat[z])
-                            meanCq_Skip_Plat[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat[z]) + cqCorrection
+                        if not np.isnan(meanEff_Skip_Plat[oRow]) and meanEff_Skip_Plat[oRow] > 1.001:
+                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat[oRow]))) / np.log10(meanEff_Skip_Plat[oRow])
+                            meanCq_Skip_Plat[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Plat[oRow]) + cqCorrection
 
-                        if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
-                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Eff[z]))) / np.log10(meanEff_Skip_Eff[z])
-                            meanCq_Skip_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Eff[z]) + cqCorrection
+                        if not np.isnan(meanEff_Skip_Eff[oRow]) and meanEff_Skip_Eff[oRow] > 1.001:
+                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Eff[oRow]))) / np.log10(meanEff_Skip_Eff[oRow])
+                            meanCq_Skip_Eff[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Eff[oRow]) + cqCorrection
 
-                        if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
-                            if res[z][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat_Eff[z]))) / np.log10(meanEff_Skip_Plat_Eff[z])
-                            meanCq_Skip_Plat_Eff[z] = indMeanX[z] + (np.log10(threshold[0]) - indMeanY[z]) / np.log10(meanEff_Skip_Plat_Eff[z]) + cqCorrection
+                        if not np.isnan(meanEff_Skip_Plat_Eff[oRow]) and meanEff_Skip_Plat_Eff[oRow] > 1.001:
+                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat_Eff[oRow]))) / np.log10(meanEff_Skip_Plat_Eff[oRow])
+                            meanCq_Skip_Plat_Eff[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Plat_Eff[oRow]) + cqCorrection
 
-                    if not np.isnan(pcreff[z]) and pcreff[z] > 1.0 and 0.0 < indivCq[z] < 2 * spFl[1]:
-                        if not np.isnan(meanEff_Skip[z]) and meanEff_Skip[z] > 1.001:
-                            meanNnull_Skip[z] = threshold[0] / np.power(meanEff_Skip[z], meanCq_Skip[z])
+                    if not np.isnan(pcreff[oRow]) and pcreff[oRow] > 1.0 and 0.0 < indivCq[oRow] < 2 * spFl[1]:
+                        if not np.isnan(meanEff_Skip[oRow]) and meanEff_Skip[oRow] > 1.001:
+                            meanNnull_Skip[oRow] = threshold[0] / np.power(meanEff_Skip[oRow], meanCq_Skip[oRow])
 
-                        if not np.isnan(meanEff_Skip_Plat[z]) and meanEff_Skip_Plat[z] > 1.001:
-                            meanNnull_Skip_Plat[z] = threshold[0] / np.power(meanEff_Skip_Plat[z], meanCq_Skip_Plat[z])
+                        if not np.isnan(meanEff_Skip_Plat[oRow]) and meanEff_Skip_Plat[oRow] > 1.001:
+                            meanNnull_Skip_Plat[oRow] = threshold[0] / np.power(meanEff_Skip_Plat[oRow], meanCq_Skip_Plat[oRow])
 
-                        if not np.isnan(meanEff_Skip_Eff[z]) and meanEff_Skip_Eff[z] > 1.001:
-                            meanNnull_Skip_Eff[z] = threshold[0] / np.power(meanEff_Skip_Eff[z], meanCq_Skip_Eff[z])
+                        if not np.isnan(meanEff_Skip_Eff[oRow]) and meanEff_Skip_Eff[oRow] > 1.001:
+                            meanNnull_Skip_Eff[oRow] = threshold[0] / np.power(meanEff_Skip_Eff[oRow], meanCq_Skip_Eff[oRow])
 
-                        if not np.isnan(meanEff_Skip_Plat_Eff[z]) and meanEff_Skip_Plat_Eff[z] > 1.001:
-                            meanNnull_Skip_Plat_Eff[z] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[z], meanCq_Skip_Plat_Eff[z])
+                        if not np.isnan(meanEff_Skip_Plat_Eff[oRow]) and meanEff_Skip_Plat_Eff[oRow] > 1.001:
+                            meanNnull_Skip_Plat_Eff[oRow] = threshold[0] / np.power(meanEff_Skip_Plat_Eff[oRow], meanCq_Skip_Plat_Eff[oRow])
 
-                    if vecNoPlateau[z]:
-                        if vecEffOutlier_Skip[z]:
-                            meanNnull_Skip[z] = np.nan
-                            meanNnull_Skip_Eff[z] = np.nan
-                        if vecEffOutlier_Skip_Plat[z]:
-                            meanNnull_Skip_Plat[z] = np.nan
-                            meanNnull_Skip_Plat_Eff[z] = np.nan
+                    if vecNoPlateau[oRow]:
+                        if vecEffOutlier_Skip[oRow]:
+                            meanNnull_Skip[oRow] = np.nan
+                            meanNnull_Skip_Eff[oRow] = np.nan
+                        if vecEffOutlier_Skip_Plat[oRow]:
+                            meanNnull_Skip_Plat[oRow] = np.nan
+                            meanNnull_Skip_Plat_Eff[oRow] = np.nan
 
         #########################
         # write out the results #
         #########################
-        for i in range(0, len(res)):
-            res[i][rar_baseline] = bgarr[i]
-            res[i][rar_lower_limit] = np.power(10, lowwin[vecTarget[i]])
-            res[i][rar_upper_limit] = np.power(10, upwin[vecTarget[i]])
-            res[i][rar_threshold_common] = threshold[0]
-            res[i][rar_threshold_group] = threshold[vecTarget[i]]
+        for rRow in range(0, len(res)):
+            res[rRow][rar_baseline] = bgarr[rRow]
+            res[rRow][rar_lower_limit] = np.power(10, lowwin[vecTarget[rRow]])
+            res[rRow][rar_upper_limit] = np.power(10, upwin[vecTarget[rRow]])
+            res[rRow][rar_threshold_common] = threshold[0]
+            res[rRow][rar_threshold_group] = threshold[vecTarget[rRow]]
 
-            res[i][rar_n_log] = fstop[i] - fstart2[i] + 1
-            res[i][rar_stop_log] = fstop[i]
-            res[i][rar_n_included] = ninclu[i]
-            res[i][rar_log_lin_cycle] = indMeanX[i]
-            res[i][rar_log_lin_fluorescence] = indMeanY[i]
-            res[i][rar_indiv_PCR_eff] = pcreff[i]
-            res[i][rar_R2] = correl[i] * correl[i]
-            res[i][rar_N0_indiv_eff] = nnulls[i]
-            res[i][rar_Cq_common] = indivCq[i]
-            res[i][rar_Cq_grp] = indivCq_Grp[i]
+            res[rRow][rar_n_log] = fstop[rRow] - fstart2[rRow] + 1
+            res[rRow][rar_stop_log] = fstop[rRow]
+            res[rRow][rar_n_included] = ninclu[rRow]
+            res[rRow][rar_log_lin_cycle] = indMeanX[rRow]
+            res[rRow][rar_log_lin_fluorescence] = indMeanY[rRow]
+            res[rRow][rar_indiv_PCR_eff] = pcreff[rRow]
+            res[rRow][rar_R2] = correl[rRow] * correl[rRow]
+            res[rRow][rar_N0_indiv_eff] = nnulls[rRow]
+            res[rRow][rar_Cq_common] = indivCq[rRow]
+            res[rRow][rar_Cq_grp] = indivCq_Grp[rRow]
 
-            res[i][rar_meanEff_Skip] = meanEff_Skip[i]
-            res[i][rar_stdEff_Skip] = stdEff_Skip[i]
-            res[i][rar_meanN0_Skip] = meanNnull_Skip[i]
-            res[i][rar_Cq_Skip] = meanCq_Skip[i]
-            res[i][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[i]
-            res[i][rar_stdEff_Skip_Plat] = stdEff_Skip_Plat[i]
-            res[i][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[i]
-            res[i][rar_Cq_Skip_Plat] = meanCq_Skip_Plat[i]
-            res[i][rar_meanEff_Skip_Eff] = meanEff_Skip_Eff[i]
-            res[i][rar_stdEff_Skip_Eff] = stdEff_Skip_Eff[i]
-            res[i][rar_meanN0_Skip_Eff] = meanNnull_Skip_Eff[i]
-            res[i][rar_Cq_Skip_Eff] = meanCq_Skip_Eff[i]
-            res[i][rar_meanEff_Skip_Plat_Eff] = meanEff_Skip_Plat_Eff[i]
-            res[i][rar_stdEff_Skip_Plat_Eff] = stdEff_Skip_Plat_Eff[i]
-            res[i][rar_meanN0_Skip_Plat_Eff] = meanNnull_Skip_Plat_Eff[i]
-            res[i][rar_Cq_Skip_Plat_Eff] = meanCq_Skip_Plat_Eff[i]
+            res[rRow][rar_meanEff_Skip] = meanEff_Skip[rRow]
+            res[rRow][rar_stdEff_Skip] = stdEff_Skip[rRow]
+            res[rRow][rar_meanN0_Skip] = meanNnull_Skip[rRow]
+            res[rRow][rar_Cq_Skip] = meanCq_Skip[rRow]
+            res[rRow][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[rRow]
+            res[rRow][rar_stdEff_Skip_Plat] = stdEff_Skip_Plat[rRow]
+            res[rRow][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[rRow]
+            res[rRow][rar_Cq_Skip_Plat] = meanCq_Skip_Plat[rRow]
+            res[rRow][rar_meanEff_Skip_Eff] = meanEff_Skip_Eff[rRow]
+            res[rRow][rar_stdEff_Skip_Eff] = stdEff_Skip_Eff[rRow]
+            res[rRow][rar_meanN0_Skip_Eff] = meanNnull_Skip_Eff[rRow]
+            res[rRow][rar_Cq_Skip_Eff] = meanCq_Skip_Eff[rRow]
+            res[rRow][rar_meanEff_Skip_Plat_Eff] = meanEff_Skip_Plat_Eff[rRow]
+            res[rRow][rar_stdEff_Skip_Plat_Eff] = stdEff_Skip_Plat_Eff[rRow]
+            res[rRow][rar_meanN0_Skip_Plat_Eff] = meanNnull_Skip_Plat_Eff[rRow]
+            res[rRow][rar_Cq_Skip_Plat_Eff] = meanCq_Skip_Plat_Eff[rRow]
 
-            res[i][rar_amplification] = not vecNoAmplification[i]
-            res[i][rar_baseline_error] = vecBaselineError[i]
-            res[i][rar_plateau] = not vecNoPlateau[i]
-            res[i][rar_noisy_sample] = vecNoisySample[i]
-            res[i][rar_effOutlier_Skip] = vecEffOutlier_Skip[i]
-            res[i][rar_effOutlier_Skip_Plat] = vecEffOutlier_Skip_Plat[i]
-            res[i][rar_shortLogLinPhase] = vecShortloglin[i]
-            res[i][rar_CqIsShifting] = vecCtIsShifting[i]
-            res[i][rar_tooLowCqEff] = vecTooLowCqEff[i]
-            res[i][rar_tooLowCqN0] = vecTooLowCqN0[i]
-            res[i][rar_isUsedInWoL] = vecIsUsedInWoL[i]
+            res[rRow][rar_amplification] = not vecNoAmplification[rRow]
+            res[rRow][rar_baseline_error] = vecBaselineError[rRow]
+            res[rRow][rar_plateau] = not vecNoPlateau[rRow]
+            res[rRow][rar_noisy_sample] = vecNoisySample[rRow]
+            res[rRow][rar_effOutlier_Skip] = vecEffOutlier_Skip[rRow]
+            res[rRow][rar_effOutlier_Skip_Plat] = vecEffOutlier_Skip_Plat[rRow]
+            res[rRow][rar_shortLogLinPhase] = vecShortloglin[rRow]
+            res[rRow][rar_CqIsShifting] = vecCtIsShifting[rRow]
+            res[rRow][rar_tooLowCqEff] = vecTooLowCqEff[rRow]
+            res[rRow][rar_tooLowCqN0] = vecTooLowCqN0[rRow]
+            res[rRow][rar_isUsedInWoL] = vecIsUsedInWoL[rRow]
 
         ###################################
         # calculate excl and note strings #
         ###################################
-        for i in range(0, len(res)):
+        for rRow in range(0, len(res)):
             exclVal = ";"
             noteVal = ";"
 
@@ -8984,57 +8832,57 @@ class Run:
             meanEffVal = np.NaN
             diffMeanEff = False
             if excludeNoPlateau is False and excludeEfficiency is False:
-                cqVal = meanCq_Skip[i]
-                meanEffVal = meanEff_Skip[i]
-                diffMeanEff = res[i][rar_effOutlier_Skip]
+                cqVal = meanCq_Skip[rRow]
+                meanEffVal = meanEff_Skip[rRow]
+                diffMeanEff = res[rRow][rar_effOutlier_Skip]
             if excludeNoPlateau is True and excludeEfficiency is False:
-                cqVal = meanCq_Skip_Plat[i]
-                meanEffVal = meanEff_Skip_Plat[i]
-                diffMeanEff = res[i][rar_effOutlier_Skip_Plat]
+                cqVal = meanCq_Skip_Plat[rRow]
+                meanEffVal = meanEff_Skip_Plat[rRow]
+                diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat]
             if excludeNoPlateau is False and excludeEfficiency is True:
-                cqVal = meanCq_Skip_Eff[i]
-                meanEffVal = meanEff_Skip_Eff[i]
-                diffMeanEff = res[i][rar_effOutlier_Skip]
+                cqVal = meanCq_Skip_Eff[rRow]
+                meanEffVal = meanEff_Skip_Eff[rRow]
+                diffMeanEff = res[rRow][rar_effOutlier_Skip]
             if excludeNoPlateau is True and excludeEfficiency is True:
-                cqVal = meanCq_Skip_Plat_Eff[i]
-                meanEffVal = meanEff_Skip_Plat_Eff[i]
-                diffMeanEff = res[i][rar_effOutlier_Skip_Plat]
+                cqVal = meanCq_Skip_Plat_Eff[rRow]
+                meanEffVal = meanEff_Skip_Plat_Eff[rRow]
+                diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat]
 
-            if res[i][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
+            if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                 if cqVal > 0.0:
                     exclVal += "amplification in negative control;"
 
-                if res[i][rar_amplification]:
+                if res[rRow][rar_amplification]:
                     noteVal += "amplification in negative control;"
-                if res[i][rar_plateau]:
+                if res[rRow][rar_plateau]:
                     noteVal += "plateau in negative control;"
 
-            if res[i][rar_sample_type] in ["std", "pos"]:
+            if res[rRow][rar_sample_type] in ["std", "pos"]:
                 if not (cqVal > 0.0):
                     exclVal += "no amplification in positive control;"
 
-                if not res[i][rar_amplification]:
+                if not res[rRow][rar_amplification]:
                     noteVal += "no amplification in positive control;"
-                if res[i][rar_baseline_error]:
+                if res[rRow][rar_baseline_error]:
                     noteVal += "baseline error in positive control;"
-                if not res[i][rar_plateau]:
+                if not res[rRow][rar_plateau]:
                     noteVal += "no plateau in positive control;"
-                if res[i][rar_noisy_sample]:
+                if res[rRow][rar_noisy_sample]:
                     noteVal += "noisy sample in positive control;"
 
                 if -0.0001 < cqVal < 10.0:
                     noteVal += "Cq < 10;N0 unreliable;"
                 if cqVal > 34.0:
                     noteVal += "Cq > 34;N0 unreliable;"
-                if res[i][rar_n_log] < 5:
-                    noteVal += "only " + str(res[i][rar_n_log]) + " values in log phase;"
-                if res[i][rar_indiv_PCR_eff] < 1.7:
-                    noteVal += "indiv PCR eff is " + "{:.3f}".format(res[i][rar_indiv_PCR_eff]) + " < 1.7;"
+                if res[rRow][rar_n_log] < 5:
+                    noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
+                if res[rRow][rar_indiv_PCR_eff] < 1.7:
+                    noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
                 if diffMeanEff:
-                    if np.isnan(res[i][rar_indiv_PCR_eff]):
+                    if np.isnan(res[rRow][rar_indiv_PCR_eff]):
                         noteVal += "no indiv PCR eff can be calculated;"
                     else:
-                        diffFromMean = res[i][rar_indiv_PCR_eff] - meanEffVal
+                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
                         if diffFromMean > 0.0:
                             noteVal += "indiv PCR eff is higher than mean PCR eff by "
                             noteVal += "{:.3f}".format(diffFromMean) + ";"
@@ -9042,29 +8890,29 @@ class Run:
                             noteVal += "indiv PCR eff is lower than mean PCR eff by "
                             noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
-            if res[i][rar_sample_type] in ["unkn"]:
-                if not res[i][rar_amplification]:
+            if res[rRow][rar_sample_type] in ["unkn"]:
+                if not res[rRow][rar_amplification]:
                     noteVal += "no amplification;"
-                if res[i][rar_baseline_error]:
+                if res[rRow][rar_baseline_error]:
                     noteVal += "baseline error;"
-                if not res[i][rar_plateau]:
+                if not res[rRow][rar_plateau]:
                     noteVal += "no plateau;"
-                if res[i][rar_noisy_sample]:
+                if res[rRow][rar_noisy_sample]:
                     noteVal += "noisy sample;"
 
                 if -0.0001 < cqVal < 10.0:
                     noteVal += "Cq < 10;N0 unreliable;"
                 if cqVal > 34.0:
                     noteVal += "Cq > 34;N0 unreliable;"
-                if res[i][rar_n_log] < 5:
-                    noteVal += "only " + str(res[i][rar_n_log]) + " values in log phase;"
-                if res[i][rar_indiv_PCR_eff] < 1.7:
-                    noteVal += "indiv PCR eff is " + "{:.3f}".format(res[i][rar_indiv_PCR_eff]) + " < 1.7;"
+                if res[rRow][rar_n_log] < 5:
+                    noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
+                if res[rRow][rar_indiv_PCR_eff] < 1.7:
+                    noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
                 if diffMeanEff:
-                    if np.isnan(res[i][rar_indiv_PCR_eff]):
+                    if np.isnan(res[rRow][rar_indiv_PCR_eff]):
                         noteVal += "no indiv PCR eff can be calculated;"
                     else:
-                        diffFromMean = res[i][rar_indiv_PCR_eff] - meanEffVal
+                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
                         if diffFromMean > 0.0:
                             noteVal += "indiv PCR eff is higher than mean PCR eff by "
                             noteVal += "{:.3f}".format(diffFromMean) + ";"
@@ -9075,8 +8923,8 @@ class Run:
             # Write back
             exclVal = re.sub(r'^;|;$', '', exclVal)
             noteVal = re.sub(r'^;|;$', '', noteVal)
-            res[i][rar_excl] = exclVal
-            res[i][rar_note] = noteVal
+            res[rRow][rar_excl] = exclVal
+            res[rRow][rar_note] = noteVal
 
         ##############################
         # write out the rdml results #
@@ -9089,66 +8937,66 @@ class Run:
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
             self["cqDetectionMethod"] = 'automated threshold and baseline settings'
             dataXMLelements = _getXMLDataType()
-            for i in range(0, len(res)):
-                if rdmlElemData[i] is not None:
+            for rRow in range(0, len(res)):
+                if rdmlElemData[rRow] is not None:
                     cqVal = np.NaN
                     meanEffVal = np.NaN
                     stdEffVal = np.NaN
                     if excludeNoPlateau is False and excludeEfficiency is False:
-                        cqVal = meanCq_Skip[i]
-                        meanEffVal = meanEff_Skip[i]
-                        stdEffVal = stdEff_Skip[i]
+                        cqVal = meanCq_Skip[rRow]
+                        meanEffVal = meanEff_Skip[rRow]
+                        stdEffVal = stdEff_Skip[rRow]
                     if excludeNoPlateau is True and excludeEfficiency is False:
-                        cqVal = meanCq_Skip_Plat[i]
-                        meanEffVal = meanEff_Skip_Plat[i]
-                        stdEffVal = stdEff_Skip_Plat[i]
+                        cqVal = meanCq_Skip_Plat[rRow]
+                        meanEffVal = meanEff_Skip_Plat[rRow]
+                        stdEffVal = stdEff_Skip_Plat[rRow]
                     if excludeNoPlateau is False and excludeEfficiency is True:
-                        cqVal = meanCq_Skip_Eff[i]
-                        meanEffVal = meanEff_Skip_Eff[i]
-                        stdEffVal = stdEff_Skip_Eff[i]
+                        cqVal = meanCq_Skip_Eff[rRow]
+                        meanEffVal = meanEff_Skip_Eff[rRow]
+                        stdEffVal = stdEff_Skip_Eff[rRow]
                     if excludeNoPlateau is True and excludeEfficiency is True:
-                        cqVal = meanCq_Skip_Plat_Eff[i]
-                        meanEffVal = meanEff_Skip_Plat_Eff[i]
-                        stdEffVal = stdEff_Skip_Plat_Eff[i]
+                        cqVal = meanCq_Skip_Plat_Eff[rRow]
+                        meanEffVal = meanEff_Skip_Plat_Eff[rRow]
+                        stdEffVal = stdEff_Skip_Plat_Eff[rRow]
 
                     if np.isnan(cqVal):
                         goodVal = "-1.0"
                     else:
                         goodVal = "{:.3f}".format(cqVal)
-                    _change_subelement(rdmlElemData[i], "cq", dataXMLelements, goodVal, True, "string")
-                    _change_subelement(rdmlElemData[i], "excl", dataXMLelements, res[i][rar_excl], True, "string")
+                    _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
+                    _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
                     if ver == "1.3":
-                        _change_subelement(rdmlElemData[i], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
+                        _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
                         goodVal = "{:.3f}".format(meanEffVal)
-                        _change_subelement(rdmlElemData[i], "ampEff", dataXMLelements, goodVal, True, "string")
+                        _change_subelement(rdmlElemData[rRow], "ampEff", dataXMLelements, goodVal, True, "string")
                         goodVal = "{:.3f}".format(stdEffVal)
-                        _change_subelement(rdmlElemData[i], "ampEffSE", dataXMLelements, goodVal, True, "string")
-                        _change_subelement(rdmlElemData[i], "note", dataXMLelements, res[i][rar_note], True, "string")
-                    goodVal = "{:.3f}".format(bgarr[i])
-                    _change_subelement(rdmlElemData[i], "bgFluor", dataXMLelements, goodVal, True, "string")
+                        _change_subelement(rdmlElemData[rRow], "ampEffSE", dataXMLelements, goodVal, True, "string")
+                        _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
+                    goodVal = "{:.3f}".format(bgarr[rRow])
+                    _change_subelement(rdmlElemData[rRow], "bgFluor", dataXMLelements, goodVal, True, "string")
                     goodVal = "{:.3f}".format(threshold[0])
-                    _change_subelement(rdmlElemData[i], "quantFluor", dataXMLelements, goodVal, True, "string")
+                    _change_subelement(rdmlElemData[rRow], "quantFluor", dataXMLelements, goodVal, True, "string")
 
-        # Fixme: Delete
-        stop_time = dt.datetime.now() - start_time
-        print("Done All: " + str(stop_time) + "sec")
+        if timeRun:
+            stop_time = dt.datetime.now() - start_time
+            print("Done All: " + str(stop_time) + "sec")
 
         if saveResultsCSV:
             retCSV = ""
-            for j in range(0, len(header[0])):
-                retCSV += header[0][j] + "\t"
+            for rCol in range(0, len(header[0])):
+                retCSV += header[0][rCol] + "\t"
             retCSV = re.sub(r"\t$", "\n", retCSV)
 
-            for i in range(0, len(res)):
-                for j in range(0, len(res[i])):
-                    if j in [rar_amplification, rar_baseline_error, rar_plateau, rar_noisy_sample,
-                             rar_effOutlier_Skip, rar_effOutlier_Skip_Plat, rar_isUsedInWoL]:
-                        if res[i][j]:
+            for rRow in range(0, len(res)):
+                for rCol in range(0, len(res[rRow])):
+                    if rCol in [rar_amplification, rar_baseline_error, rar_plateau, rar_noisy_sample,
+                                rar_effOutlier_Skip, rar_effOutlier_Skip_Plat, rar_isUsedInWoL]:
+                        if res[rRow][rCol]:
                             retCSV += "Yes\t"
                         else:
                             retCSV += "No\t"
                     else:
-                        retCSV += str(res[i][j]) + "\t"
+                        retCSV += str(res[rRow][rCol]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
             finalData["resultsCSV"] = retCSV
 
@@ -9178,7 +9026,8 @@ if __name__ == "__main__":
         rt = Rdml(args.doooo)
         xxexp = rt.experiments()
         xxrun = xxexp[0].runs()
-        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, saveResultsCSV=True, verbose=False)
+        xxres = xxrun[0].linRegPCR(baselineCorr=True, saveRaw=True, saveBaslineCorr=True, saveResultsCSV=True,
+                                   timeRun=True, verbose=False)
         if "rawData" in xxres:
             with open("test/temp_out_raw_data.tsv", "w") as f:
                 xxxResStr = ""
