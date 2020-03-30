@@ -642,105 +642,103 @@ def _lrp_linReg(xIn, yUse):
     return [slope, intercept]
 
 
-def _findLRstop(fluor, z):
-    """A function which finds the stop cycle.
+def _lrp_findStopCyc(fluor, aRow):
+    """Find the stop cycle of the log lin phase in fluor.
 
     Args:
         fluor: The array with the fluorescence values
-        z: The row to work on
+        aRow: The row to work on
 
     Returns:
         An int with the stop cycle.
     """
 
+    # Take care of nan values
+    validTwoLessCyc = 3  # Cycles so +1 to array
+    while (validTwoLessCyc <= fluor.shape[1] and
+           (np.isnan(fluor[aRow, validTwoLessCyc - 1]) or
+            np.isnan(fluor[aRow, validTwoLessCyc - 2]) or
+            np.isnan(fluor[aRow, validTwoLessCyc - 3]))):
+        validTwoLessCyc += 1
+
     # First and Second Derivative values calculation
-
-    # Shifted matrix of the raw data
-    secondLast = 3
-    while secondLast <= fluor.shape[1] and (np.isnan(fluor[z, secondLast - 1]) or np.isnan(fluor[z, secondLast - 2]) or np.isnan(fluor[z, secondLast - 3])):
-            secondLast += 1
-
-    fluorShift = np.roll(fluor[z], 1, axis=0)  # Shift to right - real position is -0.5
+    fluorShift = np.roll(fluor[aRow], 1, axis=0)  # Shift to right - real position is -0.5
     fluorShift[0] = np.nan
+    firstDerivative = fluor[aRow] - fluorShift
+    FDMaxCyc = np.nanargmax(firstDerivative, axis=0) + 1  # Cycles so +1 to array
 
-    # Subtraction of the shifted matrix to the raw data
-    firstDerivative = fluor[z] - fluorShift
-    FDMcycles = np.nanargmax(firstDerivative, axis=0) + 1
-
-    # Shifted matrix of the firstDerivative
     firstDerivativeShift = np.roll(firstDerivative, -1, axis=0)  # Shift to left
     firstDerivativeShift[-1] = np.nan
-    # Subtraction of the firstDerivative values to the shifted matrix
     secondDerivative = firstDerivativeShift - firstDerivative
 
-    # Data may have nan FixME: nan should be ignoread as not present
-    if FDMcycles + 2 <= fluor.shape[1]:
-        if (not np.isnan(fluor[z, FDMcycles - 1]) and
-                not np.isnan(fluor[z, FDMcycles]) and
-                not np.isnan(fluor[z, FDMcycles + 1]) and
-                fluor[z, FDMcycles + 1] > fluor[z, FDMcycles] > fluor[z, FDMcycles - 1]):
-            FDMcycles = FDMcycles + 2
+    if FDMaxCyc + 2 <= fluor.shape[1]:
+        # Only add two cycles if there is an increase without nan
+        if (not np.isnan(fluor[aRow, FDMaxCyc - 1]) and
+                not np.isnan(fluor[aRow, FDMaxCyc]) and
+                not np.isnan(fluor[aRow, FDMaxCyc + 1]) and
+                fluor[aRow, FDMaxCyc + 1] > fluor[aRow, FDMaxCyc] > fluor[aRow, FDMaxCyc - 1]):
+            FDMaxCyc += 2
     else:
-        FDMcycles = fluor.shape[1]
+        FDMaxCyc = fluor.shape[1]
 
-    maxLoopSD = 0.0
-    fstop = fluor.shape[1]
+    maxMeanSD = 0.0
+    stopCyc = fluor.shape[1]
 
-    for j in range(secondLast, FDMcycles):
+    for cycInRange in range(validTwoLessCyc, FDMaxCyc):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            tempLoopSD = np.mean(secondDerivative[j - 2: j + 1], axis=0)
+            tempMeanSD = np.mean(secondDerivative[cycInRange - 2: cycInRange + 1], axis=0)
         # The > 0.000000000001 is to avoid float differences to the pascal version
-        if not np.isnan(tempLoopSD) and (tempLoopSD - maxLoopSD) > 0.000000000001:
-            maxLoopSD = tempLoopSD
-            fstop = j
-    if fstop + 2 >= fluor.shape[1]:
-        fstop = fluor.shape[1]
+        if not np.isnan(tempMeanSD) and (tempMeanSD - maxMeanSD) > 0.000000000001:
+            maxMeanSD = tempMeanSD
+            stopCyc = cycInRange
+    if stopCyc + 2 >= fluor.shape[1]:
+        stopCyc = fluor.shape[1]
 
-    return fstop
+    return stopCyc
 
 
-def _findLRstart(fluor, z, fstop):
+def _lrp_findStartCyc(fluor, aRow, stopCyc):
     """A function which finds the start cycle.
 
     Args:
         fluor: The array with the fluorescence values
-        z: The row to work on
-        fstop: The stop cycle
+        aRow: The row to work on
+        stopCyc: The stop cycle
 
     Returns:
         An int with the stop cycle.
     """
 
-    fstart = fstop - 1
+    startCyc = stopCyc - 1
 
     # Find the first value that is not NaN
     firstNotNaN = 1  # Cycles so +1 to array
-    while np.isnan(fluor[z, firstNotNaN - 1]) and firstNotNaN < fstop:
+    while np.isnan(fluor[aRow, firstNotNaN - 1]) and firstNotNaN < stopCyc:  # Fixme no -1
         firstNotNaN += 1
 
-    # fstart might be NaN, so shift it to the first value
-    while fstart > firstNotNaN and np.isnan(fluor[z, fstart - 1]):
-        fstart -= 1
+    # startCyc might be NaN, so shift it to the first value
+    while startCyc > firstNotNaN and np.isnan(fluor[aRow, startCyc - 1]):
+        startCyc -= 1
 
     # As long as there are no NaN and new values are increasing
     # Fixme: really >= and not > ??
-    while (fstart >= firstNotNaN and
-           not np.isnan(fluor[z, fstart - 2]) and
-           fluor[z, fstart - 2] <= fluor[z, fstart - 1]):
-        fstart -= 1
+    while (startCyc >= firstNotNaN and
+           not np.isnan(fluor[aRow, startCyc - 2]) and
+           fluor[aRow, startCyc - 2] <= fluor[aRow, startCyc - 1]):
+        startCyc -= 1
 
-    fstartfix = fstart
-    if (not np.isnan(fluor[z, fstart]) and
-        not np.isnan(fluor[z, fstart - 1]) and
-        not np.isnan(fluor[z, fstop - 1]) and
-        not np.isnan(fluor[z, fstop - 2])):
-        startstep = np.log10(fluor[z, fstart]) - np.log10(fluor[z, fstart - 1])
-        stopstep = np.log10(fluor[z, fstop - 1]) - np.log10(fluor[z, fstop - 2])
+    startCycFix = startCyc
+    if (not np.isnan(fluor[aRow, startCyc]) and
+        not np.isnan(fluor[aRow, startCyc - 1]) and
+        not np.isnan(fluor[aRow, stopCyc - 1]) and
+        not np.isnan(fluor[aRow, stopCyc - 2])):
+        startstep = np.log10(fluor[aRow, startCyc]) - np.log10(fluor[aRow, startCyc - 1])
+        stopstep = np.log10(fluor[aRow, stopCyc - 1]) - np.log10(fluor[aRow, stopCyc - 2])
         if startstep > 1.1 * stopstep:
-            fstartfix += 1
+            startCycFix += 1
 
-    return [fstart, fstartfix]
+    return [startCyc, startCycFix]
 
 
 def _ttestslopes(fluor, samp, fstop, fstart):
@@ -876,8 +874,8 @@ def _find_pstat_pstop(fluor, samp, uplim, lowlim):
 
     pstart = 0
     pstop = 0
-    fstop = _findLRstop(fluor, samp)
-    [start, fstart] = _findLRstart(fluor, samp, fstop)
+    fstop = _lrp_findStopCyc(fluor, samp)
+    [start, fstart] = _lrp_findStartCyc(fluor, samp, fstop)
 
     stop = np.nanargmax(fluor[samp, fstart - 1:]) + fstart
 
@@ -8174,41 +8172,37 @@ class Run:
             rawMod = rawFluor.copy()
             rawMod[np.isnan(rawMod)] = 0
             rawMod[rawMod <= 0.00000001] = np.nan
-            [slopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(rawMod))
+            [slopeAmp, trashedValue] = _lrp_linReg(vecCycles, np.log10(rawMod))
 
-            # Minimum of fluorescence values per well
-            minFlu = np.nanmin(rawMod, axis=1)
-            sampmin = minFlu.copy()
-            bgarr = 0.99 * minFlu
-            defbgarr = bgarr.copy()
-            cycleMinFlu = np.nanargmin(rawMod, axis=1) + 1
-            minFluMat = rawMod - bgarr[:, np.newaxis]
-
+            # Calculate the minimum of fluorescence values per react/target, store it as background
+            # and substract it from the raw fluorescence values
+            vecMinFluor = np.nanmin(rawMod, axis=1)
+            vecBackground = 0.99 * vecMinFluor
+            vecDefBackgrd = vecBackground.copy()
+            minFluMat = rawMod - vecBackground[:, np.newaxis]
             minFluMat[np.isnan(minFluMat)] = 0
             minFluMat[minFluMat <= 0.00000001] = np.nan
-            minFluMatCount = minFluMat.copy()
+
+            # Fixme unneccessary??
             minFluMatMean = minFluMat.copy()
-     #       for oRow in range(0, spFl[0]):
-     #           minFluMatMean[oRow, cycleMinFlu[oRow] - 1] = np.nan
-            minFluMatCount[np.isnan(minFluMatCount)] = 0
-            minFluMatCount[minFluMatCount > 0] = 1
-            minFluMatCountSum = np.sum(minFluMatCount, axis=1)
 
-            [minSlopeAmp, interceptAmp] = _lrp_linReg(vecCycles, np.log10(minFluMat))
+            minFluCount = np.ones(minFluMat.shape, dtype=np.int)
+            minFluCount[np.isnan(minFluMat)] = 0
+            minFluCountSum = np.sum(minFluCount, axis=1)
 
-            # Check to detect the negative slopes and the PCR reactions that have an
-            # amplification less than seven the minimum fluorescence
+            [minSlopeAmp, trashedValue] = _lrp_linReg(vecCycles, np.log10(minFluMat))
 
-            fstop = np.zeros(spFl[0], dtype=np.int64)
-            fstop2 = np.zeros(spFl[0], dtype=np.int64)
-            fstart = np.zeros(spFl[0], dtype=np.int64)
-            fstart2 = np.zeros(spFl[0], dtype=np.int64)
+            stopCyc = np.zeros(spFl[0], dtype=np.int64)
+            startCyc = np.zeros(spFl[0], dtype=np.int64)
+            startCycFix = np.zeros(spFl[0], dtype=np.int64)
 
-            for oRow in range(0, spFl[0]):  # Fixme: use np.nanmean with isnan check
-                if slopeAmp[oRow] < 0 or minSlopeAmp[oRow] < (np.log10(7.0) / minFluMatCountSum[oRow]):
+            for oRow in range(0, spFl[0]):
+                # Check to detect the negative slopes and the PCR reactions that have an
+                # amplification less than seven the minimum fluorescence
+                if slopeAmp[oRow] < 0 or minSlopeAmp[oRow] < (np.log10(7.0) / minFluCountSum[oRow]):
                     vecNoAmplification[oRow] = True
 
-                # Get the positions ignoring nan values
+                # Get the right positions ignoring nan values
                 posCount = 0
                 posZero = 0
                 posOne = 0
@@ -8227,27 +8221,26 @@ class Run:
                         if posCount > 9:
                             break
                         posCount += 1
-                posTen = posNine + 1
 
+                # There must be an increase in flourescence over the amplification.
                 if ((minFluMat[oRow, posEight] + minFluMat[oRow, posNine]) / 2) / ((minFluMat[oRow, posZero] + minFluMat[oRow, posOne]) / 2) < 1.2:
-                    if minFluMat[oRow, -1] / np.nanmean(minFluMatMean[oRow, posZero:posTen]) < 7:
+                    if minFluMat[oRow, -1] / np.nanmean(minFluMatMean[oRow, posZero:posNine + 1]) < 7:
                         vecNoAmplification[oRow] = True
 
                 if not vecNoAmplification[oRow]:
-                    fstop[oRow] = _findLRstop(minFluMat, oRow)
-                    [fstart[oRow], fstart2[oRow]] = _findLRstart(minFluMat, oRow, fstop[oRow])
-                    fstop2[oRow] = fstop[oRow]
+                    stopCyc[oRow] = _lrp_findStopCyc(minFluMat, oRow)
+                    [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(minFluMat, oRow, stopCyc[oRow])
                 else:
                     vecSkipSample[oRow] = True
-                    fstop[oRow] = minFluMat.shape[1]
-                    fstart[oRow] = 1
-                    fstart2[oRow] = 1
+                    stopCyc[oRow] = minFluMat.shape[1]
+                    startCyc[oRow] = 1
+                    startCycFix[oRow] = 1
 
                 # Get the positions ignoring nan values
                 posCount = 0
                 posMinOne = 0
                 posMinTwo = 0
-                for realPos in range(fstop[oRow] - 2, 0, -1):
+                for realPos in range(stopCyc[oRow] - 2, 0, -1):
                     if not np.isnan(minFluMat[oRow, realPos - 1]):
                         if posCount == 0:
                             posMinOne = realPos + 1
@@ -8256,11 +8249,11 @@ class Run:
                             break
                         posCount += 1
 
-                if not (minFluMat[oRow, fstop[oRow] - 1] > minFluMat[oRow, posMinOne - 1] > minFluMat[oRow, posMinTwo - 1]):
+                if not (minFluMat[oRow, stopCyc[oRow] - 1] > minFluMat[oRow, posMinOne - 1] > minFluMat[oRow, posMinTwo - 1]):
                     vecNoAmplification[oRow] = True
                     vecSkipSample[oRow] = True
 
-                if vecNoAmplification[oRow] or vecBaselineError[oRow] or fstop[oRow] == minFluMat.shape[1]:
+                if vecNoAmplification[oRow] or vecBaselineError[oRow] or stopCyc[oRow] == minFluMat.shape[1]:
                     vecNoPlateau[oRow] = True
 
             # Set an initial window
@@ -8282,12 +8275,12 @@ class Run:
                 if not vecNoAmplification[oRow]:
                     #  Make sure baseline is overestimated, without using slope criterion
                     #  increase baseline per cycle till eff > 2 or remaining loglin points < PointsInWoL
-                    #  fastest when bgarr is directly set to 5 point below fstop
-                    start = fstop[oRow]
+                    #  fastest when vecBackground is directly set to 5 point below stopCyc
+                    start = stopCyc[oRow]
 
                     # Find the first value that is not NaN
                     firstNotNaN = 1  # Cycles so +1 to array
-                    while np.isnan(nfluor[oRow, firstNotNaN - 1]) and firstNotNaN < fstop[oRow]:
+                    while np.isnan(nfluor[oRow, firstNotNaN - 1]) and firstNotNaN < stopCyc[oRow]:
                         firstNotNaN += 1
 
                     subtrCount = 5
@@ -8296,42 +8289,42 @@ class Run:
                         if not np.isnan(rawFluor[oRow, start - 1]):
                             subtrCount -= 1
 
-                    bgarr[oRow] = 0.99 * rawFluor[oRow, start - 1]
-                    nfluor[oRow] = rawFluor[oRow] - bgarr[oRow]
+                    vecBackground[oRow] = 0.99 * rawFluor[oRow, start - 1]
+                    nfluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
                     #  baseline is now certainly too high
 
-                    #  1. extend line downwards from fstop[] till slopelow < slopehigh of bgarr[] < sampmin[]
+                    #  1. extend line downwards from stopCyc[] till slopelow < slopehigh of vecBackground[] < vecMinFluor[]
                     ntrials = 0
                     slopehigh = 0.0
                     slopelow = 0.0
                     while True:
                         ntrials += 1
-                        fstop[oRow] = _findLRstop(nfluor, oRow)
-                        [fstart[oRow], fstart2[oRow]] = _findLRstart(nfluor, oRow, fstop[oRow])
-                        if fstop[oRow] - fstart2[oRow] > 0:
-                            [slopelow, slopehigh] = _ttestslopes(nfluor, oRow, fstop, fstart2)
-                            defbgarr[oRow] = bgarr[oRow]
+                        stopCyc[oRow] = _lrp_findStopCyc(nfluor, oRow)
+                        [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(nfluor, oRow, stopCyc[oRow])
+                        if stopCyc[oRow] - startCycFix[oRow] > 0:
+                            [slopelow, slopehigh] = _ttestslopes(nfluor, oRow, stopCyc, startCycFix)
+                            vecDefBackgrd[oRow] = vecBackground[oRow]
                         else:
                             break
 
                         if slopelow >= slopehigh:
-                            bgarr[oRow] *= 0.99
-                            nfluor[oRow] = rawFluor[oRow] - bgarr[oRow]
+                            vecBackground[oRow] *= 0.99
+                            nfluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
                             nfluor[np.isnan(nfluor)] = 0
                             nfluor[nfluor <= 0.00000001] = np.nan
 
                         if (slopelow < slopehigh or
-                            bgarr[oRow] < 0.95 * sampmin[oRow] or
+                            vecBackground[oRow] < 0.95 * vecMinFluor[oRow] or
                             ntrials > 1000):
                             break
 
-                    if bgarr[oRow] < 0.95 * sampmin[oRow]:
+                    if vecBackground[oRow] < 0.95 * vecMinFluor[oRow]:
                         vecBaselineError[oRow] = True
 
                     # 2. fine tune slope of total line
-                    stepval = 0.005 * bgarr[oRow]
+                    stepval = 0.005 * vecBackground[oRow]
                     basestep = 1.0
                     ntrials = 0
                     trialstoshift = 0
@@ -8347,16 +8340,16 @@ class Run:
 
                         lastsigndiff = thissigndiff
                         lastslopediff = thisslopediff
-                        defbgarr[oRow] = bgarr[oRow]
+                        vecDefBackgrd[oRow] = vecBackground[oRow]
                         # apply baseline
-                        nfluor[oRow] = rawFluor[oRow] - bgarr[oRow]
+                        nfluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
                         nfluor[np.isnan(nfluor)] = 0
                         nfluor[nfluor <= 0.00000001] = np.nan
-                        fstop[oRow] = _findLRstop(nfluor, oRow)
-                        [fstart[oRow], fstart2[oRow]] = _findLRstart(nfluor, oRow, fstop[oRow])
+                        stopCyc[oRow] = _lrp_findStopCyc(nfluor, oRow)
+                        [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(nfluor, oRow, stopCyc[oRow])
 
-                        if fstop[oRow] - fstart2[oRow] > 0:
-                            [slopelow, slopehigh] = _ttestslopes(nfluor, oRow, fstop, fstart2)
+                        if stopCyc[oRow] - startCycFix[oRow] > 0:
+                            [slopelow, slopehigh] = _ttestslopes(nfluor, oRow, stopCyc, startCycFix)
                             thisslopediff = np.abs(slopelow - slopehigh)
                             if (slopelow - slopehigh) > 0.0:
                                 thissigndiff = 1
@@ -8365,11 +8358,11 @@ class Run:
                             # start with baseline that is too low: lowerslope is low
                             if slopelow < slopehigh:
                                 # increase baseline
-                                bgarr[oRow] += basestep * stepval
+                                vecBackground[oRow] += basestep * stepval
                             else:
                                 # crossed right baseline
                                 # go two steps back
-                                bgarr[oRow] -= basestep * stepval * 2
+                                vecBackground[oRow] -= basestep * stepval * 2
                                 # decrease stepsize
                                 basestep /= 2
                                 SlopeHasShifted = True
@@ -8383,35 +8376,35 @@ class Run:
                             (ntrials > 1000)):
                             break
 
-                    # reinstate samples that reach the slopediff criterion within 0.9 * sampmin
-                    if thisslopediff < 0.0001 and defbgarr[oRow] > 0.9 * sampmin[oRow]:
+                    # reinstate samples that reach the slopediff criterion within 0.9 * vecMinFluor
+                    if thisslopediff < 0.0001 and vecDefBackgrd[oRow] > 0.9 * vecMinFluor[oRow]:
                         vecBaselineError[oRow] = False
 
-                    # 3: skip sample when fluor[fstop]/fluor[fstart] < 20
+                    # 3: skip sample when fluor[stopCyc]/fluor[startCyc] < 20
                     loglinlen = 20.0  # RelaxLogLinLengthRG in Pascal may choose 10.0
 
-                    if nfluor[oRow, fstop[oRow] - 1] / nfluor[oRow, fstart2[oRow] - 1] < loglinlen:
+                    if nfluor[oRow, stopCyc[oRow] - 1] / nfluor[oRow, startCycFix[oRow] - 1] < loglinlen:
                         vecShortloglin[oRow] = True
 
                     pcreff[oRow] = np.power(10, slopehigh)
                 else:
                     vecSkipSample[oRow] = True
-                    defbgarr[oRow] = 0.99 * sampmin[oRow]
-                    nfluor[oRow] = rawFluor[oRow] - defbgarr[oRow]
+                    vecDefBackgrd[oRow] = 0.99 * vecMinFluor[oRow]
+                    nfluor[oRow] = rawFluor[oRow] - vecDefBackgrd[oRow]
                     # Fixme is this intended for all??
                     nfluor[np.isnan(nfluor)] = 0
                     nfluor[nfluor <= 0.00000001] = np.nan
 
                     # This values are used for the table
-                    fstop[oRow] = spFl[1]
-                    fstart[oRow] = spFl[1] + 1
-                    fstart2[oRow] = spFl[1] + 1
+                    stopCyc[oRow] = spFl[1]
+                    startCyc[oRow] = spFl[1] + 1
+                    startCycFix[oRow] = spFl[1] + 1
 
                     pcreff[oRow] = 1.0
                 if vecBaselineError[oRow]:
                     vecSkipSample[oRow] = True
 
-            bgarr = defbgarr
+            vecBackground = vecDefBackgrd
 
             baselineCorrectedData = nfluor
 
@@ -8478,7 +8471,7 @@ class Run:
                 uplim = np.power(10, upwin[0])  # Fixme: No logs
                 lowlim = np.power(10, lowwin[0])
 
-                checkfluor[oRow] = rawFluor[oRow] - 1.05 * bgarr[oRow]
+                checkfluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
                 checkfluor[np.isnan(checkfluor)] = 0
                 checkfluor[checkfluor <= 0.00000001] = np.nan
 
@@ -8496,7 +8489,7 @@ class Run:
                 else:
                     CtShiftUp = 0.0
 
-                checkfluor[oRow] = rawFluor[oRow] - 0.95 * bgarr[oRow]
+                checkfluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
                 checkfluor[np.isnan(checkfluor)] = 0
                 checkfluor[checkfluor <= 0.00000001] = np.nan
                 tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, oRow, uplim, lowlim)
@@ -8528,7 +8521,7 @@ class Run:
         # Fixme: Per group
         # CheckNoisiness
         skipgroup = False
-        maxlim = _GetMeanFluStop(nfluor, None, None, fstop, vecSkipSample, vecNoPlateau)
+        maxlim = _GetMeanFluStop(nfluor, None, None, stopCyc, vecSkipSample, vecNoPlateau)
         if maxlim > 0.0:
             maxlim = np.log10(maxlim)
         else:
@@ -8538,7 +8531,7 @@ class Run:
         PointsInWoL = 4
 
         if not skipgroup:
-            step = PointsInWoL * _GetLogStepStop(nfluor, None, [], fstop, vecSkipSample, vecNoPlateau)
+            step = PointsInWoL * _GetLogStepStop(nfluor, None, [], stopCyc, vecSkipSample, vecNoPlateau)
             upwin, lowwin = _ApplyLogWindow(None, maxlim, step, upwin, lowwin, yaxismax, yaxismin)
             # grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
             tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(nfluor, None, [], indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
@@ -8584,14 +8577,14 @@ class Run:
             lowwin[tar] = lowwin[0]
 
         for oRow in range(0, spFl[0]):
-            if vecNoAmplification[oRow] or vecBaselineError[oRow] or fstop[oRow] == spFl[1]:
+            if vecNoAmplification[oRow] or vecBaselineError[oRow] or stopCyc[oRow] == spFl[1]:
                 vecNoPlateau[oRow] = True
             else:
                 vecNoPlateau[oRow] = False
 
         for tar in range(1, targetsCount):
-            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(nfluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, stopCyc, startCyc, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(nfluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, stopCyc, startCyc, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
@@ -8768,14 +8761,14 @@ class Run:
         # write out the results #
         #########################
         for rRow in range(0, len(res)):
-            res[rRow][rar_baseline] = bgarr[rRow]
+            res[rRow][rar_baseline] = vecBackground[rRow]
             res[rRow][rar_lower_limit] = np.power(10, lowwin[vecTarget[rRow]])
             res[rRow][rar_upper_limit] = np.power(10, upwin[vecTarget[rRow]])
             res[rRow][rar_threshold_common] = threshold[0]
             res[rRow][rar_threshold_group] = threshold[vecTarget[rRow]]
 
-            res[rRow][rar_n_log] = fstop[rRow] - fstart2[rRow] + 1
-            res[rRow][rar_stop_log] = fstop[rRow]
+            res[rRow][rar_n_log] = stopCyc[rRow] - startCycFix[rRow] + 1
+            res[rRow][rar_stop_log] = stopCyc[rRow]
             res[rRow][rar_n_included] = ninclu[rRow]
             res[rRow][rar_log_lin_cycle] = indMeanX[rRow]
             res[rRow][rar_log_lin_fluorescence] = indMeanY[rRow]
@@ -8965,7 +8958,7 @@ class Run:
                         goodVal = "{:.3f}".format(stdEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEffSE", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
-                    goodVal = "{:.3f}".format(bgarr[rRow])
+                    goodVal = "{:.3f}".format(vecBackground[rRow])
                     _change_subelement(rdmlElemData[rRow], "bgFluor", dataXMLelements, goodVal, True, "string")
                     goodVal = "{:.3f}".format(threshold[0])
                     _change_subelement(rdmlElemData[rRow], "quantFluor", dataXMLelements, goodVal, True, "string")
