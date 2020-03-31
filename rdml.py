@@ -8133,11 +8133,6 @@ class Run:
         lowWin = np.zeros(targetsCount, dtype=np.float64)
         threshold = np.zeros(targetsCount, dtype=np.float64)
 
-        ########################
-        # Baseline correction  #
-        ########################
-        start_time = dt.datetime.now()
-
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
@@ -8160,6 +8155,49 @@ class Run:
         # Initialization of the PCR efficiency vectors
         pcrEff = np.ones(spFl[0], dtype=np.float64)
 
+        nnulls = np.ones(spFl[0], dtype=np.float64)
+        ninclu = np.zeros(spFl[0], dtype=np.int)
+        correl = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        stdEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+
+        indMeanX = np.zeros(spFl[0], dtype=np.float64)
+        indMeanY = np.zeros(spFl[0], dtype=np.float64)
+        indivCq = np.zeros(spFl[0], dtype=np.float64)
+        indivCq_Grp = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanNnull_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanCq_Skip = np.zeros(spFl[0], dtype=np.float64)
+        meanCq_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
+        meanCq_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
+        meanCq_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
+
+        # Set all to nan
+        indMeanX[:] = np.nan
+        indMeanY[:] = np.nan
+        indivCq[:] = np.nan
+        indivCq_Grp[:] = np.nan
+        meanNnull_Skip[:] = np.nan
+        meanNnull_Skip_Plat[:] = np.nan
+        meanNnull_Skip_Eff[:] = np.nan
+        meanNnull_Skip_Plat_Eff[:] = np.nan
+        meanCq_Skip[:] = np.nan
+        meanCq_Skip_Plat[:] = np.nan
+        meanCq_Skip_Eff[:] = np.nan
+        meanCq_Skip_Plat_Eff[:] = np.nan
+
+        ########################
+        # Baseline correction  #
+        ########################
+        start_time = dt.datetime.now()
         if baselineCorr:
             ###########################################################################
             # First quality check : Is there enough amplification during the reaction #
@@ -8394,15 +8432,125 @@ class Run:
             vecBackground = vecDefBackgrd
             baselineCorrectedData = baseCorFluor
 
-        if saveBaslineCorr:
-            rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
-            for oCol in range(0, spFl[1]):
-                rawTable[0].append(oCol + 1)
+            # Check if cq values are stable with a modified baseline
+            checkFluor = np.zeros(spFl, dtype=np.float64)
+            meanPcrEff, effvar = _lrp_meanPcrEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortloglin)
+            # The baseline is only used for this check
+            rawBaseline = upWin[0] - np.log10(meanPcrEff)
             for oRow in range(0, spFl[0]):
-                rawTable.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
+                if vecShortloglin[oRow] and not vecNoAmplification[oRow]:
+                    upLim = np.power(10, upWin[0])  # Fixme: No logs
+                    lowLim = np.power(10, lowWin[0])
+
+                    # Recalculate it separately from the good values
+                    checkFluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
+                    checkFluor[np.isnan(checkFluor)] = 0.0
+                    checkFluor[checkFluor <= 0.00000001] = np.nan
+
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        maxFlour = np.nanmax(checkFluor)
+
+                    if np.isnan(maxFlour):
+                        tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(baseCorFluor, oRow, upLim, lowLim)
+                    else:
+                        tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor, oRow, upLim, lowLim)
+
+                    if tempPCReff > 1.000000000001:
+                        CtShiftUp = tempMeanX + (rawBaseline - tempMeanY) / np.log10(tempPCReff)
+                    else:
+                        CtShiftUp = 0.0
+
+                    checkFluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
+                    checkFluor[np.isnan(checkFluor)] = 0
+                    checkFluor[checkFluor <= 0.00000001] = np.nan
+                    tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor, oRow, upLim, lowLim)
+
+                    if tempPCReff > 1.000000000001:
+                        CtShiftDown = tempMeanX + (rawBaseline - tempMeanY) / np.log10(tempPCReff)
+                    else:
+                        CtShiftDown = 0.0
+
+                    if np.abs(CtShiftUp - CtShiftDown) > 1.0:
+                        vecBaselineError[oRow] = True
+                        vecSkipSample[oRow] = True
+                        vecCtIsShifting[oRow] = True
+                    else:
+                        if not vecBaselineError[oRow]:
+                            vecSkipSample[oRow] = False
+
+            vecSkipSample[vecExcludedByUser] = True
+            # Update the window
+            lastCycMeanMax = _lrp_lastCycMeanMax(baseCorFluor, vecSkipSample, vecNoPlateau)
+            upWin[0] = np.log10(0.1 * lastCycMeanMax)
+            lowWin[0] = np.log10(0.1 * lastCycMeanMax / 16.0)
+            logfluor = np.log10(baseCorFluor)
+            yaxismax = np.nanmax(logfluor)
+            yaxismin = np.nanmin(logfluor)
+            if yaxismin < yaxismax - 5:
+                yaxismin = yaxismax - 5
+
+            # Fixme: Per group
+            # CheckNoisiness
+            skipgroup = False
+            maxlim = _GetMeanFluStop(baseCorFluor, None, None, stopCyc, vecSkipSample, vecNoPlateau)
+            if maxlim > 0.0:
+                maxlim = np.log10(maxlim)
+            else:
+                skipgroup = True
+            thismeaneff = 1.0
+
+            PointsInWoL = 4
+
+            if not skipgroup:
+                step = PointsInWoL * _GetLogStepStop(baseCorFluor, None, [], stopCyc, vecSkipSample, vecNoPlateau)
+                upWin, lowWin = _ApplyLogWindow(None, maxlim, step, upWin, lowWin, yaxismax, yaxismin)
+                # rawBaseline = np.log10(0.5 * np.round(1000 * np.power(10, upWin[0])) / 1000)
+                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allLoopParamInWindow(baseCorFluor, None, [], indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl, upWin, lowWin, vecNoAmplification, vecBaselineError)
+                thismeaneff, effvar = _lrp_meanPcrEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
+                if thismeaneff < 1.001:
+                    skipgroup = True
+
+            if not skipgroup:
+                foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
+                upWin, lowWin = _ApplyLogWindow(None, maxlim, foldwidth, upWin, lowWin, yaxismax, yaxismin)
+                # compare to Log(1.01*lowLim) to compensate for
+                # the truncation in cuplimedit with + 0.0043
+                lowLim = maxlim - foldwidth + 0.0043
+                uplim2 = np.power(10, upWin[0])  # Fixme: No logs
+                lowlim2 = np.power(10, lowWin[0])
+
+                for oRow in range(0, spFl[0]):
+                    if not vecSkipSample[oRow]:
+                        pstart, pstop, notinwindow = _lrp_startStopInWindow(baseCorFluor, oRow, uplim2, lowlim2)
+                        minpstart = pstart - 1
+                        while np.isnan(baseCorFluor[oRow, minpstart - 1]) and minpstart > 1:
+                            minpstart -= 1
+                        minpstop = pstop - 1
+                        while np.isnan(baseCorFluor[oRow, minpstop - 1]) and minpstop > 2:
+                            minpstop -= 1
+
+                        minStartFlour = baseCorFluor[oRow, minpstart - 1]
+                        if np.isnan(minStartFlour):
+                            minStartFlour = 0.00001
+
+                        nextstep = np.log10(baseCorFluor[oRow, pstart - 1]) - np.log10(minStartFlour)
+                        stopstep = np.log10(baseCorFluor[oRow, pstop - 1]) - np.log10(baseCorFluor[oRow, pstop - 2])
+                        if (np.log10(minStartFlour) > lowLim and not
+                        ((minStartFlour < baseCorFluor[oRow, pstart - 1] and nextstep < 1.2 * stopstep) or
+                         (pstart - minpstart > 1.2))):
+                            vecNoisySample[oRow] = True
+                            vecSkipSample[oRow] = True
+
+            if saveBaslineCorr:
+                rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
                 for oCol in range(0, spFl[1]):
-                    rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
-            finalData["baselineCorrectedData"] = rawTable
+                    rawTable[0].append(oCol + 1)
+                for oRow in range(0, spFl[0]):
+                    rawTable.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
+                    for oCol in range(0, spFl[1]):
+                        rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
+                finalData["baselineCorrectedData"] = rawTable
 
         if timeRun:
             stop_time = dt.datetime.now() - start_time
@@ -8411,155 +8559,6 @@ class Run:
         ################################################
         # Calculation of the Window of Linearity (WOL) #
         ################################################
-        nnulls = np.ones(spFl[0], dtype=np.float64)
-        ninclu = np.zeros(spFl[0], dtype=np.int)
-        correl = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
-
-        indMeanX = np.zeros(spFl[0], dtype=np.float64)
-        indMeanY = np.zeros(spFl[0], dtype=np.float64)
-        indivCq = np.zeros(spFl[0], dtype=np.float64)
-        indivCq_Grp = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Eff = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Plat_Eff = np.zeros(spFl[0], dtype=np.float64)
-
-        # Set all to nan
-        indMeanX[:] = np.nan
-        indMeanY[:] = np.nan
-        indivCq[:] = np.nan
-        indivCq_Grp[:] = np.nan
-        meanNnull_Skip[:] = np.nan
-        meanNnull_Skip_Plat[:] = np.nan
-        meanNnull_Skip_Eff[:] = np.nan
-        meanNnull_Skip_Plat_Eff[:] = np.nan
-        meanCq_Skip[:] = np.nan
-        meanCq_Skip_Plat[:] = np.nan
-        meanCq_Skip_Eff[:] = np.nan
-        meanCq_Skip_Plat_Eff[:] = np.nan
-
-        # See if cq values are stable with a modified baseline
-        checkFluor = np.zeros(spFl, dtype=np.float64)
-        meanPcrEff, effvar = _lrp_meanPcrEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortloglin)
-        # The baseline is only used for this check
-        rawBaseline = upWin[0] - np.log10(meanPcrEff)
-        for oRow in range(0, spFl[0]):
-            if vecShortloglin[oRow] and not vecNoAmplification[oRow]:
-                upLim = np.power(10, upWin[0])  # Fixme: No logs
-                lowLim = np.power(10, lowWin[0])
-
-                # Recalculate it separately from the good values
-                checkFluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
-                checkFluor[np.isnan(checkFluor)] = 0.0
-                checkFluor[checkFluor <= 0.00000001] = np.nan
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    maxFlour = np.nanmax(checkFluor)
-
-                if np.isnan(maxFlour):
-                    tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(baseCorFluor, oRow, upLim, lowLim)
-                else:
-                    tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor, oRow, upLim, lowLim)
-
-                if tempPCReff > 1.000000000001:
-                    CtShiftUp = tempMeanX + (rawBaseline - tempMeanY) / np.log10(tempPCReff)
-                else:
-                    CtShiftUp = 0.0
-
-                checkFluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
-                checkFluor[np.isnan(checkFluor)] = 0
-                checkFluor[checkFluor <= 0.00000001] = np.nan
-                tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor, oRow, upLim, lowLim)
-
-                if tempPCReff > 1.000000000001:
-                    CtShiftDown = tempMeanX + (rawBaseline - tempMeanY) / np.log10(tempPCReff)
-                else:
-                    CtShiftDown = 0.0
-
-                if np.abs(CtShiftUp - CtShiftDown) > 1.0:
-                    vecBaselineError[oRow] = True
-                    vecSkipSample[oRow] = True
-                    vecCtIsShifting[oRow] = True
-                else:
-                    if not vecBaselineError[oRow]:
-                        vecSkipSample[oRow] = False
-
-        vecSkipSample[vecExcludedByUser] = True
-        # Update the window
-        lastCycMeanMax = _lrp_lastCycMeanMax(baseCorFluor, vecSkipSample, vecNoPlateau)
-        upWin[0] = np.log10(0.1 * lastCycMeanMax)
-        lowWin[0] = np.log10(0.1 * lastCycMeanMax / 16.0)
-        logfluor = np.log10(baseCorFluor)
-        yaxismax = np.nanmax(logfluor)
-        yaxismin = np.nanmin(logfluor)
-        if yaxismin < yaxismax - 5:
-            yaxismin = yaxismax - 5
-
-        # Fixme: Per group
-        # CheckNoisiness
-        skipgroup = False
-        maxlim = _GetMeanFluStop(baseCorFluor, None, None, stopCyc, vecSkipSample, vecNoPlateau)
-        if maxlim > 0.0:
-            maxlim = np.log10(maxlim)
-        else:
-            skipgroup = True
-        thismeaneff = 1.0
-
-        PointsInWoL = 4
-
-        if not skipgroup:
-            step = PointsInWoL * _GetLogStepStop(baseCorFluor, None, [], stopCyc, vecSkipSample, vecNoPlateau)
-            upWin, lowWin = _ApplyLogWindow(None, maxlim, step, upWin, lowWin, yaxismax, yaxismin)
-            # rawBaseline = np.log10(0.5 * np.round(1000 * np.power(10, upWin[0])) / 1000)
-            tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allLoopParamInWindow(baseCorFluor, None, [], indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl, upWin, lowWin,
-                                                                                                 vecNoAmplification, vecBaselineError)
-            thismeaneff, effvar = _lrp_meanPcrEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
-            if thismeaneff < 1.001:
-                skipgroup = True
-
-        if not skipgroup:
-            foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
-            upWin, lowWin = _ApplyLogWindow(None, maxlim, foldwidth, upWin, lowWin, yaxismax, yaxismin)
-            # compare to Log(1.01*lowLim) to compensate for
-            # the truncation in cuplimedit with + 0.0043
-            lowLim = maxlim - foldwidth + 0.0043
-            uplim2 = np.power(10, upWin[0])  # Fixme: No logs
-            lowlim2 = np.power(10, lowWin[0])
-
-            for oRow in range(0, spFl[0]):
-                if not vecSkipSample[oRow]:
-                    pstart, pstop, notinwindow = _lrp_startStopInWindow(baseCorFluor, oRow, uplim2, lowlim2)
-                    minpstart = pstart - 1
-                    while np.isnan(baseCorFluor[oRow, minpstart - 1]) and minpstart > 1:
-                        minpstart -= 1
-                    minpstop = pstop - 1
-                    while np.isnan(baseCorFluor[oRow, minpstop - 1]) and minpstop > 2:
-                        minpstop -= 1
-
-                    minStartFlour = baseCorFluor[oRow, minpstart - 1]
-                    if np.isnan(minStartFlour):
-                        minStartFlour = 0.00001
-
-                    nextstep = np.log10(baseCorFluor[oRow, pstart - 1]) - np.log10(minStartFlour)
-                    stopstep = np.log10(baseCorFluor[oRow, pstop - 1]) - np.log10(baseCorFluor[oRow, pstop - 2])
-                    if (np.log10(minStartFlour) > lowLim and not
-                        ((minStartFlour < baseCorFluor[oRow, pstart - 1] and nextstep < 1.2 * stopstep) or
-                         (pstart - minpstart > 1.2))):
-                        vecNoisySample[oRow] = True
-                        vecSkipSample[oRow] = True
 
         # Calculate the WoL per group
         for tar in range(1, targetsCount):
