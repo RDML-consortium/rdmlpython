@@ -817,106 +817,104 @@ def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
     return maxMean
 
 
-def _GetMeanEff(tarGroup, vecTarget, pcreff, skipsample, noplateau, shortloglin):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_meanPcrEff(tarGroup, vecTarget, pcrEff, vecSkipSample, vecNoPlateau, vecShortLogLin):
+    """A function which calculates the mean efficiency of the selected target group excluding bad ones.
 
     Args:
-        ampgroup: The target group id
-        pcreff: The array with the PCR efficiencies
-        skipsample: Skip the sample
-        noplateau: Sample ha no plateau
-        shortloglin: Sample has short loglin phase
+        tarGroup: The target group id
+        vecTarget: The vector with the targets
+        pcrEff: The array with the PCR efficiencies
+        vecSkipSample: Skip the sample
+        vecNoPlateau: Sample has no plateau
+        vecShortLogLin: Sample has short log lin phase
 
     Returns:
-        An array with [getmeaneff, effvar, IsUsedInWoL].
+        An array with [meanPcrEff, pcrEffVar].
     """
 
     cnt = 0
-    sumeff = 0.0
-    sumeff2 = 0.0
-
-    for j in range(0, len(pcreff)):
+    sumEff = 0.0
+    sumEff2 = 0.0
+    for j in range(0, len(pcrEff)):
         if tarGroup is None or tarGroup == vecTarget[j]:
-            if (not (skipsample[j] or noplateau[j] or shortloglin[j])) and pcreff[j] > 1.0:
+            if (not (vecSkipSample[j] or vecNoPlateau[j] or vecShortLogLin[j])) and pcrEff[j] > 1.0:
                 cnt += 1
-                sumeff += pcreff[j]
-                sumeff2 += pcreff[j] * pcreff[j]
+                sumEff += pcrEff[j]
+                sumEff2 += pcrEff[j] * pcrEff[j]
 
     if cnt > 1:
-        getmeaneff = sumeff / cnt
-        effvar = (sumeff2 - (sumeff * sumeff) / cnt) / (cnt - 1)
+        meanPcrEff = sumEff / cnt
+        pcrEffVar = (sumEff2 - (sumEff * sumEff) / cnt) / (cnt - 1)
     else:
-        getmeaneff = 1.0
-        effvar = 100
+        meanPcrEff = 1.0
+        pcrEffVar = 100
 
-    return [getmeaneff, effvar]
+    return [meanPcrEff, pcrEffVar]
 
 
-def _find_pstat_pstop(fluor, samp, uplim, lowlim):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_startStopInWindow(fluor, aRow, upLim, lowLim):
+    """Find the start and the stop of the part of the curve which is inside the window.
 
     Args:
-        ampgroup: The target group id
-        pcreff: The array with the PCR efficiencies
-        skipsample: Skip the sample
-        noplateau: Sample ha no plateau
-        shortloglin: Sample has short loglin phase
-        IsUsedInWoL: Sample is used in WoL
+        fluor: The array with the fluorescence values
+        aRow: The row to work on
+        upLim: The upper limit of the window
+        lowLim: The lower limit of the window
 
     Returns:
-        An array with [getmeaneff, effvar, IsUsedInWoL].
+        The int startWinCyc, stopWinCyc and the bool notInWindow.
     """
 
-    pstart = 0
-    pstop = 0
-    fstop = _lrp_findStopCyc(fluor, samp)
-    [start, fstart] = _lrp_findStartCyc(fluor, samp, fstop)
+    startWinCyc = 0
+    stopWinCyc = 0
+    # Find the stopCyc and the startCyc cycle of the log lin phase
+    stopCyc = _lrp_findStopCyc(fluor, aRow)
+    [startCyc, startCycFix] = _lrp_findStartCyc(fluor, aRow, stopCyc)
 
-    stop = np.nanargmax(fluor[samp, fstart - 1:]) + fstart
+    stopMaxCyc = np.nanargmax(fluor[aRow, startCycFix - 1:]) + startCycFix
 
-    if fluor[samp, start - 1] > uplim or fluor[samp, stop - 1] < lowlim:
-        notinwindow = True
-        if fluor[samp, start - 1] > uplim:
-            pstart = start
-            pstop = start
-        if fluor[samp, stop - 1] < lowlim:
-            pstart = stop
-            pstop = stop
+    # If is true if outside the window
+    if fluor[aRow, startCyc - 1] > upLim or fluor[aRow, stopMaxCyc - 1] < lowLim:
+        notInWindow = True
+        if fluor[aRow, startCyc - 1] > upLim:
+            startWinCyc = startCyc
+            stopWinCyc = startCyc
+        if fluor[aRow, stopMaxCyc - 1] < lowLim:
+            startWinCyc = stopMaxCyc
+            stopWinCyc = stopMaxCyc
     else:
-        notinwindow = False
-        # look for pstop
-        if fluor[samp, stop - 1] < uplim:
-            pstop = stop
+        notInWindow = False
+        # look for stopWinCyc
+        if fluor[aRow, stopMaxCyc - 1] < upLim:
+            stopWinCyc = stopMaxCyc
         else:
-            for i in range(stop, start, -1):
-                if fluor[samp, i - 1] > uplim > fluor[samp, i - 2]:
-                    pstop = i - 1
-        # look for pstart
-        if fluor[samp, fstart - 1] > lowlim:
-            pstart = fstart
+            for i in range(stopMaxCyc, startCyc, -1):
+                if fluor[aRow, i - 1] > upLim > fluor[aRow, i - 2]:
+                    stopWinCyc = i - 1  # Fixme: Should not be - 2??
+        # look for startWinCyc
+        if fluor[aRow, startCycFix - 1] > lowLim:
+            startWinCyc = startCycFix
         else:
-            for i in range(stop - 1, start - 1, -1):
-                if fluor[samp, i] > lowlim > fluor[samp, i - 1]:
-                    pstart = i + 1
-    return pstart, pstop, notinwindow
+            for i in range(stopMaxCyc, startCyc, -1):
+                if fluor[aRow, i - 1] > lowLim > fluor[aRow, i - 2]:
+                    startWinCyc = i
+    return startWinCyc, stopWinCyc, notInWindow
 
 
-def _do_cascade(fluor, samp, uplim, lowlim):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_paramInWindow(fluor, aRow, upLim, lowLim):
+    """Calculates slope, nnull, PCR efficiency and mean x/y for the curve part in the window.
 
     Args:
-        ampgroup: The target group id
-        pcreff: The array with the PCR efficiencies
-        skipsample: Skip the sample
-        noplateau: Sample ha no plateau
-        shortloglin: Sample has short loglin phase
-        IsUsedInWoL: Sample is used in WoL
+        fluor: The array with the fluorescence values
+        aRow: The row to work on
+        upLim: The upper limit of the window
+        lowLim: The lower limit of the window
 
     Returns:
-        An array with [getmeaneff, effvar, IsUsedInWoL].
+        The calcuated values: indMeanX, indMeanY, pcreff, nnulls, ninclu, correl.
     """
 
-    pstart, pstop, notinwindow = _find_pstat_pstop(fluor, samp, uplim, lowlim)
+    startWinCyc, stopWinCyc, notInWindow = _lrp_startStopInWindow(fluor, aRow, upLim, lowLim)
 
     sumx = 0.0
     sumy = 0.0
@@ -927,8 +925,8 @@ def _do_cascade(fluor, samp, uplim, lowlim):
     ssx = 0.0
     ssy = 0.0
     sxy = 0.0
-    for i in range(pstart, pstop + 1):
-        fluorSamp = fluor[samp, i - 1]
+    for i in range(startWinCyc, stopWinCyc + 1):
+        fluorSamp = fluor[aRow, i - 1]
         if not np.isnan(fluorSamp):
             logFluorSamp = np.log10(fluorSamp)
             sumx += i
@@ -958,15 +956,15 @@ def _do_cascade(fluor, samp, uplim, lowlim):
         pcreff = np.nan
         nnulls = np.nan
 
-    if notinwindow:
+    if notInWindow:
         ninclu = 0
     else:
-        ninclu = pstop - pstart + 1
+        ninclu = stopWinCyc - startWinCyc + 1
 
     return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl
 
 
-def _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecNoAmplification, vecBaselineError, skipsample, noplateau):
+def _lrp_allLoopParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, vecNoAmplification, vecBaselineError):
     """A function which calculates the mean of the max fluor in the last ten cycles.
 
     Args:
@@ -988,17 +986,17 @@ def _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnul
         uplim = np.power(10, upwin[tarGroup])  # Fixme: No logs
         lowlim = np.power(10, lowwin[tarGroup])
 
-    for z in range(0, fluor.shape[0]):
-        if tarGroup is None or tarGroup == vecTarget[z]:
-            if not (vecNoAmplification[z] or vecBaselineError[z]):
-                indMeanX[z], indMeanY[z], pcreff[z], nnulls[z], ninclu[z], correl[z] = _do_cascade(fluor, z, uplim, lowlim)
+    for row in range(0, fluor.shape[0]):
+        if tarGroup is None or tarGroup == vecTarget[row]:
+            if not (vecNoAmplification[row] or vecBaselineError[row]):
+                indMeanX[row], indMeanY[row], pcreff[row], nnulls[row], ninclu[row], correl[row] = _lrp_paramInWindow(fluor, row, uplim, lowlim)
             else:
-                correl[z] = np.nan
-                indMeanX[z] = np.nan
-                indMeanY[z] = np.nan
-                pcreff[z] = np.nan
-                nnulls[z] = np.nan
-                ninclu[z] = 0
+                correl[row] = np.nan
+                indMeanX[row] = np.nan
+                indMeanY[row] = np.nan
+                pcreff[row] = np.nan
+                nnulls[row] = np.nan
+                ninclu[row] = 0
 
     return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl
 
@@ -1110,9 +1108,9 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
         foldwidth = PointsInWoL * _GetLogStepStop(fluor, tarGroup, vecTarget, fstop, vecSkipSample, vecNoPlateau)
         upwin, lowwin = _ApplyLogWindow(tarGroup, maxlim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
 
-        tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                                   vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-        thismeaneff, thisvareff  = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
+        tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allLoopParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+                                                                                             vecNoAmplification, vecBaselineError)
+        [thismeaneff, thisvareff] = _lrp_meanPcrEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
         if thismeaneff < 1.001:
             skipgroup = True
 
@@ -1128,19 +1126,19 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
             uplim = maxlim - k * stepsize * step
             if uplim < lastuplim:
                 upwin, lowwin = _ApplyLogWindow(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
-                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                                           vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-                thismeaneff, thisvareff = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
-                                                      vecNoPlateau, vecShortloglin)
+                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allLoopParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+                                                                                                     vecNoAmplification, vecBaselineError)
+                thismeaneff, thisvareff = _lrp_meanPcrEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
+                                                          vecNoPlateau, vecShortloglin)
                 foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
                 if foldwidth < 0.5:
                     foldwidth = 0.5  # to avoid width = 0 above fstop
                 upwin, lowwin = _ApplyLogWindow(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
 
-                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                                           vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-                thismeaneff, thisvareff = _GetMeanEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau,
-                                                      vecShortloglin)
+                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allLoopParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+                                                                                                     vecNoAmplification, vecBaselineError)
+                thismeaneff, thisvareff = _lrp_meanPcrEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau,
+                                                          vecShortloglin)
                 if thisvareff > 0.0:
                     vareffar[k] = np.sqrt(thisvareff) / thismeaneff
                 else:
@@ -1206,8 +1204,8 @@ def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff
         else:
             threshold[tarGroup] = (0.5 * np.round(1000 * np.power(10, upwin[tarGroup])) / 1000)
 
-        indMeanX, indMeanY, pcreff, nnulls, ninclu, correl = _do_all_cascade(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                             vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
+        indMeanX, indMeanY, pcreff, nnulls, ninclu, correl = _lrp_allLoopParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
+                                                                                       vecNoAmplification, vecBaselineError)
         for j in range(0, len(pcreff)):
             if tarGroup is None or tarGroup == vecTarget[j]:
                 if (not (vecSkipSample[j] or vecNoPlateau[j] or vecShortloglin[j])) and pcreff[j] > 1.0:
@@ -8154,6 +8152,11 @@ class Run:
         vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool)
         vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool)
 
+        # Start and stop cycles of the log lin phase
+        stopCyc = np.zeros(spFl[0], dtype=np.int64)
+        startCyc = np.zeros(spFl[0], dtype=np.int64)
+        startCycFix = np.zeros(spFl[0], dtype=np.int64)
+
         # Initialization of the PCR efficiency vectors
         pcrEff = np.ones(spFl[0], dtype=np.float64)
 
@@ -8166,7 +8169,7 @@ class Run:
             rawMod = rawFluor.copy()
             rawMod[np.isnan(rawMod)] = 0
             rawMod[rawMod <= 0.00000001] = np.nan
-            [slopeAmp, trashedValue] = _lrp_linReg(vecCycles, np.log10(rawMod))
+            [slopeAmp, _unused] = _lrp_linReg(vecCycles, np.log10(rawMod))
 
             # Calculate the minimum of fluorescence values per react/target, store it as background
             # and substract it from the raw fluorescence values
@@ -8180,12 +8183,7 @@ class Run:
             minFluCount = np.ones(minCorFluor.shape, dtype=np.int)
             minFluCount[np.isnan(minCorFluor)] = 0
             minFluCountSum = np.sum(minFluCount, axis=1)
-
-            [minSlopeAmp, trashedValue] = _lrp_linReg(vecCycles, np.log10(minCorFluor))
-
-            stopCyc = np.zeros(spFl[0], dtype=np.int64)
-            startCyc = np.zeros(spFl[0], dtype=np.int64)
-            startCycFix = np.zeros(spFl[0], dtype=np.int64)
+            [minSlopeAmp, _unused] = _lrp_linReg(vecCycles, np.log10(minCorFluor))
 
             for oRow in range(0, spFl[0]):
                 # Check to detect the negative slopes and the PCR reactions that have an
@@ -8413,7 +8411,6 @@ class Run:
         ################################################
         # Calculation of the Window of Linearity (WOL) #
         ################################################
-        checkfluor = np.zeros(spFl, dtype=np.float64)
         nnulls = np.ones(spFl[0], dtype=np.float64)
         ninclu = np.zeros(spFl[0], dtype=np.int)
         correl = np.zeros(spFl[0], dtype=np.float64)
@@ -8454,38 +8451,41 @@ class Run:
         meanCq_Skip_Plat_Eff[:] = np.nan
 
         # See if cq values are stable with a modified baseline
-        getmeaneff, effvar = _GetMeanEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortloglin)
-        grpftval = upWin[0] - np.log10(getmeaneff)
+        checkFluor = np.zeros(spFl, dtype=np.float64)
+        meanPcrEff, effvar = _lrp_meanPcrEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortloglin)
+        # The baseline is only used for this check
+        rawBaseline = upWin[0] - np.log10(meanPcrEff)
         for oRow in range(0, spFl[0]):
             if vecShortloglin[oRow] and not vecNoAmplification[oRow]:
-                uplim = np.power(10, upWin[0])  # Fixme: No logs
-                lowlim = np.power(10, lowWin[0])
+                upLim = np.power(10, upWin[0])  # Fixme: No logs
+                lowLim = np.power(10, lowWin[0])
 
-                checkfluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
-                checkfluor[np.isnan(checkfluor)] = 0
-                checkfluor[checkfluor <= 0.00000001] = np.nan
+                # Recalculate it separately from the good values
+                checkFluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
+                checkFluor[np.isnan(checkFluor)] = 0.0
+                checkFluor[checkFluor <= 0.00000001] = np.nan
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=RuntimeWarning)
-                    maxFlour = np.nanmax(checkfluor)
+                    maxFlour = np.nanmax(checkFluor)
 
                 if np.isnan(maxFlour):
-                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(baseCorFluor, oRow, uplim, lowlim)
+                    tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(baseCorFluor, oRow, upLim, lowLim)
                 else:
-                    tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, oRow, uplim, lowlim)
+                    tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor, oRow, upLim, lowLim)
 
                 if tempPCReff > 1.000000000001:
-                    CtShiftUp = tempMeanX + (grpftval - tempMeanY) / np.log10(tempPCReff)
+                    CtShiftUp = tempMeanX + (rawBaseline - tempMeanY) / np.log10(tempPCReff)
                 else:
                     CtShiftUp = 0.0
 
-                checkfluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
-                checkfluor[np.isnan(checkfluor)] = 0
-                checkfluor[checkfluor <= 0.00000001] = np.nan
-                tempMeanX, tempMeanY, tempPCReff, xnnulls, xninclu, xcorrel = _do_cascade(checkfluor, oRow, uplim, lowlim)
+                checkFluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
+                checkFluor[np.isnan(checkFluor)] = 0
+                checkFluor[checkFluor <= 0.00000001] = np.nan
+                tempMeanX, tempMeanY, tempPCReff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor, oRow, upLim, lowLim)
 
                 if tempPCReff > 1.000000000001:
-                    CtShiftDown = tempMeanX + (grpftval - tempMeanY) / np.log10(tempPCReff)
+                    CtShiftDown = tempMeanX + (rawBaseline - tempMeanY) / np.log10(tempPCReff)
                 else:
                     CtShiftDown = 0.0
 
@@ -8523,25 +8523,25 @@ class Run:
         if not skipgroup:
             step = PointsInWoL * _GetLogStepStop(baseCorFluor, None, [], stopCyc, vecSkipSample, vecNoPlateau)
             upWin, lowWin = _ApplyLogWindow(None, maxlim, step, upWin, lowWin, yaxismax, yaxismin)
-            # grpftval = np.log10(0.5 * np.round(1000 * np.power(10, upWin[0])) / 1000)
-            tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _do_all_cascade(baseCorFluor, None, [], indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl, upWin, lowWin,
-                                                                                       vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau)
-            thismeaneff, effvar = _GetMeanEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
+            # rawBaseline = np.log10(0.5 * np.round(1000 * np.power(10, upWin[0])) / 1000)
+            tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allLoopParamInWindow(baseCorFluor, None, [], indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl, upWin, lowWin,
+                                                                                                 vecNoAmplification, vecBaselineError)
+            thismeaneff, effvar = _lrp_meanPcrEff(None, [], tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
             if thismeaneff < 1.001:
                 skipgroup = True
 
         if not skipgroup:
             foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
             upWin, lowWin = _ApplyLogWindow(None, maxlim, foldwidth, upWin, lowWin, yaxismax, yaxismin)
-            # compare to Log(1.01*lowlim) to compensate for
+            # compare to Log(1.01*lowLim) to compensate for
             # the truncation in cuplimedit with + 0.0043
-            lowlim = maxlim - foldwidth + 0.0043
+            lowLim = maxlim - foldwidth + 0.0043
             uplim2 = np.power(10, upWin[0])  # Fixme: No logs
             lowlim2 = np.power(10, lowWin[0])
 
             for oRow in range(0, spFl[0]):
                 if not vecSkipSample[oRow]:
-                    pstart, pstop, notinwindow = _find_pstat_pstop(baseCorFluor, oRow, uplim2, lowlim2)
+                    pstart, pstop, notinwindow = _lrp_startStopInWindow(baseCorFluor, oRow, uplim2, lowlim2)
                     minpstart = pstart - 1
                     while np.isnan(baseCorFluor[oRow, minpstart - 1]) and minpstart > 1:
                         minpstart -= 1
@@ -8555,7 +8555,7 @@ class Run:
 
                     nextstep = np.log10(baseCorFluor[oRow, pstart - 1]) - np.log10(minStartFlour)
                     stopstep = np.log10(baseCorFluor[oRow, pstop - 1]) - np.log10(baseCorFluor[oRow, pstop - 2])
-                    if (np.log10(minStartFlour) > lowlim and not
+                    if (np.log10(minStartFlour) > lowLim and not
                         ((minStartFlour < baseCorFluor[oRow, pstart - 1] and nextstep < 1.2 * stopstep) or
                          (pstart - minpstart > 1.2))):
                         vecNoisySample[oRow] = True
