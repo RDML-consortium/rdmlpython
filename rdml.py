@@ -15,7 +15,7 @@ import warnings
 import json
 import csv
 import numpy as np
-from lxml import etree as ET
+from lxml import etree as et
 
 # Fixme: Delete
 import datetime as dt
@@ -366,7 +366,7 @@ def _create_new_element(base, tag, id):
     if not _check_unique_id(base, tag, id):
         raise RdmlError('The ' + tag + ' id "' + id + '" must be unique.')
 
-    return ET.Element(tag, id=id)
+    return et.Element(tag, id=id)
 
 
 def _add_new_subelement(base, basetag, tag, text, opt):
@@ -386,10 +386,10 @@ def _add_new_subelement(base, basetag, tag, text, opt):
     if opt is False:
         if text is None or text == "":
             raise RdmlError('An ' + basetag + ' ' + tag + ' must be provided.')
-        ET.SubElement(base, tag).text = text
+        et.SubElement(base, tag).text = text
     else:
         if text is not None and text != "":
-            ET.SubElement(base, tag).text = text
+            et.SubElement(base, tag).text = text
 
 
 def _change_subelement(base, tag, xmlkeys, value, opt, vtype, id_as_element=False):
@@ -442,7 +442,7 @@ def _change_subelement(base, tag, xmlkeys, value, opt, vtype, id_as_element=Fals
             elem.text = goodVal
     else:
         if goodVal is not None and goodVal != "":
-            new_node = ET.Element(tag)
+            new_node = et.Element(tag)
             new_node.text = goodVal
             place = _get_tag_pos(base, tag, xmlkeys, 0)
             base.insert(place, new_node)
@@ -462,7 +462,7 @@ def _get_or_create_subelement(base, tag, xmlkeys):
 
     # Check if the tag already excists
     if _get_first_child(base, tag) is None:
-        new_node = ET.Element(tag)
+        new_node = et.Element(tag)
         place = _get_tag_pos(base, tag, xmlkeys, 0)
         base.insert(place, new_node)
     return _get_first_child(base, tag)
@@ -987,16 +987,16 @@ def _lrp_allParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcrEff
     """
 
     if tarGroup is None:
-        uplim = np.power(10, upWin[0])  # Fixme: No logs
-        lowlim = np.power(10, lowWin[0])
+        upLim = np.power(10, upWin[0])  # Fixme: No logs
+        lowLim = np.power(10, lowWin[0])
     else:
-        uplim = np.power(10, upWin[tarGroup])  # Fixme: No logs
-        lowlim = np.power(10, lowWin[tarGroup])
+        upLim = np.power(10, upWin[tarGroup])  # Fixme: No logs
+        lowLim = np.power(10, lowWin[tarGroup])
 
     for row in range(0, fluor.shape[0]):
         if tarGroup is None or tarGroup == vecTarget[row]:
             if not (vecNoAmplification[row] or vecBaselineError[row]):
-                indMeanX[row], indMeanY[row], pcrEff[row], nnulls[row], ninclu[row], correl[row] = _lrp_paramInWindow(fluor, row, uplim, lowlim)
+                indMeanX[row], indMeanY[row], pcrEff[row], nnulls[row], ninclu[row], correl[row] = _lrp_paramInWindow(fluor, row, upLim, lowLim)
             else:
                 correl[row] = np.nan
                 indMeanX[row] = np.nan
@@ -1008,94 +1008,78 @@ def _lrp_allParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcrEff
     return indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl
 
 
-def _GetMeanFluStop(fluor, tarGroup, vecTarget, fstop, skipsample, noplateau):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_meanStopFluor(fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPlateau):
+    """Return the mean of the stop fluor or the max fluor if all rows have no plateau.
 
     Args:
         fluor: The array with the fluorescence values
         tarGroup: The target number
         vecTarget: The vector with the targets numbers
-        indMeanX: The vector with the x mean position
-        indMeanY: The vector with the y mean position
-        pcrEff: The array with the PCR efficiencies
-        nnulls: The array with the calculated nnulls
-        ninclu: The array with the calculated ninclu
-        correl: The array with the calculated correl
-        upWin: The upper limit of the window
-        lowWin: The lower limit of the window
-        vecNoAmplification: True if there is a amplification error
-        vecBaselineError: True if there is a baseline error
+        stopCyc: The vector with the stop cycle of the log lin phase
+        vecSkipSample: Skip the sample
+        vecNoPlateau: True if there is no plateau
 
     Returns:
-        An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
+        The meanMax fluorescence.
     """
-    # realStop = fstop[:, np.newaxis] - 1
-    # vmeanmax = fluor[:, realStop[:, 0]]
-    meanmax = 0.0
-    maxfluor = 0.0000001
+
+    meanMax = 0.0
+    maxFluor = 0.0000001
     cnt = 0
     if tarGroup is None:
-        for j in range(0, fluor.shape[0]):
-            if not skipsample[j]:
-                if not noplateau[j]:
+        for aRow in range(0, fluor.shape[0]):
+            if not vecSkipSample[aRow]:
+                if not vecNoPlateau[aRow]:
                     cnt += 1
-                    meanmax += fluor[j, fstop[j] - 1]
+                    meanMax += fluor[aRow, stopCyc[aRow] - 1]
                 else:
                     for i in range(0, fluor.shape[1]):
-                        if fluor[j, i] > maxfluor:
-                            maxfluor = fluor[j, i]
+                        if fluor[aRow, i] > maxFluor:
+                            maxFluor = fluor[aRow, i]
     else:
-        for j in range(0, fluor.shape[0]):
-            if tarGroup == vecTarget[j] and not skipsample[j]:
-                if not noplateau[j]:
+        for aRow in range(0, fluor.shape[0]):
+            if tarGroup == vecTarget[aRow] and not vecSkipSample[aRow]:
+                if not vecNoPlateau[aRow]:
                     cnt += 1
-                    meanmax += fluor[j, fstop[j] - 1]
+                    meanMax += fluor[aRow, stopCyc[aRow] - 1]
                 else:
                     for i in range(0, fluor.shape[1]):
-                        if fluor[j, i] > maxfluor:
-                            maxfluor = fluor[j, i]
+                        if fluor[aRow, i] > maxFluor:
+                            maxFluor = fluor[aRow, i]
 
     if cnt > 0:
-        meanmax = meanmax / cnt
+        meanMax = meanMax / cnt
     else:
-        meanmax = maxfluor
-    return meanmax
+        meanMax = maxFluor
+    return meanMax
 
 
-def _GetMaxFluStart(fluor, tarGroup, vecTarget, fstop, fstart, skipsample, noplateau):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_maxStartFluor(fluor, tarGroup, vecTarget, startCyc, vecSkipSample):
+    """Return the maximum of the start fluorescence
 
     Args:
         fluor: The array with the fluorescence values
         tarGroup: The target number
         vecTarget: The vector with the targets numbers
-        indMeanX: The vector with the x mean position
-        indMeanY: The vector with the y mean position
-        pcrEff: The array with the PCR efficiencies
-        nnulls: The array with the calculated nnulls
-        ninclu: The array with the calculated ninclu
-        correl: The array with the calculated correl
-        upWin: The upper limit of the window
-        lowWin: The lower limit of the window
-        vecNoAmplification: True if there is a amplification error
-        vecBaselineError: True if there is a baseline error
+        startCyc: The vector with the start cycle of the log lin phase
+        vecSkipSample: Skip the sample
 
     Returns:
-        An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
+        The maxStart fluorescence.
     """
-    maxstart = -10.0
+    maxStart = -10.0
     if tarGroup is None:
-        for j in range(0, fluor.shape[0]):
-            if not skipsample[j]:
-                if fluor[j, fstart[j] - 1] > maxstart:
-                    maxstart = fluor[j, fstart[j] - 1]
+        for aRow in range(0, fluor.shape[0]):
+            if not vecSkipSample[aRow]:
+                if fluor[aRow, startCyc[aRow] - 1] > maxStart:
+                    maxStart = fluor[aRow, startCyc[aRow] - 1]
     else:
-        for j in range(0, fluor.shape[0]):
-            if tarGroup == vecTarget[j] and not skipsample[j]:
-                if fluor[j, fstart[j] - 1] > maxstart:
-                    maxstart = fluor[j, fstart[j] - 1]
+        for aRow in range(0, fluor.shape[0]):
+            if tarGroup == vecTarget[aRow] and not vecSkipSample[aRow]:
+                if fluor[aRow, startCyc[aRow] - 1] > maxStart:
+                    maxStart = fluor[aRow, startCyc[aRow] - 1]
 
-    return 0.999 * maxstart
+    return 0.999 * maxStart
 
 
 def _lrp_setLogWin(tarGroup, upLimIn, foldWidth, upWin, lowWin, maxFluorTotal, minFluorTotal):
@@ -1159,178 +1143,219 @@ def _lrp_logStepStop(fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPl
     return step
 
 
-def _Set_WoL(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_setWoL(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl,
+                upWin, lowWin, maxFluorTotal, minFluorTotal, stopCyc, startCyc, threshold,
+                vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortLogLin, vecIsUsedInWoL):
+    """Find the window with the lowest variation in PCR efficiency and calculate its values.
 
     Args:
         fluor: The array with the fluorescence values
         tarGroup: The target number
         vecTarget: The vector with the targets numbers
+        pointsInWoL: The number of points in the window
         indMeanX: The vector with the x mean position
         indMeanY: The vector with the y mean position
         pcrEff: The array with the PCR efficiencies
-        nnulls: The array with the calculated nnulls
-        ninclu: The array with the calculated ninclu
+        nNulls: The array with the calculated nNulls
+        nInclu: The array with the calculated nInclu
         correl: The array with the calculated correl
         upWin: The upper limit of the window
         lowWin: The lower limit of the window
+        maxFluorTotal: The maximum fluorescence over all rows
+        minFluorTotal: The minimum fluorescence over all rows
+        stopCyc: The vector with the stop cycle of the log lin phase
+        startCyc: The vector with the start cycle of the log lin phase
+        threshold: The threshold fluorescence
         vecNoAmplification: True if there is a amplification error
         vecBaselineError: True if there is a baseline error
+        vecSkipSample: Skip the sample
+        vecNoPlateau: True if there is no plateau
+        vecShortLogLin: True indicates a short log lin phase
+        vecIsUsedInWoL: True if used in the WoL
 
     Returns:
-        An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
+        The values indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL.
     """
-    skipgroup = False
-    stepsize = 0.2  # was 0.5, smaller steps help in finding WoL
-    vareffar = np.zeros(60, dtype=np.float64)
-    uplimar = np.zeros(60, dtype=np.float64)
-    foldwidthar = np.zeros(60, dtype=np.float64)
+    skipGroup = False
+    stepSize = 0.2  # was 0.5, smaller steps help in finding WoL
+    # Keep 60 calculated results
+    memVarEff = np.zeros(60, dtype=np.float64)
+    memUpLim = np.zeros(60, dtype=np.float64)
+    memFoldWidth = np.zeros(60, dtype=np.float64)
 
-    maxlim = _GetMeanFluStop(fluor, tarGroup, vecTarget, fstop, vecSkipSample, vecNoPlateau)
-    if maxlim > 0.0:
-        maxlim = np.log10(maxlim)
+    maxFluorLim = _lrp_meanStopFluor(fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPlateau)
+    if maxFluorLim > 0.0:
+        maxFluorLim = np.log10(maxFluorLim)
     else:
-        skipgroup = True
-    minlim = _GetMaxFluStart(fluor, tarGroup, vecTarget, fstop, fstart, vecSkipSample, vecNoPlateau)
-    if minlim > 0.0:
-        minlim = np.log10(minlim)
+        skipGroup = True
+    minFluorLim = _lrp_maxStartFluor(fluor, tarGroup, vecTarget, startCyc, vecSkipSample)
+    if minFluorLim > 0.0:
+        minFluorLim = np.log10(minFluorLim)
     else:
-        skipgroup = True
+        skipGroup = True
 
-    thismeaneff = 1.0
-    if not skipgroup:
-        foldwidth = PointsInWoL * _lrp_logStepStop(fluor, tarGroup, vecTarget, fstop, vecSkipSample, vecNoPlateau)
-        upwin, lowwin = _lrp_setLogWin(tarGroup, maxlim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
+    checkMeanEff = 1.0
+    if not skipGroup:
+        foldWidth = pointsInWoL * _lrp_logStepStop(fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPlateau)
+        upWin, lowWin = _lrp_setLogWin(tarGroup, maxFluorLim, foldWidth, upWin, lowWin, maxFluorTotal, minFluorTotal)
 
-        tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                                         vecNoAmplification, vecBaselineError)
-        [thismeaneff, thisvareff] = _lrp_meanPcrEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau, vecShortloglin)
-        if thismeaneff < 1.001:
-            skipgroup = True
+        _unused, _unused2, checkPcrEff, _unused3, _unused4, _unused5 = _lrp_allParamInWindow(fluor, tarGroup, vecTarget,
+                                                                                             indMeanX, indMeanY, pcrEff,
+                                                                                             nNulls, nInclu, correl,
+                                                                                             upWin, lowWin,
+                                                                                             vecNoAmplification,
+                                                                                             vecBaselineError)
+        [checkMeanEff, _unused] = _lrp_meanPcrEff(tarGroup, vecTarget, checkPcrEff,
+                                                  vecSkipSample, vecNoPlateau, vecShortLogLin)
+        if checkMeanEff < 1.001:
+            skipGroup = True
 
-    if not skipgroup:
-        foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
-        k = -1
-        maxvar = 0.0
-        maxvarstep = -1
-        lastuplim = 2 + maxlim
+    if not skipGroup:
+        foldWidth = np.log10(np.power(checkMeanEff, pointsInWoL))
+        counter = -1
+        maxVarEff = 0.0
+        maxVarEffStep = -1
+        lastUpLim = 2 + maxFluorLim
         while True:
-            k += 1
-            step = np.log10(thismeaneff)
-            uplim = maxlim - k * stepsize * step
-            if uplim < lastuplim:
-                upwin, lowwin = _lrp_setLogWin(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
-                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                                                 vecNoAmplification, vecBaselineError)
-                thismeaneff, thisvareff = _lrp_meanPcrEff(tarGroup, vecTarget, tpcreff, vecSkipSample,
-                                                          vecNoPlateau, vecShortloglin)
-                foldwidth = np.log10(np.power(thismeaneff, PointsInWoL))
-                if foldwidth < 0.5:
-                    foldwidth = 0.5  # to avoid width = 0 above fstop
-                upwin, lowwin = _lrp_setLogWin(tarGroup, uplim, foldwidth, upwin, lowwin, yaxismax, yaxismin)
-
-                tindMeanX, tindMeanY, tpcreff, tnnulls, tninclu, tcorrel = _lrp_allParamInWindow(fluor, tarGroup, vecTarget, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin,
-                                                                                                 vecNoAmplification, vecBaselineError)
-                thismeaneff, thisvareff = _lrp_meanPcrEff(tarGroup, vecTarget, tpcreff, vecSkipSample, vecNoPlateau,
-                                                          vecShortloglin)
-                if thisvareff > 0.0:
-                    vareffar[k] = np.sqrt(thisvareff) / thismeaneff
+            counter += 1
+            step = np.log10(checkMeanEff)
+            upLim = maxFluorLim - counter * stepSize * step
+            if upLim < lastUpLim:
+                upWin, lowWin = _lrp_setLogWin(tarGroup, upLim, foldWidth, upWin, lowWin, maxFluorTotal, minFluorTotal)
+                _unused, _unused2, checkPcrEff, _unused3, _unused4, _unused5 = _lrp_allParamInWindow(fluor, tarGroup,
+                                                                                                     vecTarget, indMeanX,
+                                                                                                     indMeanY, pcrEff,
+                                                                                                     nNulls, nInclu,
+                                                                                                     correl,
+                                                                                                     upWin, lowWin,
+                                                                                                     vecNoAmplification,
+                                                                                                     vecBaselineError)
+                [checkMeanEff, _unused] = _lrp_meanPcrEff(tarGroup, vecTarget, checkPcrEff,
+                                                          vecSkipSample, vecNoPlateau, vecShortLogLin)
+                foldWidth = np.log10(np.power(checkMeanEff, pointsInWoL))
+                if foldWidth < 0.5:
+                    foldWidth = 0.5  # to avoid width = 0 above stopCyc
+                upWin, lowWin = _lrp_setLogWin(tarGroup, upLim, foldWidth, upWin, lowWin, maxFluorTotal, minFluorTotal)
+                _unused, _unused2, checkPcrEff, _unused3, _unused4, _unused5 = _lrp_allParamInWindow(fluor, tarGroup,
+                                                                                                     vecTarget, indMeanX,
+                                                                                                     indMeanY, pcrEff,
+                                                                                                     nNulls, nInclu,
+                                                                                                     correl,
+                                                                                                     upWin, lowWin,
+                                                                                                     vecNoAmplification,
+                                                                                                     vecBaselineError)
+                [checkMeanEff, checkVarEff] = _lrp_meanPcrEff(tarGroup, vecTarget, checkPcrEff,
+                                                              vecSkipSample, vecNoPlateau, vecShortLogLin)
+                if checkVarEff > 0.0:
+                    memVarEff[counter] = np.sqrt(checkVarEff) / checkMeanEff
                 else:
-                    vareffar[k] = 0.0
-                if thisvareff > maxvar:
-                    maxvar = thisvareff
-                    maxvarstep = k
-                uplimar[k] = uplim
-                foldwidthar[k] = foldwidth
-                lastuplim = uplim
+                    memVarEff[counter] = 0.0
+                if checkVarEff > maxVarEff:
+                    maxVarEff = checkVarEff
+                    maxVarEffStep = counter
+                memUpLim[counter] = upLim
+                memFoldWidth[counter] = foldWidth
+                lastUpLim = upLim
             else:
-                thisvareff = 0.0
+                checkVarEff = 0.0
 
-            if k >= 60 or uplim - foldwidth / (PointsInWoL / 2.0) < minlim or thisvareff < 0.00000000001:
+            if counter >= 60 or upLim - foldWidth / (pointsInWoL / 2.0) < minFluorLim or checkVarEff < 0.00000000001:
                 break
 
         # corrections: start
-        if thisvareff < 0.00000000001:
-            k -= 1  # remove window with vareff was 0.0
-        i = -1
-        while True:
-            i += 1
-            if vareffar[i] < 0.000001:
-                break
-        i -= 1  # i = number of valid steps
+        if checkVarEff < 0.00000000001:
+            counter -= 1  # remove window with vareff was 0.0
 
-        minsmooth = vareffar[0]
-        minstep = 0  # default top window
+        validSteps = -1
+        while True:
+            validSteps += 1
+            if memVarEff[validSteps] < 0.000001:
+                break
+        validSteps -= 1  # i = number of valid steps
+
+        minSmooth = memVarEff[0]
+        minStep = 0  # default top window
 
         # next 3 if conditions on i: added to correct smoothing
-        if i == 0:
-            minstep = 0
+        if validSteps == 0:
+            minStep = 0
 
-        if 0 < i < 4:
+        if 0 < validSteps < 4:
             n = -1
             while True:
                 n += 1
-                if vareffar[n] < minsmooth:
-                    minsmooth = vareffar[n]
-                    minstep = n
-                if n == i:
+                if memVarEff[n] < minSmooth:
+                    minSmooth = memVarEff[n]
+                    minStep = n
+                if n == validSteps:
                     break
-        if i >= 4:
+        if validSteps >= 4:
             n = 0
             while True:
                 n += 1
-                smoothvar = 0.0
+                smoothVar = 0.0
                 for m in range(n - 1, n + 2):
-                    smoothvar = smoothvar + vareffar[m]
-                smoothvar = smoothvar / 3.0
-                if smoothvar < minsmooth:
-                    minsmooth = smoothvar
-                    minstep = n
+                    smoothVar = smoothVar + memVarEff[m]
+                smoothVar = smoothVar / 3.0
+                if smoothVar < minSmooth:
+                    minSmooth = smoothVar
+                    minStep = n
 
-                if n >= i - 1 or n > maxvarstep:
+                if n >= validSteps - 1 or n > maxVarEffStep:
                     break
         # corrections: stop
 
         # Calculate the final values again
-        upwin, lowwin = _lrp_setLogWin(tarGroup, uplimar[minstep], foldwidthar[minstep], upwin, lowwin, yaxismax, yaxismin)
+        upWin, lowWin = _lrp_setLogWin(tarGroup, memUpLim[minStep], memFoldWidth[minStep],
+                                       upWin, lowWin, maxFluorTotal, minFluorTotal)
         if tarGroup is None:
-            threshold[0] = (0.5 * np.round(1000 * np.power(10, upwin[0])) / 1000)
+            threshold[0] = (0.5 * np.round(1000 * np.power(10, upWin[0])) / 1000)
         else:
-            threshold[tarGroup] = (0.5 * np.round(1000 * np.power(10, upwin[tarGroup])) / 1000)
+            threshold[tarGroup] = (0.5 * np.round(1000 * np.power(10, upWin[tarGroup])) / 1000)
 
-        indMeanX, indMeanY, pcreff, nnulls, ninclu, correl = _lrp_allParamInWindow(fluor, tarGroup, vecTarget,
-                                                                                   indMeanX, indMeanY, pcreff, nnulls,
-                                                                                   ninclu, correl, upwin, lowwin,
+        indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl = _lrp_allParamInWindow(fluor, tarGroup, vecTarget,
+                                                                                   indMeanX, indMeanY, pcrEff, nNulls,
+                                                                                   nInclu, correl, upWin, lowWin,
                                                                                    vecNoAmplification, vecBaselineError)
-        for j in range(0, len(pcreff)):
-            if tarGroup is None or tarGroup == vecTarget[j]:
-                if (not (vecSkipSample[j] or vecNoPlateau[j] or vecShortloglin[j])) and pcreff[j] > 1.0:
-                    vecIsUsedInWoL[j] = True
+        for aRow in range(0, len(pcrEff)):
+            if tarGroup is None or tarGroup == vecTarget[aRow]:
+                if (not (vecSkipSample[aRow] or vecNoPlateau[aRow] or vecShortLogLin[aRow])) and pcrEff[aRow] > 1.0:
+                    vecIsUsedInWoL[aRow] = True
                 else:
-                    vecIsUsedInWoL[j] = False
+                    vecIsUsedInWoL[aRow] = False
 
-    return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL
+    return indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL
 
 
-def _AssignNoPlateau(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY, pcreff, nnulls, ninclu, correl,
-                     upwin, lowwin, yaxismax, yaxismin, fstop, fstart, threshold, vecNoAmplification, vecBaselineError,
-                     vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL):
+def _AssignNoPlateau(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl,
+                     upWin, lowWin, maxFluorTotal, minFluorTotal, stopCyc, startCyc, threshold,
+                     vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortLogLin, vecIsUsedInWoL):
     """A function which calculates the mean of the max fluor in the last ten cycles.
 
     Args:
         fluor: The array with the fluorescence values
         tarGroup: The target number
         vecTarget: The vector with the targets numbers
+        pointsInWoL: The number of points in the window
         indMeanX: The vector with the x mean position
         indMeanY: The vector with the y mean position
         pcrEff: The array with the PCR efficiencies
-        nnulls: The array with the calculated nnulls
-        ninclu: The array with the calculated ninclu
+        nNulls: The array with the calculated nNulls
+        nInclu: The array with the calculated nInclu
         correl: The array with the calculated correl
         upWin: The upper limit of the window
         lowWin: The lower limit of the window
+        maxFluorTotal: The maximum fluorescence over all rows
+        minFluorTotal: The minimum fluorescence over all rows
+        stopCyc: The vector with the stop cycle of the log lin phase
+        startCyc: The vector with the start cycle of the log lin phase
+        threshold: The threshold fluorescence
         vecNoAmplification: True if there is a amplification error
         vecBaselineError: True if there is a baseline error
+        vecSkipSample: Skip the sample
+        vecNoPlateau: True if there is no plateau
+        vecShortLogLin: True indicates a short log lin phase
+        vecIsUsedInWoL: True if used in the WoL
 
     Returns:
         An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
@@ -1340,23 +1365,23 @@ def _AssignNoPlateau(fluor, tarGroup, vecTarget, PointsInWoL, indMeanX, indMeanY
         if (tarGroup is None or tarGroup == vecTarget[j]) and not (vecNoAmplification[j] or
                                                                    vecBaselineError[j] or
                                                                    vecNoPlateau[j]):
-            ExpectedFluor = nnulls[j] * np.power(pcreff[j], fluor.shape[1])
-            if ExpectedFluor / fluor[j, fluor.shape[1] - 1] < 5:
+            expectedFluor = nNulls[j] * np.power(pcrEff[j], fluor.shape[1])
+            if expectedFluor / fluor[j, fluor.shape[1] - 1] < 5:
                 NewNoPlateau = True
                 vecNoPlateau[j] = True
 
     if NewNoPlateau:
-        indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL = _Set_WoL(fluor, tarGroup, vecTarget,
-                                                                                                                PointsInWoL, indMeanX, indMeanY, pcreff,
-                                                                                                                nnulls, ninclu, correl, upwin,
-                                                                                                                lowwin, yaxismax, yaxismin,
-                                                                                                                fstop, fstart, threshold,
-                                                                                                                vecNoAmplification,
-                                                                                                                vecBaselineError,
-                                                                                                                vecSkipSample, vecNoPlateau,
-                                                                                                                vecShortloglin, vecIsUsedInWoL)
+        indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(fluor, tarGroup, vecTarget,
+                                                                                                                   pointsInWoL, indMeanX, indMeanY, pcrEff,
+                                                                                                                   nNulls, nInclu, correl, upWin,
+                                                                                                                   lowWin, maxFluorTotal, minFluorTotal,
+                                                                                                                   stopCyc, startCyc, threshold,
+                                                                                                                   vecNoAmplification,
+                                                                                                                   vecBaselineError,
+                                                                                                                   vecSkipSample, vecNoPlateau,
+                                                                                                                   vecShortLogLin, vecIsUsedInWoL)
 
-    return indMeanX, indMeanY, pcreff, nnulls, ninclu, correl, upwin, lowwin, threshold, vecIsUsedInWoL, vecNoPlateau
+    return indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau
 
 
 def _numpyTwoAxisSave(var, fileName):
@@ -1500,7 +1525,7 @@ class Rdml:
 
         elem = _get_or_create_subelement(self._node, "dateUpdated", self.xmlkeys())
         elem.text = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-        data = ET.tostring(self._rdmlData, pretty_print=True)
+        data = et.tostring(self._rdmlData, pretty_print=True)
         _writeFileInRDML(filename, 'rdml_data.xml', data)
 
     def loadXMLString(self, data):
@@ -1519,9 +1544,9 @@ class Rdml:
         data = re.sub(r"<\W*!ENTITY[^>]+>", "", data)
         data = re.sub(r"!ENTITY", "", data)
         try:
-            self._rdmlData = ET.ElementTree(ET.fromstring(data.encode('utf-8')))
+            self._rdmlData = et.ElementTree(et.fromstring(data.encode('utf-8')))
             # Change to bytecode and defused?
-        except ET.XMLSyntaxError:
+        except et.XMLSyntaxError:
             raise RdmlError('XML load error, not a valid RDML or XML file.')
         self._node = self._rdmlData.getroot()
         if self._node.tag.replace("{http://www.rdml.org}", "") != 'rdml':
@@ -1555,19 +1580,19 @@ class Rdml:
         version = vd.version()
         rdmlws = os.path.dirname(os.path.abspath(__file__))
         if version == '1.0':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
         elif version == '1.1':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             notes += 'RDML version:\tFalse\tUnknown schema version' + version + '\n'
             return notes
         notes += "RDML version:\tTrue\t" + version + "\n"
 
-        xmlschema = ET.XMLSchema(xmlschema_doc)
+        xmlschema = et.XMLSchema(xmlschema_doc)
         result = xmlschema.validate(vd._rdmlData)
         if result:
             notes += 'Schema validation result:\tTrue\tRDML file is valid.\n'
@@ -1593,23 +1618,23 @@ class Rdml:
         if filename:
             try:
                 vd = Rdml(filename)
-            except RdmlError as err:
+            except RdmlError:
                 return False
         else:
             vd = self
         version = vd.version()
         rdmlws = os.path.dirname(os.path.abspath(__file__))
         if version == '1.0':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
         elif version == '1.1':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
-            xmlschema_doc = ET.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             return False
-        xmlschema = ET.XMLSchema(xmlschema_doc)
+        xmlschema = et.XMLSchema(xmlschema_doc)
         result = xmlschema.validate(vd._rdmlData)
         if result:
             return True
@@ -1714,7 +1739,7 @@ class Rdml:
             ret.append(hint)
         for dkey in all_dyes.keys():
             if _check_unique_id(self._node, "dye", dkey):
-                new_node = ET.Element("dye", id=dkey)
+                new_node = et.Element("dye", id=dkey)
                 place = _get_tag_pos(self._node, "dye", self.xmlkeys(), 999999)
                 self._node.insert(place, new_node)
 
@@ -1773,20 +1798,20 @@ class Rdml:
                     exp3 = _get_all_children(node2, "react")
                     for node3 in exp3:
                         old_id = node3.get('id')
-                        old_letter = ord(re.sub("\d", "", old_id).upper()) - ord("A")
-                        old_nr = int(re.sub("\D", "", old_id))
+                        old_letter = ord(re.sub(r"\d", "", old_id).upper()) - ord("A")
+                        old_nr = int(re.sub(r"\D", "", old_id))
                         newId = old_nr + old_letter * int(columns)
                         node3.attrib['id'] = str(newId)
                 if old_format == "3072-well plate; A1a1-D12h8":
                     exp3 = _get_all_children(node2, "react")
                     for node3 in exp3:
                         old_id = node3.get('id')
-                        old_left = re.sub("\D\d+$", "", old_id)
-                        old_left_letter = ord(re.sub("\d", "", old_left).upper()) - ord("A")
-                        old_left_nr = int(re.sub("\D", "", old_left)) - 1
-                        old_right = re.sub("^\D\d+", "", old_id)
-                        old_right_letter = ord(re.sub("\d", "", old_right).upper()) - ord("A")
-                        old_right_nr = int(re.sub("\D", "", old_right))
+                        old_left = re.sub(r"\D\d+$", "", old_id)
+                        old_left_letter = ord(re.sub(r"\d", "", old_left).upper()) - ord("A")
+                        old_left_nr = int(re.sub(r"\D", "", old_left)) - 1
+                        old_right = re.sub(r"^\D\d+", "", old_id)
+                        old_right_letter = ord(re.sub(r"\d", "", old_right).upper()) - ord("A")
+                        old_right_nr = int(re.sub(r"\D", "", old_right))
                         newId = old_left_nr * 8 + old_right_nr + old_left_letter * 768 + old_right_letter * 96
                         node3.attrib['id'] = str(newId)
         self._node.attrib['version'] = "1.1"
@@ -2316,7 +2341,7 @@ class Rdml:
             Nothing, changes self.
         """
 
-        new_node = ET.Element("id")
+        new_node = et.Element("id")
         _add_new_subelement(new_node, "id", "publisher", publisher, False)
         _add_new_subelement(new_node, "id", "serialNumber", serialNumber, False)
         _add_new_subelement(new_node, "id", "MD5Hash", MD5Hash, True)
@@ -2635,7 +2660,7 @@ class Rdml:
         if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
             raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
         new_node = _create_new_element(self._node, "sample", id)
-        ET.SubElement(new_node, "type").text = type
+        et.SubElement(new_node, "type").text = type
         ver = self._node.get('version')
     #    if ver == "1.3":
     #        if targetId is not None or not targetId == "":
@@ -2794,9 +2819,9 @@ class Rdml:
         """
 
         new_node = _create_new_element(self._node, "thermalCyclingConditions", id)
-        step = ET.SubElement(new_node, "step")
-        ET.SubElement(step, "nr").text = "1"
-        ET.SubElement(step, "lidOpen")
+        step = et.SubElement(new_node, "step")
+        et.SubElement(step, "nr").text = "1"
+        et.SubElement(step, "lidOpen")
         place = _get_tag_pos(self._node, "thermalCyclingConditions", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
 
@@ -3867,7 +3892,7 @@ class Sample:
 
         if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
             raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
-        new_node = ET.Element("type")
+        new_node = et.Element("type")
         new_node.text = type
         par = self._node.getparent()
         ver = par.get('version')
@@ -3978,7 +4003,7 @@ class Sample:
 
         if name is None and id is None:
             raise RdmlError('Either name or id is required to create a xRef.')
-        new_node = ET.Element("xRef")
+        new_node = et.Element("xRef")
         _add_new_subelement(new_node, "xRef", "name", name, True)
         _add_new_subelement(new_node, "xRef", "id", id, True)
         place = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
@@ -4081,7 +4106,7 @@ class Sample:
             return
         if property is None or value is None:
             raise RdmlError('Property and value are required to create a annotation.')
-        new_node = ET.Element("annotation")
+        new_node = et.Element("annotation")
         _add_new_subelement(new_node, "annotation", "property", property, True)
         _add_new_subelement(new_node, "annotation", "value", value, True)
         place = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
@@ -4681,7 +4706,7 @@ class Target:
 
         if name is None and id is None:
             raise RdmlError('Either name or id is required to create a xRef.')
-        new_node = ET.Element("xRef")
+        new_node = et.Element("xRef")
         _add_new_subelement(new_node, "xRef", "name", name, True)
         _add_new_subelement(new_node, "xRef", "id", id, True)
         place = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
@@ -5162,10 +5187,10 @@ class Therm_cyc_cons:
             raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
         nr = int(nr)
         count = _get_number_of_children(self._node, "step")
-        new_node = ET.Element("step")
+        new_node = et.Element("step")
         xml_temp_step = ["temperature", "duration", "temperatureChange", "durationChange", "measure", "ramp"]
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
-        subel = ET.SubElement(new_node, "temperature")
+        subel = et.SubElement(new_node, "temperature")
         _change_subelement(subel, "temperature", xml_temp_step, temperature, False, "float")
         _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
         _change_subelement(subel, "temperatureChange", xml_temp_step, temperatureChange, True, "float")
@@ -5201,11 +5226,11 @@ class Therm_cyc_cons:
             raise RdmlError('Unknown or unsupported step measure value: "' + measure + '".')
         nr = int(nr)
         count = _get_number_of_children(self._node, "step")
-        new_node = ET.Element("step")
+        new_node = et.Element("step")
         xml_temp_step = ["highTemperature", "lowTemperature", "duration", "temperatureChange",
                          "durationChange", "measure", "ramp"]
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
-        subel = ET.SubElement(new_node, "gradient")
+        subel = et.SubElement(new_node, "gradient")
         _change_subelement(subel, "highTemperature", xml_temp_step, highTemperature, False, "float")
         _change_subelement(subel, "lowTemperature", xml_temp_step, lowTemperature, False, "float")
         _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
@@ -5233,10 +5258,10 @@ class Therm_cyc_cons:
 
         nr = int(nr)
         count = _get_number_of_children(self._node, "step")
-        new_node = ET.Element("step")
+        new_node = et.Element("step")
         xml_temp_step = ["goto", "repeat"]
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
-        subel = ET.SubElement(new_node, "loop")
+        subel = et.SubElement(new_node, "loop")
         _change_subelement(subel, "goto", xml_temp_step, goto, False, "posint")
         _change_subelement(subel, "repeat", xml_temp_step, repeat, False, "posint")
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
@@ -5258,10 +5283,10 @@ class Therm_cyc_cons:
 
         nr = int(nr)
         count = _get_number_of_children(self._node, "step")
-        new_node = ET.Element("step")
+        new_node = et.Element("step")
         xml_temp_step = ["temperature"]
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
-        subel = ET.SubElement(new_node, "pause")
+        subel = et.SubElement(new_node, "pause")
         _change_subelement(subel, "temperature", xml_temp_step, temperature, False, "float")
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
@@ -5281,9 +5306,9 @@ class Therm_cyc_cons:
 
         nr = int(nr)
         count = _get_number_of_children(self._node, "step")
-        new_node = ET.Element("step")
+        new_node = et.Element("step")
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
-        ET.SubElement(new_node, "lidOpen")
+        et.SubElement(new_node, "lidOpen")
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
         # Now move step at final position
@@ -6466,11 +6491,11 @@ class Run:
                                "\" in RDML file and sample \"" + sLin[1] + "\" in tab file.\n"
                     break
             if react is None:
-                new_node = ET.Element("react", id=wellPos)
+                new_node = et.Element("react", id=wellPos)
                 place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
                 self._node.insert(place, new_node)
                 react = new_node
-                new_node = ET.Element("sample", id=sLin[1])
+                new_node = et.Element("sample", id=sLin[1])
                 react.insert(0, new_node)
 
             exp = _get_all_children(react, "data")
@@ -6480,11 +6505,11 @@ class Run:
                     data = node
                     break
             if data is None:
-                new_node = ET.Element("data")
+                new_node = et.Element("data")
                 place = _get_tag_pos(react, "data", ["sample", "data", "partitions"], 9999999)
                 react.insert(place, new_node)
                 data = new_node
-                new_node = ET.Element("tar", id=sLin[3])
+                new_node = et.Element("tar", id=sLin[3])
                 place = _get_tag_pos(data, "tar",
                                      _getXMLDataType(),
                                      9999999)
@@ -6498,16 +6523,16 @@ class Run:
                 else:
                     colCount = 6
                     for col in sLin[6:]:
-                        new_node = ET.Element("adp")
+                        new_node = et.Element("adp")
                         place = _get_tag_pos(data, "adp",
                                              _getXMLDataType(),
                                              9999999)
                         data.insert(place, new_node)
-                        new_sub = ET.Element("cyc")
+                        new_sub = et.Element("cyc")
                         new_sub.text = head[colCount]
                         place = _get_tag_pos(new_node, "cyc", ["cyc", "tmp", "fluor"], 9999999)
                         new_node.insert(place, new_sub)
-                        new_sub = ET.Element("fluor")
+                        new_sub = et.Element("fluor")
                         new_sub.text = col
                         place = _get_tag_pos(new_node, "fluor", ["cyc", "tmp", "fluor"], 9999999)
                         new_node.insert(place, new_sub)
@@ -6520,16 +6545,16 @@ class Run:
                 else:
                     colCount = 6
                     for col in sLin[6:]:
-                        new_node = ET.Element("mdp")
+                        new_node = et.Element("mdp")
                         place = _get_tag_pos(data, "mdp",
                                              _getXMLDataType(),
                                              9999999)
                         data.insert(place, new_node)
-                        new_sub = ET.Element("tmp")
+                        new_sub = et.Element("tmp")
                         new_sub.text = head[colCount]
                         place = _get_tag_pos(new_node, "tmp", ["tmp", "fluor"], 9999999)
                         new_node.insert(place, new_sub)
-                        new_sub = ET.Element("fluor")
+                        new_sub = et.Element("fluor")
                         new_sub.text = col
                         place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
                         new_node.insert(place, new_sub)
@@ -6780,20 +6805,20 @@ class Run:
                                        "\" in RDML file and sample \"" + sLin[posSample] + "\" in tab file.\n"
                             break
                     if react is None:
-                        new_node = ET.Element("react", id=wellPos)
+                        new_node = et.Element("react", id=wellPos)
                         place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
                         self._node.insert(place, new_node)
                         react = new_node
-                        new_node = ET.Element("sample", id=sLin[posSample])
+                        new_node = et.Element("sample", id=sLin[posSample])
                         react.insert(0, new_node)
 
                     partit = _get_first_child(react, "partitions")
                     if partit is None:
-                        new_node = ET.Element("partitions")
+                        new_node = et.Element("partitions")
                         place = _get_tag_pos(react, "partitions", ["sample", "data", "partitions"], 9999999)
                         react.insert(place, new_node)
                         partit = new_node
-                        new_node = ET.Element("volume")
+                        new_node = et.Element("volume")
                         if fileformat == "RDML":
                             new_node.text = sLin[posVolume]
                         elif fileformat == "Bio-Rad":
@@ -6843,25 +6868,25 @@ class Run:
                                     break
 
                             if data is None:
-                                new_node = ET.Element("data")
+                                new_node = et.Element("data")
                                 place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                                 partit.insert(place, new_node)
                                 data = new_node
-                                new_node = ET.Element("tar", id=stillaTarget)
+                                new_node = et.Element("tar", id=stillaTarget)
                                 place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 data.insert(place, new_node)
 
-                            new_node = ET.Element("pos")
+                            new_node = et.Element("pos")
                             new_node.text = stillaPos
                             place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
 
-                            new_node = ET.Element("neg")
+                            new_node = et.Element("neg")
                             new_node.text = stillaNeg
                             place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
 
-                            new_node = ET.Element("conc")
+                            new_node = et.Element("conc")
                             new_node.text = stillaConc
                             place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
@@ -6873,38 +6898,38 @@ class Run:
                                 data = node
                                 break
                         if data is None:
-                            new_node = ET.Element("data")
+                            new_node = et.Element("data")
                             place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                             partit.insert(place, new_node)
                             data = new_node
-                            new_node = ET.Element("tar", id=sLin[posTarget])
+                            new_node = et.Element("tar", id=sLin[posTarget])
                             place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
 
-                        new_node = ET.Element("pos")
+                        new_node = et.Element("pos")
                         new_node.text = sLin[posPositives]
                         place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                         data.insert(place, new_node)
 
-                        new_node = ET.Element("neg")
+                        new_node = et.Element("neg")
                         new_node.text = sLin[posNegatives]
                         place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                         data.insert(place, new_node)
 
                         if posUndefined != -1 and sLin[posUndefined] != "":
-                            new_node = ET.Element("undef")
+                            new_node = et.Element("undef")
                             new_node.text = sLin[posUndefined]
                             place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
 
                         if posExcluded != -1 and sLin[posExcluded] != "":
-                            new_node = ET.Element("excl")
+                            new_node = et.Element("excl")
                             new_node.text = sLin[posExcluded]
                             place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
 
                         if posCopConc != -1:
-                            new_node = ET.Element("conc")
+                            new_node = et.Element("conc")
                             if int(sLin[posPositives]) == 0:
                                 new_node.text = "0"
                             else:
@@ -6978,9 +7003,9 @@ class Run:
             dataCh3 = None
 
             wellPos = well
-            if re.search("\D\d+", well):
-                old_letter = ord(re.sub("\d", "", well).upper()) - ord("A")
-                old_nr = int(re.sub("\D", "", well))
+            if re.search(r"\D\d+", well):
+                old_letter = ord(re.sub(r"\d", "", well).upper()) - ord("A")
+                old_nr = int(re.sub(r"\D", "", well))
                 newId = old_nr + old_letter * int(self["pcrFormat_columns"])
                 wellPos = str(newId)
 
@@ -6996,20 +7021,20 @@ class Run:
                     rootEl.new_sample(sampleName, "unkn")
                     samTypeLookup[sampleName] = "unkn"
                     ret += "Created sample \"" + sampleName + "\" with type \"" + "unkn" + "\"\n"
-                new_node = ET.Element("react", id=wellPos)
+                new_node = et.Element("react", id=wellPos)
                 place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
                 self._node.insert(place, new_node)
                 react = new_node
-                new_node = ET.Element("sample", id=sampleName)
+                new_node = et.Element("sample", id=sampleName)
                 react.insert(0, new_node)
 
             partit = _get_first_child(react, "partitions")
             if partit is None:
-                new_node = ET.Element("partitions")
+                new_node = et.Element("partitions")
                 place = _get_tag_pos(react, "partitions", ["sample", "data", "partitions"], 9999999)
                 react.insert(place, new_node)
                 partit = new_node
-                new_node = ET.Element("volume")
+                new_node = et.Element("volume")
                 if fileformat == "RDML":
                     new_node.text = "0.7"
                     warnVolume = "No information on partition volume given, used 0.7."
@@ -7047,7 +7072,7 @@ class Run:
                     delElem = _get_first_child(partit, "endPtTable")
                     if delElem is not None:
                         partit.remove(delElem)
-                    new_node = ET.Element("endPtTable")
+                    new_node = et.Element("endPtTable")
                     new_node.text = re.sub(r'^partitions/', '', finalFileName)
                     place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
                     partit.insert(place, new_node)
@@ -7094,24 +7119,24 @@ class Run:
                                 if forId is not None and forId.attrib['id'] == targetName:
                                     data = node
                             if data is None:
-                                new_node = ET.Element("data")
+                                new_node = et.Element("data")
                                 place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                                 partit.insert(place, new_node)
                                 data = new_node
-                                new_node = ET.Element("tar", id=targetName)
+                                new_node = et.Element("tar", id=targetName)
                                 place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 data.insert(place, new_node)
                             delElem = _get_first_child(partit, "pos")
                             if delElem is not None:
                                 data.remove(delElem)
-                            new_node = ET.Element("pos")
+                            new_node = et.Element("pos")
                             new_node.text = str(cPos)
                             place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
                             delElem = _get_first_child(partit, "neg")
                             if delElem is not None:
                                 data.remove(delElem)
-                            new_node = ET.Element("neg")
+                            new_node = et.Element("neg")
                             new_node.text = str(cNeg)
                             place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             data.insert(place, new_node)
@@ -7119,7 +7144,7 @@ class Run:
                             if delElem is not None:
                                 data.remove(delElem)
                             if cExcl > 0:
-                                new_node = ET.Element("undef")
+                                new_node = et.Element("undef")
                                 new_node.text = str(cUndef)
                                 place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 data.insert(place, new_node)
@@ -7127,7 +7152,7 @@ class Run:
                             if delElem is not None:
                                 data.remove(delElem)
                             if cExcl > 0:
-                                new_node = ET.Element("excl")
+                                new_node = et.Element("excl")
                                 new_node.text = str(cExcl)
                                 place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 data.insert(place, new_node)
@@ -7197,22 +7222,22 @@ class Run:
                                 ch2Neg = _get_first_child_text(dataCh2, "neg")
                                 ch2sum += int(ch2Pos) + int(ch2Neg)
                         if dataCh1 is None and keepCh1:
-                            new_node = ET.Element("data")
+                            new_node = et.Element("data")
                             place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                             partit.insert(place, new_node)
                             dataCh1 = new_node
-                            new_node = ET.Element("tar", id=headerLookup[well]["Ch1"])
+                            new_node = et.Element("tar", id=headerLookup[well]["Ch1"])
                             place = _get_tag_pos(dataCh1, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             dataCh1.insert(place, new_node)
                             ch1Pos = ""
                             ch1Neg = ""
                             ch1sum = 2
                         if dataCh2 is None and keepCh2:
-                            new_node = ET.Element("data")
+                            new_node = et.Element("data")
                             place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                             partit.insert(place, new_node)
                             dataCh2 = new_node
-                            new_node = ET.Element("tar", id=headerLookup[well]["Ch2"])
+                            new_node = et.Element("tar", id=headerLookup[well]["Ch2"])
                             place = _get_tag_pos(dataCh2, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                             dataCh2.insert(place, new_node)
                             ch2Pos = ""
@@ -7238,34 +7263,34 @@ class Run:
                                     outTabFile += "\n"
                                 countPart += 1
                             if keepCh1:
-                                new_node = ET.Element("pos")
+                                new_node = et.Element("pos")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh1, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 dataCh1.insert(place, new_node)
 
-                                new_node = ET.Element("neg")
+                                new_node = et.Element("neg")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 dataCh1.insert(place, new_node)
 
-                                new_node = ET.Element("undef")
+                                new_node = et.Element("undef")
                                 new_node.text = str(countPart)
                                 place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
                                 dataCh1.insert(place, new_node)
                             if keepCh2:
-                                new_node = ET.Element("pos")
+                                new_node = et.Element("pos")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh2, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh2.insert(place, new_node)
 
-                                new_node = ET.Element("neg")
+                                new_node = et.Element("neg")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh2.insert(place, new_node)
 
-                                new_node = ET.Element("undef")
+                                new_node = et.Element("undef")
                                 new_node.text = str(countPart)
                                 place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
@@ -7312,7 +7337,7 @@ class Run:
                                 else:
                                     outTabFile += "\n"
                         _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
-                        new_node = ET.Element("endPtTable")
+                        new_node = et.Element("endPtTable")
                         new_node.text = re.sub(r'^partitions/', '', finalFileName)
                         place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
                         partit.insert(place, new_node)
@@ -7397,11 +7422,11 @@ class Run:
                                 ch3Neg = _get_first_child_text(dataCh3, "neg")
                                 ch3sum += int(ch3Pos) + int(ch3Neg)
                         if dataCh1 is None and keepCh1:
-                            new_node = ET.Element("data")
+                            new_node = et.Element("data")
                             place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                             partit.insert(place, new_node)
                             dataCh1 = new_node
-                            new_node = ET.Element("tar", id=headerLookup[well]["Ch1"])
+                            new_node = et.Element("tar", id=headerLookup[well]["Ch1"])
                             place = _get_tag_pos(dataCh1, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                  9999999)
                             dataCh1.insert(place, new_node)
@@ -7409,11 +7434,11 @@ class Run:
                             ch1Neg = ""
                             ch1sum = 2
                         if dataCh2 is None and keepCh2:
-                            new_node = ET.Element("data")
+                            new_node = et.Element("data")
                             place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                             partit.insert(place, new_node)
                             dataCh2 = new_node
-                            new_node = ET.Element("tar", id=headerLookup[well]["Ch2"])
+                            new_node = et.Element("tar", id=headerLookup[well]["Ch2"])
                             place = _get_tag_pos(dataCh2, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                  9999999)
                             dataCh2.insert(place, new_node)
@@ -7421,11 +7446,11 @@ class Run:
                             ch2Neg = ""
                             ch2sum = 2
                         if dataCh3 is None and keepCh3:
-                            new_node = ET.Element("data")
+                            new_node = et.Element("data")
                             place = _get_tag_pos(partit, "data", ["volume", "endPtTable", "data"], 9999999)
                             partit.insert(place, new_node)
                             dataCh3 = new_node
-                            new_node = ET.Element("tar", id=headerLookup[well]["Ch3"])
+                            new_node = et.Element("tar", id=headerLookup[well]["Ch3"])
                             place = _get_tag_pos(dataCh3, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                  9999999)
                             dataCh3.insert(place, new_node)
@@ -7456,55 +7481,55 @@ class Run:
                                     outTabFile += "\n"
                                 countPart += 1
                             if keepCh1:
-                                new_node = ET.Element("pos")
+                                new_node = et.Element("pos")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh1, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh1.insert(place, new_node)
 
-                                new_node = ET.Element("neg")
+                                new_node = et.Element("neg")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh1.insert(place, new_node)
 
-                                new_node = ET.Element("undef")
+                                new_node = et.Element("undef")
                                 new_node.text = str(countPart)
                                 place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh1.insert(place, new_node)
                             if keepCh2:
-                                new_node = ET.Element("pos")
+                                new_node = et.Element("pos")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh2, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh2.insert(place, new_node)
 
-                                new_node = ET.Element("neg")
+                                new_node = et.Element("neg")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh2.insert(place, new_node)
 
-                                new_node = ET.Element("undef")
+                                new_node = et.Element("undef")
                                 new_node.text = str(countPart)
                                 place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh2.insert(place, new_node)
                             if keepCh3:
-                                new_node = ET.Element("pos")
+                                new_node = et.Element("pos")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh3, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh3.insert(place, new_node)
 
-                                new_node = ET.Element("neg")
+                                new_node = et.Element("neg")
                                 new_node.text = "0"
                                 place = _get_tag_pos(dataCh3, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
                                 dataCh3.insert(place, new_node)
 
-                                new_node = ET.Element("undef")
+                                new_node = et.Element("undef")
                                 new_node.text = str(countPart)
                                 place = _get_tag_pos(dataCh3, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
                                                      9999999)
@@ -7567,7 +7592,7 @@ class Run:
                                 else:
                                     outTabFile += "\n"
                         _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
-                        new_node = ET.Element("endPtTable")
+                        new_node = et.Element("endPtTable")
                         new_node.text = re.sub(r'^partitions/', '', finalFileName)
                         place = _get_tag_pos(partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999)
                         partit.insert(place, new_node)
@@ -8238,7 +8263,7 @@ class Run:
         vecNoPlateau = np.zeros(spFl[0], dtype=np.bool)
         vecNoisySample = np.zeros(spFl[0], dtype=np.bool)
         vecSkipSample = np.zeros(spFl[0], dtype=np.bool)
-        vecShortloglin = np.zeros(spFl[0], dtype=np.bool)
+        vecShortLogLin = np.zeros(spFl[0], dtype=np.bool)
         vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool)
         vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
         vecEffOutlier_Skip = np.zeros(spFl[0], dtype=np.bool)
@@ -8292,6 +8317,11 @@ class Run:
         meanCq_Skip_Plat[:] = np.nan
         meanCq_Skip_Eff[:] = np.nan
         meanCq_Skip_Plat_Eff[:] = np.nan
+
+        # Basic Variables
+        pointsInWoL = 4
+        baseCorFluor = rawFluor.copy()
+        vecBackground = np.zeros(spFl[0], dtype=np.float64)
 
         ########################
         # Baseline correction  #
@@ -8391,7 +8421,6 @@ class Run:
             ##################################################
             # Main loop : Calculation of the baseline values #
             ##################################################
-            baseCorFluor = rawFluor.copy()
             # The for loop go through all the react/target table and make calculations one by one
             for oRow in range(0, spFl[0]):
                 if verbose:
@@ -8400,7 +8429,7 @@ class Run:
                 # minimum fluorescence value assigned as baseline value for the considered reaction :
                 if not vecNoAmplification[oRow]:
                     #  Make sure baseline is overestimated, without using slope criterion
-                    #  increase baseline per cycle till eff > 2 or remaining log lin points < PointsInWoL
+                    #  increase baseline per cycle till eff > 2 or remaining log lin points < pointsInWoL
                     #  fastest when vecBackground is directly set to 5 point below stopCyc
                     start = stopCyc[oRow]
 
@@ -8510,7 +8539,7 @@ class Run:
                     # 3: skip sample when fluor[stopCyc]/fluor[startCyc] < 20
                     loglinlen = 20.0  # RelaxLogLinLengthRG in Pascal may choose 10.0
                     if baseCorFluor[oRow, stopCyc[oRow] - 1] / baseCorFluor[oRow, startCycFix[oRow] - 1] < loglinlen:
-                        vecShortloglin[oRow] = True
+                        vecShortLogLin[oRow] = True
 
                     pcrEff[oRow] = np.power(10, slopeHigh)
                 else:
@@ -8534,11 +8563,11 @@ class Run:
 
             # Check if cq values are stable with a modified baseline
             checkFluor = np.zeros(spFl, dtype=np.float64)
-            [meanPcrEff, _unused] = _lrp_meanPcrEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortloglin)
+            [meanPcrEff, _unused] = _lrp_meanPcrEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortLogLin)
             # The baseline is only used for this check
             checkBaseline = upWin[0] - np.log10(meanPcrEff)
             for oRow in range(0, spFl[0]):
-                if vecShortloglin[oRow] and not vecNoAmplification[oRow]:
+                if vecShortLogLin[oRow] and not vecNoAmplification[oRow]:
                     upLim = np.power(10, upWin[0])  # Fixme: No logs
                     lowLim = np.power(10, lowWin[0])
 
@@ -8602,17 +8631,15 @@ class Run:
             # Fixme: Per group
             # CheckNoisiness
             skipGroup = False
-            maxLim = _GetMeanFluStop(baseCorFluor, None, None, stopCyc, vecSkipSample, vecNoPlateau)
+            maxLim = _lrp_meanStopFluor(baseCorFluor, None, None, stopCyc, vecSkipSample, vecNoPlateau)
             if maxLim > 0.0:
                 maxLim = np.log10(maxLim)
             else:
                 skipGroup = True
             checkMeanEff = 1.0
 
-            PointsInWoL = 4
-
             if not skipGroup:
-                step = PointsInWoL * _lrp_logStepStop(baseCorFluor, None, [], stopCyc, vecSkipSample, vecNoPlateau)
+                step = pointsInWoL * _lrp_logStepStop(baseCorFluor, None, [], stopCyc, vecSkipSample, vecNoPlateau)
                 upWin, lowWin = _lrp_setLogWin(None, maxLim, step, upWin, lowWin, maxFluorTotal, minFluorTotal)
                 # checkBaseline = np.log10(0.5 * np.round(1000 * np.power(10, upWin[0])) / 1000)
                 _unused, _unused2, tempPcrEff, _unused3, _unused4, _unused5 = _lrp_allParamInWindow(baseCorFluor,
@@ -8623,12 +8650,12 @@ class Run:
                                                                                                     upWin, lowWin,
                                                                                                     vecNoAmplification,
                                                                                                     vecBaselineError)
-                checkMeanEff, _unused = _lrp_meanPcrEff(None, [], tempPcrEff, vecSkipSample, vecNoPlateau, vecShortloglin)
+                checkMeanEff, _unused = _lrp_meanPcrEff(None, [], tempPcrEff, vecSkipSample, vecNoPlateau, vecShortLogLin)
                 if checkMeanEff < 1.001:
                     skipGroup = True
 
             if not skipGroup:
-                foldWidth = np.log10(np.power(checkMeanEff, PointsInWoL))
+                foldWidth = np.log10(np.power(checkMeanEff, pointsInWoL))
                 upWin, lowWin = _lrp_setLogWin(None, maxLim, foldWidth, upWin, lowWin, maxFluorTotal, minFluorTotal)
                 # compare to Log(1.01*lowLim) to compensate for
                 # the truncation in cuplimedit with + 0.0043
@@ -8668,6 +8695,12 @@ class Run:
                     for oCol in range(0, spFl[1]):
                         rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
                 finalData["baselineCorrectedData"] = rawTable
+        else:
+            logfluor = np.log10(baseCorFluor)
+            maxFluorTotal = np.nanmax(logfluor)
+            minFluorTotal = np.nanmin(logfluor)
+            if minFluorTotal < maxFluorTotal - 5:
+                minFluorTotal = maxFluorTotal - 5
 
         if timeRun:
             stop_time = dt.datetime.now() - start_time
@@ -8689,8 +8722,22 @@ class Run:
                 vecNoPlateau[oRow] = False
 
         for tar in range(1, targetsCount):
-            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _Set_WoL(baseCorFluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, maxFluorTotal, minFluorTotal, stopCyc, startCyc, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
-            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(baseCorFluor, tar, vecTarget, PointsInWoL, indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, maxFluorTotal, minFluorTotal, stopCyc, startCyc, threshold, vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortloglin, vecIsUsedInWoL)
+            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(baseCorFluor, tar, vecTarget, pointsInWoL,
+                                                                                                                       indMeanX, indMeanY, pcrEff, nNulls, nInclu,
+                                                                                                                       correl, upWin, lowWin, maxFluorTotal,
+                                                                                                                       minFluorTotal, stopCyc, startCyc, threshold,
+                                                                                                                       vecNoAmplification, vecBaselineError,
+                                                                                                                       vecSkipSample, vecNoPlateau, vecShortLogLin,
+                                                                                                                       vecIsUsedInWoL)
+            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(baseCorFluor, tar, vecTarget,
+                                                                                                                                          pointsInWoL, indMeanX, indMeanY,
+                                                                                                                                          pcrEff, nNulls, nInclu, correl,
+                                                                                                                                          upWin, lowWin, maxFluorTotal,
+                                                                                                                                          minFluorTotal, stopCyc, startCyc,
+                                                                                                                                          threshold, vecNoAmplification,
+                                                                                                                                          vecBaselineError, vecSkipSample,
+                                                                                                                                          vecNoPlateau, vecShortLogLin,
+                                                                                                                                          vecIsUsedInWoL)
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
@@ -8701,20 +8748,20 @@ class Run:
 
         # Create the warnings for the different chemistries
         # Chem Arr     0     1     2     3     4     5     6     7     8     9    10
-        CritCqEff = [28.0, 28.0, 19.0, 16.0, 14.0, 12.0, 11.0, 11.0, 10.0, 10.0,  9.0]  # For error Eff < 0.01
-        CritCqN0 = [40.0, 40.0, 27.0, 19.0, 16.0, 13.0, 12.0, 11.0, 10.0,  9.0,  9.0]  # For bias N0 < 0.95
+        critCqEff = [28.0, 28.0, 19.0, 16.0, 14.0, 12.0, 11.0, 11.0, 10.0, 10.0,  9.0]  # For error Eff < 0.01
+        critCqN0 = [40.0, 40.0, 27.0, 19.0, 16.0, 13.0, 12.0, 11.0, 10.0,  9.0,  9.0]  # For bias N0 < 0.95
         for oRow in range(0, spFl[0]):
             if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
-                CritCqOffset = 0.0
+                critCqOffset = 0.0
                 if (res[oRow][rar_tar_chemistry] == "labelled reverse primer" and
                         res[oRow][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
-                    CritCqOffset = 1.0
+                    critCqOffset = 1.0
                 if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
                         res[oRow][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
-                    CritCqOffset = 4.0
+                    critCqOffset = 4.0
                 if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
                         res[oRow][rar_sample_nucleotide] in ["cDNA", "RNA"]):
-                    CritCqOffset = 6.0
+                    critCqOffset = 6.0
                 if (not np.isnan(pcrEff[oRow]) and pcrEff[oRow] > 1.0001 and
                         threshold[vecTarget[oRow]] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow])):
                     effIndex = int(np.trunc(10 * pcrEff[oRow] + 1 - 10))
@@ -8724,9 +8771,9 @@ class Run:
                         effIndex = 10
                     tempCq_Grp = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(pcrEff[oRow])
                     if tempCq_Grp > 0.0:
-                        if tempCq_Grp < (CritCqEff[effIndex] + CritCqOffset):
+                        if tempCq_Grp < (critCqEff[effIndex] + critCqOffset):
                             vecTooLowCqEff[oRow] = True
-                        if tempCq_Grp < (CritCqN0[effIndex] + CritCqOffset):
+                        if tempCq_Grp < (critCqN0[effIndex] + critCqOffset):
                             vecTooLowCqN0[oRow] = True
 
         pcreff_NoNaN = pcrEff.copy()
@@ -8907,7 +8954,7 @@ class Run:
             res[rRow][rar_noisy_sample] = vecNoisySample[rRow]
             res[rRow][rar_effOutlier_Skip] = vecEffOutlier_Skip[rRow]
             res[rRow][rar_effOutlier_Skip_Plat] = vecEffOutlier_Skip_Plat[rRow]
-            res[rRow][rar_shortLogLinPhase] = vecShortloglin[rRow]
+            res[rRow][rar_shortLogLinPhase] = vecShortLogLin[rRow]
             res[rRow][rar_CqIsShifting] = vecCtIsShifting[rRow]
             res[rRow][rar_tooLowCqEff] = vecTooLowCqEff[rRow]
             res[rRow][rar_tooLowCqN0] = vecTooLowCqN0[rRow]
