@@ -1327,10 +1327,10 @@ def _lrp_setWoL(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY, pcr
     return indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL
 
 
-def _AssignNoPlateau(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl,
-                     upWin, lowWin, maxFluorTotal, minFluorTotal, stopCyc, startCyc, threshold,
-                     vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortLogLin, vecIsUsedInWoL):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+def _lrp_assignNoPlateau(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl,
+                         upWin, lowWin, maxFluorTotal, minFluorTotal, stopCyc, startCyc, threshold,
+                         vecNoAmplification, vecBaselineError, vecSkipSample, vecNoPlateau, vecShortLogLin, vecIsUsedInWoL):
+    """Assign no plateau again and possibly recalculate WoL if new no plateau was found.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1358,19 +1358,19 @@ def _AssignNoPlateau(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY
         vecIsUsedInWoL: True if used in the WoL
 
     Returns:
-        An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
+        The values indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau.
     """
-    NewNoPlateau = False
-    for j in range(0, fluor.shape[0]):
-        if (tarGroup is None or tarGroup == vecTarget[j]) and not (vecNoAmplification[j] or
-                                                                   vecBaselineError[j] or
-                                                                   vecNoPlateau[j]):
-            expectedFluor = nNulls[j] * np.power(pcrEff[j], fluor.shape[1])
-            if expectedFluor / fluor[j, fluor.shape[1] - 1] < 5:
-                NewNoPlateau = True
-                vecNoPlateau[j] = True
+    newNoPlateau = False
+    for aRow in range(0, fluor.shape[0]):
+        if (tarGroup is None or tarGroup == vecTarget[aRow]) and not (vecNoAmplification[aRow] or
+                                                                   vecBaselineError[aRow] or
+                                                                   vecNoPlateau[aRow]):
+            expectedFluor = nNulls[aRow] * np.power(pcrEff[aRow], fluor.shape[1])
+            if expectedFluor / fluor[aRow, fluor.shape[1] - 1] < 5:
+                newNoPlateau = True
+                vecNoPlateau[aRow] = True
 
-    if NewNoPlateau:
+    if newNoPlateau:
         indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(fluor, tarGroup, vecTarget,
                                                                                                                    pointsInWoL, indMeanX, indMeanY, pcrEff,
                                                                                                                    nNulls, nInclu, correl, upWin,
@@ -8729,15 +8729,15 @@ class Run:
                                                                                                                        vecNoAmplification, vecBaselineError,
                                                                                                                        vecSkipSample, vecNoPlateau, vecShortLogLin,
                                                                                                                        vecIsUsedInWoL)
-            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _AssignNoPlateau(baseCorFluor, tar, vecTarget,
-                                                                                                                                          pointsInWoL, indMeanX, indMeanY,
-                                                                                                                                          pcrEff, nNulls, nInclu, correl,
-                                                                                                                                          upWin, lowWin, maxFluorTotal,
-                                                                                                                                          minFluorTotal, stopCyc, startCyc,
-                                                                                                                                          threshold, vecNoAmplification,
-                                                                                                                                          vecBaselineError, vecSkipSample,
-                                                                                                                                          vecNoPlateau, vecShortLogLin,
-                                                                                                                                          vecIsUsedInWoL)
+            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _lrp_assignNoPlateau(baseCorFluor, tar, vecTarget,
+                                                                                                                                              pointsInWoL, indMeanX, indMeanY,
+                                                                                                                                              pcrEff, nNulls, nInclu, correl,
+                                                                                                                                              upWin, lowWin, maxFluorTotal,
+                                                                                                                                              minFluorTotal, stopCyc, startCyc,
+                                                                                                                                              threshold, vecNoAmplification,
+                                                                                                                                              vecBaselineError, vecSkipSample,
+                                                                                                                                              vecNoPlateau, vecShortLogLin,
+                                                                                                                                              vecIsUsedInWoL)
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
