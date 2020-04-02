@@ -17,9 +17,6 @@ import csv
 import numpy as np
 from lxml import etree as et
 
-# Fixme: Delete
-import datetime as dt
-
 
 def get_rdml_lib_version():
     """Return the version string of the RDML library.
@@ -890,7 +887,7 @@ def _lrp_startStopInWindow(fluor, aRow, upWin, lowWin):
         else:
             for i in range(stopMaxCyc, startCyc, -1):
                 if fluor[aRow, i - 1] > upWin > fluor[aRow, i - 2]:
-                    stopWinCyc = i - 1  # Fixme: Should not be - 2??
+                    stopWinCyc = i - 1
         # look for startWinCyc
         if fluor[aRow, startCycFix - 1] > lowWin:
             startWinCyc = startCycFix
@@ -936,7 +933,7 @@ def _lrp_paramInWindow(fluor, aRow, upWin, lowWin):
             sumxy += i * logFluorSamp
             nincl += 1
 
-    if nincl > 0:  # Fixme: Should be 1???
+    if nincl > 1:
         ssx = sumx2 - sumx * sumx / nincl
         ssy = sumy2 - sumy * sumy / nincl
         sxy = sumxy - sumx * sumy / nincl
@@ -1093,7 +1090,7 @@ def _lrp_setLogWin(tarGroup, newUpWin, foldWidth, upWin, lowWin, maxFluorTotal, 
     Returns:
         An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
     """
-    # Fixme: No rounding needed
+    # No rounding needed, only present for exact identical output with Pascal version
     tempUpWin = np.power(10, np.round(1000 * newUpWin) / 1000)
     tempLowWin = np.power(10, np.round(1000 * (newUpWin - foldWidth)) / 1000)
 
@@ -8322,7 +8319,7 @@ class Run:
         ########################
         # Baseline correction  #
         ########################
-        start_time = dt.datetime.now()
+        start_time = datetime.datetime.now()
         if baselineCorr:
             ###########################################################################
             # First quality check : Is there enough amplification during the reaction #
@@ -8691,7 +8688,7 @@ class Run:
                 minFluorTotal = maxFluorTotal / 10000
 
         if timeRun:
-            stop_time = dt.datetime.now() - start_time
+            stop_time = datetime.datetime.now() - start_time
             print("Done Baseline: " + str(stop_time) + "sec")
 
         ###########################################################
@@ -9105,7 +9102,7 @@ class Run:
                     _change_subelement(rdmlElemData[rRow], "quantFluor", dataXMLelements, goodVal, True, "string")
 
         if timeRun:
-            stop_time = dt.datetime.now() - start_time
+            stop_time = datetime.datetime.now() - start_time
             print("Done All: " + str(stop_time) + "sec")
 
         if saveResultsCSV:
