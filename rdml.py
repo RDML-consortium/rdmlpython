@@ -25,7 +25,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.8.2"
+    return "0.8.3"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -2653,11 +2653,13 @@ class Rdml:
         if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
             raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
         new_node = _create_new_element(self._node, "sample", id)
-        et.SubElement(new_node, "type").text = type
+        typeEL = et.SubElement(new_node, "type")
+        typeEL.text = type
         ver = self._node.get('version')
-    #    if ver == "1.3":
-    #        if targetId is not None or not targetId == "":
-    #            typeEL.attrib["targetId"] = targetId
+        if ver == "1.3":
+            if targetId is not None:
+                if not targetId == "":
+                    typeEL.attrib["targetId"] = targetId
         place = _get_tag_pos(self._node, "sample", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
 
@@ -8309,7 +8311,6 @@ class Run:
         # Basic Variables
         pointsInWoL = 4
         baseCorFluor = rawFluor.copy()
-        vecBackground = np.zeros(spFl[0], dtype=np.float64)
 
         ########################
         # Baseline correction  #
@@ -9103,8 +9104,8 @@ class Run:
             for rRow in range(0, len(res)):
                 for rCol in range(0, len(res[rRow])):
                     if rCol in [rar_amplification, rar_baseline_error, rar_plateau, rar_noisy_sample,
-                                rar_effOutlier_Skip, rar_effOutlier_Skip_Plat, rar_isUsedInWoL]:
-                        #rar_shortLogLinPhase,                                rar_CqIsShifting, rar_tooLowCqEff, rar_tooLowCqN0,
+                                rar_effOutlier_Skip, rar_effOutlier_Skip_Plat, rar_shortLogLinPhase,
+                                rar_CqIsShifting, rar_tooLowCqEff, rar_tooLowCqN0, rar_isUsedInWoL]:
                         if res[rRow][rCol]:
                             retCSV += "Yes\t"
                         else:
@@ -9175,8 +9176,8 @@ if __name__ == "__main__":
         if args.experiment:
             try:
                 cli_exp = cli_listRun.get_experiment(byid=args.experiment)
-            except RdmlError as err:
-                print("Error: " + str(err))
+            except RdmlError as cli_err:
+                print("Error: " + str(cli_err))
                 sys.exit(1)
             else:
                 print("Using experiment: \"" + args.experiment + "\"")
@@ -9203,8 +9204,8 @@ if __name__ == "__main__":
         if args.experiment:
             try:
                 cli_exp = cli_linRegPCR.get_experiment(byid=args.experiment)
-            except RdmlError as err:
-                print("Error: " + str(err))
+            except RdmlError as cli_err:
+                print("Error: " + str(cli_err))
                 sys.exit(1)
             else:
                 print("Using experiment: \"" + args.experiment + "\"")
@@ -9218,8 +9219,8 @@ if __name__ == "__main__":
         if args.run:
             try:
                 cli_run = cli_exp.get_run(byid=args.run)
-            except RdmlError as err:
-                print("Error: " + str(err))
+            except RdmlError as cli_err:
+                print("Error: " + str(cli_err))
                 sys.exit(1)
             else:
                 print("Using run: \"" + args.run + "\"")

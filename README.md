@@ -18,3 +18,18 @@ Install the dependencies:
 
 `pip install lxml numpy`
 
+
+Command line functions
+----------------------
+
+Help on command line options:
+
+`python3 rdml.py -h`
+
+Validate RDML files:
+
+`python3 rdml.py -v data.rdml`
+
+Run LinRegPCR:
+
+`python3 rdml.py -lrp data.rdml --pcrEfficiencyExl 0.05 --excludeNoPlateau --excludeEfficiency -o out_data.rdml --saveResults temp_1_out_results.tsv --timeRun`
