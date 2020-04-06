@@ -25,7 +25,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.8.3"
+    return "0.8.4"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -7948,6 +7948,9 @@ class Run:
                         resList[rRow][rCol] = ""
             allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
 
+        if "noRawData" in res:
+            allData["error"] = res["noRawData"]
+
         return allData
 
     def linRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency=True,
@@ -8323,6 +8326,12 @@ class Run:
 
         # Slope calculation per react/target - the intercept is never used for now
         rawMod = rawFluor.copy()
+
+        # There should be no negative values in uncorrected raw data
+        absMinFluor = np.nanmin(rawMod)
+        if absMinFluor < 0.0:
+            finalData["noRawData"] = "Error: Flourscence data have negative values. Use raw data without baseline correction!"
+
         rawMod[np.isnan(rawMod)] = 0
         rawMod[rawMod <= 0.00000001] = np.nan
         [slopeAmp, _unused] = _lrp_linReg(vecCycles, np.log10(rawMod))
@@ -8899,7 +8908,7 @@ class Run:
             res[rRow][rar_stop_log] = stopCyc[rRow]
             res[rRow][rar_n_included] = nInclu[rRow]
             res[rRow][rar_log_lin_cycle] = indMeanX[rRow]
-            res[rRow][rar_log_lin_fluorescence] = indMeanY[rRow]
+            res[rRow][rar_log_lin_fluorescence] = np.power(10, indMeanY[rRow])
             res[rRow][rar_indiv_PCR_eff] = pcrEff[rRow]
             res[rRow][rar_R2] = correl[rRow] * correl[rRow]
             res[rRow][rar_N0_indiv_eff] = nNulls[rRow]
@@ -9274,6 +9283,8 @@ if __name__ == "__main__":
                                        saveResultsList=False, saveResultsCSV=cli_saveResultData,
                                        timeRun=cli_timeRun, verbose=cli_verbose)
 
+        if "noRawData" in cli_result:
+            print(cli_result["noRawData"])
         if args.resultfile:
             cli_linRegPCR.save(args.resultfile)
         if args.saveRaw:
