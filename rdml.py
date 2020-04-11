@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.1"
+    return "0.9.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1630,17 +1630,14 @@ class Rdml:
             vd = self
         version = vd.version()
         rdmlws = os.path.dirname(os.path.abspath(__file__))
-        schemaPath = os.path.join(rdmlws, 'schema')
-        if not os.path.exists(schemaPath):
-            schemaPath = rdmlws
         if version == '1.0':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_0_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
         elif version == '1.1':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_1_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_2_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_3_CR.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             notes += 'RDML version:\tFalse\tUnknown schema version' + version + '\n'
             return notes
@@ -1678,17 +1675,14 @@ class Rdml:
             vd = self
         version = vd.version()
         rdmlws = os.path.dirname(os.path.abspath(__file__))
-        schemaPath = os.path.join(rdmlws, 'schema')
-        if not os.path.exists(schemaPath):
-            schemaPath = rdmlws
         if version == '1.0':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_0_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_0_REC.xsd'))
         elif version == '1.1':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_1_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_1_REC.xsd'))
         elif version == '1.2':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_2_REC.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
-            xmlschema_doc = et.parse(os.path.join(schemaPath, 'RDML_v1_3_CR.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
         else:
             return False
         xmlschema = et.XMLSchema(xmlschema_doc)
