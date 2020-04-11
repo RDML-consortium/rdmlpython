@@ -7,7 +7,7 @@ python3 rdml.py -lrp test/test_1_raw_data.rdml \
                 -r "Run 1" \
                 --pcrEfficiencyExl 0.05 \
                 --excludeNoPlateau \
-                --excludeEfficiency \
+                --excludeEfficiency "mean" \
                 --ignoreExclusion \
                 --saveRaw test/temp_1_out_raw_data.tsv \
                 --saveBaslineCorr test/temp_1_out_baseline_corrected_data.tsv \
@@ -25,7 +25,7 @@ python3 rdml.py -lrp test/test_2_raw_data.rdml \
                 -r "Run 1" \
                 --pcrEfficiencyExl 0.05 \
                 --excludeNoPlateau \
-                --excludeEfficiency \
+                --excludeEfficiency "mean" \
                 --ignoreExclusion \
                 --saveRaw test/temp_2_out_raw_data.tsv \
                 --saveBaslineCorr test/temp_2_out_baseline_corrected_data.tsv \
@@ -43,7 +43,7 @@ python3 rdml.py -lrp test/test_3_raw_data.rdml \
                 -r "Run 1" \
                 --pcrEfficiencyExl 0.05 \
                 --excludeNoPlateau \
-                --excludeEfficiency \
+                --excludeEfficiency "mean" \
                 --ignoreExclusion \
                 --saveRaw test/temp_3_out_raw_data.tsv \
                 --saveBaslineCorr test/temp_3_out_baseline_corrected_data.tsv \
@@ -61,7 +61,7 @@ python3 rdml.py -lrp test/test_4_raw_data.rdml \
                 -r "Run 1" \
                 --pcrEfficiencyExl 0.05 \
                 --excludeNoPlateau \
-                --excludeEfficiency \
+                --excludeEfficiency "mean" \
                 --ignoreExclusion \
                 --saveRaw test/temp_4_out_raw_data.tsv \
                 --saveBaslineCorr test/temp_4_out_baseline_corrected_data.tsv \
@@ -78,7 +78,7 @@ python3 rdml.py -lrp test/test_5_raw_data.rdml \
                 -r "Run 1" \
                 --pcrEfficiencyExl 0.05 \
                 --excludeNoPlateau \
-                --excludeEfficiency \
+                --excludeEfficiency "mean" \
                 --ignoreExclusion \
                 --saveRaw test/temp_5_out_raw_data.tsv \
                 --saveBaslineCorr test/temp_5_out_baseline_corrected_data.tsv \
