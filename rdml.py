@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.2"
+    return "0.9.3"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -9287,7 +9287,7 @@ class Run:
         return finalData
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='The command line interface to the RDML-Python library.')
     parser.add_argument('--version', action='store_true', help='print version number')
     parser.add_argument('-v', '--validate', metavar="data.rdml", dest='validate', help='validate file against schema')
@@ -9487,3 +9487,6 @@ if __name__ == "__main__":
         xxrun = xxexp[0].runs()
         # rt.save('new.rdml')
         sys.exit(0)
+
+if __name__ == "__main__":
+    main()
