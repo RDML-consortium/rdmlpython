@@ -2,6 +2,13 @@
 
 A python library to handle RDML files.
 
+Install with pip3
+--------------------
+
+`apt install python3 python3-pip`
+
+`pip3 install rdmlpython`
+
 
 Clone the repository
 --------------------
@@ -32,4 +39,4 @@ Validate RDML files:
 
 Run LinRegPCR:
 
-`python3 rdml.py -lrp data.rdml --pcrEfficiencyExl 0.05 --excludeNoPlateau --excludeEfficiency -o out_data.rdml --saveResults temp_1_out_results.tsv --timeRun`
+`python3 rdml.py -lrp data.rdml --pcrEfficiencyExl 0.05 --excludeNoPlateau --excludeEfficiency "mean" -o out_data.rdml --saveResults temp_1_out_results.tsv --timeRun`
