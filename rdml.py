@@ -1435,6 +1435,195 @@ def _lrp_removeOutlier(data, alpha=0.05):
     return oLogic
 
 
+def _mca_smooth(tempList, rawFluor):
+    """A function to smooth the melt curve date based on Friedmans supersmoother.
+       # https://www.slac.stanford.edu/pubs/slacpubs/3250/slac-pub-3477.pdf
+
+    Args:
+        tempList:
+        rawFluor: The numpy array with the raw data
+
+    Returns:
+        The numpy array with the smoothed data.
+    """
+
+    span_s = 0.05
+    span_m = 0.2
+    span_l = 0.5
+
+    smoothFluor = np.zeros(rawFluor.shape, dtype=np.float64)
+
+    zTempList = np.append(0.0, tempList)
+
+    zeroPad = np.zeros((rawFluor.shape[0], 1), dtype=np.float64)
+    zRawFluor = np.append(zeroPad, rawFluor, axis=1)
+    n = len(zTempList) - 1
+
+    # Find the increase in x from 0.25 to 0.75 over the total range
+    i = int(0.5 + n / 4)
+    j = 3 * i
+    scale = -1.0
+    while scale <= 0.0:
+        if j < n:
+            j += 1
+        if i > 1:
+            i -= 1
+        scale = zTempList[j] - zTempList[i]
+    vsmlsq = 0.0001 * scale * 0.0001 * scale
+
+    countUp = 0
+    for fluor in zRawFluor:
+        [res_s_a, res_s_t] = _mca_sub_smooth(zTempList, fluor, span_s, vsmlsq, True)
+        [res_s_b, _unused] = _mca_sub_smooth(zTempList, res_s_t, span_m, vsmlsq, False)
+        [res_s_c, res_s_t] = _mca_sub_smooth(zTempList, fluor, span_m, vsmlsq, True)
+        [res_s_d, _unused] = _mca_sub_smooth(zTempList, res_s_t, span_m, vsmlsq, False)
+        [res_s_e, res_s_t] = _mca_sub_smooth(zTempList, fluor, span_l, vsmlsq, True)
+        [res_s_f, _unused] = _mca_sub_smooth(zTempList, res_s_t, span_m, vsmlsq, False)
+
+        res_s_fin = np.zeros(res_s_a.shape, dtype=np.float64)
+        for j in range(1, n + 1):
+            resmin = 1.0e20
+            if res_s_b[j] < resmin:
+                resmin = res_s_b[j]
+                res_s_fin[j] = span_s
+            if res_s_d[j] < resmin:
+                resmin = res_s_d[j]
+                res_s_fin[j] = span_m
+            if res_s_f[j] < resmin:
+                res_s_fin[j] = span_l
+
+        [res_s_bb, _unused] = _mca_sub_smooth(zTempList, res_s_fin, span_m, vsmlsq, False)
+
+        res_s_cc = np.zeros(res_s_a.shape, dtype=np.float64)
+        for j in range(1, n + 1):
+            # compare res_s_bb with spans[] and make sure the no res_s_bb[] is below span_s or above span_l
+            if res_s_bb[j] <= span_s:
+                res_s_bb[j] = span_s
+            if res_s_bb[j] >= span_l:
+                res_s_bb[j] = span_l
+            f = res_s_bb[j] - span_m
+            if f >= 0.0:
+                # in case res_s_bb[] is higher than span_m: calculate res_s_cc[] from res_s_c and res_s_e
+                # using linear interpolation between span_l and span_m
+                f = f / (span_l - span_m)
+                res_s_cc[j] = (1.0 - f) * res_s_c[j] + f * res_s_e[j]
+            else:
+                # in case res_s_bb[] is less than span_m: calculate res_s_cc[] from res_s_c and res_s_a
+                # using linear interpolation between span_s and span_m
+                f = -f / (span_m - span_s)
+                res_s_cc[j] = (1.0 - f) * res_s_c[j] + f * res_s_a[j]
+
+        # final smoothing of combined optimally smoothed values in res_s_cc[] into smo[]
+        [res_s_t, _unused] = _mca_sub_smooth(zTempList, res_s_cc, span_s, vsmlsq, False)
+        smoothFluor[countUp] = res_s_t[1:]
+        countUp += 1
+
+    return smoothFluor
+
+
+def _mca_sub_smooth(tempList, fluor, span, vsmlsq, saveSec):
+    """A function to smooth the melt curve date based on Friedmans supersmoother.
+       # https://www.slac.stanford.edu/pubs/slacpubs/3250/slac-pub-3477.pdf
+
+    Args:
+        tempList:
+        fluor: The numpy array with the raw data
+        span: The selected span
+        vsmlsq: The width
+        saveSec: Sava variance data
+
+    Returns:
+        [smo[], avcr[]] where smo[] contains smoothed data, avcr[] contains residuals scaled to variance.
+    """
+
+    n = len(tempList) - 1
+    smo = np.zeros(len(tempList), dtype=np.float64)
+    acvr = np.zeros(len(tempList), dtype=np.float64)
+
+    ibw = int(0.5 * span * n + 0.6)
+    if ibw < 2:
+        ibw = 2
+    it = 2 * ibw + 1  # range of smoothing window
+
+    xm = 0.0
+    ym = 0.0
+    xvar = 0.0
+    cvar = 0.0
+    for i in range(1, it + 1):
+        curTemp = tempList[i]
+        curFluor = fluor[i]
+        xm = ((i - 1) * xm + curTemp) / i
+        ym = ((i - 1) * ym + curFluor) / i
+        if i > 1:
+            tmp = i * (curTemp - xm) / (i - 1)
+            xvar += tmp * (curTemp - xm)
+            cvar += tmp * (curFluor - ym)
+
+    fbw = it
+    for j in range(1, n + 1):
+        out = j - ibw - 1
+        pin = j + ibw
+        if not (out < 1 or pin > n):
+            if out < 1:
+                out = n + out
+                xto = tempList[out] - 1.0
+                xti = tempList[pin]
+            else:
+                if pin > n:
+                    pin = pin - n
+                    xti = tempList[pin] + 1.0
+                    xto = tempList[out]
+                else:
+                    xti = tempList[pin]
+                    xto = tempList[out]
+            fbo = fbw
+            fbw = fbw - 1.0
+            tmp = 0.0
+            if fbw > 0.0:
+                xm = (fbo * xm - xto) / fbw
+            if fbw > 0.0:
+                ym = (fbo * ym - fluor[out]) / fbw
+            if fbw > 0.0:
+                tmp = fbo * (xto - xm) / fbw
+            xvar = xvar - tmp * (xto - xm)
+            cvar = cvar - tmp * (fluor[out] - ym)
+
+            fbo = fbw
+            fbw = fbw + 1.0
+            tmp = 0.0
+            if fbw > 0.0:
+                xm = (fbo * xm + xti) / fbw
+            if fbw > 0.0:
+                ym = (fbo * ym + fluor[pin]) / fbw
+            if fbo > 0.0:
+                tmp = fbw * (xti - xm) / fbo
+            xvar = xvar + tmp * (xti - xm)
+            cvar = cvar + tmp * (fluor[pin] - ym)
+
+        a = 0.0
+        if xvar > vsmlsq:
+            a = cvar / xvar
+        smo[j] = a * (tempList[j] - xm) + ym
+
+        if saveSec:
+            h = 0.0
+            if fbw > 0.0:
+                h = 1.0 / fbw
+            if xvar > vsmlsq:
+                h = h + (tempList[j] - xm) * (tempList[j] - xm) / xvar
+
+            acvr[j] = 0.0
+            a = 1.0 - h
+            if a > 0.0:
+                acvr[j] = abs(fluor[j] - smo[j]) / a
+            else:
+                if j > 1:
+                    acvr[j] = acvr[j - 1]
+            # smo[] contains smoothed data, avcr[] contains residuals scaled to variance
+
+    return [smo, acvr]
+
+
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
         np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
@@ -9286,6 +9475,273 @@ class Run:
 
         return finalData
 
+    def meltCurveAnalysis(self, lowTemp=65.0, highTemp=92.0, updateRDML=False, saveRaw=False, saveSmooth=False,
+                          saveResultsList=False, saveResultsCSV=False, verbose=False):
+        """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            updateRDML: If true, update the RDML data with the calculated values.
+            saveRaw: If true, no raw values are given in the returned data
+            saveSmooth: If true, no baseline corrected values are given in the returned data
+            saveResultsList: If true, return a 2d array object.
+            saveResultsCSV: If true, return a csv string.
+            verbose: If true, comment every performed step.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            rawData: A 2d array with the raw fluorescence values
+            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
+            resultsList: A 2d array object.
+            resultsCSV: A csv string.
+        """
+
+        ##############################
+        # Collect the data in arrays #
+        ##############################
+
+        # res is a 2 dimensional array accessed only by
+        # variables, so columns might be added here
+        header = [["id",  # 0
+                   "well",  # 1
+                   "sample",  # 2
+                   "sample type",  # 3
+                   "target",   # 4
+                   "target chemistry",  # 5
+                   "dye",  # 6
+                   "excluded",   # 7
+                   "note",   # 8
+                   "expected melting temperature"]]   # 9
+        rar_id = 0
+        rar_well = 1
+        rar_sample = 2
+        rar_sample_type = 3
+        rar_tar = 4
+        rar_tar_chemistry = 5
+        rar_dye = 6
+        rar_excl = 7
+        rar_note = 8
+        rar_exp_melt_temp = 9
+
+        lowTemp = float(lowTemp)
+        highTemp = float(highTemp)
+
+        res = []
+        finalData = {}
+        collAllTemp = {}
+        lookUpTemp = {}
+        reacts = _get_all_children(self._node, "react")
+
+        # First get the max number of cycles + all temperatures and create the numpy array
+        for react in reacts:
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                mdps = _get_all_children(react_data, "mdp")
+                for mdp in mdps:
+                    collAllTemp[_get_first_child_text(mdp, "tmp")] = 1
+
+        tempListUnsort = list(collAllTemp.keys())
+        tempStrList = sorted(tempListUnsort, key=float)
+        tempList = np.array(tempStrList, dtype=np.float64)
+        count = 0
+        for tp in tempStrList:
+            lookUpTemp[tp] = count
+            count += 1
+
+        # spFl is the shape for all fluorescence numpy data arrays
+        spFl = (len(reacts), len(tempList))
+        rawFluor = np.zeros(spFl, dtype=np.float64)
+        rawFluor[rawFluor < 1] = np.nan
+
+        # Create a matrix with the cycle for each rawFluor value
+     #   vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int), (spFl[0], 1))
+
+        # Initialization of the vecNoAmplification vector
+        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
+        rdmlElemData = []
+
+        # Now process the data for numpy and create results array
+        rowCount = 0
+        for react in reacts:
+            posId = react.get('id')
+            pIdNumber = (int(posId) - 1) % int(self["pcrFormat_columns"]) + 1
+            pIdLetter = chr(ord("A") + int((int(posId) - 1) / int(self["pcrFormat_columns"])))
+            pWell = pIdLetter + str(pIdNumber)
+            sample = ""
+            forId = _get_first_child(react, "sample")
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    sample = forId.attrib['id']
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                forId = _get_first_child(react_data, "tar")
+                target = ""
+                if forId is not None:
+                    if forId.attrib['id'] != "":
+                        target = forId.attrib['id']
+                excl = _get_first_child_text(react_data, "excl")
+                if not excl == "":
+                    vecExcludedByUser[rowCount] = True
+                noteVal = _get_first_child_text(react_data, "note")
+                rdmlElemData.append(react_data)
+                res.append([posId, pWell, sample, "",  target, "", "",  excl, noteVal, ""])  # Must match header length
+                mdps = _get_all_children(react_data, "mdp")
+                for mdp in mdps:
+                    cTemp = _get_first_child_text(mdp, "tmp")
+                    cFluor = _get_first_child_text(mdp, "fluor")
+                    if cTemp != "" and cFluor != "" and cTemp in lookUpTemp:
+                        rawFluor[rowCount, lookUpTemp[cTemp]] = float(cFluor)
+                rowCount += 1
+
+        # Look up sample and target information
+        parExp = self._node.getparent()
+        parRoot = parExp.getparent()
+
+        dicLU_dyes = {}
+        luDyes = _get_all_children(parRoot, "dye")
+        for lu_dye in luDyes:
+            lu_chemistry = _get_first_child_text(lu_dye, "dyeChemistry")
+            if lu_chemistry == "":
+                lu_chemistry = "non-saturating DNA binding dye"
+            if lu_dye.attrib['id'] != "":
+                dicLU_dyes[lu_dye.attrib['id']] = lu_chemistry
+
+        dicLU_targets = {}
+        dicLU_tarMelt = {}
+        luTargets = _get_all_children(parRoot, "target")
+        for lu_target in luTargets:
+            meltingTemperature = _get_first_child_text(lu_target, "meltingTemperature")
+            forId = _get_first_child(lu_target, "dyeId")
+            lu_dyeId = ""
+            if forId is not None:
+                if forId.attrib['id'] != "":
+                    lu_dyeId = forId.attrib['id']
+            if lu_dyeId == "" or lu_dyeId not in dicLU_dyes:
+                dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
+            if lu_target.attrib['id'] != "":
+                dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
+                dicLU_tarMelt[lu_target.attrib['id']] = meltingTemperature
+
+        dicLU_samSpecType = {}
+        dicLU_samGenType = {}
+        luSamples = _get_all_children(parRoot, "sample")
+        for lu_sample in luSamples:
+            lu_Nucl = ""
+            if lu_sample.attrib['id'] != "":
+                dicLU_TypeData = {}
+                typesList = _get_all_children(lu_sample, "type")
+                for node in typesList:
+                    if "targetId" in node.attrib:
+                        dicLU_TypeData[node.attrib["targetId"]] = node.text
+                    else:
+                        dicLU_samGenType[lu_sample.attrib['id']] = node.text
+                dicLU_samSpecType[lu_sample.attrib['id']] = dicLU_TypeData
+
+        # Update the table with dictionary help
+        for oRow in range(0, spFl[0]):
+            if res[oRow][rar_sample] != "":
+                # Try to get specific type information else general else "unkn"
+                if res[oRow][rar_tar] in dicLU_samSpecType[res[oRow][rar_sample]]:
+                    res[oRow][rar_sample_type] = dicLU_samSpecType[res[oRow][rar_sample]][res[oRow][rar_tar]]
+                elif res[oRow][rar_sample] in dicLU_samGenType:
+                    res[oRow][rar_sample_type] = dicLU_samGenType[res[oRow][rar_sample]]
+                else:
+                    res[oRow][rar_sample_type] = "unkn"
+            if res[oRow][rar_tar] != "":
+
+                res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
+                res[oRow][rar_exp_melt_temp] = dicLU_tarMelt[res[oRow][rar_tar]]
+
+        if saveRaw:
+            rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in tempStrList:
+                rawData[0].append(oCol)
+            for oRow in range(0, spFl[0]):
+                rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, spFl[1]):
+                    rawData[oRow + 1].append("{0:0.3f}".format(rawFluor[oRow, oCol]))
+            finalData["rawData"] = rawData
+
+        # Initial smooth of raw data
+        smoothFluor = _mca_smooth(tempList, rawFluor)
+
+        # Exponential normalisation
+        normalMelting = np.zeros(spFl, dtype=np.float64)
+        posLowT = 0
+        while posLowT < spFl[1] - 1 and tempList[posLowT] < lowTemp:
+            posLowT += 1
+        posHighT = spFl[1] - 1
+        while posHighT > 0 and tempList[posHighT] > highTemp:
+            posHighT -= 1
+
+        for rRow in range(0, spFl[0]):  # loop rRow for every reaction
+            # calculate FDLow and FDHigh from mc[]
+            FDLow = -1 * (smoothFluor[rRow][posLowT] - smoothFluor[rRow][posLowT - 1])
+            FDHigh = -1 * (smoothFluor[rRow][posHighT] - smoothFluor[rRow][posHighT - 1])
+
+            # determine Aexp and Cexp
+            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (highTemp - lowTemp)
+            Cexp = -1 * FDLow / Aexp
+
+            # apply exponential base trend correction
+            MaxMCCorr = 0.0
+            MinMCCorr = 10000.0
+            for rCol in range(0, spFl[1]):
+                normalMelting[rRow][rCol] = smoothFluor[rRow][rCol] - Cexp * np.exp(Aexp * (tempList[rCol] - lowTemp))
+                if normalMelting[rRow][rCol] > MaxMCCorr:
+                    MaxMCCorr = normalMelting[rRow][rCol]
+                if normalMelting[rRow][rCol] < MinMCCorr:
+                    MinMCCorr = normalMelting[rRow][rCol]
+
+            for rCol in range(0, spFl[1]):
+                normalMelting[rRow][rCol] = (normalMelting[rRow][rCol] - MinMCCorr) / (MaxMCCorr - MinMCCorr)
+
+        # FindSweepsButtonClick ???
+
+        # Derivate normalMelting
+        tmp = (tempList + np.roll(tempList, 1)) / 2  # Shift to right
+        rawFirstDerivativeTemp = tmp[1:]
+        tmp = np.roll(normalMelting, 1, axis=1) - normalMelting  # Shift to right
+        rawFirstDerivative = tmp[:, 1:]
+
+        # Delete the first three columns
+        rawFirstDerivativeTemp = rawFirstDerivativeTemp[3:]
+        rawFirstDerivative = rawFirstDerivative[:, 3:]
+
+        # Smooth of raw data
+        smoothFirstDerivative = _mca_smooth(rawFirstDerivativeTemp, rawFirstDerivative)
+
+        # Derivate smoothFirstDerivative
+        rawSecondDerivativeTemp = tempList[4:-2]
+        tmp = smoothFirstDerivative - np.roll(smoothFirstDerivative, 1, axis=1)  # Shift to right
+        rawSecondDerivative = tmp[:, 1:-1]
+
+        # Smooth of raw data
+        smoothSecondDerivative = _mca_smooth(rawSecondDerivativeTemp, rawSecondDerivative)
+
+        # Derivate normalMelting
+        rawThirdDerivativeTemp = rawFirstDerivativeTemp[1:-2]
+        tmp = smoothSecondDerivative - np.roll(smoothSecondDerivative, 1, axis=1)  # Shift to right
+        rawThirdDerivative = tmp[:, 1:]
+
+        # Smooth of raw data
+        smoothThirdDerivative = _mca_smooth(rawThirdDerivativeTemp, rawThirdDerivative)
+
+
+
+        currTable = [rawThirdDerivativeTemp]
+        for oRow in range(0, spFl[0]):
+            currTable.append([])
+            for oCol in range(0, smoothThirdDerivative.shape[1]):
+                currTable[oRow + 1].append("{0:0.15f}".format(smoothThirdDerivative[oRow, oCol]))
+
+        finalData["curData"] = currTable
+
+
+        return finalData
+
 
 def main():
     parser = argparse.ArgumentParser(description='The command line interface to the RDML-Python library.')
@@ -9305,6 +9761,8 @@ def main():
     parser.add_argument('--excludeEfficiency', metavar="outlier",
                         help='LinRegPCR: choose [outlier, mean, include] to exclude diverging individual efficiency ' +
                              'samples from mean PCR efficiency')
+    parser.add_argument('-mca', '--meltCurveAnalysis', metavar="data.rdml", dest='meltCurveAnalysis',
+                        help='run MeltCurveAnalysis')
     parser.add_argument('--commaConv', action='store_true', help='LinRegPCR: convert comma to dot in numbers')
     parser.add_argument('--ignoreExclusion', action='store_true', help='LinRegPCR: ignore the exclusion field')
     parser.add_argument('--saveRaw', metavar="raw_data.csv",
@@ -9479,6 +9937,85 @@ def main():
                 cli_f.write(cli_result["resultsCSV"])
         sys.exit(0)
 
+    # Run meltCurveAnalysis from commandline
+    if args.meltCurveAnalysis:
+        cli_meltCurveAnalysis = Rdml(args.meltCurveAnalysis)
+        if args.experiment:
+            try:
+                cli_exp = cli_meltCurveAnalysis.get_experiment(byid=args.experiment)
+            except RdmlError as cli_err:
+                print("Error: " + str(cli_err))
+                sys.exit(1)
+            else:
+                print("Using experiment: \"" + args.experiment + "\"")
+        else:
+            cli_expList = cli_meltCurveAnalysis.experiments()
+            if len(cli_expList) < 1:
+                print("No experiments found!")
+                sys.exit(0)
+            cli_exp = cli_expList[0]
+            print("No experiment given (use option -e). Using \"" + cli_expList[0]["id"] + "\"")
+        if args.run:
+            try:
+                cli_run = cli_exp.get_run(byid=args.run)
+            except RdmlError as cli_err:
+                print("Error: " + str(cli_err))
+                sys.exit(1)
+            else:
+                print("Using run: \"" + args.run + "\"")
+        else:
+            cli_runList = cli_exp.runs()
+            if len(cli_runList) < 1:
+                print("No runs found!")
+                sys.exit(0)
+            cli_run = cli_runList[0]
+            print("No run given (use option -r). Using \"" + cli_runList[0]["id"] + "\"")
+
+        cli_saveRDML = False
+        cli_saveRawData = False
+        cli_saveBaselineData = False
+        cli_saveResultData = False
+
+        if args.resultfile:
+            cli_saveRDML = True
+        if args.saveRaw:
+            cli_saveRawData = True
+        if args.saveBaslineCorr:
+            cli_saveBaselineData = True
+        if args.saveResults:
+            cli_saveResultData = True
+
+        cli_result = cli_run.meltCurveAnalysis(updateRDML=cli_saveRDML, saveRaw=cli_saveRawData,
+                                               saveSmooth=cli_saveBaselineData,
+                                               saveResultsList=False, saveResultsCSV=cli_saveResultData)
+
+        if args.saveRaw:
+            if "rawData" in cli_result:
+                with open(args.saveRaw, "w") as cli_f:
+                    cli_ResStr = ""
+                    for cli_row in cli_result["rawData"]:
+                        for cli_col in cli_row:
+                            if type(cli_col) is float:
+                                cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
+                            else:
+                                cli_ResStr += str(cli_col) + "\t"
+                        cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                    cli_f.write(cli_ResStr)
+
+        if "curData" in cli_result:
+            with open("mca/cur_table.csv", "w") as cli_f:
+                cli_ResStr = ""
+                for cli_row in cli_result["curData"]:
+                    for cli_col in cli_row:
+                        if type(cli_col) is float:
+                            cli_ResStr += "{0:0.15f}".format(float(cli_col)) + "\t"
+                        else:
+                            cli_ResStr += str(cli_col) + "\t"
+                    cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                cli_f.write(cli_ResStr)
+
+        sys.exit(0)
+
     # Tryout things
     if args.doooo:
         print('Test Something')
@@ -9487,6 +10024,7 @@ def main():
         xxrun = xxexp[0].runs()
         # rt.save('new.rdml')
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
