@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.4"
+    return "0.9.5"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -5821,7 +5821,7 @@ class Step:
             if key == "durationChange":
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "int")
             if key == "measure":
-                if value not in ["real time", "meltcurve"]:
+                if value not in ["", "real time", "meltcurve"]:
                     raise RdmlError('Unknown or unsupported step measure value: "' + value + '".')
                 return _change_subelement(ele_type, key, xml_temp_step, value, True, "string")
         ele_type = _get_first_child(self._node, "loop")
@@ -6803,7 +6803,7 @@ class Run:
                         colCount += 1
         return ret
 
-    def import_digital_data(self, rootEl, fileformat, filename, filelist):
+    def import_digital_data(self, rootEl, fileformat, filename, filelist, ignoreCh=""):
         """Imports data from a tab seperated table file with digital PCR overview data.
 
         Args:
@@ -6816,6 +6816,12 @@ class Run:
         Returns:
             A string with the modifications made.
         """
+
+        tempList = re.split(r"\D+", ignoreCh)
+        ignoreList = []
+        for posNum in tempList:
+            if re.search(r"\d", posNum):
+                ignoreList.append(int(posNum))
 
         ret = ""
         wellNames = []
@@ -6845,10 +6851,10 @@ class Run:
                 forType = _get_first_child_text(target, "type")
                 if forType is not "":
                     tarTypeLookup[tarId] = forType
-                forId = _get_first_child(target, "dyeId")
-                if forId is not None and forId.attrib['id'] != "":
-                    dyeLookup[forId.attrib['id']] = 1
-
+        dyes = _get_all_children(rootEl._node, "dye")
+        for dye in dyes:
+            if dye.attrib['id'] != "":
+                dyeLookup[dye.attrib['id']] = 1
         # Work the overview file
         if filename is not None:
             with open(filename, newline='') as tfile:  # add encoding='utf-8' ?
@@ -6857,7 +6863,11 @@ class Run:
                 posSample = -1
                 posSampleType = -1
                 posDye = -1
+                posDyeCh2 = -1
+                posDyeCh3 = -1
                 posTarget = -1
+                posTargetCh2 = -1
+                posTargetCh3 = -1
                 posTargetType = -1
                 posCopConc = -1
                 posPositives = -1
@@ -6872,6 +6882,8 @@ class Run:
                 posExcluded = -1
                 posVolume = -1
                 posFilename = -1
+
+                countUpTarget = 1
 
                 if fileformat == "RDML":
                     tabLines = list(csv.reader(tfile, delimiter='\t'))
@@ -6924,6 +6936,14 @@ class Run:
                         hInfo = re.sub(r"^ +", '', hInfo)
                         if hInfo == "SampleName":
                             posSample = posCount
+                        # This is a hack of the format to allow specification of targets
+                        if hInfo == "Blue_Channel_Target":
+                            posTarget = posCount
+                        if hInfo == "Green_Channel_Target":
+                            posTargetCh2 = posCount
+                        if hInfo == "Red_Channel_Target":
+                            posTargetCh3 = posCount
+                        # End of hack
                         if hInfo == "Blue_Channel_Concentration":
                             posCopConc = posCount
                         if hInfo == "Blue_Channel_NumberOfPositiveDroplets":
@@ -6943,18 +6963,6 @@ class Run:
                         if hInfo == "Red_Channel_NumberOfNegativeDroplets":
                             posNegativesCh3 = posCount
                         posCount += 1
-                    for chan in ["Ch1", "Ch2", "Ch3"]:
-                        crTarName = "Target " + chan
-                        if crTarName not in tarTypeLookup:
-                            if chan not in dyeLookup:
-                                rootEl.new_dye(chan)
-                                dyeLookup[chan] = 1
-                                ret += "Created dye \"" + chan + "\"\n"
-                            rootEl.new_target(crTarName, "toi")
-                            elem = rootEl.get_target(byid=crTarName)
-                            elem["dyeId"] = chan
-                            tarTypeLookup[crTarName] = "toi"
-                            ret += "Created " + crTarName + " with type \"toi\" and dye \"" + chan + "\"\n"
                 else:
                     raise RdmlError('Unknown digital file format.')
 
@@ -6991,46 +6999,106 @@ class Run:
                         samTypeLookup[sLin[posSample]] = posSampleTypeName
                         ret += "Created sample \"" + sLin[posSample] + "\" with type \"" + posSampleTypeName + "\"\n"
 
-                    if fileformat == "RDML":
-                        posDyeName = sLin[posDye]
-                    elif fileformat == "Bio-Rad":
-                        posDyeName = sLin[posDye][:3]
-                    elif fileformat == "Stilla":
-                        posDyeName = "Not required"
+                    # Fix well position
+                    wellPos = re.sub(r"\"", "", sLin[posWell])
+                    if fileformat == "Stilla":
+                        wellPos = re.sub(r'^\d+-', '', wellPos)
+
+                    # Create nonexisting targets and dyes
+                    if fileformat == "Stilla":
+                        if 1 not in ignoreList:
+                            if posTarget > -1:
+                                crTarName = sLin[posTarget]
+                            else:
+                                crTarName = " Target " + str(countUpTarget) + " Ch1"
+                                countUpTarget += 1
+                            chan = "Ch1"
+                            if crTarName not in tarTypeLookup:
+                                if chan not in dyeLookup:
+                                    rootEl.new_dye(chan)
+                                    dyeLookup[chan] = 1
+                                    ret += "Created dye \"" + chan + "\"\n"
+                                rootEl.new_target(crTarName, "toi")
+                                elem = rootEl.get_target(byid=crTarName)
+                                elem["dyeId"] = chan
+                                tarTypeLookup[crTarName] = "toi"
+                                ret += "Created " + crTarName + " with type \"toi\" and dye \"" + chan + "\"\n"
+                            if wellPos.upper() not in headerLookup:
+                                headerLookup[wellPos.upper()] = {}
+                            headerLookup[wellPos.upper()][chan] = crTarName
+                        if 2 not in ignoreList:
+                            if posTargetCh2 > -1:
+                                crTarName = sLin[posTargetCh2]
+                            else:
+                                crTarName = " Target " + str(countUpTarget) + " Ch2"
+                                countUpTarget += 1
+                            chan = "Ch2"
+                            if crTarName not in tarTypeLookup:
+                                if chan not in dyeLookup:
+                                    rootEl.new_dye(chan)
+                                    dyeLookup[chan] = 1
+                                    ret += "Created dye \"" + chan + "\"\n"
+                                rootEl.new_target(crTarName, "toi")
+                                elem = rootEl.get_target(byid=crTarName)
+                                elem["dyeId"] = chan
+                                tarTypeLookup[crTarName] = "toi"
+                                ret += "Created " + crTarName + " with type \"toi\" and dye \"" + chan + "\"\n"
+                            if wellPos.upper() not in headerLookup:
+                                headerLookup[wellPos.upper()] = {}
+                            headerLookup[wellPos.upper()][chan] = crTarName
+                        if 3 not in ignoreList:
+                            if posTargetCh3 > -1:
+                                crTarName = sLin[posTargetCh3]
+                            else:
+                                crTarName = " Target " + str(countUpTarget) + " Ch3"
+                                countUpTarget += 1
+                            chan = "Ch3"
+                            if crTarName not in tarTypeLookup:
+                                if chan not in dyeLookup:
+                                    rootEl.new_dye(chan)
+                                    dyeLookup[chan] = 1
+                                    ret += "Created dye \"" + chan + "\"\n"
+                                rootEl.new_target(crTarName, "toi")
+                                elem = rootEl.get_target(byid=crTarName)
+                                elem["dyeId"] = chan
+                                tarTypeLookup[crTarName] = "toi"
+                                ret += "Created " + crTarName + " with type \"toi\" and dye \"" + chan + "\"\n"
+                            if wellPos.upper() not in headerLookup:
+                                headerLookup[wellPos.upper()] = {}
+                            headerLookup[wellPos.upper()][chan] = crTarName
                     else:
-                        posDyeName = sLin[posDye]
+                        if fileformat == "Bio-Rad":
+                            posDyeName = sLin[posDye][:3]
+                        else:
+                            posDyeName = sLin[posDye]
+                        if posTarget > -1 and int(re.sub(r"\D", "", posDyeName)) not in ignoreList:
+                            if sLin[posTarget] not in tarTypeLookup:
+                                if posDyeName not in dyeLookup:
+                                    rootEl.new_dye(posDyeName)
+                                    dyeLookup[posDyeName] = 1
+                                    ret += "Created dye \"" + posDyeName + "\"\n"
+                                posTargetTypeName = "toi"
+                                if posTargetType != -1:
+                                    posTargetTypeName = sLin[posTargetType]
+                                rootEl.new_target(sLin[posTarget], posTargetTypeName)
+                                elem = rootEl.get_target(byid=sLin[posTarget])
+                                elem["dyeId"] = posDyeName
+                                tarTypeLookup[sLin[posTarget]] = posTargetTypeName
+                                ret += "Created " + sLin[posTarget] + " with type \"" + posTargetTypeName + "\" and dye \"" + posDyeName + "\"\n"
 
-                    if posTarget != -1:
-                        if sLin[posTarget] not in tarTypeLookup:
-                            if posDyeName not in dyeLookup:
-                                rootEl.new_dye(posDyeName)
-                                dyeLookup[posDyeName] = 1
-                                ret += "Created dye \"" + posDyeName + "\"\n"
-                            posTargetTypeName = "toi"
-                            if posTargetType != -1:
-                                posTargetTypeName = sLin[posTargetType]
-                            rootEl.new_target(sLin[posTarget], posTargetTypeName)
-                            elem = rootEl.get_target(byid=sLin[posTarget])
-                            elem["dyeId"] = posDyeName
-                            tarTypeLookup[sLin[posTarget]] = posTargetTypeName
-                            ret += "Created " + sLin[posTarget] + " with type \"" + posTargetTypeName + "\" and dye \"" + posDyeName + "\"\n"
-
-                        if sLin[posWell].upper() not in headerLookup:
-                            headerLookup[sLin[posWell].upper()] = {}
-                        headerLookup[sLin[posWell].upper()][posDyeName] = sLin[posTarget]
+                            if wellPos.upper() not in headerLookup:
+                                headerLookup[wellPos.upper()] = {}
+                            headerLookup[wellPos.upper()][posDyeName] = sLin[posTarget]
 
                     if posFilename != -1 and sLin[posFilename] != "":
-                        fileNameSuggLookup[sLin[posWell].upper()] = sLin[posFilename]
+                        fileNameSuggLookup[wellPos.upper()] = sLin[posFilename]
 
                     react = None
                     partit = None
                     data = None
 
                     # Get the position number if required
-                    wellPos = re.sub(r"\"", "", sLin[posWell])
-                    if fileformat == "Stilla":
-                        wellPos = re.sub(r'^\d+-', '', wellPos)
-
+                    wellPosStore = wellPos
                     if re.search(r"\D\d+", wellPos):
                         old_letter = ord(re.sub(r"\d", "", wellPos.upper())) - ord("A")
                         old_nr = int(re.sub(r"\D", "", wellPos))
@@ -7075,9 +7143,11 @@ class Run:
                     if fileformat == "Stilla":
                         exp = _get_all_children(partit, "data")
                         for i in range(1, 4):
+                            if i in ignoreList:
+                                continue
                             data = None
-                            stillaTarget = "Target Ch" + str(i)
                             posDyeName = "Ch" + str(i)
+                            stillaTarget = headerLookup[wellPosStore.upper()][posDyeName]
                             stillaConc = "0"
                             stillaPos = "0"
                             stillaNeg = "0"
@@ -7097,11 +7167,6 @@ class Run:
                             if re.search(r"\.", stillaConc):
                                 stillaConc = re.sub(r"0+$", "", stillaConc)
                                 stillaConc = re.sub(r"\.$", ".0", stillaConc)
-
-                            wellName = re.sub(r'^\d+-', '', sLin[posWell])
-                            if wellName.upper() not in headerLookup:
-                                headerLookup[wellName.upper()] = {}
-                            headerLookup[wellName.upper()][posDyeName] = stillaTarget
 
                             for node in exp:
                                 forId = _get_first_child(node, "tar")
@@ -7303,7 +7368,7 @@ class Run:
                                 uniqueFileNames.append(finalFileName.lower())
                                 break
 
-            # print(finalFileName)
+            # print(finalFileName, flush=True)
 
             with open(fileLookup[well], newline='') as wellfile:  # add encoding='utf-8' ?
                 if fileformat == "RDML":
@@ -7409,10 +7474,10 @@ class Run:
                     ch2sum = 0
 
                     if well in headerLookup:
-                        if "Ch1" in headerLookup[well]:
+                        if "Ch1" in headerLookup[well] and 1 not in ignoreList:
                             keepCh1 = True
                             header += headerLookup[well]["Ch1"] + "\t" + headerLookup[well]["Ch1"] + "\t"
-                        if "Ch2" in headerLookup[well]:
+                        if "Ch2" in headerLookup[well] and 2 not in ignoreList:
                             keepCh2 = True
                             header += headerLookup[well]["Ch2"] + "\t" + headerLookup[well]["Ch2"] + "\t"
                         outTabFile += re.sub(r'\t$', '\n', header)
@@ -7424,9 +7489,9 @@ class Run:
                             ch1Neg = ""
                             ch2Pos = ""
                             ch2Neg = ""
-                            if re.search(r"\d", wellLines[1][0]):
+                            if re.search(r"\d", wellLines[1][0]) and 1 not in ignoreList:
                                 keepCh1 = True
-                            if len(wellLines[1]) > 1 and re.search(r"\d", wellLines[1][1]):
+                            if len(wellLines[1]) > 1 and re.search(r"\d", wellLines[1][1]) and 2 not in ignoreList:
                                 keepCh2 = True
                             for dye in dyes:
                                 if dye not in dyeLookup:
@@ -7596,15 +7661,14 @@ class Run:
                     ch3Pos = "0"
                     ch3Neg = "0"
                     ch3sum = 0
-
                     if well in headerLookup:
-                        if "Ch1" in headerLookup[well]:
+                        if "Ch1" in headerLookup[well] and 1 not in ignoreList:
                             keepCh1 = True
                             header += headerLookup[well]["Ch1"] + "\t" + headerLookup[well]["Ch1"] + "\t"
-                        if "Ch2" in headerLookup[well]:
+                        if "Ch2" in headerLookup[well] and 2 not in ignoreList:
                             keepCh2 = True
                             header += headerLookup[well]["Ch2"] + "\t" + headerLookup[well]["Ch2"] + "\t"
-                        if "Ch3" in headerLookup[well]:
+                        if "Ch3" in headerLookup[well] and 3 not in ignoreList:
                             keepCh3 = True
                             header += headerLookup[well]["Ch3"] + "\t" + headerLookup[well]["Ch3"] + "\t"
                         outTabFile += re.sub(r'\t$', '\n', header)
@@ -7618,11 +7682,11 @@ class Run:
                             ch2Neg = ""
                             ch3Pos = ""
                             ch3Neg = ""
-                            if re.search(r"\d", wellLines[1][0]):
+                            if re.search(r"\d", wellLines[1][0]) and 1 not in ignoreList:
                                 keepCh1 = True
-                            if len(wellLines[1]) > 1 and re.search(r"\d", wellLines[1][1]):
+                            if len(wellLines[1]) > 1 and re.search(r"\d", wellLines[1][1]) and 2 not in ignoreList:
                                 keepCh2 = True
-                            if len(wellLines[1]) > 2 and re.search(r"\d", wellLines[1][2]):
+                            if len(wellLines[1]) > 2 and re.search(r"\d", wellLines[1][2]) and 3 not in ignoreList:
                                 keepCh3 = True
                             for dye in dyes:
                                 if dye not in dyeLookup:
@@ -9475,7 +9539,8 @@ class Run:
 
         return finalData
 
-    def meltCurveAnalysis(self, lowTemp=65.0, highTemp=92.0, updateRDML=False, saveRaw=False, saveSmooth=False,
+    def meltCurveAnalysis(self, normLowTemp=65.0, normHighTemp=92.0, lowTemp=64.0, highTemp=94.0, fluorSource="norm",
+                          updateRDML=False, saveRaw=False, saveSmooth=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
 
@@ -9523,8 +9588,12 @@ class Run:
         rar_note = 8
         rar_exp_melt_temp = 9
 
+        normLowTemp = float(normLowTemp)
+        normHighTemp = float(normHighTemp)
         lowTemp = float(lowTemp)
         highTemp = float(highTemp)
+        if fluorSource != "norm":
+            fluorSource = "smooth"
 
         res = []
         finalData = {}
@@ -9664,16 +9733,20 @@ class Run:
                     rawData[oRow + 1].append("{0:0.3f}".format(rawFluor[oRow, oCol]))
             finalData["rawData"] = rawData
 
+        #########################
+        # Get the data in shape #
+        #########################
+
         # Initial smooth of raw data
         smoothFluor = _mca_smooth(tempList, rawFluor)
 
         # Exponential normalisation
         normalMelting = np.zeros(spFl, dtype=np.float64)
         posLowT = 0
-        while posLowT < spFl[1] - 1 and tempList[posLowT] < lowTemp:
+        while posLowT < spFl[1] - 1 and tempList[posLowT] < normLowTemp:
             posLowT += 1
         posHighT = spFl[1] - 1
-        while posHighT > 0 and tempList[posHighT] > highTemp:
+        while posHighT > 0 and tempList[posHighT] > normHighTemp:
             posHighT -= 1
 
         for rRow in range(0, spFl[0]):  # loop rRow for every reaction
@@ -9682,14 +9755,14 @@ class Run:
             FDHigh = -1 * (smoothFluor[rRow][posHighT] - smoothFluor[rRow][posHighT - 1])
 
             # determine Aexp and Cexp
-            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (highTemp - lowTemp)
+            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (normHighTemp - normLowTemp)
             Cexp = -1 * FDLow / Aexp
 
             # apply exponential base trend correction
             MaxMCCorr = 0.0
             MinMCCorr = 10000.0
             for rCol in range(0, spFl[1]):
-                normalMelting[rRow][rCol] = smoothFluor[rRow][rCol] - Cexp * np.exp(Aexp * (tempList[rCol] - lowTemp))
+                normalMelting[rRow][rCol] = smoothFluor[rRow][rCol] - Cexp * np.exp(Aexp * (tempList[rCol] - normLowTemp))
                 if normalMelting[rRow][rCol] > MaxMCCorr:
                     MaxMCCorr = normalMelting[rRow][rCol]
                 if normalMelting[rRow][rCol] < MinMCCorr:
@@ -9728,6 +9801,174 @@ class Run:
 
         # Smooth of raw data
         smoothThirdDerivative = _mca_smooth(rawThirdDerivativeTemp, rawThirdDerivative)
+
+        ##################
+        # Now find peaks #
+        ##################
+        peakResTemp = []
+        peakResFluor = []
+        peakResSumFuor = []
+        for pos in range(0, spFl[0]):  # loop rRow for every reaction
+            peakResTemp.append([])
+            peakResFluor.append([])
+            peakResSumFuor.append(0.0)
+            for sdPos in range(0, len(rawSecondDerivativeTemp) - 1):
+                if smoothSecondDerivative[pos][sdPos] >= 0.0 > smoothSecondDerivative[pos][sdPos + 1]:
+                    # found a peak
+                    peakTemp = (rawSecondDerivativeTemp[sdPos] + rawSecondDerivativeTemp[sdPos + 1]) / 2.0
+                    tdLen = len(rawThirdDerivativeTemp)
+                    for tdPos in range(0, tdLen - 1):  # Fixme use clever start and move up / down
+                        if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
+                            # found the width of the peak
+                            lowPeakPos = tdPos
+                            while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
+                                lowPeakPos -= 1
+                            highPeakPos = tdPos + 1
+                            while smoothThirdDerivative[pos][highPeakPos] < 0.0 and highPeakPos < tdLen - 2:
+                                highPeakPos += 1
+
+                            # assume symmetry when one side is missing
+                            if (lowPeakPos == 0) != (highPeakPos == tdLen - 1):
+                                if lowPeakPos == 0:
+                                    tempPos = 2 * tdPos - highPeakPos
+                                    if tempPos > 0:
+                                        lowPeakPos = tempPos
+                                if highPeakPos == tdLen - 1:
+                                    tempPos = 2 * tdPos - lowPeakPos
+                                    if tempPos < tdLen - 2:
+                                        highPeakPos = tempPos
+
+                            lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
+                            highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
+                            if highPeakTemp - lowPeakTemp < 5.0:  # Fixme: Variable
+                                lowFinFluor = 0.0
+                                highFinFluor = 0.0
+                                if fluorSource == "norm":
+                                    for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
+                                        if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
+                                            lowFinFluor = normalMelting[pos][fPos + 1]
+                                        if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
+                                            highFinFluor = normalMelting[pos][fPos]
+                                else:
+                                    for fPos in range(0, len(smoothFluor[pos]) - 1):  # Fixme use clever start and move up / down
+                                        if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
+                                            lowFinFluor = smoothFluor[pos][fPos + 1]
+                                        if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
+                                            highFinFluor = smoothFluor[pos][fPos]
+                                fluorDrop = lowFinFluor - highFinFluor
+                                if fluorDrop > 0.0:
+                              #      print(str(pos) + ": Peak: " + str(peakTemp) + " lowFinFluor: " + str(lowFinFluor) + " highFinFluor: " + str(highFinFluor))
+                                    peakResTemp[pos].append(peakTemp)
+                                    peakResFluor[pos].append(fluorDrop)
+                                    peakResSumFuor[pos] += fluorDrop
+
+        maxLenRes = 0
+        for pos in range(0, spFl[0]):  # loop rRow for every reaction
+            for yyy in range(0, len(peakResTemp[pos])):
+                if maxLenRes < yyy + 1:
+                    maxLenRes = yyy + 1
+                print(str(pos) + ": Peak: " + str(peakResTemp[pos][yyy]) + " Fluor:" + str(peakResFluor[pos][yyy]) + " / " + str(peakResSumFuor[pos]) + " = " + str(peakResFluor[pos][yyy] / peakResSumFuor[pos]))
+
+        if saveResultsList:
+            rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in range(0, maxLenRes):
+                rawData[0].append("peak temp")
+                rawData[0].append("peak correction factor")
+            for oRow in range(0, spFl[0]):
+                rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, len(peakResTemp[oRow])):
+                    rawData[oRow + 1].append(peakResTemp[oRow][oCol])
+                    rawData[oRow + 1].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
+            finalData["resTable"] = rawData
+
+
+        minTempIndex = 0
+        maxTempIndex = len(rawFirstDerivativeTemp) - 1
+        for pos in range(1, len(rawFirstDerivativeTemp)):
+            if rawFirstDerivativeTemp[pos] > lowTemp > rawFirstDerivativeTemp[pos - 1]:
+                minTempIndex = pos
+            if rawFirstDerivativeTemp[pos] > highTemp > rawFirstDerivativeTemp[pos - 1]:
+                maxTempIndex = pos
+
+        udFD = smoothFirstDerivative > np.roll(smoothFirstDerivative, 1, axis=1)
+        udFD[:, 0] = True
+
+        fudFDsum = np.zeros(udFD.shape, dtype=np.int64)
+        fudFDsum += np.roll(udFD, 3, axis=1)
+        fudFDsum += np.roll(udFD, 2, axis=1)
+        fudFDsum += np.roll(udFD, 1, axis=1)
+        fudFDsum += udFD
+        fudFDsum += np.roll(udFD, -1, axis=1)
+        fudFDsum += np.roll(udFD, -2, axis=1)
+        fudFDsum += np.roll(udFD, -3, axis=1)
+        fudFD = fudFDsum > 3
+        fudFD[:, 0] = udFD[:, 0]
+        fudFD[:, 1] = udFD[:, 1]
+        fudFD[:, 2] = udFD[:, 2]
+        fudFD[:, -1] = udFD[:, -1]
+        fudFD[:, -2] = udFD[:, -2]
+        fudFD[:, -3] = udFD[:, -3]
+
+        # Fit the smoothSecondDerivative to smoothFirstDerivative temperature range
+        udSD = np.zeros(udFD.shape, dtype=np.bool)
+        udSD[:, 1:-1] = np.roll(smoothSecondDerivative, -1, axis=1) > smoothSecondDerivative
+        udSD[:, 1] = False
+        udSD[:, -1] = False
+        udSD[:, -2] = False
+
+        fudSDsum = np.zeros(udSD.shape, dtype=np.int64)
+        fudSDsum += np.roll(udSD, 3, axis=1)
+        fudSDsum += np.roll(udSD, 2, axis=1)
+        fudSDsum += np.roll(udSD, 1, axis=1)
+        fudSDsum += udSD
+        fudSDsum += np.roll(udSD, -1, axis=1)
+        fudSDsum += np.roll(udSD, -2, axis=1)
+        fudSDsum += np.roll(udSD, -3, axis=1)
+        fudSD = fudSDsum > 3
+        fudSD[:, 0] = udSD[:, 0]
+        fudSD[:, 1] = udSD[:, 1]
+        fudSD[:, 2] = udSD[:, 2]
+        fudSD[:, -1] = udSD[:, -1]
+        fudSD[:, -2] = udSD[:, -2]
+        fudSD[:, -3] = udSD[:, -3]
+
+        for rRow in range(0, udFD.shape[0]):  # loop rRow for every reaction
+            for rCol in range(minTempIndex, maxTempIndex - 1):
+                if fudFD[rRow][rCol] and not fudFD[rRow][rCol + 1]:
+                    kdown = rCol - 1
+                    while kdown > 0 and not fudSD[rRow][kdown]:
+             #           if rRow == 0:
+             #               print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]))
+                        kdown -= 1
+             #       if rRow == 0:
+             #           print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]) + " fin k: " + str(kdown))
+
+                    kup = rCol + 1
+                    while kup < maxTempIndex and not fudSD[rRow][kdown]:  # Fixme: Max based on shape??
+                        kup += 1
+
+              #      print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]) + " kup: " + str(rawFirstDerivativeTemp[kup]))
+
+
+                    if kup > maxTempIndex - 1:  # end of peak not present
+                        if rCol + rCol - kdown < maxTempIndex - 1:
+                            kup = rCol + rCol - kdown  # assume symmetry when
+                        else:
+                            kup = maxTempIndex - 1
+
+
+             #       print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]) + " kup: " + str(rawFirstDerivativeTemp[kup]))
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9987,13 +10228,25 @@ def main():
 
         cli_result = cli_run.meltCurveAnalysis(updateRDML=cli_saveRDML, saveRaw=cli_saveRawData,
                                                saveSmooth=cli_saveBaselineData,
-                                               saveResultsList=False, saveResultsCSV=cli_saveResultData)
-
+                                               saveResultsList=True, saveResultsCSV=cli_saveResultData)
         if args.saveRaw:
             if "rawData" in cli_result:
                 with open(args.saveRaw, "w") as cli_f:
                     cli_ResStr = ""
                     for cli_row in cli_result["rawData"]:
+                        for cli_col in cli_row:
+                            if type(cli_col) is float:
+                                cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
+                            else:
+                                cli_ResStr += str(cli_col) + "\t"
+                        cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                    cli_f.write(cli_ResStr)
+
+        if args.saveResults:
+            if "resTable" in cli_result:
+                with open(args.saveResults, "w") as cli_f:
+                    cli_ResStr = ""
+                    for cli_row in cli_result["resTable"]:
                         for cli_col in cli_row:
                             if type(cli_col) is float:
                                 cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
