@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.5"
+    return "0.9.6"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1378,11 +1378,12 @@ def _lrp_assignNoPlateau(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indM
     return indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau
 
 
-def _lrp_removeOutlier(data, alpha=0.05):
+def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
     """A function which calculates the skewness and Grubbs test to identify outliers ignoring nan.
 
     Args:
         data: The numpy array with the data
+        vecNoPlateau: The vector of samples without plateau.
         alpha: The the significance level (default 0.05)
 
     Returns:
@@ -1413,23 +1414,33 @@ def _lrp_removeOutlier(data, alpha=0.05):
                 if skewness > 0.0:
                     data_max = np.nanmax(oData)
                     grubbs_res = (data_max - mean) / std
+                    max_pos = np.nanargmax(oData)
                     if grubbs_res > grubbs_Gcrit:
                         # It's a true outlier
-                        max_pos = np.nanargmax(oData)
                         oData[max_pos] = np.nan
                         oLogic[max_pos] = True
                     else:
-                        loopOn = False
+                        if vecNoPlateau[max_pos]:
+                            # It has no plateau
+                            oData[max_pos] = np.nan
+                            oLogic[max_pos] = True
+                        else:
+                            loopOn = False
                 else:
                     data_min = np.nanmin(oData)
                     grubbs_res = (mean - data_min) / std
+                    min_pos = np.nanargmin(oData)
                     if grubbs_res > grubbs_Gcrit:
                         # It's a true outlier
-                        min_pos = np.nanargmin(oData)
                         oData[min_pos] = np.nan
                         oLogic[min_pos] = True
                     else:
-                        loopOn = False
+                        if vecNoPlateau[min_pos]:
+                            # It has no plateau
+                            oData[min_pos] = np.nan
+                            oLogic[min_pos] = True
+                        else:
+                            loopOn = False
             else:
                 loopOn = False
     return oLogic
@@ -9166,8 +9177,8 @@ class Run:
             pcreff_Skip_Plat_Mean = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Mean[vecEffOutlier_Skip_Plat_Mean] = np.nan
 
-            vecEffOutlier_Skip_Out[_lrp_removeOutlier(pcreff_Skip)] = True
-            vecEffOutlier_Skip_Plat_Out[_lrp_removeOutlier(pcreff_Skip_Plat)] = True
+            vecEffOutlier_Skip_Out[_lrp_removeOutlier(pcreff_Skip, vecNoPlateau)] = True
+            vecEffOutlier_Skip_Plat_Out[_lrp_removeOutlier(pcreff_Skip_Plat, vecNoPlateau)] = True
             pcreff_Skip_Out = pcreff_Skip.copy()
             pcreff_Skip_Out[vecEffOutlier_Skip_Out] = np.nan
             pcreff_Skip_Plat_Out = pcreff_Skip_Plat.copy()
@@ -9270,6 +9281,8 @@ class Run:
                             meanNnull_Skip_Mean[oRow] = np.nan
                         if vecEffOutlier_Skip_Plat_Mean[oRow]:
                             meanNnull_Skip_Plat_Mean[oRow] = np.nan
+                        if vecEffOutlier_Skip_Out[oRow]:
+                            meanNnull_Skip_Out[oRow] = np.nan
                         if vecEffOutlier_Skip_Plat_Out[oRow]:
                             meanNnull_Skip_Plat_Out[oRow] = np.nan
 
@@ -9426,6 +9439,8 @@ class Run:
                     noteVal += "Cq < 10;N0 unreliable;"
                 if cqVal > 34.0:
                     noteVal += "Cq > 34;N0 unreliable;"
+                if cqVal > 35.0 and not res[rRow][rar_plateau]:
+                    noteVal += "Cq too high;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
