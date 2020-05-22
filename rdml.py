@@ -1464,175 +1464,163 @@ def _mca_smooth(tempList, rawFluor):
 
     smoothFluor = np.zeros(rawFluor.shape, dtype=np.float64)
 
-    zTempList = np.append(0.0, tempList)
+    padTemp = np.append(0.0, tempList)
 
     zeroPad = np.zeros((rawFluor.shape[0], 1), dtype=np.float64)
-    zRawFluor = np.append(zeroPad, rawFluor, axis=1)
-    n = len(zTempList) - 1
+    padFluor = np.append(zeroPad, rawFluor, axis=1)
+    n = len(padTemp) - 1
 
     # Find the increase in x from 0.25 to 0.75 over the total range
-    i = int(0.5 + n / 4)
-    j = 3 * i
+    firstQuater = int(0.5 + n / 4)
+    thirdQuater = 3 * firstQuater
     scale = -1.0
     while scale <= 0.0:
-        if j < n:
-            j += 1
-        if i > 1:
-            i -= 1
-        scale = zTempList[j] - zTempList[i]
+        if thirdQuater < n:
+            thirdQuater += 1
+        if firstQuater > 1:
+            firstQuater -= 1
+        scale = padTemp[thirdQuater] - padTemp[firstQuater]
     vsmlsq = 0.0001 * scale * 0.0001 * scale
 
     countUp = 0
-    for fluor in zRawFluor:
-        [res_s_a, res_s_t] = _mca_sub_smooth(zTempList, fluor, span_s, vsmlsq, True)
-        [res_s_b, _unused] = _mca_sub_smooth(zTempList, res_s_t, span_m, vsmlsq, False)
-        [res_s_c, res_s_t] = _mca_sub_smooth(zTempList, fluor, span_m, vsmlsq, True)
-        [res_s_d, _unused] = _mca_sub_smooth(zTempList, res_s_t, span_m, vsmlsq, False)
-        [res_s_e, res_s_t] = _mca_sub_smooth(zTempList, fluor, span_l, vsmlsq, True)
-        [res_s_f, _unused] = _mca_sub_smooth(zTempList, res_s_t, span_m, vsmlsq, False)
+    for fluor in padFluor:
+        [res_s_a, res_s_t] = _mca_sub_smooth(padTemp, fluor, span_s, vsmlsq, True)
+        [res_s_b, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
+        [res_s_c, res_s_t] = _mca_sub_smooth(padTemp, fluor, span_m, vsmlsq, True)
+        [res_s_d, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
+        [res_s_e, res_s_t] = _mca_sub_smooth(padTemp, fluor, span_l, vsmlsq, True)
+        [res_s_f, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
 
         res_s_fin = np.zeros(res_s_a.shape, dtype=np.float64)
-        for j in range(1, n + 1):
+        for thirdQuater in range(1, n + 1):
             resmin = 1.0e20
-            if res_s_b[j] < resmin:
-                resmin = res_s_b[j]
-                res_s_fin[j] = span_s
-            if res_s_d[j] < resmin:
-                resmin = res_s_d[j]
-                res_s_fin[j] = span_m
-            if res_s_f[j] < resmin:
-                res_s_fin[j] = span_l
+            if res_s_b[thirdQuater] < resmin:
+                resmin = res_s_b[thirdQuater]
+                res_s_fin[thirdQuater] = span_s
+            if res_s_d[thirdQuater] < resmin:
+                resmin = res_s_d[thirdQuater]
+                res_s_fin[thirdQuater] = span_m
+            if res_s_f[thirdQuater] < resmin:
+                res_s_fin[thirdQuater] = span_l
 
-        [res_s_bb, _unused] = _mca_sub_smooth(zTempList, res_s_fin, span_m, vsmlsq, False)
+        [res_s_bb, _unused] = _mca_sub_smooth(padTemp, res_s_fin, span_m, vsmlsq, False)
 
         res_s_cc = np.zeros(res_s_a.shape, dtype=np.float64)
-        for j in range(1, n + 1):
+        for thirdQuater in range(1, n + 1):
             # compare res_s_bb with spans[] and make sure the no res_s_bb[] is below span_s or above span_l
-            if res_s_bb[j] <= span_s:
-                res_s_bb[j] = span_s
-            if res_s_bb[j] >= span_l:
-                res_s_bb[j] = span_l
-            f = res_s_bb[j] - span_m
+            if res_s_bb[thirdQuater] <= span_s:
+                res_s_bb[thirdQuater] = span_s
+            if res_s_bb[thirdQuater] >= span_l:
+                res_s_bb[thirdQuater] = span_l
+            f = res_s_bb[thirdQuater] - span_m
             if f >= 0.0:
                 # in case res_s_bb[] is higher than span_m: calculate res_s_cc[] from res_s_c and res_s_e
                 # using linear interpolation between span_l and span_m
                 f = f / (span_l - span_m)
-                res_s_cc[j] = (1.0 - f) * res_s_c[j] + f * res_s_e[j]
+                res_s_cc[thirdQuater] = (1.0 - f) * res_s_c[thirdQuater] + f * res_s_e[thirdQuater]
             else:
                 # in case res_s_bb[] is less than span_m: calculate res_s_cc[] from res_s_c and res_s_a
                 # using linear interpolation between span_s and span_m
                 f = -f / (span_m - span_s)
-                res_s_cc[j] = (1.0 - f) * res_s_c[j] + f * res_s_a[j]
+                res_s_cc[thirdQuater] = (1.0 - f) * res_s_c[thirdQuater] + f * res_s_a[thirdQuater]
 
         # final smoothing of combined optimally smoothed values in res_s_cc[] into smo[]
-        [res_s_t, _unused] = _mca_sub_smooth(zTempList, res_s_cc, span_s, vsmlsq, False)
+        [res_s_t, _unused] = _mca_sub_smooth(padTemp, res_s_cc, span_s, vsmlsq, False)
         smoothFluor[countUp] = res_s_t[1:]
         countUp += 1
 
     return smoothFluor
 
 
-def _mca_sub_smooth(tempList, fluor, span, vsmlsq, saveSec):
+def _mca_sub_smooth(temperature, fluor, span, vsmlsq, saveVarianceData):
     """A function to smooth the melt curve date based on Friedmans supersmoother.
        # https://www.slac.stanford.edu/pubs/slacpubs/3250/slac-pub-3477.pdf
 
     Args:
-        tempList:
+        temperature:
         fluor: The numpy array with the raw data
         span: The selected span
         vsmlsq: The width
-        saveSec: Sava variance data
+        saveVarianceData: Sava variance data
 
     Returns:
-        [smo[], avcr[]] where smo[] contains smoothed data, avcr[] contains residuals scaled to variance.
+        [smoothData[], varianceData[]]  where smoothData[] contains smoothed data,
+        varianceData[] contains residuals scaled to variance.
     """
 
-    n = len(tempList) - 1
-    smo = np.zeros(len(tempList), dtype=np.float64)
-    acvr = np.zeros(len(tempList), dtype=np.float64)
+    n = len(temperature) - 1
+    smoothData = np.zeros(len(temperature), dtype=np.float64)
+    varianceData = np.zeros(len(temperature), dtype=np.float64)
 
-    ibw = int(0.5 * span * n + 0.6)
-    if ibw < 2:
-        ibw = 2
-    it = 2 * ibw + 1  # range of smoothing window
+    windowSize = int(0.5 * span * n + 0.6)
+    if windowSize < 2:
+        windowSize = 2
+    windowStop = 2 * windowSize + 1  # range of smoothing window
 
-    xm = 0.0
-    ym = 0.0
-    xvar = 0.0
-    cvar = 0.0
-    for i in range(1, it + 1):
-        curTemp = tempList[i]
-        curFluor = fluor[i]
-        xm = ((i - 1) * xm + curTemp) / i
-        ym = ((i - 1) * ym + curFluor) / i
-        if i > 1:
-            tmp = i * (curTemp - xm) / (i - 1)
-            xvar += tmp * (curTemp - xm)
-            cvar += tmp * (curFluor - ym)
+    xm = temperature[1]
+    ym = fluor[1]
+    tempVar = 0.0
+    fluorVar = 0.0
 
-    fbw = it
-    for j in range(1, n + 1):
-        out = j - ibw - 1
-        pin = j + ibw
-        if not (out < 1 or pin > n):
-            if out < 1:
-                out = n + out
-                xto = tempList[out] - 1.0
-                xti = tempList[pin]
-            else:
-                if pin > n:
-                    pin = pin - n
-                    xti = tempList[pin] + 1.0
-                    xto = tempList[out]
-                else:
-                    xti = tempList[pin]
-                    xto = tempList[out]
+    for i in range(2, windowStop + 1):
+        xm = ((i - 1) * xm + temperature[i]) / i
+        ym = ((i - 1) * ym + fluor[i]) / i
+        tmp = i * (temperature[i] - xm) / (i - 1)
+        tempVar += tmp * (temperature[i] - xm)
+        fluorVar += tmp * (fluor[i] - ym)
+
+    fbw = windowStop
+    for j in range(1, n + 1):  # Loop through all
+        windowStart = j - windowSize - 1
+        windowEnd = j + windowSize
+        if not (windowStart < 1 or windowEnd > n):
+            tempStart = temperature[windowStart]
+            tempEnd = temperature[windowEnd]
             fbo = fbw
             fbw = fbw - 1.0
             tmp = 0.0
             if fbw > 0.0:
-                xm = (fbo * xm - xto) / fbw
+                xm = (fbo * xm - tempStart) / fbw
             if fbw > 0.0:
-                ym = (fbo * ym - fluor[out]) / fbw
+                ym = (fbo * ym - fluor[windowStart]) / fbw
             if fbw > 0.0:
-                tmp = fbo * (xto - xm) / fbw
-            xvar = xvar - tmp * (xto - xm)
-            cvar = cvar - tmp * (fluor[out] - ym)
+                tmp = fbo * (tempStart - xm) / fbw
+            tempVar = tempVar - tmp * (tempStart - xm)
+            fluorVar = fluorVar - tmp * (fluor[windowStart] - ym)
 
             fbo = fbw
             fbw = fbw + 1.0
             tmp = 0.0
             if fbw > 0.0:
-                xm = (fbo * xm + xti) / fbw
+                xm = (fbo * xm + tempEnd) / fbw
             if fbw > 0.0:
-                ym = (fbo * ym + fluor[pin]) / fbw
+                ym = (fbo * ym + fluor[windowEnd]) / fbw
             if fbo > 0.0:
-                tmp = fbw * (xti - xm) / fbo
-            xvar = xvar + tmp * (xti - xm)
-            cvar = cvar + tmp * (fluor[pin] - ym)
+                tmp = fbw * (tempEnd - xm) / fbo
+            tempVar = tempVar + tmp * (tempEnd - xm)
+            fluorVar = fluorVar + tmp * (fluor[windowEnd] - ym)
 
-        a = 0.0
-        if xvar > vsmlsq:
-            a = cvar / xvar
-        smo[j] = a * (tempList[j] - xm) + ym
+        if tempVar > vsmlsq:
+            smoothData[j] = (temperature[j] - xm) * fluorVar / tempVar + ym  # contains smoothed data
+        else:
+            smoothData[j] = ym  # contains smoothed data
 
-        if saveSec:
+        if saveVarianceData:
             h = 0.0
             if fbw > 0.0:
                 h = 1.0 / fbw
-            if xvar > vsmlsq:
-                h = h + (tempList[j] - xm) * (tempList[j] - xm) / xvar
+            if tempVar > vsmlsq:
+                h = h + (temperature[j] - xm) * (temperature[j] - xm) / tempVar
 
-            acvr[j] = 0.0
-            a = 1.0 - h
-            if a > 0.0:
-                acvr[j] = abs(fluor[j] - smo[j]) / a
+            if 1.0 - h > 0.0:
+                varianceData[j] = abs(fluor[j] - smoothData[j]) / (1.0 - h)  # contains residuals scaled to variance
             else:
                 if j > 1:
-                    acvr[j] = acvr[j - 1]
-            # smo[] contains smoothed data, avcr[] contains residuals scaled to variance
+                    varianceData[j] = varianceData[j - 1]  # contains residuals scaled to variance
+                else:
+                    varianceData[j] = 0.0
 
-    return [smo, acvr]
+    return [smoothData, varianceData]
 
 
 def _numpyTwoAxisSave(var, fileName):
@@ -8689,7 +8677,7 @@ class Run:
         # There should be no negative values in uncorrected raw data
         absMinFluor = np.nanmin(rawMod)
         if absMinFluor < 0.0:
-            finalData["noRawData"] = "Error: Fluorscence data have negative values. Use raw data without baseline correction!"
+            finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction!"
 
         rawMod[np.isnan(rawMod)] = 0
         rawMod[rawMod <= 0.00000001] = np.nan
@@ -9555,7 +9543,7 @@ class Run:
         return finalData
 
     def meltCurveAnalysis(self, normLowTemp=65.0, normHighTemp=92.0, lowTemp=64.0, highTemp=94.0, fluorSource="norm",
-                          updateRDML=False, saveRaw=False, saveSmooth=False,
+                          updateRDML=False, saveRaw=False, saveDerivative=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
 
@@ -9563,7 +9551,7 @@ class Run:
             self: The class self parameter.
             updateRDML: If true, update the RDML data with the calculated values.
             saveRaw: If true, no raw values are given in the returned data
-            saveSmooth: If true, no baseline corrected values are given in the returned data
+            saveDerivative: If true, derivative values are given in the returned data
             saveResultsList: If true, return a 2d array object.
             saveResultsCSV: If true, return a csv string.
             verbose: If true, comment every performed step.
@@ -9738,14 +9726,14 @@ class Run:
 
         if saveRaw:
             rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
-                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+                        header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in tempStrList:
                 rawData[0].append(oCol)
             for oRow in range(0, spFl[0]):
                 rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
                                 res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, spFl[1]):
-                    rawData[oRow + 1].append("{0:0.3f}".format(rawFluor[oRow, oCol]))
+                    rawData[oRow + 1].append(float(rawFluor[oRow, oCol]))
             finalData["rawData"] = rawData
 
         #########################
@@ -9816,6 +9804,54 @@ class Run:
 
         # Smooth of raw data
         smoothThirdDerivative = _mca_smooth(rawThirdDerivativeTemp, rawThirdDerivative)
+
+        # Save derivative data
+        if saveDerivative:
+            finalData["derivative"] = {}
+
+            normData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in tempStrList:
+                normData[0].append(oCol)
+            for oRow in range(0, spFl[0]):
+                normData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, spFl[1]):
+                    normData[oRow + 1].append(float(normalMelting[oRow, oCol]))
+            finalData["derivative"]["normalized"] = normData
+
+            fDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in rawFirstDerivativeTemp:
+                fDerData[0].append(oCol)
+            for oRow in range(0, spFl[0]):
+                fDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, smoothFirstDerivative.shape[1]):
+                    fDerData[oRow + 1].append(float(smoothFirstDerivative[oRow, oCol]))
+            finalData["derivative"]["firstDerivative"] = fDerData
+
+            sDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in rawSecondDerivativeTemp:
+                sDerData[0].append(oCol)
+            for oRow in range(0, spFl[0]):
+                sDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, smoothSecondDerivative.shape[1]):
+                    sDerData[oRow + 1].append(float(smoothSecondDerivative[oRow, oCol]))
+            finalData["derivative"]["secondDerivative"] = sDerData
+
+            tDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in rawThirdDerivativeTemp:
+                tDerData[0].append(oCol)
+            for oRow in range(0, spFl[0]):
+                tDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, smoothThirdDerivative.shape[1]):
+                    tDerData[oRow + 1].append(float(smoothThirdDerivative[oRow, oCol]))
+            finalData["derivative"]["thirdDerivative"] = tDerData
 
         ##################
         # Now find peaks #
@@ -10025,6 +10061,8 @@ def main():
                         help='LinRegPCR: output file for raw (unmodified) data')
     parser.add_argument('--saveBaslineCorr', metavar="baseline_corrected.csv",
                         help='LinRegPCR: output file for baseline corrected data')
+    parser.add_argument('--saveDerivative', metavar="processed_data",
+                        help='MeltCurveAnalysis: base name for calculated derivative data')
     parser.add_argument('--saveResults', metavar="results.csv", help='LinRegPCR: output results as table')
     parser.add_argument('--timeRun', action='store_true', help='LinRegPCR: print a timestamp')
     parser.add_argument('--verbose', action='store_true', help='LinRegPCR: print comments')
@@ -10229,20 +10267,20 @@ def main():
 
         cli_saveRDML = False
         cli_saveRawData = False
-        cli_saveBaselineData = False
+        cli_saveDerivative = False
         cli_saveResultData = False
 
         if args.resultfile:
             cli_saveRDML = True
         if args.saveRaw:
             cli_saveRawData = True
-        if args.saveBaslineCorr:
-            cli_saveBaselineData = True
+        if args.saveDerivative:
+            cli_saveDerivative = True
         if args.saveResults:
             cli_saveResultData = True
 
         cli_result = cli_run.meltCurveAnalysis(updateRDML=cli_saveRDML, saveRaw=cli_saveRawData,
-                                               saveSmooth=cli_saveBaselineData,
+                                               saveDerivative=cli_saveDerivative,
                                                saveResultsList=True, saveResultsCSV=cli_saveResultData)
         if args.saveRaw:
             if "rawData" in cli_result:
@@ -10256,6 +10294,56 @@ def main():
                                 cli_ResStr += str(cli_col) + "\t"
                         cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
                     cli_f.write(cli_ResStr)
+
+        if args.saveDerivative:
+            if "derivative" in cli_result:
+                if "normalized" in cli_result["derivative"]:
+                    with open(args.saveDerivative + "_normalized.tsv", "w") as cli_f:
+                        cli_ResStr = ""
+                        for cli_row in cli_result["derivative"]["normalized"]:
+                            for cli_col in cli_row:
+                                if type(cli_col) is float:
+                                    cli_ResStr += "{0:0.8f}".format(float(cli_col)) + "\t"
+                                else:
+                                    cli_ResStr += str(cli_col) + "\t"
+                            cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                        cli_f.write(cli_ResStr)
+
+                if "firstDerivative" in cli_result["derivative"]:
+                    with open(args.saveDerivative + "_firstDerivative.tsv", "w") as cli_f:
+                        cli_ResStr = ""
+                        for cli_row in cli_result["derivative"]["firstDerivative"]:
+                            for cli_col in cli_row:
+                                if type(cli_col) is float:
+                                    cli_ResStr += "{0:0.8e}".format(float(cli_col)) + "\t"
+                                else:
+                                    cli_ResStr += str(cli_col) + "\t"
+                            cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                        cli_f.write(cli_ResStr)
+
+                if "secondDerivative" in cli_result["derivative"]:
+                    with open(args.saveDerivative + "_secondDerivative.tsv", "w") as cli_f:
+                        cli_ResStr = ""
+                        for cli_row in cli_result["derivative"]["secondDerivative"]:
+                            for cli_col in cli_row:
+                                if type(cli_col) is float:
+                                    cli_ResStr += "{0:0.8e}".format(float(cli_col)) + "\t"
+                                else:
+                                    cli_ResStr += str(cli_col) + "\t"
+                            cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                        cli_f.write(cli_ResStr)
+
+                if "thirdDerivative" in cli_result["derivative"]:
+                    with open(args.saveDerivative + "_thirdDerivative.tsv", "w") as cli_f:
+                        cli_ResStr = ""
+                        for cli_row in cli_result["derivative"]["thirdDerivative"]:
+                            for cli_col in cli_row:
+                                if type(cli_col) is float:
+                                    cli_ResStr += "{0:0.8e}".format(float(cli_col)) + "\t"
+                                else:
+                                    cli_ResStr += str(cli_col) + "\t"
+                            cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                        cli_f.write(cli_ResStr)
 
         if args.saveResults:
             if "resTable" in cli_result:
@@ -10271,7 +10359,7 @@ def main():
                     cli_f.write(cli_ResStr)
 
         if "curData" in cli_result:
-            with open("mca/cur_table.csv", "w") as cli_f:
+            with open("mca/cur_table.tsv", "w") as cli_f:
                 cli_ResStr = ""
                 for cli_row in cli_result["curData"]:
                     for cli_col in cli_row:
