@@ -1471,15 +1471,15 @@ def _mca_smooth(tempList, rawFluor):
     n = len(padTemp) - 1
 
     # Find the increase in x from 0.25 to 0.75 over the total range
-    firstQuater = int(0.5 + n / 4)
-    thirdQuater = 3 * firstQuater
+    firstQuarter = int(0.5 + n / 4)
+    thirdQuarter = 3 * firstQuarter
     scale = -1.0
     while scale <= 0.0:
-        if thirdQuater < n:
-            thirdQuater += 1
-        if firstQuater > 1:
-            firstQuater -= 1
-        scale = padTemp[thirdQuater] - padTemp[firstQuater]
+        if thirdQuarter < n:
+            thirdQuarter += 1
+        if firstQuarter > 1:
+            firstQuarter -= 1
+        scale = padTemp[thirdQuarter] - padTemp[firstQuarter]
     vsmlsq = 0.0001 * scale * 0.0001 * scale
 
     countUp = 0
@@ -1492,37 +1492,37 @@ def _mca_smooth(tempList, rawFluor):
         [res_s_f, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
 
         res_s_fin = np.zeros(res_s_a.shape, dtype=np.float64)
-        for thirdQuater in range(1, n + 1):
+        for thirdQuarter in range(1, n + 1):
             resmin = 1.0e20
-            if res_s_b[thirdQuater] < resmin:
-                resmin = res_s_b[thirdQuater]
-                res_s_fin[thirdQuater] = span_s
-            if res_s_d[thirdQuater] < resmin:
-                resmin = res_s_d[thirdQuater]
-                res_s_fin[thirdQuater] = span_m
-            if res_s_f[thirdQuater] < resmin:
-                res_s_fin[thirdQuater] = span_l
+            if res_s_b[thirdQuarter] < resmin:
+                resmin = res_s_b[thirdQuarter]
+                res_s_fin[thirdQuarter] = span_s
+            if res_s_d[thirdQuarter] < resmin:
+                resmin = res_s_d[thirdQuarter]
+                res_s_fin[thirdQuarter] = span_m
+            if res_s_f[thirdQuarter] < resmin:
+                res_s_fin[thirdQuarter] = span_l
 
         [res_s_bb, _unused] = _mca_sub_smooth(padTemp, res_s_fin, span_m, vsmlsq, False)
 
         res_s_cc = np.zeros(res_s_a.shape, dtype=np.float64)
-        for thirdQuater in range(1, n + 1):
+        for thirdQuarter in range(1, n + 1):
             # compare res_s_bb with spans[] and make sure the no res_s_bb[] is below span_s or above span_l
-            if res_s_bb[thirdQuater] <= span_s:
-                res_s_bb[thirdQuater] = span_s
-            if res_s_bb[thirdQuater] >= span_l:
-                res_s_bb[thirdQuater] = span_l
-            f = res_s_bb[thirdQuater] - span_m
+            if res_s_bb[thirdQuarter] <= span_s:
+                res_s_bb[thirdQuarter] = span_s
+            if res_s_bb[thirdQuarter] >= span_l:
+                res_s_bb[thirdQuarter] = span_l
+            f = res_s_bb[thirdQuarter] - span_m
             if f >= 0.0:
                 # in case res_s_bb[] is higher than span_m: calculate res_s_cc[] from res_s_c and res_s_e
                 # using linear interpolation between span_l and span_m
                 f = f / (span_l - span_m)
-                res_s_cc[thirdQuater] = (1.0 - f) * res_s_c[thirdQuater] + f * res_s_e[thirdQuater]
+                res_s_cc[thirdQuarter] = (1.0 - f) * res_s_c[thirdQuarter] + f * res_s_e[thirdQuarter]
             else:
                 # in case res_s_bb[] is less than span_m: calculate res_s_cc[] from res_s_c and res_s_a
                 # using linear interpolation between span_s and span_m
                 f = -f / (span_m - span_s)
-                res_s_cc[thirdQuater] = (1.0 - f) * res_s_c[thirdQuater] + f * res_s_a[thirdQuater]
+                res_s_cc[thirdQuarter] = (1.0 - f) * res_s_c[thirdQuarter] + f * res_s_a[thirdQuarter]
 
         # final smoothing of combined optimally smoothed values in res_s_cc[] into smo[]
         [res_s_t, _unused] = _mca_sub_smooth(padTemp, res_s_cc, span_s, vsmlsq, False)
@@ -9809,6 +9809,17 @@ class Run:
         if saveDerivative:
             finalData["derivative"] = {}
 
+            smoothData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            for oCol in tempStrList:
+                smoothData[0].append(oCol)
+            for oRow in range(0, spFl[0]):
+                smoothData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                for oCol in range(0, spFl[1]):
+                    smoothData[oRow + 1].append(float(smoothFluor[oRow, oCol]))
+            finalData["derivative"]["smoothed"] = smoothData
+
             normData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                          header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in tempStrList:
@@ -9820,38 +9831,38 @@ class Run:
                     normData[oRow + 1].append(float(normalMelting[oRow, oCol]))
             finalData["derivative"]["normalized"] = normData
 
-            fDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+            firstDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                          header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in rawFirstDerivativeTemp:
-                fDerData[0].append(oCol)
+                firstDerData[0].append(oCol)
             for oRow in range(0, spFl[0]):
-                fDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                firstDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
                                 res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, smoothFirstDerivative.shape[1]):
-                    fDerData[oRow + 1].append(float(smoothFirstDerivative[oRow, oCol]))
-            finalData["derivative"]["firstDerivative"] = fDerData
+                    firstDerData[oRow + 1].append(float(smoothFirstDerivative[oRow, oCol]))
+            finalData["derivative"]["firstDerivative"] = firstDerData
 
-            sDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+            secondDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                          header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in rawSecondDerivativeTemp:
-                sDerData[0].append(oCol)
+                secondDerData[0].append(oCol)
             for oRow in range(0, spFl[0]):
-                sDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                secondDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
                                 res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, smoothSecondDerivative.shape[1]):
-                    sDerData[oRow + 1].append(float(smoothSecondDerivative[oRow, oCol]))
-            finalData["derivative"]["secondDerivative"] = sDerData
+                    secondDerData[oRow + 1].append(float(smoothSecondDerivative[oRow, oCol]))
+            finalData["derivative"]["secondDerivative"] = secondDerData
 
-            tDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
+            thirdDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                          header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in rawThirdDerivativeTemp:
-                tDerData[0].append(oCol)
+                thirdDerData[0].append(oCol)
             for oRow in range(0, spFl[0]):
-                tDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
+                thirdDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
                                 res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, smoothThirdDerivative.shape[1]):
-                    tDerData[oRow + 1].append(float(smoothThirdDerivative[oRow, oCol]))
-            finalData["derivative"]["thirdDerivative"] = tDerData
+                    thirdDerData[oRow + 1].append(float(smoothThirdDerivative[oRow, oCol]))
+            finalData["derivative"]["thirdDerivative"] = thirdDerData
 
         ##################
         # Now find peaks #
@@ -9867,51 +9878,68 @@ class Run:
                 if smoothSecondDerivative[pos][sdPos] >= 0.0 > smoothSecondDerivative[pos][sdPos + 1]:
                     # found a peak
                     peakTemp = (rawSecondDerivativeTemp[sdPos] + rawSecondDerivativeTemp[sdPos + 1]) / 2.0
+
+                    # find the width of a peak
+                    tdPos = sdPos
                     tdLen = len(rawThirdDerivativeTemp)
-                    for tdPos in range(0, tdLen - 1):  # Fixme use clever start and move up / down
-                        if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
-                            # found the width of the peak
-                            lowPeakPos = tdPos
-                            while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
-                                lowPeakPos -= 1
-                            highPeakPos = tdPos + 1
-                            while smoothThirdDerivative[pos][highPeakPos] < 0.0 and highPeakPos < tdLen - 2:
-                                highPeakPos += 1
 
-                            # assume symmetry when one side is missing
-                            if (lowPeakPos == 0) != (highPeakPos == tdLen - 1):
-                                if lowPeakPos == 0:
-                                    tempPos = 2 * tdPos - highPeakPos
-                                    if tempPos > 0:
-                                        lowPeakPos = tempPos
-                                if highPeakPos == tdLen - 1:
-                                    tempPos = 2 * tdPos - lowPeakPos
-                                    if tempPos < tdLen - 2:
-                                        highPeakPos = tempPos
+                    # fit tdPos to sdPos based on temperature
+                    while (not rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1] and
+                           0 < tdPos < tdLen - 2):
+                        if rawThirdDerivativeTemp[tdPos] <= peakTemp:
+                            tdPos += 1
+                        else:
+                            tdPos -= 1
 
-                            lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
-                            highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
-                            if highPeakTemp - lowPeakTemp < 5.0:  # Fixme: Variable
-                                lowFinFluor = 0.0
-                                highFinFluor = 0.0
-                                if fluorSource == "norm":
-                                    for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
-                                        if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
-                                            lowFinFluor = normalMelting[pos][fPos + 1]
-                                        if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
-                                            highFinFluor = normalMelting[pos][fPos]
-                                else:
-                                    for fPos in range(0, len(smoothFluor[pos]) - 1):  # Fixme use clever start and move up / down
-                                        if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
-                                            lowFinFluor = smoothFluor[pos][fPos + 1]
-                                        if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
-                                            highFinFluor = smoothFluor[pos][fPos]
-                                fluorDrop = lowFinFluor - highFinFluor
-                                if fluorDrop > 0.0:
-                              #      print(str(pos) + ": Peak: " + str(peakTemp) + " lowFinFluor: " + str(lowFinFluor) + " highFinFluor: " + str(highFinFluor))
-                                    peakResTemp[pos].append(peakTemp)
-                                    peakResFluor[pos].append(fluorDrop)
-                                    peakResSumFuor[pos] += fluorDrop
+                    if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
+                        # found the width of the peak
+
+                        lowPeakPos = tdPos - 1
+                        while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
+                            lowPeakPos -= 1
+                        highPeakPos = tdPos + 1
+                        while smoothThirdDerivative[pos][highPeakPos] < 0.0 and highPeakPos < tdLen - 2:
+                            highPeakPos += 1
+
+                        # assume symmetry when one side is missing
+                        if lowPeakPos == 0 and not highPeakPos == tdLen - 1:
+                    #        print(str(smoothSecondDerivative[pos][sdPos]) + " - " + str(smoothSecondDerivative[pos][sdPos + 1]))
+                   #         print(str(tdPos) + " - " +  str( highPeakPos))
+                            tempPos = 2 * tdPos - highPeakPos
+                            if tempPos > 0:
+                                lowPeakPos = tempPos
+                        if highPeakPos == tdLen - 1 and not lowPeakPos == 0:
+                            tempPos = 2 * tdPos - lowPeakPos
+                            if tempPos < tdLen - 2:
+                                highPeakPos = tempPos
+
+                        lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
+                        highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
+                        print(str(pos + 1) + ": low: " + "{0:0.3f}".format(rawThirdDerivativeTemp[lowPeakPos]))
+                        print(str(pos + 1) + ": center: " + "{0:0.3f}".format(peakTemp))
+                        print(str(pos + 1) + ": high: " + "{0:0.3f}".format(rawThirdDerivativeTemp[highPeakPos]))
+
+                        if highPeakTemp - lowPeakTemp < 5.0:  # Fixme: Variable
+                            lowFinFluor = 0.0
+                            highFinFluor = 0.0
+                            if fluorSource == "norm":
+                                for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
+                                    if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
+                                        lowFinFluor = normalMelting[pos][fPos + 1]
+                                    if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
+                                        highFinFluor = normalMelting[pos][fPos]
+                            else:
+                                for fPos in range(0, len(smoothFluor[pos]) - 1):  # Fixme use clever start and move up / down
+                                    if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
+                                        lowFinFluor = smoothFluor[pos][fPos + 1]
+                                    if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
+                                        highFinFluor = smoothFluor[pos][fPos]
+                            fluorDrop = lowFinFluor - highFinFluor
+                            if fluorDrop > 0.0:
+                        #        print(str(pos) + ": Peak: " + str(peakTemp) + " lowFinFluor: " + str(lowFinFluor) + " highFinFluor: " + str(highFinFluor))
+                                peakResTemp[pos].append(peakTemp)
+                                peakResFluor[pos].append(fluorDrop)
+                                peakResSumFuor[pos] += fluorDrop
 
         maxLenRes = 0
         for pos in range(0, spFl[0]):  # loop rRow for every reaction
@@ -9922,7 +9950,7 @@ class Run:
 
         if saveResultsList:
             rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
-                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+                        header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in range(0, maxLenRes):
                 rawData[0].append("peak temp")
                 rawData[0].append("peak correction factor")
@@ -10014,22 +10042,6 @@ class Run:
 
 
 
-
-
-
-
-
-
-
-
-
-        currTable = [rawThirdDerivativeTemp]
-        for oRow in range(0, spFl[0]):
-            currTable.append([])
-            for oCol in range(0, smoothThirdDerivative.shape[1]):
-                currTable[oRow + 1].append("{0:0.15f}".format(smoothThirdDerivative[oRow, oCol]))
-
-        finalData["curData"] = currTable
 
 
         return finalData
@@ -10297,6 +10309,18 @@ def main():
 
         if args.saveDerivative:
             if "derivative" in cli_result:
+                if "smoothed" in cli_result["derivative"]:
+                    with open(args.saveDerivative + "_smoothed.tsv", "w") as cli_f:
+                        cli_ResStr = ""
+                        for cli_row in cli_result["derivative"]["smoothed"]:
+                            for cli_col in cli_row:
+                                if type(cli_col) is float:
+                                    cli_ResStr += "{0:0.8f}".format(float(cli_col)) + "\t"
+                                else:
+                                    cli_ResStr += str(cli_col) + "\t"
+                            cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                        cli_f.write(cli_ResStr)
+
                 if "normalized" in cli_result["derivative"]:
                     with open(args.saveDerivative + "_normalized.tsv", "w") as cli_f:
                         cli_ResStr = ""
@@ -10357,18 +10381,6 @@ def main():
                                 cli_ResStr += str(cli_col) + "\t"
                         cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
                     cli_f.write(cli_ResStr)
-
-        if "curData" in cli_result:
-            with open("mca/cur_table.tsv", "w") as cli_f:
-                cli_ResStr = ""
-                for cli_row in cli_result["curData"]:
-                    for cli_col in cli_row:
-                        if type(cli_col) is float:
-                            cli_ResStr += "{0:0.15f}".format(float(cli_col)) + "\t"
-                        else:
-                            cli_ResStr += str(cli_col) + "\t"
-                    cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
-                cli_f.write(cli_ResStr)
 
         sys.exit(0)
 

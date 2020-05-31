@@ -9,6 +9,7 @@ python3 rdml.py -mca test/test_mca_1_raw_data.rdml \
                 --saveResults test/temp_mca_1_out_results.tsv \
 
 python3 test/diff_table.py test/temp_mca_1_out_raw_data.tsv test/test_mca_1_out_raw_data.tsv "Test 1 - raw data" 20 N Y
+python3 test/diff_table.py test/temp_mca_1_out_smoothed.tsv test/test_mca_1_out_smoothed.tsv "Test 1 - smoothed data" 20 N Y
 python3 test/diff_table.py test/temp_mca_1_out_normalized.tsv test/test_mca_1_out_normalized.tsv "Test 1 - normalized data" 20 N Y
 python3 test/diff_table.py test/temp_mca_1_out_firstDerivative.tsv test/test_mca_1_out_firstDerivative.tsv "Test 1 - first Derivative" 20 N Y
 python3 test/diff_table.py test/temp_mca_1_out_secondDerivative.tsv test/test_mca_1_out_secondDerivative.tsv "Test 1 - second Derivative" 20 N Y
