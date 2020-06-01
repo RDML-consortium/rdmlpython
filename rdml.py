@@ -9542,6 +9542,70 @@ class Run:
 
         return finalData
 
+    def webAppMeltCurveAnalysis(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier"):
+        """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
+            updateRDML: If true, update the RDML data with the calculated values.
+            excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
+            excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            rawData: A 2d array with the raw fluorescence values
+            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
+            resultsList: A 2d array object.
+            resultsCSV: A csv string.
+        """
+
+        allData = self.getreactjson()
+        res = self.meltCurveAnalysis(normLowTemp=65.0, normHighTemp=92.0,
+                                     lowTemp=64.0, highTemp=94.0,
+                                     fluorSource="norm",
+                                     updateRDML=False, saveRaw=False, saveDerivative=True,
+                                     saveResultsList=True, saveResultsCSV=False, verbose=False)
+        if "baselineCorrectedData" in res:
+            bas_cyc_max = len(res["baselineCorrectedData"][0]) - 5
+            bas_fluor_min = 99999999
+            bas_fluor_max = 0.0
+            for row in range(1, len(res["baselineCorrectedData"])):
+                bass_json = []
+                for col in range(5, len(res["baselineCorrectedData"][row])):
+                    cyc = res["baselineCorrectedData"][0][col]
+                    fluor = res["baselineCorrectedData"][row][col]
+                    if not (np.isnan(fluor) or fluor <= 0.0):
+                        bas_fluor_min = min(bas_fluor_min, float(fluor))
+                        bas_fluor_max = max(bas_fluor_max, float(fluor))
+                        in_bas = [cyc, fluor, ""]
+                        bass_json.append(in_bas)
+                # Fixme do not loop over all, use sorted data and clever moving
+                for react in allData["reacts"]:
+                    if react["id"] == res["baselineCorrectedData"][row][0]:
+                        for data in react["datas"]:
+                            if data["tar"] == res["baselineCorrectedData"][row][3]:
+                                data["bass"] = list(bass_json)
+            allData["bas_cyc_max"] = bas_cyc_max
+            allData["bas_fluor_min"] = bas_fluor_min
+            allData["bas_fluor_max"] = bas_fluor_max
+
+        if "resultsList" in res:
+            header = res["resultsList"].pop(0)
+            resList = sorted(res["resultsList"], key=_sort_list_int)
+            for rRow in range(0, len(resList)):
+                for rCol in range(0, len(resList[rRow])):
+                    if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
+                        resList[rRow][rCol] = ""
+                    if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
+                        resList[rRow][rCol] = ""
+            allData["Meltcurve_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
+
+        if "noRawData" in res:
+            allData["error"] = res["noRawData"]
+
+        return allData
+
     def meltCurveAnalysis(self, normLowTemp=65.0, normHighTemp=92.0, lowTemp=64.0, highTemp=94.0, fluorSource="norm",
                           updateRDML=False, saveRaw=False, saveDerivative=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
@@ -9774,6 +9838,10 @@ class Run:
             for rCol in range(0, spFl[1]):
                 normalMelting[rRow][rCol] = (normalMelting[rRow][rCol] - MinMCCorr) / (MaxMCCorr - MinMCCorr)
 
+
+
+
+
         # FindSweepsButtonClick ???
 
         # Derivate normalMelting
@@ -9892,7 +9960,8 @@ class Run:
                             tdPos -= 1
 
                     if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
-                        # found the width of the peak
+                        # found the peak back
+                        print(str(pos) + ": temp " + str(peakTemp) + ": third " + str(smoothThirdDerivative[pos][tdPos]))
 
                         lowPeakPos = tdPos - 1
                         while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
@@ -9903,8 +9972,6 @@ class Run:
 
                         # assume symmetry when one side is missing
                         if lowPeakPos == 0 and not highPeakPos == tdLen - 1:
-                    #        print(str(smoothSecondDerivative[pos][sdPos]) + " - " + str(smoothSecondDerivative[pos][sdPos + 1]))
-                   #         print(str(tdPos) + " - " +  str( highPeakPos))
                             tempPos = 2 * tdPos - highPeakPos
                             if tempPos > 0:
                                 lowPeakPos = tempPos
@@ -9915,9 +9982,6 @@ class Run:
 
                         lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
                         highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
-                        print(str(pos + 1) + ": low: " + "{0:0.3f}".format(rawThirdDerivativeTemp[lowPeakPos]))
-                        print(str(pos + 1) + ": center: " + "{0:0.3f}".format(peakTemp))
-                        print(str(pos + 1) + ": high: " + "{0:0.3f}".format(rawThirdDerivativeTemp[highPeakPos]))
 
                         if highPeakTemp - lowPeakTemp < 5.0:  # Fixme: Variable
                             lowFinFluor = 0.0
@@ -9960,7 +10024,7 @@ class Run:
                 for oCol in range(0, len(peakResTemp[oRow])):
                     rawData[oRow + 1].append(peakResTemp[oRow][oCol])
                     rawData[oRow + 1].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
-            finalData["resTable"] = rawData
+            finalData["resultsList"] = rawData
 
 
         minTempIndex = 0
@@ -10370,10 +10434,10 @@ def main():
                         cli_f.write(cli_ResStr)
 
         if args.saveResults:
-            if "resTable" in cli_result:
+            if "resultsList" in cli_result:
                 with open(args.saveResults, "w") as cli_f:
                     cli_ResStr = ""
-                    for cli_row in cli_result["resTable"]:
+                    for cli_row in cli_result["resultsList"]:
                         for cli_col in cli_row:
                             if type(cli_col) is float:
                                 cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
