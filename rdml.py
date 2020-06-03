@@ -9651,62 +9651,6 @@ class Run:
                 allData["fdm_fluor_min"] = bas_fluor_min
                 allData["fdm_fluor_max"] = bas_fluor_max
 
-            if "secondDerivative" in res["derivative"]:
-                bas_temp_min = 120.0
-                bas_temp_max = 0.0
-                bas_fluor_min = 99999999
-                bas_fluor_max = 0.0
-                for row in range(1, len(res["derivative"]["secondDerivative"])):
-                    bass_json = []
-                    for col in range(6, len(res["derivative"]["secondDerivative"][row])):
-                        tmp = res["derivative"]["secondDerivative"][0][col]
-                        fluor = res["derivative"]["secondDerivative"][row][col]
-                        if not (np.isnan(fluor) or fluor <= 0.0):
-                            bas_temp_min = min(bas_temp_min, float(tmp))
-                            bas_temp_max = max(bas_temp_max, float(tmp))
-                            bas_fluor_min = min(bas_fluor_min, float(fluor))
-                            bas_fluor_max = max(bas_fluor_max, float(fluor))
-                            in_bas = [tmp, fluor]
-                            bass_json.append(in_bas)
-                    # Fixme do not loop over all, use sorted data and clever moving
-                    for react in allData["reacts"]:
-                        if react["id"] == res["derivative"]["secondDerivative"][row][0]:
-                            for data in react["datas"]:
-                                if data["tar"] == res["derivative"]["secondDerivative"][row][3]:
-                                    data["sdm"] = list(bass_json)
-                allData["sdm_temp_min"] = bas_temp_min
-                allData["sdm_temp_max"] = bas_temp_max
-                allData["sdm_fluor_min"] = bas_fluor_min
-                allData["sdm_fluor_max"] = bas_fluor_max
-
-            if "thirdDerivative" in res["derivative"]:
-                bas_temp_min = 120.0
-                bas_temp_max = 0.0
-                bas_fluor_min = 99999999
-                bas_fluor_max = 0.0
-                for row in range(1, len(res["derivative"]["thirdDerivative"])):
-                    bass_json = []
-                    for col in range(6, len(res["derivative"]["thirdDerivative"][row])):
-                        tmp = res["derivative"]["thirdDerivative"][0][col]
-                        fluor = res["derivative"]["thirdDerivative"][row][col]
-                        if not (np.isnan(fluor) or fluor <= 0.0):
-                            bas_temp_min = min(bas_temp_min, float(tmp))
-                            bas_temp_max = max(bas_temp_max, float(tmp))
-                            bas_fluor_min = min(bas_fluor_min, float(fluor))
-                            bas_fluor_max = max(bas_fluor_max, float(fluor))
-                            in_bas = [tmp, fluor]
-                            bass_json.append(in_bas)
-                    # Fixme do not loop over all, use sorted data and clever moving
-                    for react in allData["reacts"]:
-                        if react["id"] == res["derivative"]["thirdDerivative"][row][0]:
-                            for data in react["datas"]:
-                                if data["tar"] == res["derivative"]["thirdDerivative"][row][3]:
-                                    data["tdm"] = list(bass_json)
-                allData["tdm_temp_min"] = bas_temp_min
-                allData["tdm_temp_max"] = bas_temp_max
-                allData["tdm_fluor_min"] = bas_fluor_min
-                allData["tdm_fluor_max"] = bas_fluor_max
-
         if "resultsList" in res:
             header = res["resultsList"].pop(0)
             resList = sorted(res["resultsList"], key=_sort_list_int)
