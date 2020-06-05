@@ -9917,13 +9917,14 @@ class Run:
             vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
         bilinLowStart = np.zeros(targetsCount, dtype=np.float64)
         bilinLowStop = np.zeros(targetsCount, dtype=np.float64)
+        bilinHighStart = np.zeros(targetsCount, dtype=np.float64)
+        bilinHighStop = np.zeros(targetsCount, dtype=np.float64)
 
         LowTm = np.zeros(targetsCount, dtype=np.float64)
+        HighTm = np.zeros(targetsCount, dtype=np.float64)
 
         # Initialization of the error vectors
-        vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
-
-
+        vecSweeps = np.zeros(spFl[0], dtype=np.bool)
 
         #########################
         # Get the data in shape #
@@ -10059,14 +10060,154 @@ class Run:
                             IndexMin = k
                     else:
                         CritSlope = MeanSlope[curTarNr][k] + 2 * SDSlope[curTarNr][k]
-                        if ((CritSlope < 0.0) and ((0.0 - CritSlope) < MinSlope)):
+                        if CritSlope < 0.0 and (0.0 - CritSlope) < MinSlope:
                             MinSlope = 0.0 - CritSlope
                             IndexMin = k
                 bilinLowStart[curTarNr] = tempList[startindex + IndexMin]
                 bilinLowStop[curTarNr] = tempList[startindex + IndexMin + NtempsInRange]
                 LowTm[curTarNr] = bilinLowStop[curTarNr]
+                print("lo: " + str(bilinLowStart[curTarNr]) + " hi: " + str(bilinLowStop[curTarNr]))
 
+            ###################################
+            # Finding the suitable high range #
+            ###################################
+            for curTarNr in range(1, targetsCount):
+                starttemp = bilinLowStart[curTarNr]
+                Trange = 2.0
+                # determine index of low start temperature
+                startlowT = 0
+                while tempList[startlowT] < starttemp and startlowT < len(tempList) - 1:
+                    startlowT += 1
 
+                stoptemp = bilinLowStop[curTarNr]
+                # determine index of low stop temperature
+                stoplowT = len(tempList) - 1
+                while tempList[stoplowT] > stoptemp and stoplowT > 0:
+                    stoplowT -= 1
+
+                # determine startindex for range of high temps to test
+                starttemp = 90.0
+                # determine indices of high start and stop temperature
+                startindex = 1
+                while tempList[startindex] < starttemp and startindex < len(tempList) - 1:
+                    startindex += 1
+
+                stoptemp = 91.0
+                # determine indices of high start and stop temperature
+                stopindex = len(tempList) - 1
+                while tempList[stopindex] > stoptemp and stopindex > 0:
+                    stopindex -= 1
+
+                NtempsInRange = stopindex - startindex + 1
+
+                MeanVal = np.zeros((targetsCount, 5 * NtempsInRange + 1), dtype=np.float64)
+                SDVal = np.zeros((targetsCount, 5 * NtempsInRange + 1), dtype=np.float64)
+                IndexR = -1
+                for k in range(startindex, startindex + 5 * NtempsInRange + 1):
+                    starthighT = k - 1
+                    stophighT = starthighT + NtempsInRange
+                    IndexR += 1  # counts number of tested T ranges
+
+                    SumSlopes = 0.0
+                    SumSlopes2 = 0.0
+                    cntSlopes = 0
+                    SumVal = 0.0
+                    SumVal2 = 0.0
+                    cntVal = 0
+
+                    if normMethod == "both":
+                        bilinNormal = normalMelting.copy()
+                    else:
+                        bilinNormal = smoothFluor.copy()
+
+                    [slopelow, interceptlow] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal, startlowT, stoplowT)
+                    [slopehigh, intercepthigh] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal, starthighT, stophighT)
+                    LowTline = interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
+                    HighTline = intercepthigh[:, np.newaxis] + slopehigh[:, np.newaxis] * tempList
+                    bilinNormal = (bilinNormal - HighTline) / (LowTline - HighTline)
+                    [slopeNMC, interceptNMC] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
+                                                           startlowT + NtempsInRange, startlowT + 2 * NtempsInRange)
+
+                    for j in range(0, spFl[0]):
+                        if curTarNr == tarWinLookup[res[j][rar_tar]]:
+                            nonSweep = True
+                            for i in range(k - 2 * NtempsInRange, k + 1):
+                                if (np.abs(bilinNormal[j][i] - bilinNormal[j][i + 1]) > 0.1 and
+                                        (bilinNormal[j][i] > 0.0 > bilinNormal[j][i + 1] or
+                                         bilinNormal[j][i] < 0.0 < bilinNormal[j][i + 1])):
+                                    nonSweep = False
+                            if nonSweep:
+                                sumValIn = 0.0
+                                cntValIn = 0
+                                for i in range(k - NtempsInRange, k + 1):
+                                    sumValIn += bilinNormal[j][i]
+                                    cntValIn += 1
+                                MeanValIn = sumValIn / cntValIn
+                                SumVal += MeanValIn
+                                SumVal2 += MeanValIn * MeanValIn
+                                cntVal += 1
+
+                    MeanVal[curTarNr][IndexR] = SumVal / cntVal
+                    SDVal[curTarNr][IndexR] = np.sqrt((SumVal2 - (SumVal * SumVal / cntVal)) / (cntVal - 1))
+
+                MaxVal = -10.0  # default set to -10.0
+                IndexMax = 0
+
+                # criterion is the same for bi-linear or exponential+bi-linear
+                for k in range(0, IndexR):
+                    print(k)
+                    CritVal = MeanVal[curTarNr][k] - 2 * SDVal[curTarNr][k]
+                    if CritVal > MaxVal:
+                        MaxVal = CritVal
+                        IndexMax = k
+
+                bilinHighStart[curTarNr] = tempList[startindex + IndexMax]
+                bilinHighStop[curTarNr] = tempList[startindex + IndexMax + NtempsInRange]
+                HighTm[curTarNr] = bilinHighStart[curTarNr]
+
+                print("lo: " + str(bilinHighStart[curTarNr]) + " hi: " + str(bilinHighStop[curTarNr]))
+
+            #################################
+            # Do the bilinear normalisation #
+            #################################
+            if normMethod == "both":
+                bilinNormal = normalMelting.copy()
+            else:
+                bilinNormal = smoothFluor.copy()
+
+            for curTarNr in range(1, targetsCount):
+                # determine index of low start temperature
+                startlowT = 0
+                while tempList[startlowT] < bilinLowStart[curTarNr] and startlowT < len(tempList) - 1:
+                    startlowT += 1
+                # determine index of low stop temperature
+                stoplowT = len(tempList) - 1
+                while tempList[stoplowT] > bilinLowStop[curTarNr] and stoplowT > 0:
+                    stoplowT -= 1
+                # determine indices of high start and stop temperature
+                startindex = 1
+                while tempList[startindex] < bilinHighStart[curTarNr] and startindex < len(tempList) - 1:
+                    startindex += 1
+                # determine indices of high start and stop temperature
+                stopindex = len(tempList) - 1
+                while tempList[stopindex] > bilinHighStop[curTarNr] and stopindex > 0:
+                    stopindex -= 1
+
+                for j in range(0, spFl[0]):
+                    [slopelow, interceptlow] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
+                                                           startlowT, stoplowT)
+                    [slopehigh, intercepthigh] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
+                                                             starthighT, stophighT)
+
+                    if curTarNr == tarWinLookup[res[j][rar_tar]]:
+                        for i in range(0, spFl[0]):
+                            LowTline = interceptlow[i] + slopelow[i] * tempList[i]
+                            HighTline = intercepthigh[i] + slopehigh[i] * tempList[i]
+                            bilinNormal[j][i] = (bilinNormal[j][i] - HighTline) / (LowTline - HighTline)
+                            # avoid sweeps because LowTline and HighTline are about to cross
+                            if (i > stophighT and i > 0 and
+                                    abs(bilinNormal[j][i] - bilinNormal[j][i - 1]) > (1.01 * bilinNormal[j][i - 1])):
+                                bilinNormal[j][i] = bilinNormal[j][i - 1]
 
         # FindSweepsButtonClick ???
 
