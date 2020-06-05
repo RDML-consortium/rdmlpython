@@ -1623,6 +1623,40 @@ def _mca_sub_smooth(temperature, fluor, span, vsmlsq, saveVarianceData):
     return [smoothData, varianceData]
 
 
+def _mca_linReg(xIn, yUse, start, stop):
+    """A function which calculates the slope or the intercept by linear regression.
+
+    Args:
+        xIn: The numpy array of the temperatures
+        yUse: The numpy array that contains the fluorescence
+
+    Returns:
+        An array with the slope and intercept.
+    """
+
+    counts = np.ones(yUse.shape)
+    xUse = xIn.copy()
+    xUse[np.isnan(yUse)] = 0
+    counts[np.isnan(yUse)] = 0
+    myStop = stop + 1
+
+    tempSqared = xUse * xUse
+    tempFluor = xUse * yUse
+
+    sumCyc = np.nansum(xUse[:, start:myStop], axis=1)
+    sumFluor = np.nansum(yUse[:, start:myStop], axis=1)
+    sumCycSquared = np.nansum(tempSqared[:, start:myStop], axis=1)
+    sumCycFluor = np.nansum(tempFluor[:, start:myStop], axis=1)
+    n = np.nansum(counts[:, start:myStop], axis=1)
+
+    ssx = sumCycSquared - (sumCyc * sumCyc) / n
+    sxy = sumCycFluor - (sumCyc * sumFluor) / n
+
+    slope = sxy / ssx
+    intercept = (sumFluor / n) - slope * (sumCyc / n)
+    return [slope, intercept]
+
+
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
         np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
@@ -9561,7 +9595,7 @@ class Run:
         """
 
         allData = self.getreactjson()
-        res = self.meltCurveAnalysis(normLowTemp=65.0, normHighTemp=92.0,
+        res = self.meltCurveAnalysis(expoLowTemp=65.0, expoHighTemp=92.0,
                                      lowTemp=64.0, highTemp=94.0,
                                      fluorSource="norm",
                                      updateRDML=False, saveRaw=False, saveDerivative=True,
@@ -9667,13 +9701,18 @@ class Run:
 
         return allData
 
-    def meltCurveAnalysis(self, normLowTemp=65.0, normHighTemp=92.0, lowTemp=64.0, highTemp=94.0, fluorSource="norm",
+    def meltCurveAnalysis(self, expoLowTemp=65.0, expoHighTemp=92.0,
+                          bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
+                          bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
+                          normMethod="bilinear",
+                          lowTemp=64.0, highTemp=94.0, fluorSource="norm",
                           updateRDML=False, saveRaw=False, saveDerivative=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
+            normMethod: The normalization method "exponential", "bilinear" or "both"
             updateRDML: If true, update the RDML data with the calculated values.
             saveRaw: If true, no raw values are given in the returned data
             saveDerivative: If true, derivative values are given in the returned data
@@ -9716,10 +9755,17 @@ class Run:
         rar_note = 8
         rar_exp_melt_temp = 9
 
-        normLowTemp = float(normLowTemp)
-        normHighTemp = float(normHighTemp)
+        # Never trust user input
+        expoLowTemp = float(expoLowTemp)
+        expoHighTemp = float(expoHighTemp)
+        bilinLowStartTemp = float(bilinLowStartTemp)
+        bilinLowStopTemp = float(bilinLowStopTemp)
+        bilinHighStartTemp = float(bilinHighStartTemp)
+        bilinHighStopTemp = float(bilinHighStopTemp)
         lowTemp = float(lowTemp)
         highTemp = float(highTemp)
+        if normMethod not in ["exponential", "bilinear", "both"]:
+            normMethod = "exponential"
         if fluorSource != "norm":
             fluorSource = "smooth"
 
@@ -9749,9 +9795,6 @@ class Run:
         spFl = (len(reacts), len(tempList))
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor < 1] = np.nan
-
-        # Create a matrix with the cycle for each rawFluor value
-     #   vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int), (spFl[0], 1))
 
         # Initialization of the vecNoAmplification vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
@@ -9861,6 +9904,27 @@ class Run:
                     rawData[oRow + 1].append(float(rawFluor[oRow, oCol]))
             finalData["rawData"] = rawData
 
+        # Count the targets and create the target variables
+        # Position 0 is for the general over all window without targets
+        vecTarget = np.zeros(spFl[0], dtype=np.int)
+        vecTarget[vecTarget <= 0] = -1
+        targetsCount = 1
+        tarWinLookup = {}
+        for oRow in range(0, spFl[0]):
+            if res[oRow][rar_tar] not in tarWinLookup:
+                tarWinLookup[res[oRow][rar_tar]] = targetsCount
+                targetsCount += 1
+            vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
+        bilinLowStart = np.zeros(targetsCount, dtype=np.float64)
+        bilinLowStop = np.zeros(targetsCount, dtype=np.float64)
+
+        LowTm = np.zeros(targetsCount, dtype=np.float64)
+
+        # Initialization of the error vectors
+        vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
+
+
+
         #########################
         # Get the data in shape #
         #########################
@@ -9871,10 +9935,10 @@ class Run:
         # Exponential normalisation
         normalMelting = np.zeros(spFl, dtype=np.float64)
         posLowT = 0
-        while posLowT < spFl[1] - 1 and tempList[posLowT] < normLowTemp:
+        while posLowT < spFl[1] - 1 and tempList[posLowT] < expoLowTemp:
             posLowT += 1
         posHighT = spFl[1] - 1
-        while posHighT > 0 and tempList[posHighT] > normHighTemp:
+        while posHighT > 0 and tempList[posHighT] > expoHighTemp:
             posHighT -= 1
 
         for rRow in range(0, spFl[0]):  # loop rRow for every reaction
@@ -9883,14 +9947,14 @@ class Run:
             FDHigh = -1 * (smoothFluor[rRow][posHighT] - smoothFluor[rRow][posHighT - 1])
 
             # determine Aexp and Cexp
-            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (normHighTemp - normLowTemp)
+            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (expoHighTemp - expoLowTemp)
             Cexp = -1 * FDLow / Aexp
 
             # apply exponential base trend correction
             MaxMCCorr = 0.0
             MinMCCorr = 10000.0
             for rCol in range(0, spFl[1]):
-                normalMelting[rRow][rCol] = smoothFluor[rRow][rCol] - Cexp * np.exp(Aexp * (tempList[rCol] - normLowTemp))
+                normalMelting[rRow][rCol] = smoothFluor[rRow][rCol] - Cexp * np.exp(Aexp * (tempList[rCol] - expoLowTemp))
                 if normalMelting[rRow][rCol] > MaxMCCorr:
                     MaxMCCorr = normalMelting[rRow][rCol]
                 if normalMelting[rRow][rCol] < MinMCCorr:
@@ -9899,7 +9963,108 @@ class Run:
             for rCol in range(0, spFl[1]):
                 normalMelting[rRow][rCol] = (normalMelting[rRow][rCol] - MinMCCorr) / (MaxMCCorr - MinMCCorr)
 
+        # Bilinear normalisation
+        #     bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
+        #     bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
 
+        if normMethod in ["bilinear", "both"]:
+            ##################################
+            # Finding the suitable low range #
+            ##################################
+            starttemp = 65.0
+            Trange = 2.0
+            # determine index of low start temperature
+            startindex = 0
+            while tempList[startindex] < starttemp and startindex < len(tempList) - 1:
+                startindex += 1
+
+            stoptemp = tempList[startindex] + Trange
+            # determine index of low stop temperature
+            stopindex = len(tempList) - 1
+            while tempList[stopindex] > stoptemp and stopindex > 0:
+                stopindex -= 1
+
+            NtempsInRange = stopindex - startindex + 1
+
+            # determine index of low start temperature
+            starthighT = 0
+            while tempList[starthighT] < bilinHighStartTemp and starthighT < len(tempList) - 1:
+                starthighT += 1
+
+            stoptemp = tempList[startindex] + Trange
+            # determine index of low stop temperature
+            stophighT = len(tempList) - 1
+            while tempList[stophighT] > bilinHighStopTemp and stophighT > 0:
+                stophighT -= 1
+
+            MeanSlope = np.zeros((targetsCount, 3 * NtempsInRange + 1), dtype=np.float64)
+            SDSlope = np.zeros((targetsCount, 3 * NtempsInRange + 1), dtype=np.float64)
+            IndexR = -1
+            for k in range(startindex, startindex + 3 * NtempsInRange + 1):
+                startlowT = k - 1
+                stoplowT = startlowT + NtempsInRange
+                IndexR += 1  # counts number of tested T ranges
+                SumSlopes = np.zeros(targetsCount, dtype=np.float64)
+                SumSlopes2 = np.zeros(targetsCount, dtype=np.float64)
+                cntSlopes = np.zeros(targetsCount, dtype=np.int)
+
+                if normMethod == "both":
+                    bilinNormal = normalMelting.copy()
+                else:
+                    bilinNormal = smoothFluor.copy()
+
+                [slopelow, interceptlow] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal, startlowT, stoplowT)
+                [slopehigh, intercepthigh] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal, starthighT, stophighT)
+                LowTline = interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
+                HighTline = intercepthigh[:, np.newaxis] + slopehigh[:, np.newaxis] * tempList
+                bilinNormal = (bilinNormal - HighTline) / (LowTline - HighTline)
+                [slopeNMC, interceptNMC] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
+                                                       startlowT + NtempsInRange, startlowT + 2 * NtempsInRange)
+
+                for j in range(0, spFl[0]):
+                    nonSweep = True
+                    for i in range(0, spFl[1] - 1):
+                        if (np.abs(bilinNormal[j][i] - bilinNormal[j][i + 1]) > 0.1 and
+                                (bilinNormal[j][i] > 1.0 > bilinNormal[j][i + 1] or
+                                 bilinNormal[j][i] < 1.0 < bilinNormal[j][i + 1])):
+                            nonSweep = False
+                    if nonSweep:
+                        curTarNr = tarWinLookup[res[j][rar_tar]]
+                        SumSlopes[curTarNr] += slopeNMC[j]
+                        SumSlopes2[curTarNr] += slopeNMC[j] * slopeNMC[j]
+                        cntSlopes[curTarNr] += 1
+
+                for curTarNr in range(1, targetsCount):
+                    if cntSlopes[curTarNr] > 1:
+                        MeanSlope[curTarNr][IndexR] = SumSlopes[curTarNr] / cntSlopes[curTarNr]
+                        SDSlope[curTarNr][IndexR] = np.sqrt((SumSlopes2[curTarNr] - (SumSlopes[curTarNr] *
+                                                            SumSlopes[curTarNr] / cntSlopes[curTarNr])) /
+                                                            (cntSlopes[curTarNr] - 1))
+                    else:
+                        if IndexR == 0:
+                            MeanSlope[curTarNr][IndexR] = 10.0
+                            SDSlope[curTarNr][IndexR] = 0.0
+                        else:
+                            MeanSlope[curTarNr][IndexR] = MeanSlope[curTarNr][IndexR - 1]
+                            SDSlope[curTarNr][IndexR] = SDSlope[curTarNr][IndexR - 1]
+
+            MinSlope = 10.0  # default set to 10.0
+            IndexMin = 0
+
+            for curTarNr in range(1, targetsCount):
+                for k in range(0, IndexR - 1):
+                    if normMethod == "both":
+                        if SDSlope[curTarNr][k] < MinSlope:
+                            MinSlope = SDSlope[curTarNr][k]
+                            IndexMin = k
+                    else:
+                        CritSlope = MeanSlope[curTarNr][k] + 2 * SDSlope[curTarNr][k]
+                        if ((CritSlope < 0.0) and ((0.0 - CritSlope) < MinSlope)):
+                            MinSlope = 0.0 - CritSlope
+                            IndexMin = k
+                bilinLowStart[curTarNr] = tempList[startindex + IndexMin]
+                bilinLowStop[curTarNr] = tempList[startindex + IndexMin + NtempsInRange]
+                LowTm[curTarNr] = bilinLowStop[curTarNr]
 
 
 
@@ -10022,7 +10187,6 @@ class Run:
 
                     if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
                         # found the peak back
-                        print(str(pos) + ": temp " + str(peakTemp) + ": third " + str(smoothThirdDerivative[pos][tdPos]))
 
                         lowPeakPos = tdPos - 1
                         while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
@@ -10071,7 +10235,8 @@ class Run:
             for yyy in range(0, len(peakResTemp[pos])):
                 if maxLenRes < yyy + 1:
                     maxLenRes = yyy + 1
-                print(str(pos) + ": Peak: " + str(peakResTemp[pos][yyy]) + " Fluor:" + str(peakResFluor[pos][yyy]) + " / " + str(peakResSumFuor[pos]) + " = " + str(peakResFluor[pos][yyy] / peakResSumFuor[pos]))
+                # print(str(pos) + ": Peak: " + str(peakResTemp[pos][yyy]) + " Fluor:" + str(peakResFluor[pos][yyy]) + " / " + str(peakResSumFuor[pos]) + " = " + str(peakResFluor[pos][yyy] / peakResSumFuor[pos]))
+                pass
 
         if saveResultsList:
             rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
