@@ -9712,7 +9712,7 @@ class Run:
 
         Args:
             self: The class self parameter.
-            normMethod: The normalization method "exponential", "bilinear" or "both"
+            normMethod: The normalization method "exponential", "bilinear" or "combined"
             updateRDML: If true, update the RDML data with the calculated values.
             saveRaw: If true, no raw values are given in the returned data
             saveDerivative: If true, derivative values are given in the returned data
@@ -9764,7 +9764,7 @@ class Run:
         bilinHighStopTemp = float(bilinHighStopTemp)
         lowTemp = float(lowTemp)
         highTemp = float(highTemp)
-        if normMethod not in ["exponential", "bilinear", "both"]:
+        if normMethod not in ["exponential", "bilinear", "combined"]:
             normMethod = "exponential"
         if fluorSource != "norm":
             fluorSource = "smooth"
@@ -9968,7 +9968,7 @@ class Run:
         #     bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
         #     bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
 
-        if normMethod in ["bilinear", "both"]:
+        if normMethod in ["bilinear", "combined"]:
             ##################################
             # Finding the suitable low range #
             ##################################
@@ -10009,7 +10009,7 @@ class Run:
                 SumSlopes2 = np.zeros(targetsCount, dtype=np.float64)
                 cntSlopes = np.zeros(targetsCount, dtype=np.int)
 
-                if normMethod == "both":
+                if normMethod == "combined":
                     bilinNormal = normalMelting.copy()
                 else:
                     bilinNormal = smoothFluor.copy()
@@ -10054,7 +10054,7 @@ class Run:
 
             for curTarNr in range(1, targetsCount):
                 for k in range(0, IndexR - 1):
-                    if normMethod == "both":
+                    if normMethod == "combined":
                         if SDSlope[curTarNr][k] < MinSlope:
                             MinSlope = SDSlope[curTarNr][k]
                             IndexMin = k
@@ -10115,7 +10115,7 @@ class Run:
                     SumVal2 = 0.0
                     cntVal = 0
 
-                    if normMethod == "both":
+                    if normMethod == "combined":
                         bilinNormal = normalMelting.copy()
                     else:
                         bilinNormal = smoothFluor.copy()
@@ -10170,7 +10170,7 @@ class Run:
             #################################
             # Do the bilinear normalisation #
             #################################
-            if normMethod == "both":
+            if normMethod == "combined":
                 bilinNormal = normalMelting.copy()
             else:
                 bilinNormal = smoothFluor.copy()
@@ -10208,6 +10208,9 @@ class Run:
                             if (i > stophighT and i > 0 and
                                     abs(bilinNormal[j][i] - bilinNormal[j][i - 1]) > (1.01 * bilinNormal[j][i - 1])):
                                 bilinNormal[j][i] = bilinNormal[j][i - 1]
+
+            # Save the data
+            normalMelting = bilinNormal
 
         # FindSweepsButtonClick ???
 
