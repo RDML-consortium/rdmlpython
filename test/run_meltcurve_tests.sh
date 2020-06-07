@@ -4,6 +4,8 @@ echo "Run MCA Test 1:"
 python3 rdml.py -mca test/test_mca_1_raw_data.rdml \
                 -e "Experiment 1" \
                 -r "Run 1" \
+                --mcaNormMethod "exponential" \
+                --mcaFluorSource "normalised" \
                 --saveRaw test/temp_mca_1_out_raw_data.tsv \
                 --saveDerivative test/temp_mca_1_out \
                 --saveResults test/temp_mca_1_out_results.tsv \

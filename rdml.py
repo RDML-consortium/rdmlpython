@@ -9576,15 +9576,27 @@ class Run:
 
         return finalData
 
-    def webAppMeltCurveAnalysis(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier"):
+    def webAppMeltCurveAnalysis(self, normMethod="exponential", fluorSource="normalised",
+                                truePeakWidth=1.0, artifactPeakWidth=1.0,
+                                expoLowTemp=65.0, expoHighTemp=92.0,
+                                bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
+                                bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
+                                updateRDML=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
-            pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
+            normMethod: The normalization method "exponential", "bilinear" or "combined"
+            fluorSource: choose "normalised" or "smooth" for fluorescence correction factor calculation
+            truePeakWidth: the maximum allowed width in Celsius of the expected (true) peak
+            artifactPeakWidth: the maximum allowed width in Celsius of all artifact peaks
+            expoLowTemp: the low temperature for the exponential normalisation
+            expoHighTemp: the high temperature for the exponential normalisation
+            bilinLowStartTemp: the low start temperature for the bilinear normalisation
+            bilinLowStopTemp: the low stop temperature for the bilinear normalisation
+            bilinHighStartTemp: the high start temperature for the bilinear normalisation
+            bilinHighStopTemp: the high stop temperature for the bilinear normalisation
             updateRDML: If true, update the RDML data with the calculated values.
-            excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
-            excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -9595,10 +9607,12 @@ class Run:
         """
 
         allData = self.getreactjson()
-        res = self.meltCurveAnalysis(expoLowTemp=65.0, expoHighTemp=92.0,
-                                     lowTemp=64.0, highTemp=94.0,
-                                     fluorSource="norm",
-                                     updateRDML=False, saveRaw=False, saveDerivative=True,
+        res = self.meltCurveAnalysis(normMethod=normMethod, fluorSource=fluorSource,
+                                     truePeakWidth=truePeakWidth, artifactPeakWidth=artifactPeakWidth,
+                                     expoLowTemp=expoLowTemp, expoHighTemp=expoHighTemp,
+                                     bilinLowStartTemp=bilinLowStartTemp, bilinLowStopTemp=bilinLowStopTemp,
+                                     bilinHighStartTemp=bilinHighStartTemp, bilinHighStopTemp=bilinHighStopTemp,
+                                     updateRDML=updateRDML, saveRaw=False, saveDerivative=True,
                                      saveResultsList=True, saveResultsCSV=False, verbose=False)
         if "derivative" in res:
             if "smoothed" in res["derivative"]:
@@ -9701,11 +9715,11 @@ class Run:
 
         return allData
 
-    def meltCurveAnalysis(self, expoLowTemp=65.0, expoHighTemp=92.0,
+    def meltCurveAnalysis(self, normMethod="exponential", fluorSource="normalised",
+                          truePeakWidth=1.0, artifactPeakWidth=1.0,
+                          expoLowTemp=65.0, expoHighTemp=92.0,
                           bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
                           bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
-                          normMethod="bilinear",
-                          lowTemp=64.0, highTemp=94.0, fluorSource="norm",
                           updateRDML=False, saveRaw=False, saveDerivative=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
@@ -9713,6 +9727,15 @@ class Run:
         Args:
             self: The class self parameter.
             normMethod: The normalization method "exponential", "bilinear" or "combined"
+            fluorSource: choose "normalised" or "smooth" for fluorescence correction factor calculation
+            truePeakWidth: the maximum allowed width in Celsius of the expected (true) peak
+            artifactPeakWidth: the maximum allowed width in Celsius of all artifact peaks
+            expoLowTemp: the low temperature for the exponential normalisation
+            expoHighTemp: the high temperature for the exponential normalisation
+            bilinLowStartTemp: the low start temperature for the bilinear normalisation
+            bilinLowStopTemp: the low stop temperature for the bilinear normalisation
+            bilinHighStartTemp: the high start temperature for the bilinear normalisation
+            bilinHighStopTemp: the high stop temperature for the bilinear normalisation
             updateRDML: If true, update the RDML data with the calculated values.
             saveRaw: If true, no raw values are given in the returned data
             saveDerivative: If true, derivative values are given in the returned data
@@ -9756,17 +9779,17 @@ class Run:
         rar_exp_melt_temp = 9
 
         # Never trust user input
+        truePeakWidth = float(truePeakWidth)
+        artifactPeakWidth = float(artifactPeakWidth)
         expoLowTemp = float(expoLowTemp)
         expoHighTemp = float(expoHighTemp)
         bilinLowStartTemp = float(bilinLowStartTemp)
         bilinLowStopTemp = float(bilinLowStopTemp)
         bilinHighStartTemp = float(bilinHighStartTemp)
         bilinHighStopTemp = float(bilinHighStopTemp)
-        lowTemp = float(lowTemp)
-        highTemp = float(highTemp)
         if normMethod not in ["exponential", "bilinear", "combined"]:
             normMethod = "exponential"
-        if fluorSource != "norm":
+        if fluorSource != "normalised":
             fluorSource = "smooth"
 
         res = []
@@ -10355,7 +10378,7 @@ class Run:
                         if highPeakTemp - lowPeakTemp < 5.0:  # Fixme: Variable
                             lowFinFluor = 0.0
                             highFinFluor = 0.0
-                            if fluorSource == "norm":
+                            if fluorSource == "normalised":
                                 for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
                                     if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
                                         lowFinFluor = normalMelting[pos][fPos + 1]
@@ -10397,6 +10420,9 @@ class Run:
             finalData["resultsList"] = rawData
 
 
+
+        lowTemp = 64.0
+        highTemp = 94.0
         minTempIndex = 0
         maxTempIndex = len(rawFirstDerivativeTemp) - 1
         for pos in range(1, len(rawFirstDerivativeTemp)):
@@ -10499,19 +10525,39 @@ def main():
     parser.add_argument('--excludeEfficiency', metavar="outlier",
                         help='LinRegPCR: choose [outlier, mean, include] to exclude diverging individual efficiency ' +
                              'samples from mean PCR efficiency')
-    parser.add_argument('-mca', '--meltCurveAnalysis', metavar="data.rdml", dest='meltCurveAnalysis',
-                        help='run MeltCurveAnalysis')
     parser.add_argument('--commaConv', action='store_true', help='LinRegPCR: convert comma to dot in numbers')
     parser.add_argument('--ignoreExclusion', action='store_true', help='LinRegPCR: ignore the exclusion field')
     parser.add_argument('--saveRaw', metavar="raw_data.csv",
-                        help='LinRegPCR: output file for raw (unmodified) data')
+                        help='LinRegPCR & MeltCurveAnalysis: output file for raw (unmodified) data')
     parser.add_argument('--saveBaslineCorr', metavar="baseline_corrected.csv",
                         help='LinRegPCR: output file for baseline corrected data')
+    parser.add_argument('-mca', '--meltCurveAnalysis', metavar="data.rdml", dest='meltCurveAnalysis',
+                        help='run MeltCurveAnalysis')
+    parser.add_argument('--mcaNormMethod', metavar="exponential",
+                        help='MeltCurveAnalysis: choose [exponential, bilinear, combined] for baseline correction')
+    parser.add_argument('--mcaFluorSource', metavar="normalised",
+                        help='MeltCurveAnalysis: choose [normalised, smooth] for fluorescence correction factor calculation')
+    parser.add_argument('--mcaTruePeakWidth', metavar="1.0",
+                        help='MeltCurveAnalysis: provide the maximum allowed width in Celsius of the expected (true) peak')
+    parser.add_argument('--mcaArtifactPeakWidth', metavar="1.0",
+                        help='MeltCurveAnalysis: provide the maximum allowed width in Celsius of all artifact peaks')
+    parser.add_argument('--mcaExpoLowTemp', metavar="65.0",
+                        help='MeltCurveAnalysis: provide the low temperature for the exponential normalisation')
+    parser.add_argument('--mcaExpoHighTemp', metavar="92.0",
+                        help='MeltCurveAnalysis: provide the high temperature for the exponential normalisation')
+    parser.add_argument('--mcaBilinLowStartTemp', metavar="68.0",
+                        help='MeltCurveAnalysis: provide the low start temperature for the bilinear normalisation')
+    parser.add_argument('--mcaBilinLowStopTemp', metavar="70.0",
+                        help='MeltCurveAnalysis: provide the low stop temperature for the bilinear normalisation')
+    parser.add_argument('--mcaBilinHighStartTemp', metavar="93.0",
+                        help='MeltCurveAnalysis: provide the high start temperature for the bilinear normalisation')
+    parser.add_argument('--mcaBilinHighStopTemp', metavar="94.0",
+                        help='MeltCurveAnalysis: provide the high stop temperature for the bilinear normalisation')
     parser.add_argument('--saveDerivative', metavar="processed_data",
                         help='MeltCurveAnalysis: base name for calculated derivative data')
-    parser.add_argument('--saveResults', metavar="results.csv", help='LinRegPCR: output results as table')
+    parser.add_argument('--saveResults', metavar="results.csv", help='LinRegPCR & MeltCurveAnalysis: output results as table')
     parser.add_argument('--timeRun', action='store_true', help='LinRegPCR: print a timestamp')
-    parser.add_argument('--verbose', action='store_true', help='LinRegPCR: print comments')
+    parser.add_argument('--verbose', action='store_true', help='LinRegPCR & MeltCurveAnalysis: print comments')
 
     parser.add_argument("-d", "--doooo", dest="doooo", help="just do stuff")
 
@@ -10715,6 +10761,16 @@ def main():
         cli_saveRawData = False
         cli_saveDerivative = False
         cli_saveResultData = False
+        cli_mcaNormMethod = "exponential"
+        cli_mcaFluorSource = "normalised"
+        cli_mcaTruePeakWidth = 1.0
+        cli_mcaArtifactPeakWidth = 1.0
+        cli_mcaExpoLowTemp = 65.0
+        cli_mcaExpoHighTemp = 92.0
+        cli_mcaBilinLowStartTemp = 68.0
+        cli_mcaBilinLowStopTemp = 70.0
+        cli_mcaBilinHighStartTemp = 93.0
+        cli_mcaBilinHighStopTemp = 94.0
 
         if args.resultfile:
             cli_saveRDML = True
@@ -10724,10 +10780,42 @@ def main():
             cli_saveDerivative = True
         if args.saveResults:
             cli_saveResultData = True
+        if args.mcaNormMethod:
+            cli_mcaNormMethod = args.mcaNormMethod
+        if args.mcaFluorSource:
+            cli_mcaFluorSource = args.mcaFluorSource
+        if args.mcaTruePeakWidth:
+            cli_mcaTruePeakWidth = float(args.mcaTruePeakWidth)
+        if args.mcaArtifactPeakWidth:
+            cli_mcaArtifactPeakWidth = float(args.mcaArtifactPeakWidth)
+        if args.mcaExpoLowTemp:
+            cli_mcaExpoLowTemp = float(args.mcaExpoLowTemp)
+        if args.mcaExpoHighTemp:
+            cli_mcaExpoHighTemp = float(args.mcaExpoHighTemp)
+        if args.mcaBilinLowStartTemp:
+            cli_mcaBilinLowStartTemp = float(args.mcaBilinLowStartTemp)
+        if args.mcaBilinLowStopTemp:
+            cli_mcaBilinLowStopTemp = float(args.mcaBilinLowStopTemp)
+        if args.mcaBilinHighStartTemp:
+            cli_mcaBilinHighStartTemp = float(args.mcaBilinHighStartTemp)
+        if args.mcaBilinHighStopTemp:
+            cli_mcaBilinHighStopTemp = float(args.mcaBilinHighStopTemp)
 
-        cli_result = cli_run.meltCurveAnalysis(updateRDML=cli_saveRDML, saveRaw=cli_saveRawData,
+        cli_result = cli_run.meltCurveAnalysis(normMethod=cli_mcaNormMethod,
+                                               fluorSource=cli_mcaFluorSource,
+                                               truePeakWidth=cli_mcaTruePeakWidth,
+                                               artifactPeakWidth=cli_mcaArtifactPeakWidth,
+                                               expoLowTemp=cli_mcaExpoLowTemp,
+                                               expoHighTemp=cli_mcaExpoHighTemp,
+                                               bilinLowStartTemp=cli_mcaBilinLowStartTemp,
+                                               bilinLowStopTemp=cli_mcaBilinLowStopTemp,
+                                               bilinHighStartTemp=cli_mcaBilinHighStartTemp,
+                                               bilinHighStopTemp=cli_mcaBilinHighStopTemp,
+                                               updateRDML=cli_saveRDML,
+                                               saveRaw=cli_saveRawData,
                                                saveDerivative=cli_saveDerivative,
-                                               saveResultsList=True, saveResultsCSV=cli_saveResultData)
+                                               saveResultsList=True,
+                                               saveResultsCSV=cli_saveResultData)
         if args.saveRaw:
             if "rawData" in cli_result:
                 with open(args.saveRaw, "w") as cli_f:
