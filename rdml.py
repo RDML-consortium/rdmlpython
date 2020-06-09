@@ -9987,10 +9987,6 @@ class Run:
             for rCol in range(0, spFl[1]):
                 normalMelting[rRow][rCol] = (normalMelting[rRow][rCol] - MinMCCorr) / (MaxMCCorr - MinMCCorr)
 
-        # Bilinear normalisation
-        #     bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
-        #     bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
-
         if normMethod in ["bilinear", "combined"]:
             ##################################
             # Finding the suitable low range #
@@ -10089,7 +10085,6 @@ class Run:
                 bilinLowStart[curTarNr] = tempList[startindex + IndexMin]
                 bilinLowStop[curTarNr] = tempList[startindex + IndexMin + NtempsInRange]
                 LowTm[curTarNr] = bilinLowStop[curTarNr]
-                print("lo: " + str(bilinLowStart[curTarNr]) + " hi: " + str(bilinLowStop[curTarNr]))
 
             ###################################
             # Finding the suitable high range #
@@ -10178,7 +10173,6 @@ class Run:
 
                 # criterion is the same for bi-linear or exponential+bi-linear
                 for k in range(0, IndexR):
-                    print(k)
                     CritVal = MeanVal[curTarNr][k] - 2 * SDVal[curTarNr][k]
                     if CritVal > MaxVal:
                         MaxVal = CritVal
@@ -10187,8 +10181,6 @@ class Run:
                 bilinHighStart[curTarNr] = tempList[startindex + IndexMax]
                 bilinHighStop[curTarNr] = tempList[startindex + IndexMax + NtempsInRange]
                 HighTm[curTarNr] = bilinHighStart[curTarNr]
-
-                print("lo: " + str(bilinHighStart[curTarNr]) + " hi: " + str(bilinHighStop[curTarNr]))
 
             #################################
             # Do the bilinear normalisation #
@@ -10208,32 +10200,32 @@ class Run:
                 while tempList[stoplowT] > bilinLowStop[curTarNr] and stoplowT > 0:
                     stoplowT -= 1
                 # determine indices of high start and stop temperature
-                startindex = 1
-                while tempList[startindex] < bilinHighStart[curTarNr] and startindex < len(tempList) - 1:
-                    startindex += 1
+                starthighT = 1
+                while tempList[starthighT] < bilinHighStart[curTarNr] and starthighT < len(tempList) - 1:
+                    starthighT += 1
                 # determine indices of high start and stop temperature
-                stopindex = len(tempList) - 1
-                while tempList[stopindex] > bilinHighStop[curTarNr] and stopindex > 0:
-                    stopindex -= 1
+                stophighT = len(tempList) - 1
+                while tempList[stophighT] > bilinHighStop[curTarNr] and stophighT > 0:
+                    stophighT -= 1
+
+                [slopelow, interceptlow] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal, startlowT, stoplowT)
+                [slopehigh, intercepthigh] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal, starthighT, stophighT)
+
+                LowTline = interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
+                HighTline = intercepthigh[:, np.newaxis] + slopehigh[:, np.newaxis] * tempList
 
                 for j in range(0, spFl[0]):
-                    [slopelow, interceptlow] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
-                                                           startlowT, stoplowT)
-                    [slopehigh, intercepthigh] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
-                                                             starthighT, stophighT)
-
                     if curTarNr == tarWinLookup[res[j][rar_tar]]:
-                        for i in range(0, spFl[0]):
-                            LowTline = interceptlow[i] + slopelow[i] * tempList[i]
-                            HighTline = intercepthigh[i] + slopehigh[i] * tempList[i]
-                            bilinNormal[j][i] = (bilinNormal[j][i] - HighTline) / (LowTline - HighTline)
+                        normalMelting[j] = (bilinNormal[j] - HighTline[j]) / (LowTline[j] - HighTline[j])
+                        for i in range(0, spFl[1]):
                             # avoid sweeps because LowTline and HighTline are about to cross
-                            if (i > stophighT and i > 0 and
-                                    abs(bilinNormal[j][i] - bilinNormal[j][i - 1]) > (1.01 * bilinNormal[j][i - 1])):
-                                bilinNormal[j][i] = bilinNormal[j][i - 1]
+                            if i > stophighT:
+                                if abs(normalMelting[j][i] - normalMelting[j][i - 1]) > 1.01 * normalMelting[j][i - 1]:
+                                    normalMelting[j][i] = normalMelting[j][i - 1]
 
-            # Save the data
-            normalMelting = bilinNormal
+
+
+
 
         # FindSweepsButtonClick ???
 
