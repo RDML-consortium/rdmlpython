@@ -54,3 +54,21 @@ python3 test/diff_table.py test/temp_mca_3_out_secondDerivative.tsv test/test_mc
 python3 test/diff_table.py test/temp_mca_3_out_thirdDerivative.tsv test/test_mca_3_out_thirdDerivative.tsv "Test 2 - third Derivative" 20 N Y
 python3 test/diff_table.py test/temp_mca_3_out_results.tsv test/test_mca_3_out_results.tsv "Test 2 - results" 20 N Y
 
+echo "Run MCA Test 5: exponential"
+python3 rdml.py -mca test/test_mca_5_raw_data.rdml \
+                -e "Experiment_1" \
+                -r "Run_1" \
+                --mcaNormMethod "exponential" \
+                --mcaFluorSource "normalised" \
+                --saveRaw test/temp_mca_5_out_raw_data.tsv \
+                --saveDerivative test/temp_mca_5_out \
+                --saveResults test/temp_mca_5_out_results.tsv \
+
+python3 test/diff_table.py test/temp_mca_5_out_raw_data.tsv test/test_mca_5_out_raw_data.tsv "Test 5 - raw data" 20 N Y
+python3 test/diff_table.py test/temp_mca_5_out_smoothed.tsv test/test_mca_5_out_smoothed.tsv "Test 5 - smoothed data" 20 N Y
+python3 test/diff_table.py test/temp_mca_5_out_normalized.tsv test/test_mca_5_out_normalized.tsv "Test 5 - normalized data" 20 N Y
+python3 test/diff_table.py test/temp_mca_5_out_firstDerivative.tsv test/test_mca_5_out_firstDerivative.tsv "Test 5 - first Derivative" 20 N Y
+python3 test/diff_table.py test/temp_mca_5_out_secondDerivative.tsv test/test_mca_5_out_secondDerivative.tsv "Test 5 - second Derivative" 20 N Y
+python3 test/diff_table.py test/temp_mca_5_out_thirdDerivative.tsv test/test_mca_5_out_thirdDerivative.tsv "Test 5 - third Derivative" 20 N Y
+python3 test/diff_table.py test/temp_mca_5_out_results.tsv test/test_mca_5_out_results.tsv "Test 5 - results" 20 N Y
+

@@ -9970,6 +9970,12 @@ class Run:
             FDLow = -1 * (smoothFluor[rRow][posLowT] - smoothFluor[rRow][posLowT - 1])
             FDHigh = -1 * (smoothFluor[rRow][posHighT] - smoothFluor[rRow][posHighT - 1])
 
+            # Rarely happens, protects the log from negative values
+            if FDLow <= 0.0:
+                FDLow = 0.00001
+            if FDHigh <= 0.0:
+                FDHigh = 0.000001  # not same as FDLow = 0.00001
+
             # determine Aexp and Cexp
             Aexp = (np.log(FDHigh) - np.log(FDLow)) / (expoHighTemp - expoLowTemp)
             Cexp = -1 * FDLow / Aexp
@@ -10091,7 +10097,6 @@ class Run:
             ###################################
             for curTarNr in range(1, targetsCount):
                 starttemp = bilinLowStart[curTarNr]
-                Trange = 2.0
                 # determine index of low start temperature
                 startlowT = 0
                 while tempList[startlowT] < starttemp and startlowT < len(tempList) - 1:
@@ -10126,9 +10131,6 @@ class Run:
                     stophighT = starthighT + NtempsInRange
                     IndexR += 1  # counts number of tested T ranges
 
-                    SumSlopes = 0.0
-                    SumSlopes2 = 0.0
-                    cntSlopes = 0
                     SumVal = 0.0
                     SumVal2 = 0.0
                     cntVal = 0
@@ -10143,8 +10145,8 @@ class Run:
                     LowTline = interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
                     HighTline = intercepthigh[:, np.newaxis] + slopehigh[:, np.newaxis] * tempList
                     bilinNormal = (bilinNormal - HighTline) / (LowTline - HighTline)
-                    [slopeNMC, interceptNMC] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
-                                                           startlowT + NtempsInRange, startlowT + 2 * NtempsInRange)
+                    # [slopeNMC, interceptNMC] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
+                    #                                        startlowT + NtempsInRange, startlowT + 2 * NtempsInRange)
 
                     for j in range(0, spFl[0]):
                         if curTarNr == tarWinLookup[res[j][rar_tar]]:
@@ -10222,10 +10224,6 @@ class Run:
                             if i > stophighT:
                                 if abs(normalMelting[j][i] - normalMelting[j][i - 1]) > 1.01 * normalMelting[j][i - 1]:
                                     normalMelting[j][i] = normalMelting[j][i - 1]
-
-
-
-
 
         # FindSweepsButtonClick ???
 
@@ -10317,9 +10315,9 @@ class Run:
                     thirdDerData[oRow + 1].append(float(smoothThirdDerivative[oRow, oCol]))
             finalData["derivative"]["thirdDerivative"] = thirdDerData
 
-        ##################
-        # Now find peaks #
-        ##################
+        #######################################
+        # Now find peaks and their parameters #
+        #######################################
         peakResTemp = []
         peakResFluor = []
         peakResSumFuor = []
@@ -10367,27 +10365,26 @@ class Run:
                         lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
                         highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
 
-                        if highPeakTemp - lowPeakTemp < 5.0:  # Fixme: Variable
-                            lowFinFluor = 0.0
-                            highFinFluor = 0.0
-                            if fluorSource == "normalised":
-                                for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
-                                    if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
-                                        lowFinFluor = normalMelting[pos][fPos + 1]
-                                    if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
-                                        highFinFluor = normalMelting[pos][fPos]
-                            else:
-                                for fPos in range(0, len(smoothFluor[pos]) - 1):  # Fixme use clever start and move up / down
-                                    if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
-                                        lowFinFluor = smoothFluor[pos][fPos + 1]
-                                    if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
-                                        highFinFluor = smoothFluor[pos][fPos]
-                            fluorDrop = lowFinFluor - highFinFluor
-                            if fluorDrop > 0.0:
-                        #        print(str(pos) + ": Peak: " + str(peakTemp) + " lowFinFluor: " + str(lowFinFluor) + " highFinFluor: " + str(highFinFluor))
-                                peakResTemp[pos].append(peakTemp)
-                                peakResFluor[pos].append(fluorDrop)
-                                peakResSumFuor[pos] += fluorDrop
+                        lowFinFluor = 0.0
+                        highFinFluor = 0.0
+                        if fluorSource == "normalised":
+                            for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
+                                if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
+                                    lowFinFluor = normalMelting[pos][fPos + 1]
+                                if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
+                                    highFinFluor = normalMelting[pos][fPos]
+                        else:
+                            for fPos in range(0, len(smoothFluor[pos]) - 1):  # Fixme use clever start and move up / down
+                                if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
+                                    lowFinFluor = smoothFluor[pos][fPos + 1]
+                                if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
+                                    highFinFluor = smoothFluor[pos][fPos]
+                        fluorDrop = lowFinFluor - highFinFluor
+                        if fluorDrop > 0.0:
+                    #        print(str(pos) + ": Peak: " + str(peakTemp) + " lowFinFluor: " + str(lowFinFluor) + " highFinFluor: " + str(highFinFluor))
+                            peakResTemp[pos].append(peakTemp)
+                            peakResFluor[pos].append(fluorDrop)
+                            peakResSumFuor[pos] += fluorDrop
 
         maxLenRes = 0
         for pos in range(0, spFl[0]):  # loop rRow for every reaction
@@ -10411,7 +10408,7 @@ class Run:
                     rawData[oRow + 1].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
             finalData["resultsList"] = rawData
 
-
+        return finalData
 
         lowTemp = 64.0
         highTemp = 94.0
