@@ -9933,9 +9933,11 @@ class Run:
         vecTarget[vecTarget <= 0] = -1
         targetsCount = 1
         tarWinLookup = {}
+        tarReverseLookup = {}
         for oRow in range(0, spFl[0]):
             if res[oRow][rar_tar] not in tarWinLookup:
                 tarWinLookup[res[oRow][rar_tar]] = targetsCount
+                tarReverseLookup[targetsCount] = res[oRow][rar_tar]
                 targetsCount += 1
             vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
         bilinLowStart = np.zeros(targetsCount, dtype=np.float64)
@@ -10319,92 +10321,158 @@ class Run:
         # Now find peaks and their parameters #
         #######################################
         peakResTemp = []
+        peakResH = []
+        peakResSumH = []
+        peakResDeltaH = []
+        peakResSumDeltaH = []
         peakResFluor = []
         peakResSumFuor = []
         for pos in range(0, spFl[0]):  # loop rRow for every reaction
             peakResTemp.append([])
+            peakResH.append([])
+            peakResSumH.append(0.0)
+            peakResDeltaH.append([])
+            peakResSumDeltaH.append(0.0)
             peakResFluor.append([])
             peakResSumFuor.append(0.0)
             for sdPos in range(0, len(rawSecondDerivativeTemp) - 1):
                 if smoothSecondDerivative[pos][sdPos] >= 0.0 > smoothSecondDerivative[pos][sdPos + 1]:
                     # found a peak
                     peakTemp = (rawSecondDerivativeTemp[sdPos] + rawSecondDerivativeTemp[sdPos + 1]) / 2.0
+                    fdPeakTempPos = sdPos + 1
 
                     # find the width of a peak
                     tdPos = sdPos
                     tdLen = len(rawThirdDerivativeTemp)
 
                     # fit tdPos to sdPos based on temperature
-                    while (not rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1] and
-                           0 < tdPos < tdLen - 2):
-                        if rawThirdDerivativeTemp[tdPos] <= peakTemp:
-                            tdPos += 1
-                        else:
-                            tdPos -= 1
+                    # while (not rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1] and
+                    #        0 < tdPos < tdLen - 2):
+                    #     if rawThirdDerivativeTemp[tdPos] <= peakTemp:
+                    #         tdPos += 1
+                    #     else:
+                    #         tdPos -= 1
 
                     if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
                         # found the peak back
 
+                        foundLowSDPeak = True
                         lowPeakPos = tdPos - 1
                         while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
                             lowPeakPos -= 1
+                        if lowPeakPos == 0:
+                            foundLowSDPeak = False
+                        # peak is between lowPeakPos and lowPeakPos + 1
+
+                        foundHighSDPeak = True
                         highPeakPos = tdPos + 1
                         while smoothThirdDerivative[pos][highPeakPos] < 0.0 and highPeakPos < tdLen - 2:
                             highPeakPos += 1
+                        if highPeakPos == tdLen - 1:
+                            foundHighSDPeak = False
+                        # peak is between highPeakPos - 1 and highPeakPos
 
-                        # assume symmetry when one side is missing
-                        if lowPeakPos == 0 and not highPeakPos == tdLen - 1:
-                            tempPos = 2 * tdPos - highPeakPos
-                            if tempPos > 0:
-                                lowPeakPos = tempPos
-                        if highPeakPos == tdLen - 1 and not lowPeakPos == 0:
-                            tempPos = 2 * tdPos - lowPeakPos
-                            if tempPos < tdLen - 2:
-                                highPeakPos = tempPos
+                        if foundLowSDPeak or foundHighSDPeak:
+                            # assume symmetry when one side is missing
+                            if not foundLowSDPeak and not highPeakPos == tdLen - 1:
+                                tempPos = 2 * tdPos - highPeakPos
+                                if tempPos > 0:
+                                    lowPeakPos = tempPos
+                            if not foundHighSDPeak and not lowPeakPos == 0:
+                                tempPos = 2 * tdPos - lowPeakPos
+                                if tempPos < tdLen - 2:
+                                    highPeakPos = tempPos
 
-                        lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
-                        highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
+                            # lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
+                            # highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
 
-                        lowFinFluor = 0.0
-                        highFinFluor = 0.0
-                        if fluorSource == "normalised":
-                            for fPos in range(0, len(normalMelting[pos]) - 1):  # Fixme use clever start and move up / down
-                                if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
-                                    lowFinFluor = normalMelting[pos][fPos + 1]
-                                if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
-                                    highFinFluor = normalMelting[pos][fPos]
-                        else:
-                            for fPos in range(0, len(smoothFluor[pos]) - 1):  # Fixme use clever start and move up / down
-                                if tempList[fPos] <= lowPeakTemp < tempList[fPos + 1]:
-                                    lowFinFluor = smoothFluor[pos][fPos + 1]
-                                if tempList[fPos] <= highPeakTemp < tempList[fPos + 1]:
-                                    highFinFluor = smoothFluor[pos][fPos]
-                        fluorDrop = lowFinFluor - highFinFluor
-                        if fluorDrop > 0.0:
-                    #        print(str(pos) + ": Peak: " + str(peakTemp) + " lowFinFluor: " + str(lowFinFluor) + " highFinFluor: " + str(highFinFluor))
-                            peakResTemp[pos].append(peakTemp)
-                            peakResFluor[pos].append(fluorDrop)
-                            peakResSumFuor[pos] += fluorDrop
+                            # find the width of a peak
+                            fLowPeakPos = lowPeakPos + 5
+                            fHighPeakPos = highPeakPos + 4
+                            if fluorSource == "normalised":
+                                lowFinFluor = normalMelting[pos][fLowPeakPos]
+                                highFinFluor = normalMelting[pos][fHighPeakPos]
+                            else:
+                                lowFinFluor = smoothFluor[pos][fLowPeakPos]
+                                highFinFluor = smoothFluor[pos][fHighPeakPos]
+                            fluorDrop = lowFinFluor - highFinFluor
 
-        maxLenRes = 0
+                            fdLowPeakPos = lowPeakPos + 1
+                            fdHighPeakPos = highPeakPos
+
+                            divideBy = 0.0
+                            deltaH = 0.0
+                            if foundLowSDPeak:
+                                divideBy += 2.0
+                                deltaH += smoothFirstDerivative[pos][fdLowPeakPos] + smoothFirstDerivative[pos][fdLowPeakPos + 1]
+
+                            if foundHighSDPeak:
+                                divideBy += 2.0
+                                deltaH += smoothFirstDerivative[pos][fdHighPeakPos] + smoothFirstDerivative[pos][fdHighPeakPos + 1]
+
+                            deltaH = smoothFirstDerivative[pos][fdPeakTempPos] - deltaH / divideBy
+
+                       #     print(str(foundHighSDPeak) + " - " + str(lowPeakTemp - rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(lowPeakTemp) +
+                       #           " - " + str(rawFirstDerivativeTemp[fdLowPeakPos - 1]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos + 1]))
+
+                            if fluorDrop > 0.0:
+                                peakResTemp[pos].append(peakTemp)
+                                peakResH[pos].append(smoothFirstDerivative[pos][fdPeakTempPos])
+                                peakResSumH[pos] += smoothFirstDerivative[pos][fdPeakTempPos]
+                                peakResDeltaH[pos].append(deltaH)
+                                peakResSumDeltaH[pos] += deltaH
+                                peakResFluor[pos].append(fluorDrop)
+                                peakResSumFuor[pos] += fluorDrop
+
+        maxPeakCount = 0
         for pos in range(0, spFl[0]):  # loop rRow for every reaction
             for yyy in range(0, len(peakResTemp[pos])):
-                if maxLenRes < yyy + 1:
-                    maxLenRes = yyy + 1
-                # print(str(pos) + ": Peak: " + str(peakResTemp[pos][yyy]) + " Fluor:" + str(peakResFluor[pos][yyy]) + " / " + str(peakResSumFuor[pos]) + " = " + str(peakResFluor[pos][yyy] / peakResSumFuor[pos]))
-                pass
+                if maxPeakCount < yyy + 1:
+                    maxPeakCount = yyy + 1
+
+        # Set unwanted peaks to NaN
+
+
+        # Find the expected peak
+        for curTarNr in range(1, targetsCount):
+            expTemp = dicLU_tarMelt[tarReverseLookup[curTarNr]]
+            
+
+            print(tarReverseLookup[curTarNr] + " - " + str(expTemp))
+            for j in range(0, spFl[0]):
+                if curTarNr == tarWinLookup[res[j][rar_tar]]:
+                    pass
+
+        # Find the artifact peaks
+
+
+
+
+
+
+
 
         if saveResultsList:
             rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
-            for oCol in range(0, maxLenRes):
+            for oCol in range(0, maxPeakCount):
                 rawData[0].append("peak temp")
+                rawData[0].append("H")
+                rawData[0].append("H factor")
+                rawData[0].append("deltaH")
+                rawData[0].append("deltaH factor")
+                rawData[0].append("Fluor")
                 rawData[0].append("peak correction factor")
             for oRow in range(0, spFl[0]):
                 rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
                                 res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, len(peakResTemp[oRow])):
                     rawData[oRow + 1].append(peakResTemp[oRow][oCol])
+                    rawData[oRow + 1].append(peakResH[oRow][oCol])
+                    rawData[oRow + 1].append(peakResH[oRow][oCol] / peakResSumH[oRow])
+                    rawData[oRow + 1].append(peakResDeltaH[oRow][oCol])
+                    rawData[oRow + 1].append(peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow])
+                    rawData[oRow + 1].append(peakResFluor[oRow][oCol])
                     rawData[oRow + 1].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
             finalData["resultsList"] = rawData
 
