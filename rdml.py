@@ -10327,6 +10327,7 @@ class Run:
         peakResSumDeltaH = []
         peakResFluor = []
         peakResSumFuor = []
+        truePeakFinPos = [-1] * spFl[0]
         for pos in range(0, spFl[0]):  # loop rRow for every reaction
             peakResTemp.append([])
             peakResH.append([])
@@ -10430,26 +10431,97 @@ class Run:
                 if maxPeakCount < yyy + 1:
                     maxPeakCount = yyy + 1
 
-        # Set unwanted peaks to NaN
+        # Set unwanted peaks to -10.0
 
 
         # Find the expected peak
+        checkedPeakTemp = [row[:] for row in peakResTemp]
         for curTarNr in range(1, targetsCount):
             expTemp = dicLU_tarMelt[tarReverseLookup[curTarNr]]
-            
+            if expTemp == "" or float(expTemp) < 20.0 or float(expTemp) > 100.0:
+                # Find the best peak
+                startPeakTemp = tempList[0] + truePeakWidth
+                stopPeakTemp = tempList[-1] - truePeakWidth
+                startPeakPos = 0
+                stopPeakPos = len(tempList) - 2
+                while tempList[startPeakPos + 1] < startPeakTemp:
+                    startPeakPos += 1
+                while tempList[stopPeakPos - 1] > stopPeakTemp:
+                    stopPeakPos -= 1
+                maxDeltaH = 0.0
+                expTemp = -10.0
+                for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                    curTemp = tempList[curTempPos]
+                    curPeakInRange = 0
+                    meanCalc = 0.0
+                    deltaHSum = 0.0
+                    for oRow in range(0, spFl[0]):
+                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                            for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
+                                    curPeakInRange += 1
+                                    meanCalc += checkedPeakTemp[oRow][oCol]
+                                    deltaHSum += peakResDeltaH[oRow][oCol]
+                    # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                    if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
+                        maxDeltaH = deltaHSum / curPeakInRange
+                        expTemp = meanCalc / curPeakInRange
+            # print(str(tarReverseLookup[curTarNr]) + " - " + str(expTemp))
 
-            print(tarReverseLookup[curTarNr] + " - " + str(expTemp))
-            for j in range(0, spFl[0]):
-                if curTarNr == tarWinLookup[res[j][rar_tar]]:
-                    pass
+            # Now we have a peak temp
+            for oRow in range(0, spFl[0]):
+                if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                    for oCol in range(0, len(checkedPeakTemp[oRow])):
+                        if float(expTemp) - truePeakWidth < checkedPeakTemp[oRow][oCol] < float(expTemp) + truePeakWidth:
+                            truePeakFinPos[oRow] = oCol
+                            checkedPeakTemp[oRow][oCol] = -10.0
 
         # Find the artifact peaks
+        startPeakTemp = tempList[0] + artifactPeakWidth
+        stopPeakTemp = tempList[-1] - artifactPeakWidth
+        startPeakPos = 0
+        stopPeakPos = len(tempList) - 2
+        while tempList[startPeakPos + 1] < startPeakTemp:
+            startPeakPos += 1
+        while tempList[stopPeakPos - 1] > stopPeakTemp:
+            stopPeakPos -= 1
+
+        artifactPeaks = [[]]
+        for curTarNr in range(1, targetsCount):
+            artifactPeaks.append([])
+            stillPeaks = True
+            while stillPeaks:
+                stillPeaks = False
+                foundPeaks = False
+                maxPeakInRange = 1
+                artiTemp = -10.0
+                lastTemp = -10.0
+                for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                    curTemp = tempList[curTempPos]
+                    curPeakInRange = 0
+                    for oRow in range(0, spFl[0]):
+                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                            for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
+                                    foundPeaks = True
+                                    lastTemp = curTemp
+                                    curPeakInRange += 1
+                    if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                        maxPeakInRange = curPeakInRange
+                        artiTemp = lastTemp
+
+                if foundPeaks:
+                    artifactPeaks[curTarNr].append(artiTemp)
+                    stillPeaks = True
+
+                for oRow in range(0, spFl[0]):
+                    if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                        for oCol in range(0, len(checkedPeakTemp[oRow])):
+                            if artiTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < artiTemp + truePeakWidth:
+                                checkedPeakTemp[oRow][oCol] = -10.0
 
 
-
-
-
-
+        print(artifactPeaks)
 
 
         if saveResultsList:
