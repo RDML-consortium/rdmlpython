@@ -10320,232 +10320,374 @@ class Run:
         #######################################
         # Now find peaks and their parameters #
         #######################################
-        peakResTemp = []
-        peakResH = []
-        peakResSumH = []
-        peakResDeltaH = []
-        peakResSumDeltaH = []
-        peakResFluor = []
-        peakResSumFuor = []
-        truePeakFinPos = [-1] * spFl[0]
-        for pos in range(0, spFl[0]):  # loop rRow for every reaction
-            peakResTemp.append([])
-            peakResH.append([])
-            peakResSumH.append(0.0)
-            peakResDeltaH.append([])
-            peakResSumDeltaH.append(0.0)
-            peakResFluor.append([])
-            peakResSumFuor.append(0.0)
-            for sdPos in range(0, len(rawSecondDerivativeTemp) - 1):
-                if smoothSecondDerivative[pos][sdPos] >= 0.0 > smoothSecondDerivative[pos][sdPos + 1]:
-                    # found a peak
-                    peakTemp = (rawSecondDerivativeTemp[sdPos] + rawSecondDerivativeTemp[sdPos + 1]) / 2.0
-                    fdPeakTempPos = sdPos + 1
+        if saveResultsList:
+            peakResTemp = []
+            peakResH = []
+            peakResSumH = []
+            peakResDeltaH = []
+            peakResSumDeltaH = []
+            peakResFluor = []
+            peakResSumFuor = []
+            truePeakFinPos = [-1] * spFl[0]
+            for pos in range(0, spFl[0]):  # loop rRow for every reaction
+                peakResTemp.append([])
+                peakResH.append([])
+                peakResSumH.append(0.0)
+                peakResDeltaH.append([])
+                peakResSumDeltaH.append(0.0)
+                peakResFluor.append([])
+                peakResSumFuor.append(0.0)
+                for sdPos in range(0, len(rawSecondDerivativeTemp) - 1):
+                    if smoothSecondDerivative[pos][sdPos] >= 0.0 > smoothSecondDerivative[pos][sdPos + 1]:
+                        # found a peak
+                        peakTemp = (rawSecondDerivativeTemp[sdPos] + rawSecondDerivativeTemp[sdPos + 1]) / 2.0
+                        fdPeakTempPos = sdPos + 1
 
-                    # find the width of a peak
-                    tdPos = sdPos
-                    tdLen = len(rawThirdDerivativeTemp)
+                        # find the width of a peak
+                        tdPos = sdPos
+                        tdLen = len(rawThirdDerivativeTemp)
 
-                    # fit tdPos to sdPos based on temperature
-                    # while (not rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1] and
-                    #        0 < tdPos < tdLen - 2):
-                    #     if rawThirdDerivativeTemp[tdPos] <= peakTemp:
-                    #         tdPos += 1
-                    #     else:
-                    #         tdPos -= 1
+                        # fit tdPos to sdPos based on temperature
+                        # while (not rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1] and
+                        #        0 < tdPos < tdLen - 2):
+                        #     if rawThirdDerivativeTemp[tdPos] <= peakTemp:
+                        #         tdPos += 1
+                        #     else:
+                        #         tdPos -= 1
 
-                    if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
-                        # found the peak back
+                        if rawThirdDerivativeTemp[tdPos] <= peakTemp < rawThirdDerivativeTemp[tdPos + 1]:
+                            # found the peak back
 
-                        foundLowSDPeak = True
-                        lowPeakPos = tdPos - 1
-                        while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
-                            lowPeakPos -= 1
-                        if lowPeakPos == 0:
-                            foundLowSDPeak = False
-                        # peak is between lowPeakPos and lowPeakPos + 1
+                            foundLowSDPeak = True
+                            lowPeakPos = tdPos - 1
+                            while smoothThirdDerivative[pos][lowPeakPos] < 0.0 and lowPeakPos > 0:
+                                lowPeakPos -= 1
+                            if lowPeakPos == 0:
+                                foundLowSDPeak = False
+                            # peak is between lowPeakPos and lowPeakPos + 1
 
-                        foundHighSDPeak = True
-                        highPeakPos = tdPos + 1
-                        while smoothThirdDerivative[pos][highPeakPos] < 0.0 and highPeakPos < tdLen - 2:
-                            highPeakPos += 1
-                        if highPeakPos == tdLen - 1:
-                            foundHighSDPeak = False
-                        # peak is between highPeakPos - 1 and highPeakPos
+                            foundHighSDPeak = True
+                            highPeakPos = tdPos + 1
+                            while smoothThirdDerivative[pos][highPeakPos] < 0.0 and highPeakPos < tdLen - 2:
+                                highPeakPos += 1
+                            if highPeakPos == tdLen - 1:
+                                foundHighSDPeak = False
+                            # peak is between highPeakPos - 1 and highPeakPos
 
-                        if foundLowSDPeak or foundHighSDPeak:
-                            # assume symmetry when one side is missing
-                            if not foundLowSDPeak and not highPeakPos == tdLen - 1:
-                                tempPos = 2 * tdPos - highPeakPos
-                                if tempPos > 0:
-                                    lowPeakPos = tempPos
-                            if not foundHighSDPeak and not lowPeakPos == 0:
-                                tempPos = 2 * tdPos - lowPeakPos
-                                if tempPos < tdLen - 2:
-                                    highPeakPos = tempPos
+                            if foundLowSDPeak or foundHighSDPeak:
+                                # assume symmetry when one side is missing
+                                if not foundLowSDPeak and not highPeakPos == tdLen - 1:
+                                    tempPos = 2 * tdPos - highPeakPos
+                                    if tempPos > 0:
+                                        lowPeakPos = tempPos
+                                if not foundHighSDPeak and not lowPeakPos == 0:
+                                    tempPos = 2 * tdPos - lowPeakPos
+                                    if tempPos < tdLen - 2:
+                                        highPeakPos = tempPos
 
-                            # lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
-                            # highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
+                                # lowPeakTemp = (rawThirdDerivativeTemp[lowPeakPos] + rawThirdDerivativeTemp[lowPeakPos + 1]) / 2.0
+                                # highPeakTemp = (rawThirdDerivativeTemp[highPeakPos - 1] + rawThirdDerivativeTemp[highPeakPos]) / 2.0
 
-                            # find the width of a peak
-                            fLowPeakPos = lowPeakPos + 5
-                            fHighPeakPos = highPeakPos + 4
-                            if fluorSource == "normalised":
-                                lowFinFluor = normalMelting[pos][fLowPeakPos]
-                                highFinFluor = normalMelting[pos][fHighPeakPos]
-                            else:
-                                lowFinFluor = smoothFluor[pos][fLowPeakPos]
-                                highFinFluor = smoothFluor[pos][fHighPeakPos]
-                            fluorDrop = lowFinFluor - highFinFluor
+                                # find the width of a peak
+                                fLowPeakPos = lowPeakPos + 5
+                                fHighPeakPos = highPeakPos + 4
+                                if fluorSource == "normalised":
+                                    lowFinFluor = normalMelting[pos][fLowPeakPos]
+                                    highFinFluor = normalMelting[pos][fHighPeakPos]
+                                else:
+                                    lowFinFluor = smoothFluor[pos][fLowPeakPos]
+                                    highFinFluor = smoothFluor[pos][fHighPeakPos]
+                                fluorDrop = lowFinFluor - highFinFluor
 
-                            fdLowPeakPos = lowPeakPos + 1
-                            fdHighPeakPos = highPeakPos
+                                fdLowPeakPos = lowPeakPos + 1
+                                fdHighPeakPos = highPeakPos
 
-                            divideBy = 0.0
-                            deltaH = 0.0
-                            if foundLowSDPeak:
-                                divideBy += 2.0
-                                deltaH += smoothFirstDerivative[pos][fdLowPeakPos] + smoothFirstDerivative[pos][fdLowPeakPos + 1]
+                                divideBy = 0.0
+                                deltaH = 0.0
+                                if foundLowSDPeak:
+                                    divideBy += 2.0
+                                    deltaH += smoothFirstDerivative[pos][fdLowPeakPos] + smoothFirstDerivative[pos][fdLowPeakPos + 1]
 
-                            if foundHighSDPeak:
-                                divideBy += 2.0
-                                deltaH += smoothFirstDerivative[pos][fdHighPeakPos] + smoothFirstDerivative[pos][fdHighPeakPos + 1]
+                                if foundHighSDPeak:
+                                    divideBy += 2.0
+                                    deltaH += smoothFirstDerivative[pos][fdHighPeakPos] + smoothFirstDerivative[pos][fdHighPeakPos + 1]
 
-                            deltaH = smoothFirstDerivative[pos][fdPeakTempPos] - deltaH / divideBy
+                                deltaH = smoothFirstDerivative[pos][fdPeakTempPos] - deltaH / divideBy
 
-                       #     print(str(foundHighSDPeak) + " - " + str(lowPeakTemp - rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(lowPeakTemp) +
-                       #           " - " + str(rawFirstDerivativeTemp[fdLowPeakPos - 1]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos + 1]))
+                           #     print(str(foundHighSDPeak) + " - " + str(lowPeakTemp - rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(lowPeakTemp) +
+                           #           " - " + str(rawFirstDerivativeTemp[fdLowPeakPos - 1]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos + 1]))
 
-                            if fluorDrop > 0.0:
-                                peakResTemp[pos].append(peakTemp)
-                                peakResH[pos].append(smoothFirstDerivative[pos][fdPeakTempPos])
-                                peakResSumH[pos] += smoothFirstDerivative[pos][fdPeakTempPos]
-                                peakResDeltaH[pos].append(deltaH)
-                                peakResSumDeltaH[pos] += deltaH
-                                peakResFluor[pos].append(fluorDrop)
-                                peakResSumFuor[pos] += fluorDrop
+                                if fluorDrop > 0.0:
+                                    peakResTemp[pos].append(peakTemp)
+                                    peakResH[pos].append(smoothFirstDerivative[pos][fdPeakTempPos])
+                                    peakResSumH[pos] += smoothFirstDerivative[pos][fdPeakTempPos]
+                                    peakResDeltaH[pos].append(deltaH)
+                                    peakResSumDeltaH[pos] += deltaH
+                                    peakResFluor[pos].append(fluorDrop)
+                                    peakResSumFuor[pos] += fluorDrop
 
-        maxPeakCount = 0
-        for pos in range(0, spFl[0]):  # loop rRow for every reaction
-            for yyy in range(0, len(peakResTemp[pos])):
-                if maxPeakCount < yyy + 1:
-                    maxPeakCount = yyy + 1
+            maxPeakCount = 0
+            for pos in range(0, spFl[0]):  # loop rRow for every reaction
+                for yyy in range(0, len(peakResTemp[pos])):
+                    if maxPeakCount < yyy + 1:
+                        maxPeakCount = yyy + 1
 
-        # Set unwanted peaks to -10.0
+            # Set unwanted peaks to -10.0
 
 
-        # Find the expected peak
-        checkedPeakTemp = [row[:] for row in peakResTemp]
-        for curTarNr in range(1, targetsCount):
-            expTemp = dicLU_tarMelt[tarReverseLookup[curTarNr]]
-            if expTemp == "" or float(expTemp) < 20.0 or float(expTemp) > 100.0:
-                # Find the best peak
-                startPeakTemp = tempList[0] + truePeakWidth
-                stopPeakTemp = tempList[-1] - truePeakWidth
-                startPeakPos = 0
-                stopPeakPos = len(tempList) - 2
-                while tempList[startPeakPos + 1] < startPeakTemp:
-                    startPeakPos += 1
-                while tempList[stopPeakPos - 1] > stopPeakTemp:
-                    stopPeakPos -= 1
-                maxDeltaH = 0.0
-                expTemp = -10.0
-                for curTempPos in range(startPeakPos, stopPeakPos + 1):
-                    curTemp = tempList[curTempPos]
-                    curPeakInRange = 0
-                    meanCalc = 0.0
-                    deltaHSum = 0.0
-                    for oRow in range(0, spFl[0]):
-                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                            for oCol in range(0, len(checkedPeakTemp[oRow])):
-                                if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
-                                    curPeakInRange += 1
-                                    meanCalc += checkedPeakTemp[oRow][oCol]
-                                    deltaHSum += peakResDeltaH[oRow][oCol]
-                    # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
-                    if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
-                        maxDeltaH = deltaHSum / curPeakInRange
-                        expTemp = meanCalc / curPeakInRange
-            # print(str(tarReverseLookup[curTarNr]) + " - " + str(expTemp))
+            # Find the expected peak
+            checkedPeakTemp = [row[:] for row in peakResTemp]
+            expTemp = [[]]
+            for curTarNr in range(1, targetsCount):
+                expTemp.append(dicLU_tarMelt[tarReverseLookup[curTarNr]])
+                if expTemp[curTarNr] == "" or float(expTemp[curTarNr]) < 20.0 or float(expTemp[curTarNr]) > 100.0:
+                    # Find the best peak
+                    startPeakTemp = tempList[0] + truePeakWidth
+                    stopPeakTemp = tempList[-1] - truePeakWidth
+                    startPeakPos = 0
+                    stopPeakPos = len(tempList) - 2
+                    while tempList[startPeakPos + 1] < startPeakTemp:
+                        startPeakPos += 1
+                    while tempList[stopPeakPos - 1] > stopPeakTemp:
+                        stopPeakPos -= 1
+                    maxDeltaH = 0.0
+                    expTemp[curTarNr] = -10.0
+                    for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                        curTemp = tempList[curTempPos]
+                        curPeakInRange = 0
+                        meanCalc = 0.0
+                        deltaHSum = 0.0
+                        for oRow in range(0, spFl[0]):
+                            if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                                for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                    if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
+                                        curPeakInRange += 1
+                                        meanCalc += checkedPeakTemp[oRow][oCol]
+                                        deltaHSum += peakResDeltaH[oRow][oCol]
+                        # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                        if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
+                            maxDeltaH = deltaHSum / curPeakInRange
+                            expTemp[curTarNr] = meanCalc / curPeakInRange
+                # print(str(tarReverseLookup[curTarNr]) + " - " + str(expTemp[curTarNr]))
 
-            # Now we have a peak temp
-            for oRow in range(0, spFl[0]):
-                if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                    for oCol in range(0, len(checkedPeakTemp[oRow])):
-                        if float(expTemp) - truePeakWidth < checkedPeakTemp[oRow][oCol] < float(expTemp) + truePeakWidth:
-                            truePeakFinPos[oRow] = oCol
-                            checkedPeakTemp[oRow][oCol] = -10.0
-
-        # Find the artifact peaks
-        startPeakTemp = tempList[0] + artifactPeakWidth
-        stopPeakTemp = tempList[-1] - artifactPeakWidth
-        startPeakPos = 0
-        stopPeakPos = len(tempList) - 2
-        while tempList[startPeakPos + 1] < startPeakTemp:
-            startPeakPos += 1
-        while tempList[stopPeakPos - 1] > stopPeakTemp:
-            stopPeakPos -= 1
-
-        artifactPeaks = [[]]
-        for curTarNr in range(1, targetsCount):
-            artifactPeaks.append([])
-            stillPeaks = True
-            while stillPeaks:
-                stillPeaks = False
-                foundPeaks = False
-                maxPeakInRange = 1
-                artiTemp = -10.0
-                lastTemp = -10.0
-                for curTempPos in range(startPeakPos, stopPeakPos + 1):
-                    curTemp = tempList[curTempPos]
-                    curPeakInRange = 0
-                    for oRow in range(0, spFl[0]):
-                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                            for oCol in range(0, len(checkedPeakTemp[oRow])):
-                                if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
-                                    foundPeaks = True
-                                    lastTemp = curTemp
-                                    curPeakInRange += 1
-                    if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
-                        maxPeakInRange = curPeakInRange
-                        artiTemp = lastTemp
-
-                if foundPeaks:
-                    artifactPeaks[curTarNr].append(artiTemp)
-                    stillPeaks = True
-
+                # Now we have a peak temp
                 for oRow in range(0, spFl[0]):
                     if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
                         for oCol in range(0, len(checkedPeakTemp[oRow])):
-                            if artiTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < artiTemp + truePeakWidth:
+                            if float(expTemp[curTarNr]) - truePeakWidth < checkedPeakTemp[oRow][oCol] < float(expTemp[curTarNr]) + truePeakWidth:
+                                truePeakFinPos[oRow] = oCol
                                 checkedPeakTemp[oRow][oCol] = -10.0
 
+            # Find the artifact peaks
+            startPeakTemp = tempList[0] + artifactPeakWidth
+            stopPeakTemp = tempList[-1] - artifactPeakWidth
+            startPeakPos = 0
+            stopPeakPos = len(tempList) - 2
+            while tempList[startPeakPos + 1] < startPeakTemp:
+                startPeakPos += 1
+            while tempList[stopPeakPos - 1] > stopPeakTemp:
+                stopPeakPos -= 1
 
-        print(artifactPeaks)
+            artifactPeaks = [[]]
+            for curTarNr in range(1, targetsCount):
+                artifactPeaks.append([])
+                stillPeaks = True
+                while stillPeaks:
+                    stillPeaks = False
+                    foundPeaks = False
+                    maxPeakInRange = 1
+                    artiTemp = -10.0
+                    lastTemp = -10.0
+                    for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                        curTemp = tempList[curTempPos]
+                        curPeakInRange = 0
+                        for oRow in range(0, spFl[0]):
+                            if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                                for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                    if curTemp - artifactPeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + artifactPeakWidth:
+                                        foundPeaks = True
+                                        lastTemp = curTemp
+                                        curPeakInRange += 1
+                        if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                            maxPeakInRange = curPeakInRange
+                            artiTemp = lastTemp
 
+                    if foundPeaks:
+                        artifactPeaks[curTarNr].append(artiTemp)
+                        stillPeaks = True
 
-        if saveResultsList:
+                    for oRow in range(0, spFl[0]):
+                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                            for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                if artiTemp - artifactPeakWidth < checkedPeakTemp[oRow][oCol] < artiTemp + artifactPeakWidth:
+                                    checkedPeakTemp[oRow][oCol] = -10.0
+
+            # Recalculate the sums
+            maxPrintCols = 0
+            for oRow in range(0, spFl[0]):
+                peakResSumH[oRow] = 0.0
+                peakResSumDeltaH[oRow] = 0.0
+                peakResSumFuor[oRow] = 0.0
+                countCols = 0
+                for oCol in range(0, len(peakResTemp[oRow])):
+                    if peakResTemp[oRow][oCol] > 0.0:
+                        countCols += 1
+                        peakResSumH[oRow] += peakResH[oRow][oCol]
+                        peakResSumDeltaH[oRow] += peakResDeltaH[oRow][oCol]
+                        peakResSumFuor[oRow] += peakResFluor[oRow][oCol]
+                if countCols > maxPrintCols:
+                    maxPrintCols = countCols
+
+            # Now assemble the results table
             rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
-            for oCol in range(0, maxPeakCount):
+            for oCol in range(0, maxPrintCols + 1):
                 rawData[0].append("peak temp")
-                rawData[0].append("H")
-                rawData[0].append("H factor")
-                rawData[0].append("deltaH")
-                rawData[0].append("deltaH factor")
                 rawData[0].append("Fluor")
                 rawData[0].append("peak correction factor")
-            for oRow in range(0, spFl[0]):
-                rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
-                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
-                for oCol in range(0, len(peakResTemp[oRow])):
-                    rawData[oRow + 1].append(peakResTemp[oRow][oCol])
-                    rawData[oRow + 1].append(peakResH[oRow][oCol])
-                    rawData[oRow + 1].append(peakResH[oRow][oCol] / peakResSumH[oRow])
-                    rawData[oRow + 1].append(peakResDeltaH[oRow][oCol])
-                    rawData[oRow + 1].append(peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow])
-                    rawData[oRow + 1].append(peakResFluor[oRow][oCol])
-                    rawData[oRow + 1].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
+                rawData[0].append("deltaH")
+                rawData[0].append("deltaH factor")
+                rawData[0].append("H")
+                rawData[0].append("H factor")
+                if oCol == 0:
+                    rawData[0].append("")
+
+            for curTarNr in range(1, targetsCount):
+                # Prepare average row
+                sumColPos = len(rawData)
+                curColPos = sumColPos
+                rawData.append(["", "", "Average", tarReverseLookup[curTarNr], "", dicLU_tarMelt[tarReverseLookup[curTarNr]]])
+
+                # Create the true peak columns
+                meanResTemp = 0.0
+                meanResH = 0.0
+                meanResSumH = 0.0
+                meanResDeltaH = 0.0
+                meanResSumDeltaH = 0.0
+                meanResFluor = 0.0
+                meanResSumFuor = 0.0
+                countAddedRows = 0
+                for oRow in range(0, spFl[0]):
+                    if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                        curColPos += 1
+                        rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample],
+                                        res[oRow][rar_tar], res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                        oCol = truePeakFinPos[oRow]
+                        if oCol >= 0:
+                            rawData[curColPos].append(peakResTemp[oRow][oCol])
+                            rawData[curColPos].append(peakResFluor[oRow][oCol])
+                            rawData[curColPos].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
+                            rawData[curColPos].append(peakResDeltaH[oRow][oCol])
+                            rawData[curColPos].append(peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow])
+                            rawData[curColPos].append(peakResH[oRow][oCol])
+                            rawData[curColPos].append(peakResH[oRow][oCol] / peakResSumH[oRow])
+                            meanResTemp += peakResTemp[oRow][oCol]
+                            meanResFluor += peakResFluor[oRow][oCol]
+                            meanResSumFuor += peakResFluor[oRow][oCol] / peakResSumFuor[oRow]
+                            meanResDeltaH += peakResDeltaH[oRow][oCol]
+                            meanResSumDeltaH += peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                            meanResH += peakResH[oRow][oCol]
+                            meanResSumH += peakResH[oRow][oCol] / peakResSumH[oRow]
+                            countAddedRows += 1
+                        else:
+                            rawData[curColPos].append("")
+                            rawData[curColPos].append(0.0)
+                            rawData[curColPos].append(0.0)
+                            rawData[curColPos].append(0.0)
+                            rawData[curColPos].append(0.0)
+                            rawData[curColPos].append(0.0)
+                            rawData[curColPos].append(0.0)
+                        rawData[curColPos].append("")
+                if countAddedRows > 0:
+                    rawData[sumColPos].append(meanResTemp / countAddedRows)
+                    rawData[sumColPos].append(meanResFluor / countAddedRows)
+                    rawData[sumColPos].append(meanResSumFuor / countAddedRows)
+                    rawData[sumColPos].append(meanResDeltaH / countAddedRows)
+                    rawData[sumColPos].append(meanResSumDeltaH / countAddedRows)
+                    rawData[sumColPos].append(meanResH / countAddedRows)
+                    rawData[sumColPos].append(meanResSumH / countAddedRows)
+                else:
+                    rawData[sumColPos].append("")
+                    rawData[sumColPos].append(0.0)
+                    rawData[sumColPos].append(0.0)
+                    rawData[sumColPos].append(0.0)
+                    rawData[sumColPos].append(0.0)
+                    rawData[sumColPos].append(0.0)
+                    rawData[sumColPos].append(0.0)
+                rawData[sumColPos].append("")
+
+            finalData["resultsList"] = rawData
+        return finalData
+        for pos in range(1, len(rawFirstDerivativeTemp)):
+            if rawFirstDerivativeTemp[pos] > lowTemp > rawFirstDerivativeTemp[pos - 1]:
+
+
+
+                # Add all the other peaks
+                artifactPeaks[curTarNr].append(float(expTemp[curTarNr]))
+                allTarPeaks = sorted(artifactPeaks[curTarNr], key=float)
+                for curPrintPeak in allTarPeaks:
+                    curColPos = sumColPos
+                    meanResTemp = 0.0
+                    meanResH = 0.0
+                    meanResSumH = 0.0
+                    meanResDeltaH = 0.0
+                    meanResSumDeltaH = 0.0
+                    meanResFluor = 0.0
+                    meanResSumFuor = 0.0
+                    countAddedRows = 0
+                    for oRow in range(0, spFl[0]):
+                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                            curColPos += 1
+                            oCol = -1
+                            for sCol in range(0, len(peakResTemp[oRow])):
+                                if abs(float(expTemp[curTarNr]) - float(curPrintPeak)) < 0.000001:
+                                    if float(curPrintPeak) - truePeakWidth < peakResTemp[oRow][sCol] < float(curPrintPeak) + truePeakWidth:
+                                        oCol = sCol
+                                else:
+                                    if float(curPrintPeak) - artifactPeakWidth < peakResTemp[oRow][oCol] < float(curPrintPeak) + artifactPeakWidth:
+                                        oCol = sCol
+                            if oCol >= 0:
+                                rawData[curColPos].append(peakResTemp[oRow][oCol])
+                                rawData[curColPos].append(peakResFluor[oRow][oCol])
+                                rawData[curColPos].append(peakResFluor[oRow][oCol] / peakResSumFuor[oRow])
+                                rawData[curColPos].append(peakResDeltaH[oRow][oCol])
+                                rawData[curColPos].append(peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow])
+                                rawData[curColPos].append(peakResH[oRow][oCol])
+                                rawData[curColPos].append(peakResH[oRow][oCol] / peakResSumH[oRow])
+                                meanResTemp += peakResTemp[oRow][oCol]
+                                meanResFluor += peakResFluor[oRow][oCol]
+                                meanResSumFuor += peakResFluor[oRow][oCol] / peakResSumFuor[oRow]
+                                meanResDeltaH += peakResDeltaH[oRow][oCol]
+                                meanResSumDeltaH += peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                                meanResH += peakResH[oRow][oCol]
+                                meanResSumH += peakResH[oRow][oCol] / peakResSumH[oRow]
+                                countAddedRows += 1
+                            else:
+                                rawData[curColPos].append("")
+                                rawData[curColPos].append(0.0)
+                                rawData[curColPos].append(0.0)
+                                rawData[curColPos].append(0.0)
+                                rawData[curColPos].append(0.0)
+                                rawData[curColPos].append(0.0)
+                                rawData[curColPos].append(0.0)
+                    if countAddedRows > 0:
+                        rawData[sumColPos].append(meanResTemp / countAddedRows)
+                        rawData[sumColPos].append(meanResFluor / countAddedRows)
+                        rawData[sumColPos].append(meanResSumFuor / countAddedRows)
+                        rawData[sumColPos].append(meanResDeltaH / countAddedRows)
+                        rawData[sumColPos].append(meanResSumDeltaH / countAddedRows)
+                        rawData[sumColPos].append(meanResH / countAddedRows)
+                        rawData[sumColPos].append(meanResSumH / countAddedRows)
+                    else:
+                        rawData[sumColPos].append("")
+                        rawData[sumColPos].append(0.0)
+                        rawData[sumColPos].append(0.0)
+                        rawData[sumColPos].append(0.0)
+                        rawData[sumColPos].append(0.0)
+                        rawData[sumColPos].append(0.0)
+                        rawData[sumColPos].append(0.0)
+
             finalData["resultsList"] = rawData
 
         return finalData
