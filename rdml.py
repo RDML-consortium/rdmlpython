@@ -10523,25 +10523,22 @@ class Run:
                                     checkedPeakTemp[oRow][oCol] = -10.0
 
             # Recalculate the sums
-            maxPrintCols = 0
             for oRow in range(0, spFl[0]):
                 peakResSumH[oRow] = 0.0
                 peakResSumDeltaH[oRow] = 0.0
                 peakResSumFuor[oRow] = 0.0
-                countCols = 0
                 for oCol in range(0, len(peakResTemp[oRow])):
                     if peakResTemp[oRow][oCol] > 0.0:
-                        countCols += 1
                         peakResSumH[oRow] += peakResH[oRow][oCol]
                         peakResSumDeltaH[oRow] += peakResDeltaH[oRow][oCol]
                         peakResSumFuor[oRow] += peakResFluor[oRow][oCol]
-                if countCols > maxPrintCols:
-                    maxPrintCols = countCols
 
             # Now assemble the results table
+            maxPrintCols = 0
             rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
-            for oCol in range(0, maxPrintCols + 1):
+            newPrintCols = 1
+            for oCol in range(maxPrintCols, newPrintCols + 1):
                 rawData[0].append("peak temp")
                 rawData[0].append("Fluor")
                 rawData[0].append("peak correction factor")
@@ -10549,8 +10546,8 @@ class Run:
                 rawData[0].append("deltaH factor")
                 rawData[0].append("H")
                 rawData[0].append("H factor")
-                if oCol == 0:
-                    rawData[0].append("")
+                rawData[0].append("")
+            maxPrintCols = newPrintCols
 
             for curTarNr in range(1, targetsCount):
                 # Prepare average row
@@ -10616,17 +10613,25 @@ class Run:
                     rawData[sumColPos].append(0.0)
                 rawData[sumColPos].append("")
 
-            finalData["resultsList"] = rawData
-        return finalData
-        for pos in range(1, len(rawFirstDerivativeTemp)):
-            if rawFirstDerivativeTemp[pos] > lowTemp > rawFirstDerivativeTemp[pos - 1]:
-
-
-
                 # Add all the other peaks
                 artifactPeaks[curTarNr].append(float(expTemp[curTarNr]))
                 allTarPeaks = sorted(artifactPeaks[curTarNr], key=float)
+
+                newPrintCols = len(allTarPeaks)
+                if newPrintCols > maxPrintCols:
+                    for oCol in range(maxPrintCols, newPrintCols):
+                        rawData[0].append("peak temp")
+                        rawData[0].append("Fluor")
+                        rawData[0].append("peak correction factor")
+                        rawData[0].append("deltaH")
+                        rawData[0].append("deltaH factor")
+                        rawData[0].append("H")
+                        rawData[0].append("H factor")
+                        rawData[0].append("")
+                    maxPrintCols = newPrintCols
+
                 for curPrintPeak in allTarPeaks:
+                    curPrintPeakF = float(curPrintPeak)
                     curColPos = sumColPos
                     meanResTemp = 0.0
                     meanResH = 0.0
@@ -10641,12 +10646,13 @@ class Run:
                             curColPos += 1
                             oCol = -1
                             for sCol in range(0, len(peakResTemp[oRow])):
-                                if abs(float(expTemp[curTarNr]) - float(curPrintPeak)) < 0.000001:
-                                    if float(curPrintPeak) - truePeakWidth < peakResTemp[oRow][sCol] < float(curPrintPeak) + truePeakWidth:
+                                if abs(float(expTemp[curTarNr]) - curPrintPeakF) < 0.000001:
+                                    if curPrintPeakF - truePeakWidth < peakResTemp[oRow][sCol] < curPrintPeakF + truePeakWidth:
                                         oCol = sCol
                                 else:
-                                    if float(curPrintPeak) - artifactPeakWidth < peakResTemp[oRow][oCol] < float(curPrintPeak) + artifactPeakWidth:
+                                    if curPrintPeakF - artifactPeakWidth < peakResTemp[oRow][sCol] < curPrintPeakF + artifactPeakWidth:
                                         oCol = sCol
+
                             if oCol >= 0:
                                 rawData[curColPos].append(peakResTemp[oRow][oCol])
                                 rawData[curColPos].append(peakResFluor[oRow][oCol])
@@ -10671,6 +10677,7 @@ class Run:
                                 rawData[curColPos].append(0.0)
                                 rawData[curColPos].append(0.0)
                                 rawData[curColPos].append(0.0)
+                            rawData[curColPos].append("")
                     if countAddedRows > 0:
                         rawData[sumColPos].append(meanResTemp / countAddedRows)
                         rawData[sumColPos].append(meanResFluor / countAddedRows)
@@ -10687,6 +10694,7 @@ class Run:
                         rawData[sumColPos].append(0.0)
                         rawData[sumColPos].append(0.0)
                         rawData[sumColPos].append(0.0)
+                    rawData[sumColPos].append("")
 
             finalData["resultsList"] = rawData
 
