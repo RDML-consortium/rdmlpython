@@ -9700,15 +9700,14 @@ class Run:
                 allData["fdm_fluor_max"] = bas_fluor_max
 
         if "resultsList" in res:
-            header = res["resultsList"].pop(0)
-            resList = sorted(res["resultsList"], key=_sort_list_int)
+            resList = res["resultsList"]
             for rRow in range(0, len(resList)):
                 for rCol in range(0, len(resList[rRow])):
                     if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
                     if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
-            allData["Meltcurve_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
+            allData["Meltcurve_Result_Table"] = json.dumps(resList, cls=NpEncoder)
 
         if "noRawData" in res:
             allData["error"] = res["noRawData"]
