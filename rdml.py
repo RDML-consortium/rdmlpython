@@ -9581,7 +9581,7 @@ class Run:
                                 expoLowTemp=65.0, expoHighTemp=92.0,
                                 bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
                                 bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
-                                updateRDML=False):
+                                peakCutoff=5.0, updateRDML=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -9596,6 +9596,7 @@ class Run:
             bilinLowStopTemp: the low stop temperature for the bilinear normalisation
             bilinHighStartTemp: the high start temperature for the bilinear normalisation
             bilinHighStopTemp: the high stop temperature for the bilinear normalisation
+            peakCutoff: the percentage below melting peaks are ignored in calculations
             updateRDML: If true, update the RDML data with the calculated values.
 
         Returns:
@@ -9612,7 +9613,8 @@ class Run:
                                      expoLowTemp=expoLowTemp, expoHighTemp=expoHighTemp,
                                      bilinLowStartTemp=bilinLowStartTemp, bilinLowStopTemp=bilinLowStopTemp,
                                      bilinHighStartTemp=bilinHighStartTemp, bilinHighStopTemp=bilinHighStopTemp,
-                                     updateRDML=updateRDML, saveRaw=False, saveDerivative=True,
+                                     peakCutoff=peakCutoff, updateRDML=updateRDML,
+                                     saveRaw=False, saveDerivative=True,
                                      saveResultsList=True, saveResultsCSV=False, verbose=False)
         if "derivative" in res:
             if "smoothed" in res["derivative"]:
@@ -9719,7 +9721,8 @@ class Run:
                           expoLowTemp=65.0, expoHighTemp=92.0,
                           bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
                           bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
-                          updateRDML=False, saveRaw=False, saveDerivative=False,
+                          peakCutoff=5.0, updateRDML=False,
+                          saveRaw=False, saveDerivative=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
         """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
 
@@ -9735,6 +9738,7 @@ class Run:
             bilinLowStopTemp: the low stop temperature for the bilinear normalisation
             bilinHighStartTemp: the high start temperature for the bilinear normalisation
             bilinHighStopTemp: the high stop temperature for the bilinear normalisation
+            peakCutoff: the percentage below melting peaks are ignored in calculations
             updateRDML: If true, update the RDML data with the calculated values.
             saveRaw: If true, no raw values are given in the returned data
             saveDerivative: If true, derivative values are given in the returned data
@@ -9786,6 +9790,7 @@ class Run:
         bilinLowStopTemp = float(bilinLowStopTemp)
         bilinHighStartTemp = float(bilinHighStartTemp)
         bilinHighStopTemp = float(bilinHighStopTemp)
+        peakCutoff = float(peakCutoff) / 100.0
         if normMethod not in ["exponential", "bilinear", "combined"]:
             normMethod = "exponential"
         if fluorSource != "normalised":
