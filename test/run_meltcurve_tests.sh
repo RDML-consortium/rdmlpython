@@ -6,6 +6,7 @@ python3 rdml.py -mca test/test_mca_1_raw_data.rdml \
                 -r "Run 1" \
                 --mcaNormMethod "exponential" \
                 --mcaFluorSource "normalised" \
+                --mcaPeakCutoff 0.0 \
                 --saveRaw test/temp_mca_1_out_raw_data.tsv \
                 --saveDerivative test/temp_mca_1_out \
                 --saveResults test/temp_mca_1_out_results.tsv \
@@ -24,6 +25,7 @@ python3 rdml.py -mca test/test_mca_1_raw_data.rdml \
                 -r "Run 1" \
                 --mcaNormMethod "bilinear" \
                 --mcaFluorSource "normalised" \
+                --mcaPeakCutoff 0.0 \
                 --saveRaw test/temp_mca_2_out_raw_data.tsv \
                 --saveDerivative test/temp_mca_2_out \
                 --saveResults test/temp_mca_2_out_results.tsv \
@@ -42,6 +44,7 @@ python3 rdml.py -mca test/test_mca_1_raw_data.rdml \
                 -r "Run 1" \
                 --mcaNormMethod "combined" \
                 --mcaFluorSource "normalised" \
+                --mcaPeakCutoff 0.0 \
                 --saveRaw test/temp_mca_3_out_raw_data.tsv \
                 --saveDerivative test/temp_mca_3_out \
                 --saveResults test/temp_mca_3_out_results.tsv \
@@ -60,6 +63,7 @@ python3 rdml.py -mca test/test_mca_5_raw_data.rdml \
                 -r "Run_1" \
                 --mcaNormMethod "exponential" \
                 --mcaFluorSource "normalised" \
+                --mcaPeakCutoff 0.0 \
                 --saveRaw test/temp_mca_5_out_raw_data.tsv \
                 --saveDerivative test/temp_mca_5_out \
                 --saveResults test/temp_mca_5_out_results.tsv \

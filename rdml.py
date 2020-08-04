@@ -10435,7 +10435,6 @@ class Run:
                 for oCol in range(0, len(peakResTemp[oRow])):
                     if peakCutoff > peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]:
                         peakResTemp[oRow][oCol] = -10.0
-                        print("REmoved " + str(peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]))
 
             # Find the expected peak
             checkedPeakTemp = [row[:] for row in peakResTemp]
@@ -10537,8 +10536,8 @@ class Run:
 
             # Now assemble the results table
             maxPrintCols = 0
-            rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
-                        header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+            rawData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_sample_type],
+                        header[0][rar_tar], header[0][rar_excl], header[0][rar_note], header[0][rar_exp_melt_temp]]]
             newPrintCols = 1
             for oCol in range(maxPrintCols, newPrintCols + 1):
                 rawData[0].append("peak temp")
@@ -10555,7 +10554,7 @@ class Run:
                 # Prepare average row
                 sumColPos = len(rawData)
                 curColPos = sumColPos
-                rawData.append(["", "", "Average", tarReverseLookup[curTarNr], "", dicLU_tarMelt[tarReverseLookup[curTarNr]]])
+                rawData.append(["--", "--", "--", "Average", tarReverseLookup[curTarNr], "--", "--", dicLU_tarMelt[tarReverseLookup[curTarNr]]])
 
                 # Create the true peak columns
                 meanResTemp = 0.0
@@ -10570,7 +10569,8 @@ class Run:
                     if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
                         curColPos += 1
                         rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample],
-                                        res[oRow][rar_tar], res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                                        res[oRow][rar_sample_type], res[oRow][rar_tar], res[oRow][rar_excl],
+                                        res[oRow][rar_note], res[oRow][rar_exp_melt_temp]])
                         oCol = truePeakFinPos[oRow]
                         if oCol >= 0:
                             rawData[curColPos].append(peakResTemp[oRow][oCol])
@@ -10700,6 +10700,20 @@ class Run:
 
             finalData["resultsList"] = rawData
 
+            ##############################
+            # write out the rdml results #
+            ##############################
+            if updateRDML is True:
+                expParent = self._node.getparent()
+                rootPar = expParent.getparent()
+                ver = rootPar.get('version')
+                dataXMLelements = _getXMLDataType()
+                for rRow in range(0, len(res)):
+                    if rdmlElemData[rRow] is not None:
+                        _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
+                        if ver == "1.3":
+                            _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
+
         return finalData
 
 
@@ -10749,6 +10763,8 @@ def main():
                         help='MeltCurveAnalysis: provide the high start temperature for the bilinear normalisation')
     parser.add_argument('--mcaBilinHighStopTemp', metavar="94.0",
                         help='MeltCurveAnalysis: provide the high stop temperature for the bilinear normalisation')
+    parser.add_argument('--mcaPeakCutoff', metavar="5.0",
+                        help='mcaPeakCutoff: the percentage below melting peaks are ignored in calculations')
     parser.add_argument('--saveDerivative', metavar="processed_data",
                         help='MeltCurveAnalysis: base name for calculated derivative data')
     parser.add_argument('--saveResults', metavar="results.csv", help='LinRegPCR & MeltCurveAnalysis: output results as table')
@@ -10967,6 +10983,7 @@ def main():
         cli_mcaBilinLowStopTemp = 70.0
         cli_mcaBilinHighStartTemp = 93.0
         cli_mcaBilinHighStopTemp = 94.0
+        cli_mcaPeakCutoff = 5.0
 
         if args.resultfile:
             cli_saveRDML = True
@@ -10996,6 +11013,8 @@ def main():
             cli_mcaBilinHighStartTemp = float(args.mcaBilinHighStartTemp)
         if args.mcaBilinHighStopTemp:
             cli_mcaBilinHighStopTemp = float(args.mcaBilinHighStopTemp)
+        if args.mcaPeakCutoff:
+            cli_mcaPeakCutoff = float(args.mcaPeakCutoff)
 
         cli_result = cli_run.meltCurveAnalysis(normMethod=cli_mcaNormMethod,
                                                fluorSource=cli_mcaFluorSource,
@@ -11007,6 +11026,7 @@ def main():
                                                bilinLowStopTemp=cli_mcaBilinLowStopTemp,
                                                bilinHighStartTemp=cli_mcaBilinHighStartTemp,
                                                bilinHighStopTemp=cli_mcaBilinHighStopTemp,
+                                               peakCutoff=cli_mcaPeakCutoff,
                                                updateRDML=cli_saveRDML,
                                                saveRaw=cli_saveRawData,
                                                saveDerivative=cli_saveDerivative,
