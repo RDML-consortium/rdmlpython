@@ -10430,14 +10430,12 @@ class Run:
                                     peakResFluor[pos].append(fluorDrop)
                                     peakResSumFuor[pos] += fluorDrop
 
-            maxPeakCount = 0
-            for pos in range(0, spFl[0]):  # loop rRow for every reaction
-                for yyy in range(0, len(peakResTemp[pos])):
-                    if maxPeakCount < yyy + 1:
-                        maxPeakCount = yyy + 1
-
-            # Set unwanted peaks to -10.0
-
+            # Set unwanted peaks below peakCutoff to -10.0
+            for oRow in range(0, spFl[0]):
+                for oCol in range(0, len(peakResTemp[oRow])):
+                    if peakCutoff > peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]:
+                        peakResTemp[oRow][oCol] = -10.0
+                        print("REmoved " + str(peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]))
 
             # Find the expected peak
             checkedPeakTemp = [row[:] for row in peakResTemp]
@@ -10701,91 +10699,6 @@ class Run:
                     rawData[sumColPos].append("")
 
             finalData["resultsList"] = rawData
-
-        return finalData
-
-        lowTemp = 64.0
-        highTemp = 94.0
-        minTempIndex = 0
-        maxTempIndex = len(rawFirstDerivativeTemp) - 1
-        for pos in range(1, len(rawFirstDerivativeTemp)):
-            if rawFirstDerivativeTemp[pos] > lowTemp > rawFirstDerivativeTemp[pos - 1]:
-                minTempIndex = pos
-            if rawFirstDerivativeTemp[pos] > highTemp > rawFirstDerivativeTemp[pos - 1]:
-                maxTempIndex = pos
-
-        udFD = smoothFirstDerivative > np.roll(smoothFirstDerivative, 1, axis=1)
-        udFD[:, 0] = True
-
-        fudFDsum = np.zeros(udFD.shape, dtype=np.int64)
-        fudFDsum += np.roll(udFD, 3, axis=1)
-        fudFDsum += np.roll(udFD, 2, axis=1)
-        fudFDsum += np.roll(udFD, 1, axis=1)
-        fudFDsum += udFD
-        fudFDsum += np.roll(udFD, -1, axis=1)
-        fudFDsum += np.roll(udFD, -2, axis=1)
-        fudFDsum += np.roll(udFD, -3, axis=1)
-        fudFD = fudFDsum > 3
-        fudFD[:, 0] = udFD[:, 0]
-        fudFD[:, 1] = udFD[:, 1]
-        fudFD[:, 2] = udFD[:, 2]
-        fudFD[:, -1] = udFD[:, -1]
-        fudFD[:, -2] = udFD[:, -2]
-        fudFD[:, -3] = udFD[:, -3]
-
-        # Fit the smoothSecondDerivative to smoothFirstDerivative temperature range
-        udSD = np.zeros(udFD.shape, dtype=np.bool)
-        udSD[:, 1:-1] = np.roll(smoothSecondDerivative, -1, axis=1) > smoothSecondDerivative
-        udSD[:, 1] = False
-        udSD[:, -1] = False
-        udSD[:, -2] = False
-
-        fudSDsum = np.zeros(udSD.shape, dtype=np.int64)
-        fudSDsum += np.roll(udSD, 3, axis=1)
-        fudSDsum += np.roll(udSD, 2, axis=1)
-        fudSDsum += np.roll(udSD, 1, axis=1)
-        fudSDsum += udSD
-        fudSDsum += np.roll(udSD, -1, axis=1)
-        fudSDsum += np.roll(udSD, -2, axis=1)
-        fudSDsum += np.roll(udSD, -3, axis=1)
-        fudSD = fudSDsum > 3
-        fudSD[:, 0] = udSD[:, 0]
-        fudSD[:, 1] = udSD[:, 1]
-        fudSD[:, 2] = udSD[:, 2]
-        fudSD[:, -1] = udSD[:, -1]
-        fudSD[:, -2] = udSD[:, -2]
-        fudSD[:, -3] = udSD[:, -3]
-
-        for rRow in range(0, udFD.shape[0]):  # loop rRow for every reaction
-            for rCol in range(minTempIndex, maxTempIndex - 1):
-                if fudFD[rRow][rCol] and not fudFD[rRow][rCol + 1]:
-                    kdown = rCol - 1
-                    while kdown > 0 and not fudSD[rRow][kdown]:
-             #           if rRow == 0:
-             #               print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]))
-                        kdown -= 1
-             #       if rRow == 0:
-             #           print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]) + " fin k: " + str(kdown))
-
-                    kup = rCol + 1
-                    while kup < maxTempIndex and not fudSD[rRow][kdown]:  # Fixme: Max based on shape??
-                        kup += 1
-
-              #      print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]) + " kup: " + str(rawFirstDerivativeTemp[kup]))
-
-
-                    if kup > maxTempIndex - 1:  # end of peak not present
-                        if rCol + rCol - kdown < maxTempIndex - 1:
-                            kup = rCol + rCol - kdown  # assume symmetry when
-                        else:
-                            kup = maxTempIndex - 1
-
-
-             #       print(str(rRow) + ": " + str(rawFirstDerivativeTemp[rCol]) + " kdown: " + str(rawFirstDerivativeTemp[kdown]) + " kup: " + str(rawFirstDerivativeTemp[kup]))
-
-
-
-
 
         return finalData
 
