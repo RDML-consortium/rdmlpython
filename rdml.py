@@ -1657,6 +1657,21 @@ def _mca_linReg(xIn, yUse, start, stop):
     return [slope, intercept]
 
 
+def _cleanErrorString(inStr, cleanStyle):
+    outStr = ";"
+    if cleanStyle == "melt":
+        outStr = inStr.replace('several products with diverging melting temperatures detected', '')
+        outStr = outStr.replace('no product with expected melting temperature', '')
+    else:
+        if inStr.find('several products with diverging melting temperatures detected') > 0:
+            outStr += 'several products with diverging melting temperatures detected;'
+        if inStr.find('no product with expected melting temperature') > 0:
+            outStr += 'no product with expected melting temperature;'
+
+    outStr = re.sub(r';+', ';', outStr)
+    return outStr
+
+
 def _numpyTwoAxisSave(var, fileName):
     with np.printoptions(precision=3, suppress=True):
         np.savetxt(fileName, var, fmt='%.6f', delimiter='\t', newline='\n')
@@ -9372,8 +9387,8 @@ class Run:
         # calculate excl and note strings #
         ###################################
         for rRow in range(0, len(res)):
-            exclVal = ";"
-            noteVal = ";"
+            exclVal = _cleanErrorString(res[rRow][rar_excl], "amp")
+            noteVal = _cleanErrorString(res[rRow][rar_note], "amp")
 
             cqVal = np.NaN
             meanEffVal = np.NaN
@@ -10568,9 +10583,39 @@ class Run:
                 for oRow in range(0, spFl[0]):
                     if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
                         curColPos += 1
+                        ###################################
+                        # calculate excl and note strings #
+                        ###################################
+                        exclVal = _cleanErrorString(res[oRow][rar_excl], "melt")
+                        noteVal = _cleanErrorString(res[oRow][rar_note], "melt")
+                        finPeakCount = 0
+
+                        for curPeak in peakResTemp[oRow]:
+                            if curPeak > 0.0:
+                                finPeakCount += 1
+
+                        if res[oRow][rar_sample_type] in ["std", "pos"]:
+                            if res[oRow][rar_exp_melt_temp] != "":
+                                if truePeakFinPos[oRow] < 0.0:
+                                    exclVal += "no product with expected melting temperature;"
+                            if finPeakCount > 1:
+                                noteVal += "several products with diverging melting temperatures detected;"
+
+                        if res[oRow][rar_sample_type] in ["unkn"]:
+                            if res[oRow][rar_exp_melt_temp] != "":
+                                if truePeakFinPos[oRow] < 0.0:
+                                    noteVal += "no product with expected melting temperature;"
+
+                        if finPeakCount > 1:
+                            noteVal += "several products with diverging melting temperatures detected;"
+
+                        # Write back
+                        exclVal = re.sub(r'^;|;$', '', exclVal)
+                        noteVal = re.sub(r'^;|;$', '', noteVal)
+
                         rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample],
-                                        res[oRow][rar_sample_type], res[oRow][rar_tar], res[oRow][rar_excl],
-                                        res[oRow][rar_note], res[oRow][rar_exp_melt_temp]])
+                                        res[oRow][rar_sample_type], res[oRow][rar_tar], exclVal,
+                                        noteVal, res[oRow][rar_exp_melt_temp]])
                         oCol = truePeakFinPos[oRow]
                         if oCol >= 0:
                             rawData[curColPos].append(peakResTemp[oRow][oCol])
@@ -10698,8 +10743,6 @@ class Run:
                         rawData[sumColPos].append(0.0)
                     rawData[sumColPos].append("")
 
-            finalData["resultsList"] = rawData
-
             ##############################
             # write out the rdml results #
             ##############################
@@ -10714,6 +10757,7 @@ class Run:
                         if ver == "1.3":
                             _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
 
+            finalData["resultsList"] = rawData
         return finalData
 
 
