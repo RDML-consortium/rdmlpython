@@ -9421,18 +9421,18 @@ class Run:
             if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                 if cqVal > 0.0:
                     exclVal += "amplification in negative control;"
-
-                if res[rRow][rar_amplification]:
-                    noteVal += "amplification in negative control;"
+                else:
+                    if res[rRow][rar_amplification]:
+                        noteVal += "amplification in negative control;"
                 if res[rRow][rar_plateau]:
                     noteVal += "plateau in negative control;"
 
             if res[rRow][rar_sample_type] in ["std", "pos"]:
                 if not (cqVal > 0.0):
                     exclVal += "no amplification in positive control;"
-
-                if not res[rRow][rar_amplification]:
-                    noteVal += "no amplification in positive control;"
+                else:
+                    if not res[rRow][rar_amplification]:
+                        noteVal += "no amplification in positive control;"
                 if res[rRow][rar_baseline_error]:
                     noteVal += "baseline error in positive control;"
                 if not res[rRow][rar_plateau]:
