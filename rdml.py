@@ -1659,14 +1659,15 @@ def _mca_linReg(xIn, yUse, start, stop):
 
 def _cleanErrorString(inStr, cleanStyle):
     outStr = ";"
+    inStr += ";"
     if cleanStyle == "melt":
         outStr = inStr.replace('several products with diverging melting temperatures detected', '')
         outStr = outStr.replace('no product with expected melting temperature', '')
     else:
         if inStr.find('several products with diverging melting temperatures detected') > 0:
-            outStr += 'several products with diverging melting temperatures detected;'
+            outStr += ';several products with diverging melting temperatures detected;'
         if inStr.find('no product with expected melting temperature') > 0:
-            outStr += 'no product with expected melting temperature;'
+            outStr += ';no product with expected melting temperature;'
 
     outStr = re.sub(r';+', ';', outStr)
     return outStr
@@ -10610,12 +10611,12 @@ class Run:
                             noteVal += "several products with diverging melting temperatures detected;"
 
                         # Write back
-                        exclVal = re.sub(r'^;|;$', '', exclVal)
-                        noteVal = re.sub(r'^;|;$', '', noteVal)
+                        res[oRow][rar_excl] = re.sub(r'^;|;$', '', exclVal)
+                        res[oRow][rar_note] = re.sub(r'^;|;$', '', noteVal)
 
                         rawData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample],
-                                        res[oRow][rar_sample_type], res[oRow][rar_tar], exclVal,
-                                        noteVal, res[oRow][rar_exp_melt_temp]])
+                                        res[oRow][rar_sample_type], res[oRow][rar_tar], res[oRow][rar_excl],
+                                        res[oRow][rar_note], res[oRow][rar_exp_melt_temp]])
                         oCol = truePeakFinPos[oRow]
                         if oCol >= 0:
                             rawData[curColPos].append(peakResTemp[oRow][oCol])
