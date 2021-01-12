@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.6"
+    return "0.9.7"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -10299,7 +10299,7 @@ class Run:
                 normData[0].append(oCol)
             for oRow in range(0, spFl[0]):
                 normData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
-                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                                 res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, spFl[1]):
                     normData[oRow + 1].append(float(normalMelting[oRow, oCol]))
             finalData["derivative"]["normalized"] = normData
@@ -10310,7 +10310,7 @@ class Run:
                 firstDerData[0].append(oCol)
             for oRow in range(0, spFl[0]):
                 firstDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
-                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                                     res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, smoothFirstDerivative.shape[1]):
                     firstDerData[oRow + 1].append(float(smoothFirstDerivative[oRow, oCol]))
             finalData["derivative"]["firstDerivative"] = firstDerData
@@ -10434,8 +10434,8 @@ class Run:
 
                                 deltaH = smoothFirstDerivative[pos][fdPeakTempPos] - deltaH / divideBy
 
-                           #     print(str(foundHighSDPeak) + " - " + str(lowPeakTemp - rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(lowPeakTemp) +
-                           #           " - " + str(rawFirstDerivativeTemp[fdLowPeakPos - 1]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos + 1]))
+                                # print(str(foundHighSDPeak) + " - " + str(lowPeakTemp - rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(lowPeakTemp) +
+                                #       " - " + str(rawFirstDerivativeTemp[fdLowPeakPos - 1]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos]) + " - " + str(rawFirstDerivativeTemp[fdLowPeakPos + 1]))
 
                                 if fluorDrop > 0.0:
                                     peakResTemp[pos].append(peakTemp)
@@ -10458,42 +10458,44 @@ class Run:
             for curTarNr in range(1, targetsCount):
                 expTemp.append(dicLU_tarMelt[tarReverseLookup[curTarNr]])
                 if expTemp[curTarNr] == "" or float(expTemp[curTarNr]) < 20.0 or float(expTemp[curTarNr]) > 100.0:
-                    # Find the best peak
-                    startPeakTemp = tempList[0] + truePeakWidth
-                    stopPeakTemp = tempList[-1] - truePeakWidth
-                    startPeakPos = 0
-                    stopPeakPos = len(tempList) - 2
-                    while tempList[startPeakPos + 1] < startPeakTemp:
-                        startPeakPos += 1
-                    while tempList[stopPeakPos - 1] > stopPeakTemp:
-                        stopPeakPos -= 1
-                    maxDeltaH = 0.0
                     expTemp[curTarNr] = -10.0
-                    for curTempPos in range(startPeakPos, stopPeakPos + 1):
-                        curTemp = tempList[curTempPos]
-                        curPeakInRange = 0
-                        meanCalc = 0.0
-                        deltaHSum = 0.0
-                        for oRow in range(0, spFl[0]):
-                            if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                                for oCol in range(0, len(checkedPeakTemp[oRow])):
-                                    if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
-                                        curPeakInRange += 1
-                                        meanCalc += checkedPeakTemp[oRow][oCol]
-                                        deltaHSum += peakResDeltaH[oRow][oCol]
-                        # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
-                        if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
-                            maxDeltaH = deltaHSum / curPeakInRange
-                            expTemp[curTarNr] = meanCalc / curPeakInRange
+                    if False:
+                        # Find the best peak as true peak
+                        startPeakTemp = tempList[0] + truePeakWidth
+                        stopPeakTemp = tempList[-1] - truePeakWidth
+                        startPeakPos = 0
+                        stopPeakPos = len(tempList) - 2
+                        while tempList[startPeakPos + 1] < startPeakTemp:
+                            startPeakPos += 1
+                        while tempList[stopPeakPos - 1] > stopPeakTemp:
+                            stopPeakPos -= 1
+                        maxDeltaH = 0.0
+                        for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                            curTemp = tempList[curTempPos]
+                            curPeakInRange = 0
+                            meanCalc = 0.0
+                            deltaHSum = 0.0
+                            for oRow in range(0, spFl[0]):
+                                if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                                    for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                        if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
+                                            curPeakInRange += 1
+                                            meanCalc += checkedPeakTemp[oRow][oCol]
+                                            deltaHSum += peakResDeltaH[oRow][oCol]
+                            # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                            if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
+                                maxDeltaH = deltaHSum / curPeakInRange
+                                expTemp[curTarNr] = meanCalc / curPeakInRange
                 # print(str(tarReverseLookup[curTarNr]) + " - " + str(expTemp[curTarNr]))
 
                 # Now we have a peak temp
-                for oRow in range(0, spFl[0]):
-                    if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                        for oCol in range(0, len(checkedPeakTemp[oRow])):
-                            if float(expTemp[curTarNr]) - truePeakWidth < checkedPeakTemp[oRow][oCol] < float(expTemp[curTarNr]) + truePeakWidth:
-                                truePeakFinPos[oRow] = oCol
-                                checkedPeakTemp[oRow][oCol] = -10.0
+                if float(expTemp[curTarNr]) > 0.0:
+                    for oRow in range(0, spFl[0]):
+                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                            for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                if float(expTemp[curTarNr]) - truePeakWidth < checkedPeakTemp[oRow][oCol] < float(expTemp[curTarNr]) + truePeakWidth:
+                                    truePeakFinPos[oRow] = oCol
+                                    checkedPeakTemp[oRow][oCol] = -10.0
 
             # Find the artifact peaks
             startPeakTemp = tempList[0] + artifactPeakWidth
@@ -10662,7 +10664,8 @@ class Run:
                 rawData[sumColPos].append("")
 
                 # Add all the other peaks
-                artifactPeaks[curTarNr].append(float(expTemp[curTarNr]))
+                if float(expTemp[curTarNr]) > 0.0:
+                    artifactPeaks[curTarNr].append(float(expTemp[curTarNr]))
                 allTarPeaks = sorted(artifactPeaks[curTarNr], key=float)
 
                 newPrintCols = len(allTarPeaks)
