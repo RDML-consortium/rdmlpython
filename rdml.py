@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.7"
+    return "0.9.8"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1679,8 +1679,8 @@ def _numpyTwoAxisSave(var, fileName):
 
 
 def _getXMLDataType():
-    return ["tar", "cq", "ampEffMet", "ampEff", "ampEffSE", "meltTemp", "excl", "note",
-            "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
+    return ["tar", "cq", "N0", "ampEffMet", "ampEff", "ampEffSE", "corrF", "meltTemp",
+            "excl", "note", "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
 
 
 class Rdml:
@@ -2254,6 +2254,8 @@ class Rdml:
         hint4 = ""
         hint5 = ""
         hint6 = ""
+        hint7 = ""
+        hint8 = ""
         exp1 = _get_all_children(self._node, "experiment")
         for node1 in exp1:
             exp2 = _get_all_children(node1, "run")
@@ -2276,34 +2278,46 @@ class Rdml:
                         for node5 in exp5:
                             hint2 = "Migration to v1.2 deleted react data \"ampEffMet\" elements."
                             node4.remove(node5)
+                        exp5 = _get_all_children(node4, "N0")
+                        for node5 in exp5:
+                            hint3 = "Migration to v1.2 deleted react data \"N0\" elements."
+                            node4.remove(node5)
                         exp5 = _get_all_children(node4, "ampEff")
                         for node5 in exp5:
-                            hint3 = "Migration to v1.2 deleted react data \"ampEff\" elements."
+                            hint4 = "Migration to v1.2 deleted react data \"ampEff\" elements."
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "ampEffSE")
                         for node5 in exp5:
-                            hint4 = "Migration to v1.2 deleted react data \"ampEffSE\" elements."
+                            hint5 = "Migration to v1.2 deleted react data \"ampEffSE\" elements."
+                            node4.remove(node5)
+                        exp5 = _get_all_children(node4, "corrF")
+                        for node5 in exp5:
+                            hint6 = "Migration to v1.2 deleted react data \"corrF\" elements."
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "meltTemp")
                         for node5 in exp5:
-                            hint5 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
+                            hint7 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "note")
                         for node5 in exp5:
-                            hint6 = "Migration to v1.2 deleted react data \"note\" elements."
+                            hint8 = "Migration to v1.2 deleted react data \"note\" elements."
                             node4.remove(node5)
         if hint != "":
             ret.append(hint)
         if hint2 != "":
-            ret.append(hint)
+            ret.append(hint2)
         if hint3 != "":
-            ret.append(hint)
+            ret.append(hint3)
         if hint4 != "":
-            ret.append(hint)
+            ret.append(hint4)
         if hint5 != "":
-            ret.append(hint)
+            ret.append(hint5)
         if hint6 != "":
-            ret.append(hint)
+            ret.append(hint6)
+        if hint7 != "":
+            ret.append(hint7)
+        if hint8 != "":
+            ret.append(hint8)
 
         exp1 = _get_all_children(self._node, "sample")
         hint = ""
@@ -8142,9 +8156,11 @@ class Run:
                     if forId.attrib['id'] != "":
                         in_react["tar"] = forId.attrib['id']
                 _add_first_child_to_dic(react_data, in_react, True, "cq")
+                _add_first_child_to_dic(react_data, in_react, True, "N0")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffMet")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEff")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
+                _add_first_child_to_dic(react_data, in_react, True, "corrF")
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
@@ -9517,30 +9533,37 @@ class Run:
             for rRow in range(0, len(res)):
                 if rdmlElemData[rRow] is not None:
                     cqVal = np.NaN
+                    N0Val = np.NaN
                     meanEffVal = np.NaN
                     stdEffVal = np.NaN
                     if excludeNoPlateau is False and excludeEfficiency == "include":
                         cqVal = meanCq_Skip[rRow]
+                        N0Val = meanNnull_Skip[rRow]
                         meanEffVal = meanEff_Skip[rRow]
                         stdEffVal = stdEff_Skip[rRow]
                     if excludeNoPlateau is True and excludeEfficiency == "include":
                         cqVal = meanCq_Skip_Plat[rRow]
+                        N0Val = meanNnull_Skip_Plat[rRow]
                         meanEffVal = meanEff_Skip_Plat[rRow]
                         stdEffVal = stdEff_Skip_Plat[rRow]
                     if excludeNoPlateau is False and excludeEfficiency == "mean":
                         cqVal = meanCq_Skip_Mean[rRow]
+                        N0Val = meanNnull_Skip_Mean[rRow]
                         meanEffVal = meanEff_Skip_Mean[rRow]
                         stdEffVal = stdEff_Skip_Mean[rRow]
                     if excludeNoPlateau is True and excludeEfficiency == "mean":
                         cqVal = meanCq_Skip_Plat_Mean[rRow]
+                        N0Val = meanNnull_Skip_Plat_Mean[rRow]
                         meanEffVal = meanEff_Skip_Plat_Mean[rRow]
                         stdEffVal = stdEff_Skip_Plat_Mean[rRow]
                     if excludeNoPlateau is False and excludeEfficiency == "outlier":
                         cqVal = meanCq_Skip_Out[rRow]
+                        N0Val = meanNnull_Skip_Out[rRow]
                         meanEffVal = meanEff_Skip_Out[rRow]
                         stdEffVal = stdEff_Skip_Out[rRow]
                     if excludeNoPlateau is True and excludeEfficiency == "outlier":
                         cqVal = meanCq_Skip_Plat_Out[rRow]
+                        N0Val = meanNnull_Skip_Plat_Out[rRow]
                         meanEffVal = meanEff_Skip_Plat_Out[rRow]
                         stdEffVal = stdEff_Skip_Plat_Out[rRow]
 
@@ -9551,6 +9574,11 @@ class Run:
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
                     if ver == "1.3":
+                        if np.isnan(N0Val):
+                            goodVal = "-1.0"
+                        else:
+                            goodVal = "{:.2e}".format(N0Val)
+                        _change_subelement(rdmlElemData[rRow], "N0", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
                         goodVal = "{:.3f}".format(meanEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEff", dataXMLelements, goodVal, True, "string")
@@ -10760,6 +10788,12 @@ class Run:
                         _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
                         if ver == "1.3":
                             _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
+                            lCol = truePeakFinPos[rRow]
+                            if lCol >= 0:
+                                goodVal = "{:.3f}".format(peakResFluor[rRow][lCol] / peakResSumFuor[rRow])
+                                _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
+                                goodVal = "{:.3f}".format(peakResTemp[rRow][lCol])
+                                _change_subelement(rdmlElemData[rRow], "meltTemp", dataXMLelements, goodVal, True, "string")
 
             finalData["resultsList"] = rawData
         return finalData
