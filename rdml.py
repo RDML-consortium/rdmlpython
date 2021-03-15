@@ -8138,6 +8138,7 @@ class Run:
         mdp_fluor_max = 0.0
         max_data = 0
         max_partition_data = 0
+        anyCorrections = 0
         for react in reacts:
             react_json = {
                 "id": react.get('id'),
@@ -8161,6 +8162,51 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "ampEff")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
                 _add_first_child_to_dic(react_data, in_react, True, "corrF")
+                # Calculate the correction factors
+                calcCorr = _get_first_child_text(react_data, "corrF")
+                calcCq = _get_first_child_text(react_data, "cq")
+                calcN0 = _get_first_child_text(react_data, "N0")
+                calcEff = _get_first_child_text(react_data, "ampEff")
+                in_react["corrCq"] = ""
+                in_react["corrN0"] = ""
+                if not calcCorr == "":
+                    calcCorr = float(calcCorr)
+                    if not np.isnan(calcCorr):
+                        if 0.0 < calcCorr < 1.0:
+                            if calcEff == "":
+                                calcEff = 2.0
+                            else:
+                                calcEff = float(calcEff)
+                            if not np.isnan(calcEff):
+                                if 0.0 < calcEff < 3.0:
+                                    if not calcCq == "":
+                                        calcCq = float(calcCq)
+                                        if not np.isnan(calcCq):
+                                            if calcCq > 0.0:
+                                                finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
+                                                in_react["corrCq"] = "{:.3f}".format(finalCq)
+                                                anyCorrections = 1
+                                            else:
+                                                in_react["corrCq"] = "-1.0"
+                                    if not calcN0 == "":
+                                        calcN0 = float(calcN0)
+                                        if not np.isnan(calcN0):
+                                            if calcCq > 0.0:
+                                                finalN0 = calcCorr * calcN0 / calcEff
+                                                in_react["corrN0"] = "{:.2e}".format(finalN0)
+                                                anyCorrections = 1
+                                            else:
+                                                in_react["corrN0"] = "-1.0"
+                        if calcCorr == 0.0:
+                            if not calcCq == "":
+                                in_react["corrCq"] = ""
+                            if not calcN0 == "":
+                                in_react["corrN0"] = 0.0
+                        if calcCorr == 1.0:
+                            if not calcCq == "":
+                                in_react["corrCq"] = calcCq
+                            if not calcN0 == "":
+                                in_react["corrN0"] = calcN0
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
@@ -8219,6 +8265,7 @@ class Run:
             data.append(react_json)
         all_data["reacts"] = data
         all_data["adp_cyc_max"] = adp_cyc_max
+        all_data["anyCalcCorrections"] = anyCorrections
         all_data["adp_fluor_min"] = adp_fluor_min
         all_data["adp_fluor_max"] = adp_fluor_max
         all_data["mdp_tmp_min"] = mdp_tmp_min
@@ -10344,7 +10391,7 @@ class Run:
             finalData["derivative"]["firstDerivative"] = firstDerData
 
             secondDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
-                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+                              header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in rawSecondDerivativeTemp:
                 secondDerData[0].append(oCol)
             for oRow in range(0, spFl[0]):
@@ -10355,12 +10402,12 @@ class Run:
             finalData["derivative"]["secondDerivative"] = secondDerData
 
             thirdDerData = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar],
-                         header[0][rar_excl], header[0][rar_exp_melt_temp]]]
+                             header[0][rar_excl], header[0][rar_exp_melt_temp]]]
             for oCol in rawThirdDerivativeTemp:
                 thirdDerData[0].append(oCol)
             for oRow in range(0, spFl[0]):
                 thirdDerData.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar],
-                                res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
+                                     res[oRow][rar_excl], res[oRow][rar_exp_melt_temp]])
                 for oCol in range(0, smoothThirdDerivative.shape[1]):
                     thirdDerData[oRow + 1].append(float(smoothThirdDerivative[oRow, oCol]))
             finalData["derivative"]["thirdDerivative"] = thirdDerData
@@ -10487,33 +10534,33 @@ class Run:
                 expTemp.append(dicLU_tarMelt[tarReverseLookup[curTarNr]])
                 if expTemp[curTarNr] == "" or float(expTemp[curTarNr]) < 20.0 or float(expTemp[curTarNr]) > 100.0:
                     expTemp[curTarNr] = -10.0
-                    if False:
-                        # Find the best peak as true peak
-                        startPeakTemp = tempList[0] + truePeakWidth
-                        stopPeakTemp = tempList[-1] - truePeakWidth
-                        startPeakPos = 0
-                        stopPeakPos = len(tempList) - 2
-                        while tempList[startPeakPos + 1] < startPeakTemp:
-                            startPeakPos += 1
-                        while tempList[stopPeakPos - 1] > stopPeakTemp:
-                            stopPeakPos -= 1
-                        maxDeltaH = 0.0
-                        for curTempPos in range(startPeakPos, stopPeakPos + 1):
-                            curTemp = tempList[curTempPos]
-                            curPeakInRange = 0
-                            meanCalc = 0.0
-                            deltaHSum = 0.0
-                            for oRow in range(0, spFl[0]):
-                                if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                                    for oCol in range(0, len(checkedPeakTemp[oRow])):
-                                        if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
-                                            curPeakInRange += 1
-                                            meanCalc += checkedPeakTemp[oRow][oCol]
-                                            deltaHSum += peakResDeltaH[oRow][oCol]
-                            # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
-                            if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
-                                maxDeltaH = deltaHSum / curPeakInRange
-                                expTemp[curTarNr] = meanCalc / curPeakInRange
+                    # if False:
+                    #     # Find the best peak as true peak
+                    #     startPeakTemp = tempList[0] + truePeakWidth
+                    #     stopPeakTemp = tempList[-1] - truePeakWidth
+                    #     startPeakPos = 0
+                    #     stopPeakPos = len(tempList) - 2
+                    #     while tempList[startPeakPos + 1] < startPeakTemp:
+                    #         startPeakPos += 1
+                    #     while tempList[stopPeakPos - 1] > stopPeakTemp:
+                    #         stopPeakPos -= 1
+                    #     maxDeltaH = 0.0
+                    #     for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                    #         curTemp = tempList[curTempPos]
+                    #         curPeakInRange = 0
+                    #         meanCalc = 0.0
+                    #         deltaHSum = 0.0
+                    #         for oRow in range(0, spFl[0]):
+                    #             if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                    #                 for oCol in range(0, len(checkedPeakTemp[oRow])):
+                    #                     if curTemp - truePeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + truePeakWidth:
+                    #                         curPeakInRange += 1
+                    #                         meanCalc += checkedPeakTemp[oRow][oCol]
+                    #                         deltaHSum += peakResDeltaH[oRow][oCol]
+                    #         # if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                    #         if curPeakInRange > 0.0 and maxDeltaH < deltaHSum / curPeakInRange:
+                    #             maxDeltaH = deltaHSum / curPeakInRange
+                    #             expTemp[curTarNr] = meanCalc / curPeakInRange
                 # print(str(tarReverseLookup[curTarNr]) + " - " + str(expTemp[curTarNr]))
 
                 # Now we have a peak temp
