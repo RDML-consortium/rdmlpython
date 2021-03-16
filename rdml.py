@@ -1391,7 +1391,7 @@ def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
     """
 
     oData = np.copy(data)
-    oLogic = np.zeros(data.shape, dtype=np.bool)
+    oLogic = np.zeros(data.shape, dtype=np.bool_)
     loopOn = True
 
     while loopOn:
