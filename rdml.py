@@ -6611,14 +6611,14 @@ class Run:
             if sample.attrib['id'] != "":
                 samId = sample.attrib['id']
                 forType = _get_first_child_text(sample, "type")
-                if forType is not "":
+                if forType != "":
                     samTypeLookup[samId] = forType
         targets = _get_all_children(pRoot, "target")
         for target in targets:
             if target.attrib['id'] != "":
                 tarId = target.attrib['id']
                 forType = _get_first_child_text(target, "type")
-                if forType is not "":
+                if forType != "":
                     tarTypeLookup[tarId] = forType
                 forId = _get_first_child(target, "dyeId")
                 if forId is not None:
@@ -6733,14 +6733,14 @@ class Run:
             if sample.attrib['id'] != "":
                 samId = sample.attrib['id']
                 forType = _get_first_child_text(sample, "type")
-                if forType is not "":
+                if forType != "":
                     samTypeLookup[samId] = forType
         targets = _get_all_children(rootEl._node, "target")
         for target in targets:
             if target.attrib['id'] != "":
                 tarId = target.attrib['id']
                 forType = _get_first_child_text(target, "type")
-                if forType is not "":
+                if forType != "":
                     tarTypeLookup[tarId] = forType
                 forId = _get_first_child(target, "dyeId")
                 if forId is not None and forId.attrib['id'] != "":
@@ -6791,7 +6791,7 @@ class Run:
                 if wellPos == node.attrib['id']:
                     react = node
                     forId = _get_first_child_text(react, "sample")
-                    if forId and forId is not "" and forId.attrib['id'] != sLin[1]:
+                    if forId and forId != "" and forId.attrib['id'] != sLin[1]:
                         ret += "Missmatch: Well " + wellPos + " (" + sLin[0] + ") has sample \"" + forId.attrib['id'] + \
                                "\" in RDML file and sample \"" + sLin[1] + "\" in tab file.\n"
                     break
@@ -6905,14 +6905,14 @@ class Run:
             if sample.attrib['id'] != "":
                 samId = sample.attrib['id']
                 forType = _get_first_child_text(sample, "type")
-                if forType is not "":
+                if forType != "":
                     samTypeLookup[samId] = forType
         targets = _get_all_children(rootEl._node, "target")
         for target in targets:
             if target.attrib['id'] != "":
                 tarId = target.attrib['id']
                 forType = _get_first_child_text(target, "type")
-                if forType is not "":
+                if forType != "":
                     tarTypeLookup[tarId] = forType
         dyes = _get_all_children(rootEl._node, "dye")
         for dye in dyes:
@@ -7173,7 +7173,7 @@ class Run:
                         if wellPos == node.attrib['id']:
                             react = node
                             forId = _get_first_child_text(react, "sample")
-                            if forId and forId is not "" and forId.attrib['id'] != sLin[posSample]:
+                            if forId and forId != "" and forId.attrib['id'] != sLin[posSample]:
                                 ret += "Missmatch: Well " + wellPos + " (" + sLin[posWell] + ") has sample \"" + forId.attrib['id'] + \
                                        "\" in RDML file and sample \"" + sLin[posSample] + "\" in tab file.\n"
                             break
@@ -7996,14 +7996,14 @@ class Run:
             if sample.attrib['id'] != "":
                 samId = sample.attrib['id']
                 forType = _get_first_child_text(sample, "type")
-                if forType is not "":
+                if forType != "":
                     samTypeLookup[samId] = forType
         targets = _get_all_children(rootEl._node, "target")
         for target in targets:
             if target.attrib['id'] != "":
                 tarId = target.attrib['id']
                 forType = _get_first_child_text(target, "type")
-                if forType is not "":
+                if forType != "":
                     tarTypeLookup[tarId] = forType
                 forId = _get_first_child(target, "dyeId")
                 if forId is not None and forId.attrib['id'] != "":
@@ -8027,7 +8027,7 @@ class Run:
             partit = _get_first_child(react, "partitions")
             if partit is not None:
                 endPtTable = _get_first_child_text(partit, "endPtTable")
-                if endPtTable is not "":
+                if endPtTable != "":
                     pFileName = endPtTable
                 pVolume = _get_first_child_text(partit, "volume")
                 partit_datas = _get_all_children(partit, "data")
@@ -8243,7 +8243,7 @@ class Run:
             if partit is not None:
                 in_partitions = {}
                 endPtTable = _get_first_child_text(partit, "endPtTable")
-                if endPtTable is not "":
+                if endPtTable != "":
                     in_partitions["endPtTable"] = endPtTable
                 partit_datas = _get_all_children(partit, "data")
                 max_partition_data = max(max_partition_data, len(partit_datas))
@@ -8559,10 +8559,10 @@ class Run:
         rawFluor[rawFluor <= 0.00000001] = np.nan
 
         # Create a matrix with the cycle for each rawFluor value
-        vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int), (spFl[0], 1))
+        vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int64), (spFl[0], 1))
 
         # Initialization of the vecNoAmplification vector
-        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
+        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool_)
         rdmlElemData = []
 
         # Now process the data for numpy and create results array
@@ -8683,7 +8683,7 @@ class Run:
 
         # Count the targets and create the target variables
         # Position 0 is for the general over all window without targets
-        vecTarget = np.zeros(spFl[0], dtype=np.int)
+        vecTarget = np.zeros(spFl[0], dtype=np.int64)
         vecTarget[vecTarget <= 0] = -1
         targetsCount = 1
         tarWinLookup = {}
@@ -8697,20 +8697,20 @@ class Run:
         threshold = np.zeros(targetsCount, dtype=np.float64)
 
         # Initialization of the error vectors
-        vecNoAmplification = np.zeros(spFl[0], dtype=np.bool)
-        vecBaselineError = np.zeros(spFl[0], dtype=np.bool)
-        vecNoPlateau = np.zeros(spFl[0], dtype=np.bool)
-        vecNoisySample = np.zeros(spFl[0], dtype=np.bool)
-        vecSkipSample = np.zeros(spFl[0], dtype=np.bool)
-        vecShortLogLin = np.zeros(spFl[0], dtype=np.bool)
-        vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool)
-        vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool)
-        vecEffOutlier_Skip_Mean = np.zeros(spFl[0], dtype=np.bool)
-        vecEffOutlier_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.bool)
-        vecEffOutlier_Skip_Out = np.zeros(spFl[0], dtype=np.bool)
-        vecEffOutlier_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.bool)
-        vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool)
-        vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool)
+        vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
+        vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
+        vecNoPlateau = np.zeros(spFl[0], dtype=np.bool_)
+        vecNoisySample = np.zeros(spFl[0], dtype=np.bool_)
+        vecSkipSample = np.zeros(spFl[0], dtype=np.bool_)
+        vecShortLogLin = np.zeros(spFl[0], dtype=np.bool_)
+        vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool_)
+        vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool_)
+        vecEffOutlier_Skip_Mean = np.zeros(spFl[0], dtype=np.bool_)
+        vecEffOutlier_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.bool_)
+        vecEffOutlier_Skip_Out = np.zeros(spFl[0], dtype=np.bool_)
+        vecEffOutlier_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.bool_)
+        vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool_)
+        vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool_)
 
         # Start and stop cycles of the log lin phase
         stopCyc = np.zeros(spFl[0], dtype=np.int64)
@@ -8721,7 +8721,7 @@ class Run:
         pcrEff = np.ones(spFl[0], dtype=np.float64)
 
         nNulls = np.ones(spFl[0], dtype=np.float64)
-        nInclu = np.zeros(spFl[0], dtype=np.int)
+        nInclu = np.zeros(spFl[0], dtype=np.int64)
         correl = np.zeros(spFl[0], dtype=np.float64)
         meanEff_Skip = np.zeros(spFl[0], dtype=np.float64)
         meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
@@ -8805,7 +8805,7 @@ class Run:
         minCorFluor[np.isnan(minCorFluor)] = 0
         minCorFluor[minCorFluor <= 0.00000001] = np.nan
 
-        minFluCount = np.ones(minCorFluor.shape, dtype=np.int)
+        minFluCount = np.ones(minCorFluor.shape, dtype=np.int64)
         minFluCount[np.isnan(minCorFluor)] = 0
         minFluCountSum = np.sum(minFluCount, axis=1)
         [minSlopeAmp, _unused] = _lrp_linReg(vecCycles, np.log10(minCorFluor))
@@ -9915,7 +9915,7 @@ class Run:
         rawFluor[rawFluor < 1] = np.nan
 
         # Initialization of the vecNoAmplification vector
-        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool)
+        vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool_)
         rdmlElemData = []
 
         # Now process the data for numpy and create results array
@@ -10044,7 +10044,7 @@ class Run:
         HighTm = np.zeros(targetsCount, dtype=np.float64)
 
         # Initialization of the error vectors
-        vecSweeps = np.zeros(spFl[0], dtype=np.bool)
+        vecSweeps = np.zeros(spFl[0], dtype=np.bool_)
 
         #########################
         # Get the data in shape #
