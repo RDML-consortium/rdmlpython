@@ -10672,18 +10672,15 @@ class Run:
                             if curPeak > 0.0:
                                 finPeakCount += 1
 
-                        if res[oRow][rar_sample_type] in ["std", "pos"]:
-                            if res[oRow][rar_exp_melt_temp] != "":
-                                if truePeakFinPos[oRow] < 0.0:
+                        if res[oRow][rar_exp_melt_temp] != "":
+                            if truePeakFinPos[oRow] < 0.0:
+                                if res[oRow][rar_sample_type] in ["std", "pos"]:
                                     exclVal += "no product with expected melting temperature;"
-                            if finPeakCount > 1:
-                                noteVal += "several products with diverging melting temperatures detected;"
-
-                        if res[oRow][rar_sample_type] in ["unkn"]:
-                            if res[oRow][rar_exp_melt_temp] != "":
-                                if truePeakFinPos[oRow] < 0.0:
+                                if res[oRow][rar_sample_type] in ["unkn"]:
                                     noteVal += "no product with expected melting temperature;"
-
+                                if finPeakCount == 1:
+                                    if res[oRow][rar_sample_type] != "opt":
+                                        noteVal += "product with diverging melting temperatures detected;"
                         if finPeakCount > 1:
                             noteVal += "several products with diverging melting temperatures detected;"
 
