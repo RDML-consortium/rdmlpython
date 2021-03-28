@@ -9490,7 +9490,7 @@ class Run:
                     exclVal += "amplification in negative control;"
                 else:
                     if res[rRow][rar_amplification]:
-                        noteVal += "amplification in negative control;"
+                        exclVal += "amplification in negative control;"
                 if res[rRow][rar_plateau]:
                     noteVal += "plateau in negative control;"
 
@@ -9499,9 +9499,9 @@ class Run:
                     exclVal += "no amplification in positive control;"
                 else:
                     if not res[rRow][rar_amplification]:
-                        noteVal += "no amplification in positive control;"
+                        exclVal += "no amplification in positive control;"
                 if res[rRow][rar_baseline_error]:
-                    noteVal += "baseline error in positive control;"
+                    exclVal += "baseline error in positive control;"
                 if not res[rRow][rar_plateau]:
                     noteVal += "no plateau in positive control;"
                 if res[rRow][rar_noisy_sample]:
