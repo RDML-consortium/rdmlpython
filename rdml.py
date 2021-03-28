@@ -1662,10 +1662,13 @@ def _cleanErrorString(inStr, cleanStyle):
     inStr += ";"
     if cleanStyle == "melt":
         outStr = inStr.replace('several products with diverging melting temperatures detected', '')
+        outStr = outStr.replace('product with diverging melting temperatures detected', '')
         outStr = outStr.replace('no product with expected melting temperature', '')
     else:
         if inStr.find('several products with diverging melting temperatures detected') > 0:
             outStr += ';several products with diverging melting temperatures detected;'
+        if inStr.find('product with diverging melting temperatures detected') > 0:
+            outStr += ';product with diverging melting temperatures detected;'
         if inStr.find('no product with expected melting temperature') > 0:
             outStr += ';no product with expected melting temperature;'
 
@@ -10682,7 +10685,8 @@ class Run:
                                     if res[oRow][rar_sample_type] != "opt":
                                         noteVal += "product with diverging melting temperatures detected;"
                         if finPeakCount > 1:
-                            noteVal += "several products with diverging melting temperatures detected;"
+                            if res[oRow][rar_sample_type] != "opt":
+                                noteVal += "several products with diverging melting temperatures detected;"
 
                         # Write back
                         res[oRow][rar_excl] = re.sub(r'^;|;$', '', exclVal)
