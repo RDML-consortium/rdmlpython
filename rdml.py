@@ -10683,10 +10683,10 @@ class Run:
                                     noteVal += "no product with expected melting temperature;"
                                 if finPeakCount == 1:
                                     if res[oRow][rar_sample_type] != "opt":
-                                        noteVal += "product with diverging melting temperatures detected;"
+                                        exclVal += "product with diverging melting temperatures detected;"
                         if finPeakCount > 1:
                             if res[oRow][rar_sample_type] != "opt":
-                                noteVal += "several products with diverging melting temperatures detected;"
+                                exclVal += "several products with diverging melting temperatures detected;"
 
                         # Write back
                         res[oRow][rar_excl] = re.sub(r'^;|;$', '', exclVal)
