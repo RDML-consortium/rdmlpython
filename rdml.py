@@ -9673,8 +9673,9 @@ class Run:
     def webAppMeltCurveAnalysis(self, normMethod="exponential", fluorSource="normalised",
                                 truePeakWidth=1.0, artifactPeakWidth=1.0,
                                 expoLowTemp=65.0, expoHighTemp=92.0,
-                                bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
+                                bilinLowStartTemp=65.0, bilinLowStopTemp=67.0,
                                 bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
+                                peakLowTemp=60.0, peakHighTemp=98.0,
                                 peakCutoff=5.0, updateRDML=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
@@ -9690,6 +9691,8 @@ class Run:
             bilinLowStopTemp: the low stop temperature for the bilinear normalisation
             bilinHighStartTemp: the high start temperature for the bilinear normalisation
             bilinHighStopTemp: the high stop temperature for the bilinear normalisation
+            peakLowTemp: peaks below this temperature are ignored
+            peakHighTemp: peaks above this temperature are ignored
             peakCutoff: the percentage below melting peaks are ignored in calculations
             updateRDML: If true, update the RDML data with the calculated values.
 
@@ -9707,6 +9710,7 @@ class Run:
                                      expoLowTemp=expoLowTemp, expoHighTemp=expoHighTemp,
                                      bilinLowStartTemp=bilinLowStartTemp, bilinLowStopTemp=bilinLowStopTemp,
                                      bilinHighStartTemp=bilinHighStartTemp, bilinHighStopTemp=bilinHighStopTemp,
+                                     peakLowTemp=peakLowTemp, peakHighTemp=peakHighTemp,
                                      peakCutoff=peakCutoff, updateRDML=updateRDML,
                                      saveRaw=False, saveDerivative=True,
                                      saveResultsList=True, saveResultsCSV=False, verbose=False)
@@ -9813,8 +9817,9 @@ class Run:
     def meltCurveAnalysis(self, normMethod="exponential", fluorSource="normalised",
                           truePeakWidth=1.0, artifactPeakWidth=1.0,
                           expoLowTemp=65.0, expoHighTemp=92.0,
-                          bilinLowStartTemp=68.0, bilinLowStopTemp=70.0,
+                          bilinLowStartTemp=65.0, bilinLowStopTemp=67.0,
                           bilinHighStartTemp=93.0, bilinHighStopTemp=94.0,
+                          peakLowTemp=60.0, peakHighTemp=98.0,
                           peakCutoff=5.0, updateRDML=False,
                           saveRaw=False, saveDerivative=False,
                           saveResultsList=False, saveResultsCSV=False, verbose=False):
@@ -9832,6 +9837,8 @@ class Run:
             bilinLowStopTemp: the low stop temperature for the bilinear normalisation
             bilinHighStartTemp: the high start temperature for the bilinear normalisation
             bilinHighStopTemp: the high stop temperature for the bilinear normalisation
+            peakLowTemp: peaks below this temperature are ignored
+            peakHighTemp: peaks above this temperature are ignored
             peakCutoff: the percentage below melting peaks are ignored in calculations
             updateRDML: If true, update the RDML data with the calculated values.
             saveRaw: If true, no raw values are given in the returned data
@@ -9884,6 +9891,8 @@ class Run:
         bilinLowStopTemp = float(bilinLowStopTemp)
         bilinHighStartTemp = float(bilinHighStartTemp)
         bilinHighStopTemp = float(bilinHighStopTemp)
+        peakLowTemp = float(peakLowTemp)
+        peakHighTemp = float(peakHighTemp)
         peakCutoff = float(peakCutoff) / 100.0
         if normMethod not in ["exponential", "bilinear", "combined"]:
             normMethod = "exponential"
@@ -10097,28 +10106,22 @@ class Run:
             ##################################
             # Finding the suitable low range #
             ##################################
-            starttemp = 65.0
-            Trange = 2.0
             # determine index of low start temperature
             startindex = 0
-            while tempList[startindex] < starttemp and startindex < len(tempList) - 1:
+            while tempList[startindex] < bilinLowStartTemp and startindex < len(tempList) - 1:
                 startindex += 1
-
-            stoptemp = tempList[startindex] + Trange
             # determine index of low stop temperature
             stopindex = len(tempList) - 1
-            while tempList[stopindex] > stoptemp and stopindex > 0:
+            while tempList[stopindex] > bilinLowStopTemp and stopindex > 0:
                 stopindex -= 1
 
             NtempsInRange = stopindex - startindex + 1
 
-            # determine index of low start temperature
+            # determine index of high start temperature
             starthighT = 0
             while tempList[starthighT] < bilinHighStartTemp and starthighT < len(tempList) - 1:
                 starthighT += 1
-
-            stoptemp = tempList[startindex] + Trange
-            # determine index of low stop temperature
+            # determine index of high stop temperature
             stophighT = len(tempList) - 1
             while tempList[stophighT] > bilinHighStopTemp and stophighT > 0:
                 stophighT -= 1
@@ -10524,12 +10527,13 @@ class Run:
                                     peakResFluor[pos].append(fluorDrop)
                                     peakResSumFuor[pos] += fluorDrop
 
-            # Set unwanted peaks below peakCutoff to -10.0
+            # Set unwanted peaks below peakCutoff or outside temp range to -10.0
             for oRow in range(0, spFl[0]):
                 for oCol in range(0, len(peakResTemp[oRow])):
                     if peakCutoff > peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]:
                         peakResTemp[oRow][oCol] = -10.0
-
+                    if peakResTemp[oRow][oCol] < peakLowTemp or peakResTemp[oRow][oCol] > peakHighTemp:
+                        peakResTemp[oRow][oCol] = -10.0
             # Find the expected peak
             checkedPeakTemp = [row[:] for row in peakResTemp]
             expTemp = [[]]
@@ -10682,10 +10686,14 @@ class Run:
                                 if res[oRow][rar_sample_type] in ["unkn"]:
                                     noteVal += "no product with expected melting temperature;"
                                 if finPeakCount == 1:
-                                    if res[oRow][rar_sample_type] != "opt":
+                                    if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
+                                        noteVal += "product with diverging melting temperatures detected;"
+                                    if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
                                         exclVal += "product with diverging melting temperatures detected;"
                         if finPeakCount > 1:
-                            if res[oRow][rar_sample_type] != "opt":
+                            if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
+                                noteVal += "several products with diverging melting temperatures detected;"
+                            if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
                                 exclVal += "several products with diverging melting temperatures detected;"
 
                         # Write back
@@ -10893,6 +10901,10 @@ def main():
                         help='MeltCurveAnalysis: provide the high start temperature for the bilinear normalisation')
     parser.add_argument('--mcaBilinHighStopTemp', metavar="94.0",
                         help='MeltCurveAnalysis: provide the high stop temperature for the bilinear normalisation')
+    parser.add_argument('--mcaPeakLowTemp', metavar="60.0",
+                        help='mcaPeakLowTemp: peaks below this temperature are ignored')
+    parser.add_argument('--mcaPeakHighTemp', metavar="98.0",
+                        help='mcaPeakHighTemp: peaks above this temperature are ignored')
     parser.add_argument('--mcaPeakCutoff', metavar="5.0",
                         help='mcaPeakCutoff: the percentage below melting peaks are ignored in calculations')
     parser.add_argument('--saveDerivative', metavar="processed_data",
@@ -11109,10 +11121,12 @@ def main():
         cli_mcaArtifactPeakWidth = 1.0
         cli_mcaExpoLowTemp = 65.0
         cli_mcaExpoHighTemp = 92.0
-        cli_mcaBilinLowStartTemp = 68.0
-        cli_mcaBilinLowStopTemp = 70.0
+        cli_mcaBilinLowStartTemp = 65.0
+        cli_mcaBilinLowStopTemp = 67.0
         cli_mcaBilinHighStartTemp = 93.0
         cli_mcaBilinHighStopTemp = 94.0
+        cli_mcaPeakLowTemp = 60.0
+        cli_mcaPeakHighTemp = 98.0
         cli_mcaPeakCutoff = 5.0
 
         if args.resultfile:
@@ -11143,6 +11157,10 @@ def main():
             cli_mcaBilinHighStartTemp = float(args.mcaBilinHighStartTemp)
         if args.mcaBilinHighStopTemp:
             cli_mcaBilinHighStopTemp = float(args.mcaBilinHighStopTemp)
+        if args.mcaPeakLowTemp:
+            cli_mcaPeakLowTemp = float(args.mcaPeakLowTemp)
+        if args.mcaPeakHighTemp:
+            cli_mcaPeakHighTemp = float(args.mcaPeakHighTemp)
         if args.mcaPeakCutoff:
             cli_mcaPeakCutoff = float(args.mcaPeakCutoff)
 
@@ -11156,6 +11174,8 @@ def main():
                                                bilinLowStopTemp=cli_mcaBilinLowStopTemp,
                                                bilinHighStartTemp=cli_mcaBilinHighStartTemp,
                                                bilinHighStopTemp=cli_mcaBilinHighStopTemp,
+                                               peakLowTemp=cli_mcaPeakLowTemp,
+                                               peakHighTemp=cli_mcaPeakHighTemp,
                                                peakCutoff=cli_mcaPeakCutoff,
                                                updateRDML=cli_saveRDML,
                                                saveRaw=cli_saveRawData,
