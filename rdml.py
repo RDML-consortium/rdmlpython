@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.12"
+    return "0.9.14"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -10508,6 +10508,17 @@ class Run:
                     if peakCutoff > peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]:
                         peakResTemp[oRow][oCol] = -10.0
 
+            # Recalculate the sums
+            for oRow in range(0, spFl[0]):
+                peakResSumH[oRow] = 0.0
+                peakResSumDeltaH[oRow] = 0.0
+                peakResSumFuor[oRow] = 0.0
+                for oCol in range(0, len(peakResTemp[oRow])):
+                    if peakResTemp[oRow][oCol] > 0.0:
+                        peakResSumH[oRow] += peakResH[oRow][oCol]
+                        peakResSumDeltaH[oRow] += peakResDeltaH[oRow][oCol]
+                        peakResSumFuor[oRow] += peakResFluor[oRow][oCol]
+
             # Find the expected peak
             checkedPeakTemp = [row[:] for row in peakResTemp]
             expTemp = [[]]
@@ -10548,68 +10559,107 @@ class Run:
                 if float(expTemp[curTarNr]) > 0.0:
                     for oRow in range(0, spFl[0]):
                         if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                            maxDeltaH = 0.0
                             for oCol in range(0, len(checkedPeakTemp[oRow])):
                                 if float(expTemp[curTarNr]) - truePeakWidth < checkedPeakTemp[oRow][oCol] < float(expTemp[curTarNr]) + truePeakWidth:
-                                    truePeakFinPos[oRow] = oCol
-                                    checkedPeakTemp[oRow][oCol] = -10.0
-
-            # Find the artifact peaks
-            startPeakTemp = tempList[0] + artifactPeakWidth
-            stopPeakTemp = tempList[-1] - artifactPeakWidth
-            startPeakPos = 0
-            stopPeakPos = len(tempList) - 2
-            while tempList[startPeakPos + 1] < startPeakTemp:
-                startPeakPos += 1
-            while tempList[stopPeakPos - 1] > stopPeakTemp:
-                stopPeakPos -= 1
+                                    if peakResDeltaH[oRow][oCol] >= maxDeltaH:
+                                        # Choose the peak with the biggest deltaH
+                                        maxDeltaH = peakResDeltaH[oRow][oCol]
+                                        truePeakFinPos[oRow] = oCol
+                            if maxDeltaH > 0.0:
+                                checkedPeakTemp[oRow][truePeakFinPos[oRow]] = -10.0
 
             artifactPeaks = [[]]
+            orderPeaks = -1 * np.ones((spFl[0], 1), dtype=np.int64)
             for curTarNr in range(1, targetsCount):
+                # Find the artifact peaks
+                startPeakTemp = tempList[0] + artifactPeakWidth
+                stopPeakTemp = tempList[-1] - artifactPeakWidth
+                startPeakPos = 0
+                stopPeakPos = len(tempList) - 2
+                while tempList[startPeakPos + 1] < startPeakTemp:
+                    startPeakPos += 1
+                while tempList[stopPeakPos - 1] > stopPeakTemp:
+                    stopPeakPos -= 1
+                availPos = list(range(startPeakPos, stopPeakPos + 1))
+
+                # Remove target temp from list
+                delPos = -1
+                for listPos in range(0, len(availPos)):
+                    if tempList[availPos[listPos]] == expTemp[curTarNr]:
+                        delPos = listPos
+                if delPos > -1:
+                    del availPos[delPos]
+
                 artifactPeaks.append([])
                 stillPeaks = True
+                peakCount = -1
                 while stillPeaks:
                     stillPeaks = False
                     foundPeaks = False
-                    maxPeakInRange = 1
-                    artiTemp = -10.0
-                    lastTemp = -10.0
-                    for curTempPos in range(startPeakPos, stopPeakPos + 1):
+                    maxPeakInRange = 0
+                    maxDeltaHSum = 0.0
+                    goodTempPos = [-1.0]
+                    goodPosList = -1 * np.ones((spFl[0], 1), dtype=np.int64)
+                    goodPosCount = 0
+                    for curTempPos in availPos:
                         curTemp = tempList[curTempPos]
                         curPeakInRange = 0
+                        curDeltaHSum = 0.0
+                        curPosList = -1 * np.ones((spFl[0], 1), dtype=np.int64)
                         for oRow in range(0, spFl[0]):
                             if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                                maxDeltaH = 0.0
+                                curGoodCol = -1
                                 for oCol in range(0, len(checkedPeakTemp[oRow])):
                                     if curTemp - artifactPeakWidth < checkedPeakTemp[oRow][oCol] < curTemp + artifactPeakWidth:
-                                        foundPeaks = True
-                                        lastTemp = curTemp
-                                        curPeakInRange += 1
+                                        if peakResDeltaH[oRow][oCol] >= maxDeltaH:
+                                            # Choose the peak with the biggest deltaH
+                                            maxDeltaH = peakResDeltaH[oRow][oCol]
+                                            curGoodCol = oCol
+                                if maxDeltaH > 0.0:
+                                    foundPeaks = True
+                                    curPeakInRange += 1
+                                    curDeltaHSum += maxDeltaH
+                                    curPosList[oRow] = curGoodCol
+
                         if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
-                            maxPeakInRange = curPeakInRange
-                            artiTemp = lastTemp
+                            if curDeltaHSum > maxDeltaHSum or curPeakInRange > maxPeakInRange:
+                                goodTempPos = [curTempPos]
+                                goodPosList = curPosList
+                                goodPosCount = 0
+                                maxDeltaHSum = curDeltaHSum
+                                maxPeakInRange = curPeakInRange
+                            else:
+                                if curDeltaHSum == maxDeltaHSum or curPeakInRange == maxPeakInRange:
+                                    goodTempPos.append(curTempPos)
+                                    goodPosList = np.concatenate((goodPosList, curPosList), axis=1)
+                                    goodPosCount += 1
 
-                    if foundPeaks:
-                        artifactPeaks[curTarNr].append(artiTemp)
+                    if foundPeaks and maxDeltaHSum > 0.0:
+                        peakCount += 1  # On pos 0 is expected peak
+                        if peakCount >= len(orderPeaks[0]):
+                            ttPeaks = -1 * np.ones((spFl[0], 1), dtype=np.int64)
+                            orderPeaks = np.concatenate((orderPeaks, ttPeaks), axis=1)
+
+                        usePos = int(goodPosCount / 2)
                         stillPeaks = True
+                        artifactPeaks[curTarNr].append(tempList[goodTempPos[usePos]])
+                        # Avoid duplicate temps
+                        del availPos[availPos.index(goodTempPos[usePos])]
+                        for oRow in range(0, spFl[0]):
+                            if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
+                                colPos = goodPosList[oRow][usePos]
+                                if colPos >= 0:
+                                    orderPeaks[oRow][peakCount] = colPos
+                                    checkedPeakTemp[oRow][colPos] = -10.0
+                                    # add to result array
 
-                    for oRow in range(0, spFl[0]):
-                        if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
-                            for oCol in range(0, len(checkedPeakTemp[oRow])):
-                                if artiTemp - artifactPeakWidth < checkedPeakTemp[oRow][oCol] < artiTemp + artifactPeakWidth:
-                                    checkedPeakTemp[oRow][oCol] = -10.0
-
-            # Recalculate the sums
-            for oRow in range(0, spFl[0]):
-                peakResSumH[oRow] = 0.0
-                peakResSumDeltaH[oRow] = 0.0
-                peakResSumFuor[oRow] = 0.0
-                for oCol in range(0, len(peakResTemp[oRow])):
-                    if peakResTemp[oRow][oCol] > 0.0:
-                        peakResSumH[oRow] += peakResH[oRow][oCol]
-                        peakResSumDeltaH[oRow] += peakResDeltaH[oRow][oCol]
-                        peakResSumFuor[oRow] += peakResFluor[oRow][oCol]
-
-            # Now assemble the results table
-            checkedPeakTemp = [row[:] for row in peakResTemp]
+            for oRow in range(0, len(checkedPeakTemp)):
+                for oCol in range(0, len(checkedPeakTemp[oRow])):
+                    if checkedPeakTemp[oRow][colPos] > -10.0:
+                        print("Error: Peak not reported in Row " + str(oRow) + " Col " + str(oCol) + " with: " +
+                              str(checkedPeakTemp[oRow][colPos]))
 
             # Calculate the dimensions
             calcRows = 1 + (targetsCount - 1) + spFl[0]  # header, sum cols, data Cols
@@ -10760,20 +10810,27 @@ class Run:
                     resTable[averageRow][15] = 0.0
 
                 # Add all the other peaks
+                sortPeaks = sorted(artifactPeaks[curTarNr], key=float)
                 workPeaks = []
-                for cPeak in artifactPeaks[curTarNr]:
-                    workPeaks.append(cPeak)
-                workPeaks = sorted(workPeaks, key=float)
-                workPeaks.reverse()
-                if float(expTemp[curTarNr]) > 0.0:
-                    artifactPeaks[curTarNr].append(float(expTemp[curTarNr]))
-                    workPeaks.insert(0, float(expTemp[curTarNr]))
-                allTarPeaks = sorted(artifactPeaks[curTarNr], key=float)
+                lastTemp = 120.0
+                truePeakRow = -1
+                for curPeak in range(0, len(sortPeaks)):
+                    if truePeakRow == -1 and sortPeaks[curPeak] > float(expTemp[curTarNr]) > 0.0:
+                        truePeakRow = curPeak
+                        workPeaks.append(float(expTemp[curTarNr]))
+                    lastTemp = sortPeaks[curPeak]
+                    workPeaks.append(lastTemp)
+                if truePeakRow == -1 and float(expTemp[curTarNr]) > lastTemp:
+                    truePeakRow = len(sortPeaks)
+                    workPeaks.append(float(expTemp[curTarNr]))
 
-                for curPrintPeak in workPeaks:
+                for curCol in range(0, len(workPeaks)):
                     rowPos = averageRow
-                    colOffset = 17 + 9 * allTarPeaks.index(curPrintPeak)
-                    curPrintPeakF = float(curPrintPeak)
+                    if curCol != truePeakRow:
+                        artiCol = artifactPeaks[curTarNr].index(workPeaks[curCol])
+                    else:
+                        artiCol = -1
+                    colOffset = 17 + 9 * curCol
                     meanResTemp = 0.0
                     meanResPeakWidth = 0.0
                     meanResH = 0.0
@@ -10786,16 +10843,10 @@ class Run:
                     for oRow in range(0, spFl[0]):
                         if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
                             rowPos += 1
-                            oCol = -1
-                            for sCol in range(0, len(peakResTemp[oRow])):
-                                if abs(float(expTemp[curTarNr]) - curPrintPeakF) < 0.000001:
-                                    if curPrintPeakF - truePeakWidth < checkedPeakTemp[oRow][sCol] < curPrintPeakF + truePeakWidth:
-                                        oCol = sCol
-                                        checkedPeakTemp[oRow][sCol] = -10.0
-                                else:
-                                    if curPrintPeakF - artifactPeakWidth < checkedPeakTemp[oRow][sCol] < curPrintPeakF + artifactPeakWidth:
-                                        oCol = sCol
-                                        checkedPeakTemp[oRow][sCol] = -10.0
+                            if curCol == truePeakRow:
+                                oCol = truePeakFinPos[oRow]
+                            else:
+                                oCol = orderPeaks[oRow][artiCol]
 
                             if oCol >= 0:
                                 resTable[rowPos][colOffset] = peakResTemp[oRow][oCol]
