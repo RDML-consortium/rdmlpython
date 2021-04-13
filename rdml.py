@@ -10655,11 +10655,11 @@ class Run:
                                     checkedPeakTemp[oRow][colPos] = -10.0
                                     # add to result array
 
-            for oRow in range(0, len(checkedPeakTemp)):
-                for oCol in range(0, len(checkedPeakTemp[oRow])):
-                    if checkedPeakTemp[oRow][colPos] > -10.0:
-                        print("Error: Peak not reported in Row " + str(oRow) + " Col " + str(oCol) + " with: " +
-                              str(checkedPeakTemp[oRow][colPos]))
+            # for oRow in range(0, len(checkedPeakTemp)):
+            #     for oCol in range(0, len(checkedPeakTemp[oRow])):
+            #         if checkedPeakTemp[oRow][colPos] > -10.0:
+            #             print("Error: Peak not reported in Row " + str(oRow) + " Col " + str(oCol) + " with: " +
+            #                   str(checkedPeakTemp[oRow][colPos]))
 
             # Calculate the dimensions
             calcRows = 1 + (targetsCount - 1) + spFl[0]  # header, sum cols, data Cols
