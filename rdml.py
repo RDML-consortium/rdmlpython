@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.14"
+    return "0.9.15"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -663,7 +663,10 @@ def _lrp_findStopCyc(fluor, aRow):
     fluorShift = np.roll(fluor[aRow], 1, axis=0)  # Shift to right - real position is -0.5
     fluorShift[0] = np.nan
     firstDerivative = fluor[aRow] - fluorShift
-    FDMaxCyc = np.nanargmax(firstDerivative, axis=0) + 1  # Cycles so +1 to array
+    if np.isfinite(firstDerivative).any():
+        FDMaxCyc = np.nanargmax(firstDerivative, axis=0) + 1  # Cycles so +1 to array
+    else:
+        return fluor.shape[1]
 
     firstDerivativeShift = np.roll(firstDerivative, -1, axis=0)  # Shift to left
     firstDerivativeShift[-1] = np.nan
@@ -869,7 +872,10 @@ def _lrp_startStopInWindow(fluor, aRow, upWin, lowWin):
     stopCyc = _lrp_findStopCyc(fluor, aRow)
     [startCyc, startCycFix] = _lrp_findStartCyc(fluor, aRow, stopCyc)
 
-    stopMaxCyc = np.nanargmax(fluor[aRow, startCycFix - 1:]) + startCycFix
+    if np.isfinite(fluor[aRow, startCycFix - 1:]).any():
+        stopMaxCyc = np.nanargmax(fluor[aRow, startCycFix - 1:]) + startCycFix
+    else:
+        return startCyc, startCyc, True
 
     # If is true if outside the window
     if fluor[aRow, startCyc - 1] > upWin or fluor[aRow, stopMaxCyc - 1] < lowWin:
@@ -1203,6 +1209,12 @@ def _lrp_setWoL(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indMeanY, pcr
                                                   vecSkipSample, vecNoPlateau, vecShortLogLin)
         if checkMeanEff < 1.001:
             skipGroup = True
+
+    if skipGroup:
+        if tarGroup is None:
+            threshold[0] = (0.5 * np.round(1000 * upWin[0]) / 1000)
+        else:
+            threshold[tarGroup] = (0.5 * np.round(1000 * upWin[tarGroup]) / 1000)
 
     if not skipGroup:
         foldWidth = np.log10(np.power(checkMeanEff, pointsInWoL))
@@ -1661,16 +1673,32 @@ def _cleanErrorString(inStr, cleanStyle):
     outStr = ";"
     inStr += ";"
     if cleanStyle == "melt":
-        outStr = inStr.replace('several products with diverging melting temperatures detected', '')
-        outStr = outStr.replace('product with diverging melting temperatures detected', '')
+        outStr = inStr.replace('several products with different melting temperatures detected', '')
+        outStr = outStr.replace('product with different melting temperatures detected', '')
         outStr = outStr.replace('no product with expected melting temperature', '')
     else:
-        if inStr.find('several products with diverging melting temperatures detected') > 0:
-            outStr += ';several products with diverging melting temperatures detected;'
-        if inStr.find('product with diverging melting temperatures detected') > 0:
-            outStr += ';product with diverging melting temperatures detected;'
-        if inStr.find('no product with expected melting temperature') > 0:
-            outStr += ';no product with expected melting temperature;'
+        strList = inStr.split(";")
+        knownWarn = ["amplification in negative control", "plateau in negative control",
+                     "no amplification in positive control", "baseline error in positive control",
+                     "no plateau in positive control", "noisy sample in positive control",
+                     "Cq < 10, N0 unreliable", "Cq > 34", "no indiv PCR eff can be calculated",
+                     "PCR efficiency outlier", "no amplification", "baseline error", "no plateau",
+                     "noisy sample", "Cq too high"]
+        for ele in strList:
+            if ele in knownWarn:
+                continue
+            if re.search(r"^only \d+ values in log phase", ele):
+                continue
+            if re.search(r"^indiv PCR eff is .+", ele):
+                continue
+            outStr += ele + ";"
+
+     #   if inStr.find('several products with different melting temperatures detected') >= 0:
+     #       outStr += ';several products with different melting temperatures detected;'
+     #   if inStr.find('product with different melting temperatures detected') >= 0:
+     #       outStr += ';product with different melting temperatures detected;'
+     #   if inStr.find('no product with expected melting temperature') >= 0:
+     #       outStr += ';no product with expected melting temperature;'
 
     outStr = re.sub(r';+', ';', outStr)
     return outStr
@@ -8591,9 +8619,13 @@ class Run:
                     excl = ""
                 else:
                     excl = _get_first_child_text(react_data, "excl")
+                    excl = _cleanErrorString(excl, "amp")
+                    excl = re.sub(r'^;|;$', '', excl)
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
                 noteVal = _get_first_child_text(react_data, "note")
+                noteVal = _cleanErrorString(noteVal, "amp")
+                noteVal = re.sub(r'^;|;$', '', noteVal)
                 rdmlElemData.append(react_data)
                 res.append([posId, pWell, sample, "",  "",  target, "", excl, noteVal, "",
                             "", "", "", "", "",  "", "", "", "", "",
@@ -8697,7 +8729,7 @@ class Run:
             vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
         upWin = np.zeros(targetsCount, dtype=np.float64)
         lowWin = np.zeros(targetsCount, dtype=np.float64)
-        threshold = np.zeros(targetsCount, dtype=np.float64)
+        threshold = np.ones(targetsCount, dtype=np.float64)
 
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
@@ -9186,7 +9218,6 @@ class Run:
                                                                                                                                               vecBaselineError, vecSkipSample,
                                                                                                                                               vecNoPlateau, vecShortLogLin,
                                                                                                                                               vecIsUsedInWoL)
-
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
         vecSkipSample_Plat[vecNoPlateau] = True
@@ -9617,7 +9648,7 @@ class Run:
                         meanEffVal = meanEff_Skip_Plat_Out[rRow]
                         stdEffVal = stdEff_Skip_Plat_Out[rRow]
 
-                    if np.isnan(cqVal):
+                    if np.isnan(cqVal) or cqVal < 0.0 or cqVal > 1000.0:
                         goodVal = "-1.0"
                     else:
                         goodVal = "{:.3f}".format(cqVal)
@@ -10740,14 +10771,14 @@ class Run:
                                     noteVal += "no product with expected melting temperature;"
                                 if finPeakCount == 1:
                                     if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
-                                        noteVal += "product with diverging melting temperatures detected;"
+                                        noteVal += "product with different melting temperatures detected;"
                                     if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
-                                        exclVal += "product with diverging melting temperatures detected;"
+                                        exclVal += "product with different melting temperatures detected;"
                         if finPeakCount > 1:
                             if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
-                                noteVal += "several products with diverging melting temperatures detected;"
+                                noteVal += "several products with different melting temperatures detected;"
                             if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
-                                exclVal += "several products with diverging melting temperatures detected;"
+                                exclVal += "several products with different melting temperatures detected;"
 
                         # Write back
                         res[oRow][rar_excl] = re.sub(r'^;|;$', '', exclVal)
@@ -10932,7 +10963,7 @@ def main():
     parser.add_argument('--excludeNoPlateau', action='store_true',
                         help='LinRegPCR: exclude no plateau samples from mean PCR efficiency')
     parser.add_argument('--excludeEfficiency', metavar="outlier",
-                        help='LinRegPCR: choose [outlier, mean, include] to exclude diverging individual efficiency ' +
+                        help='LinRegPCR: choose [outlier, mean, include] to exclude different individual efficiency ' +
                              'samples from mean PCR efficiency')
     parser.add_argument('--commaConv', action='store_true', help='LinRegPCR: convert comma to dot in numbers')
     parser.add_argument('--ignoreExclusion', action='store_true', help='LinRegPCR: ignore the exclusion field')
