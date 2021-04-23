@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.15"
+    return "0.9.16"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -8223,7 +8223,7 @@ class Run:
                                         calcN0 = float(calcN0)
                                         if not np.isnan(calcN0):
                                             if calcCq > 0.0:
-                                                finalN0 = calcCorr * calcN0 / calcEff
+                                                finalN0 = calcCorr * calcN0
                                                 in_react["corrN0"] = "{:.2e}".format(finalN0)
                                                 anyCorrections = 1
                                             else:
@@ -10731,7 +10731,7 @@ class Run:
                 rowPos += 1
                 averageRow = rowPos
                 resTable[averageRow][0] = "--"
-                resTable[averageRow][1] = "--"
+                resTable[averageRow][1] = 0
                 resTable[averageRow][2] = "--"
                 resTable[averageRow][3] = "Average"
                 resTable[averageRow][4] = tarReverseLookup[curTarNr]
@@ -10839,6 +10839,7 @@ class Run:
                     resTable[averageRow][13] = 0.0
                     resTable[averageRow][14] = 0.0
                     resTable[averageRow][15] = 0.0
+                resTable[averageRow][1] = rowPos - averageRow
 
                 # Add all the other peaks
                 sortPeaks = sorted(artifactPeaks[curTarNr], key=float)
@@ -10906,6 +10907,7 @@ class Run:
                                 resTable[rowPos][colOffset + 6] = 0.0
                                 resTable[rowPos][colOffset + 7] = 0.0
                     if countAddedRows > 0:
+                        resTable[averageRow][colOffset - 1] = countAddedRows
                         resTable[averageRow][colOffset] = meanResTemp / countAddedRows
                         resTable[averageRow][colOffset + 1] = meanResPeakWidth / countAddedRows
                         resTable[averageRow][colOffset + 2] = meanResFluor / countAddedRows
@@ -10915,6 +10917,7 @@ class Run:
                         resTable[averageRow][colOffset + 6] = meanResH / countAddedRows
                         resTable[averageRow][colOffset + 7] = meanResSumH / countAddedRows
                     else:
+                        resTable[averageRow][colOffset - 1] = 0
                         resTable[averageRow][colOffset + 1] = 0.0
                         resTable[averageRow][colOffset + 2] = 0.0
                         resTable[averageRow][colOffset + 3] = 0.0
@@ -10938,8 +10941,9 @@ class Run:
                             _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                             lCol = truePeakFinPos[rRow]
                             if lCol >= 0:
-                                goodVal = "{:.3f}".format(peakResFluor[rRow][lCol] / peakResSumFuor[rRow])
-                                _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
+                                if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
+                                    goodVal = "{:.3f}".format(peakResFluor[rRow][lCol] / peakResSumFuor[rRow])
+                                    _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
                                 goodVal = "{:.3f}".format(peakResTemp[rRow][lCol])
                                 _change_subelement(rdmlElemData[rRow], "meltTemp", dataXMLelements, goodVal, True, "string")
 
