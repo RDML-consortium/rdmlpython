@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.16"
+    return "0.9.17"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -8436,6 +8436,13 @@ class Run:
             resultsCSV: A csv string.
         """
 
+        expParent = self._node.getparent()
+        rootPar = expParent.getparent()
+        dataVersion = rootPar.get('version')
+
+        if dataVersion == "1.0":
+            raise RdmlError('LinRegPCR requires RDML version > 1.0.')
+
         ##############################
         # Collect the data in arrays #
         ##############################
@@ -9604,10 +9611,6 @@ class Run:
         # write out the rdml results #
         ##############################
         if updateRDML is True:
-            expParent = self._node.getparent()
-            rootPar = expParent.getparent()
-            ver = rootPar.get('version')
-
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
             self["cqDetectionMethod"] = 'automated threshold and baseline settings'
             dataXMLelements = _getXMLDataType()
@@ -9654,7 +9657,7 @@ class Run:
                         goodVal = "{:.3f}".format(cqVal)
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
-                    if ver == "1.3":
+                    if dataVersion == "1.3":
                         if np.isnan(N0Val):
                             goodVal = "-1.0"
                         else:
@@ -9888,6 +9891,13 @@ class Run:
             resultsList: A 2d array object.
             resultsCSV: A csv string.
         """
+
+        expParent = self._node.getparent()
+        rootPar = expParent.getparent()
+        dataVersion = rootPar.get('version')
+
+        if dataVersion == "1.0":
+            raise RdmlError('MeltCurveAnalysis requires RDML version > 1.0.')
 
         ##############################
         # Collect the data in arrays #
@@ -10930,14 +10940,11 @@ class Run:
             # write out the rdml results #
             ##############################
             if updateRDML is True:
-                expParent = self._node.getparent()
-                rootPar = expParent.getparent()
-                ver = rootPar.get('version')
                 dataXMLelements = _getXMLDataType()
                 for rRow in range(0, len(res)):
                     if rdmlElemData[rRow] is not None:
                         _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
-                        if ver == "1.3":
+                        if dataVersion == "1.3":
                             _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                             lCol = truePeakFinPos[rRow]
                             if lCol >= 0:
@@ -11069,6 +11076,8 @@ def main():
     # Run LinRegPCR from commandline
     if args.linRegPCR:
         cli_linRegPCR = Rdml(args.linRegPCR)
+        if cli_linRegPCR.version() == "1.0":
+            cli_linRegPCR.migrate_version_1_0_to_1_1()
         if args.experiment:
             try:
                 cli_exp = cli_linRegPCR.get_experiment(byid=args.experiment)
@@ -11178,6 +11187,8 @@ def main():
     # Run meltCurveAnalysis from commandline
     if args.meltCurveAnalysis:
         cli_meltCurveAnalysis = Rdml(args.meltCurveAnalysis)
+        if cli_meltCurveAnalysis.version() == "1.0":
+            cli_meltCurveAnalysis.migrate_version_1_0_to_1_1()
         if args.experiment:
             try:
                 cli_exp = cli_meltCurveAnalysis.get_experiment(byid=args.experiment)
