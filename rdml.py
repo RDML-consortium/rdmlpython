@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "0.9.17"
+    return "1.0.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -11371,15 +11371,6 @@ def main():
                         cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
                     cli_f.write(cli_ResStr)
 
-        sys.exit(0)
-
-    # Tryout things
-    if args.doooo:
-        print('Test Something')
-        rt = Rdml(args.doooo)
-        xxexp = rt.experiments()
-        xxrun = xxexp[0].runs()
-        # rt.save('new.rdml')
         sys.exit(0)
 
 
