@@ -1,0 +1,12 @@
+Version 1.1.0  -  xx.11.2021
+----------------------------
+
+- RDML files require the xml data in the file rdml_data.xml.
+  As some machines do not follow this requirement, the 
+  function load_any_zip(self, filename) opens the first 
+  file contained in the compressed archive.
+
+- Upon import of amplification or melting curve data wells 
+  without the columns Well, Sample, Sample Type, Target, 
+  Target Type and Dye are skipped with a message. This is 
+  intended to be used for empty wells.

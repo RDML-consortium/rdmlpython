@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.0.0"
+    return "1.1.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1831,6 +1831,39 @@ class Rdml:
                     self.loadXMLString(data)
                 else:
                     raise RdmlError('File format error, not a valid RDML or XML file.')
+
+    def load_any_zip(self, filename):
+        """Load an RDML file with decompression of first file. Uses loadXMLString().
+
+        Args:
+            self: The class self parameter.
+            filename: The name of the RDML file to load.
+
+        Returns:
+            No return value. Function may raise RdmlError if required.
+        """
+
+        if zipfile.is_zipfile(filename):
+            self._rdmlFilename = filename
+            zf = zipfile.ZipFile(filename, 'r')
+            archiv_name = ""
+            zip_list = zf.infolist()
+            for curr_file in zip_list:
+                if not curr_file.is_dir():
+                    archiv_name = curr_file.filename
+                    break
+            if archiv_name != "":
+                try:
+                    data = zf.read(archiv_name).decode('utf-8')
+                except KeyError:
+                    raise RdmlError('No readable data in compressed RDML file found.')
+                else:
+                    self.loadXMLString(data)
+            zf.close()
+            if archiv_name == "":
+                raise RdmlError('No readable data in compressed RDML file found.')
+        else:
+            raise RdmlError('File format error, no compressed RDML file found.')
 
     def save(self, filename):
         """Save an RDML file with compression of rdml_data.xml.
@@ -6780,7 +6813,10 @@ class Run:
         # Process the lines
         for tabLine in tabLines[1:]:
             sLin = tabLine.split("\t")
-            if len(sLin) < 7 or sLin[1] == "" or sLin[2] == "" or sLin[3] == "" or sLin[4] == "" or sLin[5] == "":
+            if (len(sLin) < 7 or sLin[0] == "" or sLin[1] == ""
+                              or sLin[2] == "" or sLin[3] == ""
+                              or sLin[4] == "" or sLin[5] == ""):
+                ret += "Skipped reaction \"" + sLin[0] + "\"\n"
                 continue
             if sLin[1] not in samTypeLookup:
                 rootEl.new_sample(sLin[1], sLin[2])
@@ -10081,7 +10117,7 @@ class Run:
 
         # Count the targets and create the target variables
         # Position 0 is for the general over all window without targets
-        vecTarget = np.zeros(spFl[0], dtype=np.int)
+        vecTarget = np.zeros(spFl[0], dtype=np.int64)
         vecTarget[vecTarget <= 0] = -1
         targetsCount = 1
         tarWinLookup = {}
@@ -10180,7 +10216,7 @@ class Run:
                 IndexR += 1  # counts number of tested T ranges
                 SumSlopes = np.zeros(targetsCount, dtype=np.float64)
                 SumSlopes2 = np.zeros(targetsCount, dtype=np.float64)
-                cntSlopes = np.zeros(targetsCount, dtype=np.int)
+                cntSlopes = np.zeros(targetsCount, dtype=np.int64)
 
                 if normMethod == "combined":
                     bilinNormal = normalMelting.copy()
