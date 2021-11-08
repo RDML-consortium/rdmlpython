@@ -1676,6 +1676,7 @@ def _cleanErrorString(inStr, cleanStyle):
         outStr = inStr.replace('several products with different melting temperatures detected', '')
         outStr = outStr.replace('product with different melting temperatures detected', '')
         outStr = outStr.replace('no product with expected melting temperature', '')
+        outStr = outStr.replace('product contamination detected', '')
     else:
         strList = inStr.split(";")
         knownWarn = ["amplification in negative control", "plateau in negative control",
@@ -10820,6 +10821,11 @@ class Run:
                                         noteVal += "product with different melting temperatures detected;"
                                     if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
                                         exclVal += "product with different melting temperatures detected;"
+                            else:
+                                if finPeakCount == 1:
+                                    if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
+                                        exclVal += "product contamination detected;"
+
                         if finPeakCount > 1:
                             if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                                 noteVal += "several products with different melting temperatures detected;"
