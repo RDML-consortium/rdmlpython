@@ -608,6 +608,51 @@ def _writeFileInRDML(rdmlName, fileName, data):
             RDMLout.writestr(fileName, data)
 
 
+def _wellRangeToList(wells, columns):
+    """Translates a range like "B2-C3" to list ["B2","B3","C2","C3"].
+
+    Args:
+        wells: The range like "B2-C3"
+        columns: Number of colums in a plate
+
+    Returns:
+        returns a list like ["B2","B3","C2","C3"].
+    """
+
+    res = []
+    wellList = []
+    re_found_comp = re.search(r"(\D)(\d+)-(\D)(\d+)\s*", wells)
+    if re_found_comp:
+        letter_s = ord(re_found_comp.group(1).upper())
+        letter_e = ord(re_found_comp.group(3).upper())
+        numb_s = int(re_found_comp.group(2))
+        numb_e = int(re_found_comp.group(4))
+        if letter_e < letter_s:
+            temp_num = letter_s
+            letter_s = letter_e
+            letter_e = temp_num
+        if numb_e < numb_s:
+            temp_num = numb_s
+            numb_s = numb_e
+            numb_e = temp_num
+        for letter in range(letter_s, letter_e + 1):
+            for numb in range(numb_s, numb_e + 1):
+                wellList.append(chr(letter) + str(numb))
+    else:
+        re_found_simp = re.search(r"(\D)(\d+)\s*", wells)
+        if re_found_simp:
+            wellList.append(re_found_simp.group(1) + re_found_simp.group(2))
+
+    for well in wellList:
+        re_found_simp = re.search(r"(\D)(\d+)\s*", well)
+        if re_found_simp:
+            letter = ord(re_found_simp.group(1).upper()) - ord("A")
+            numb = int(re_found_simp.group(2))
+            fin_id = numb + letter * int(columns)
+            res.append(str(fin_id))
+    return res
+
+
 def _lrp_linReg(xIn, yUse):
     """A function which calculates the slope or the intercept by linear regression.
 
@@ -1676,7 +1721,7 @@ def _cleanErrorString(inStr, cleanStyle):
         outStr = inStr.replace('several products with different melting temperatures detected', '')
         outStr = outStr.replace('product with different melting temperatures detected', '')
         outStr = outStr.replace('no product with expected melting temperature', '')
-        outStr = outStr.replace('product contamination detected', '')
+        outStr = outStr.replace('product detected in negative control', '')
     else:
         strList = inStr.split(";")
         knownWarn = ["amplification in negative control", "plateau in negative control",
@@ -6948,6 +6993,7 @@ class Run:
             A string with the modifications made.
         """
 
+        partElemLS = ["tar", "excluded", "note", "pos", "neg", "undef", "excl", "conc"]
         tempList = re.split(r"\D+", ignoreCh)
         ignoreList = []
         for posNum in tempList:
@@ -7311,22 +7357,22 @@ class Run:
                                 partit.insert(place, new_node)
                                 data = new_node
                                 new_node = et.Element("tar", id=stillaTarget)
-                                place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(data, "tar", partElemLS, 9999999)
                                 data.insert(place, new_node)
 
                             new_node = et.Element("pos")
                             new_node.text = stillaPos
-                            place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "pos", partElemLS, 9999999)
                             data.insert(place, new_node)
 
                             new_node = et.Element("neg")
                             new_node.text = stillaNeg
-                            place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "neg", partElemLS, 9999999)
                             data.insert(place, new_node)
 
                             new_node = et.Element("conc")
                             new_node.text = stillaConc
-                            place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "conc", partElemLS, 9999999)
                             data.insert(place, new_node)
                     else:
                         exp = _get_all_children(partit, "data")
@@ -7341,29 +7387,29 @@ class Run:
                             partit.insert(place, new_node)
                             data = new_node
                             new_node = et.Element("tar", id=sLin[posTarget])
-                            place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "tar", partElemLS, 9999999)
                             data.insert(place, new_node)
 
                         new_node = et.Element("pos")
                         new_node.text = sLin[posPositives]
-                        place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                        place = _get_tag_pos(data, "pos", partElemLS, 9999999)
                         data.insert(place, new_node)
 
                         new_node = et.Element("neg")
                         new_node.text = sLin[posNegatives]
-                        place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                        place = _get_tag_pos(data, "neg", partElemLS, 9999999)
                         data.insert(place, new_node)
 
                         if posUndefined != -1 and sLin[posUndefined] != "":
                             new_node = et.Element("undef")
                             new_node.text = sLin[posUndefined]
-                            place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "neg", partElemLS, 9999999)
                             data.insert(place, new_node)
 
                         if posExcluded != -1 and sLin[posExcluded] != "":
                             new_node = et.Element("excl")
                             new_node.text = sLin[posExcluded]
-                            place = _get_tag_pos(data, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "neg", partElemLS, 9999999)
                             data.insert(place, new_node)
 
                         if posCopConc != -1:
@@ -7377,7 +7423,7 @@ class Run:
                                     new_node.text = str(float(sLin[posCopConc])/20)
                                 else:
                                     new_node.text = sLin[posCopConc]
-                            place = _get_tag_pos(data, "conc", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "conc", partElemLS, 9999999)
                             data.insert(place, new_node)
 
         # Read the raw data files
@@ -7562,21 +7608,21 @@ class Run:
                                 partit.insert(place, new_node)
                                 data = new_node
                                 new_node = et.Element("tar", id=targetName)
-                                place = _get_tag_pos(data, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(data, "tar", partElemLS, 9999999)
                                 data.insert(place, new_node)
                             delElem = _get_first_child(partit, "pos")
                             if delElem is not None:
                                 data.remove(delElem)
                             new_node = et.Element("pos")
                             new_node.text = str(cPos)
-                            place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "pos", partElemLS, 9999999)
                             data.insert(place, new_node)
                             delElem = _get_first_child(partit, "neg")
                             if delElem is not None:
                                 data.remove(delElem)
                             new_node = et.Element("neg")
                             new_node.text = str(cNeg)
-                            place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(data, "pos", partElemLS, 9999999)
                             data.insert(place, new_node)
                             delElem = _get_first_child(partit, "undef")
                             if delElem is not None:
@@ -7584,7 +7630,7 @@ class Run:
                             if cExcl > 0:
                                 new_node = et.Element("undef")
                                 new_node.text = str(cUndef)
-                                place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(data, "pos", partElemLS, 9999999)
                                 data.insert(place, new_node)
                             delElem = _get_first_child(partit, "excl")
                             if delElem is not None:
@@ -7592,7 +7638,7 @@ class Run:
                             if cExcl > 0:
                                 new_node = et.Element("excl")
                                 new_node.text = str(cExcl)
-                                place = _get_tag_pos(data, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(data, "pos", partElemLS, 9999999)
                                 data.insert(place, new_node)
 
                 elif fileformat == "Bio-Rad":
@@ -7665,7 +7711,7 @@ class Run:
                             partit.insert(place, new_node)
                             dataCh1 = new_node
                             new_node = et.Element("tar", id=headerLookup[well]["Ch1"])
-                            place = _get_tag_pos(dataCh1, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(dataCh1, "tar", partElemLS, 9999999)
                             dataCh1.insert(place, new_node)
                             ch1Pos = ""
                             ch1Neg = ""
@@ -7676,7 +7722,7 @@ class Run:
                             partit.insert(place, new_node)
                             dataCh2 = new_node
                             new_node = et.Element("tar", id=headerLookup[well]["Ch2"])
-                            place = _get_tag_pos(dataCh2, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                            place = _get_tag_pos(dataCh2, "tar", partElemLS, 9999999)
                             dataCh2.insert(place, new_node)
                             ch2Pos = ""
                             ch2Neg = ""
@@ -7703,34 +7749,34 @@ class Run:
                             if keepCh1:
                                 new_node = et.Element("pos")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh1, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(dataCh1, "pos", partElemLS, 9999999)
                                 dataCh1.insert(place, new_node)
 
                                 new_node = et.Element("neg")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(dataCh1, "neg", partElemLS, 9999999)
                                 dataCh1.insert(place, new_node)
 
                                 new_node = et.Element("undef")
                                 new_node.text = str(countPart)
-                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"], 9999999)
+                                place = _get_tag_pos(dataCh1, "neg", partElemLS, 9999999)
                                 dataCh1.insert(place, new_node)
                             if keepCh2:
                                 new_node = et.Element("pos")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh2, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                place = _get_tag_pos(dataCh2, "pos", partElemLS,
                                                      9999999)
                                 dataCh2.insert(place, new_node)
 
                                 new_node = et.Element("neg")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                place = _get_tag_pos(dataCh2, "neg", partElemLS,
                                                      9999999)
                                 dataCh2.insert(place, new_node)
 
                                 new_node = et.Element("undef")
                                 new_node.text = str(countPart)
-                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                                place = _get_tag_pos(dataCh2, "neg", partElemLS,
                                                      9999999)
                                 dataCh2.insert(place, new_node)
                         else:
@@ -7864,7 +7910,7 @@ class Run:
                             partit.insert(place, new_node)
                             dataCh1 = new_node
                             new_node = et.Element("tar", id=headerLookup[well]["Ch1"])
-                            place = _get_tag_pos(dataCh1, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                            place = _get_tag_pos(dataCh1, "tar", partElemLS,
                                                  9999999)
                             dataCh1.insert(place, new_node)
                             ch1Pos = ""
@@ -7876,7 +7922,7 @@ class Run:
                             partit.insert(place, new_node)
                             dataCh2 = new_node
                             new_node = et.Element("tar", id=headerLookup[well]["Ch2"])
-                            place = _get_tag_pos(dataCh2, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                            place = _get_tag_pos(dataCh2, "tar", partElemLS,
                                                  9999999)
                             dataCh2.insert(place, new_node)
                             ch2Pos = ""
@@ -7888,7 +7934,7 @@ class Run:
                             partit.insert(place, new_node)
                             dataCh3 = new_node
                             new_node = et.Element("tar", id=headerLookup[well]["Ch3"])
-                            place = _get_tag_pos(dataCh3, "tar", ["tar", "pos", "neg", "undef", "excl", "conc"],
+                            place = _get_tag_pos(dataCh3, "tar", partElemLS,
                                                  9999999)
                             dataCh3.insert(place, new_node)
                             ch3Pos = ""
@@ -7920,56 +7966,47 @@ class Run:
                             if keepCh1:
                                 new_node = et.Element("pos")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh1, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh1, "pos", partElemLS, 9999999)
                                 dataCh1.insert(place, new_node)
 
                                 new_node = et.Element("neg")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh1, "neg", partElemLS, 9999999)
                                 dataCh1.insert(place, new_node)
 
                                 new_node = et.Element("undef")
                                 new_node.text = str(countPart)
-                                place = _get_tag_pos(dataCh1, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh1, "neg", partElemLS, 9999999)
                                 dataCh1.insert(place, new_node)
                             if keepCh2:
                                 new_node = et.Element("pos")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh2, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh2, "pos", partElemLS, 9999999)
                                 dataCh2.insert(place, new_node)
 
                                 new_node = et.Element("neg")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh2, "neg", partElemLS, 9999999)
                                 dataCh2.insert(place, new_node)
 
                                 new_node = et.Element("undef")
                                 new_node.text = str(countPart)
-                                place = _get_tag_pos(dataCh2, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh2, "neg", partElemLS, 9999999)
                                 dataCh2.insert(place, new_node)
                             if keepCh3:
                                 new_node = et.Element("pos")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh3, "pos", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh3, "pos", partElemLS, 9999999)
                                 dataCh3.insert(place, new_node)
 
                                 new_node = et.Element("neg")
                                 new_node.text = "0"
-                                place = _get_tag_pos(dataCh3, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh3, "neg", partElemLS, 9999999)
                                 dataCh3.insert(place, new_node)
 
                                 new_node = et.Element("undef")
                                 new_node.text = str(countPart)
-                                place = _get_tag_pos(dataCh3, "neg", ["tar", "pos", "neg", "undef", "excl", "conc"],
-                                                     9999999)
+                                place = _get_tag_pos(dataCh3, "neg", partElemLS, 9999999)
                                 dataCh3.insert(place, new_node)
                         else:
                             ch1Arr = []
@@ -8322,6 +8359,8 @@ class Run:
                     if forId is not None:
                         if forId.attrib['id'] != "":
                             in_partit["tar"] = forId.attrib['id']
+                    _add_first_child_to_dic(partit_data, in_partit, True, "excluded")
+                    _add_first_child_to_dic(partit_data, in_partit, True, "note")
                     _add_first_child_to_dic(partit_data, in_partit, False, "pos")
                     _add_first_child_to_dic(partit_data, in_partit, False, "neg")
                     _add_first_child_to_dic(partit_data, in_partit, True, "undef")
@@ -8344,15 +8383,144 @@ class Run:
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
 
-    def setExclNote(self, vReact, vTar, vExcl, vNote):
-        """Saves the note and excl string for one react/data combination.
+    def removeReact(self, vReact):
+        """Removes the reaction from the RDML data.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                self._node.remove(react)
+                break
+        return
+
+    def removeReactGrp(self, vWells):
+        """Removes several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.removeReact(well)
+        return
+
+    def removeReactTar(self, vReact, vTar):
+        """Removes the tar data of a reaction from the RDML data.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                remain_data = 0
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    forId = _get_first_child(react_data, "tar")
+                    if forId is not None:
+                        if forId.attrib['id'] == vTar:
+                            react.remove(react_data)
+                            break
+                remain_data += len(_get_all_children(react, "data"))
+                if remain_data == 0:
+                    self._node.remove(react)
+                    break
+        return
+
+    def removeReactTarGrp(self, vWells, vTar):
+        """Removes the tar data of several reactions from the RDML data.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.removeReactTar(well, vTar)
+        return
+
+    def setClasExcl(self, vReact, vTar, vExcl, vAppend):
+        """Saves the excl string for one react/data combination.
 
         Args:
             self: The class self parameter.
             vReact: The reaction id.
             vTar: The target id.
             vExcl: The exclusion string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        dataXMLelements = _getXMLDataType()
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    forId = _get_first_child(react_data, "tar")
+                    if forId is not None:
+                        if forId.attrib['id'] == vTar:
+                            oldData = ""
+                            if vAppend:
+                                oldData = _get_first_child_text(react_data, "excl")
+                            _change_subelement(react_data, "excl", dataXMLelements, oldData + vExcl, True, "string")
+        return
+
+    def setClasExclGrp(self, vWells, vTar, vExcl, vAppend):
+        """Saves the excl string for several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+            vExcl: The exclusion string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setClasExcl(well, vTar, vExcl, vAppend)
+        return
+
+    def setClasNote(self, vReact, vTar, vNote, vAppend):
+        """Saves the note string for one react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
             vNote: The note string to save.
+            vAppend: If True, append to excisting string, if False replace.
 
         Returns:
             Nothing, updates RDML data.
@@ -8371,9 +8539,30 @@ class Run:
                     forId = _get_first_child(react_data, "tar")
                     if forId is not None:
                         if forId.attrib['id'] == vTar:
-                            _change_subelement(react_data, "excl", dataXMLelements, vExcl, True, "string")
                             if ver == "1.3":
-                                _change_subelement(react_data, "note", dataXMLelements, vNote, True, "string")
+                                oldData = ""
+                                if vAppend:
+                                    oldData = _get_first_child_text(react_data, "note")
+                                _change_subelement(react_data, "note", dataXMLelements, oldData + vNote, True, "string")
+        return
+
+    def setClasNoteGrp(self, vWells, vTar, vNote, vAppend):
+        """Saves the note string for several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+            vNote: The note string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setClasNote(well, vTar, vNote, vAppend)
         return
 
     def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier"):
@@ -10824,7 +11013,7 @@ class Run:
                             else:
                                 if finPeakCount == 1:
                                     if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
-                                        exclVal += "product contamination detected;"
+                                        exclVal += "product detected in negative control;"
 
                         if finPeakCount > 1:
                             if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
