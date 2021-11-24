@@ -1760,6 +1760,10 @@ def _getXMLDataType():
             "excl", "note", "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
 
 
+def _getXMLPartitionDataType():
+    return ["tar", "excluded", "note", "pos", "neg", "undef", "excl", "conc"]
+
+
 class Rdml:
     """RDML-Python library
     
@@ -6993,7 +6997,7 @@ class Run:
             A string with the modifications made.
         """
 
-        partElemLS = ["tar", "excluded", "note", "pos", "neg", "undef", "excl", "conc"]
+        partElemLS = _getXMLPartitionDataType()
         tempList = re.split(r"\D+", ignoreCh)
         ignoreList = []
         for posNum in tempList:
@@ -8417,7 +8421,7 @@ class Run:
             self.removeReact(well)
         return
 
-    def removeReactTar(self, vReact, vTar):
+    def removeClasReactTar(self, vReact, vTar):
         """Removes the tar data of a reaction from the RDML data.
 
         Args:
@@ -8441,12 +8445,15 @@ class Run:
                             react.remove(react_data)
                             break
                 remain_data += len(_get_all_children(react, "data"))
+                partit = _get_first_child(react, "partitions")
+                if partit is not None:
+                    remain_data += len(_get_all_children(partit, "data"))
                 if remain_data == 0:
                     self._node.remove(react)
                     break
         return
 
-    def removeReactTarGrp(self, vWells, vTar):
+    def removeClasReactTarGrp(self, vWells, vTar):
         """Removes the tar data of several reactions from the RDML data.
 
         Args:
@@ -8460,7 +8467,58 @@ class Run:
 
         wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
         for well in wells:
-            self.removeReactTar(well, vTar)
+            self.removeClasReactTar(well, vTar)
+        return
+
+    def removeDigiReactTar(self, vReact, vTar):
+        """Removes the tar data of a reaction from the RDML data.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                remain_data = 0
+                partit = _get_first_child(react, "partitions")
+                if partit is not None:
+                    part_datas = _get_all_children(partit, "data")
+                    for part_data in part_datas:
+                        forId = _get_first_child(part_data, "tar")
+                        if forId is not None:
+                            if forId.attrib['id'] == vTar:
+                                partit.remove(part_data)
+                                break
+                remain_data += len(_get_all_children(react, "data"))
+                partit = _get_first_child(react, "partitions")
+                if partit is not None:
+                    remain_data += len(_get_all_children(partit, "data"))
+                if remain_data == 0:
+                    self._node.remove(react)
+                    break
+        return
+
+    def removeDigiReactTarGrp(self, vWells, vTar):
+        """Removes the tar data of several reactions from the RDML data.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.removeDigiReactTar(well, vTar)
         return
 
     def setClasExcl(self, vReact, vTar, vExcl, vAppend):
@@ -8478,7 +8536,6 @@ class Run:
         """
 
         dataXMLelements = _getXMLDataType()
-
         reacts = _get_all_children(self._node, "react")
         for react in reacts:
             if int(react.get('id')) == int(vReact):
@@ -8510,6 +8567,62 @@ class Run:
         wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
         for well in wells:
             self.setClasExcl(well, vTar, vExcl, vAppend)
+        return
+
+    def setDigiExcl(self, vReact, vTar, vExcl, vAppend):
+        """Saves the excl string for one react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
+            vExcl: The exclusion string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        expParent = self._node.getparent()
+        rootPar = expParent.getparent()
+        ver = rootPar.get('version')
+        if ver in ["1.0", "1.1", "1.2"]:
+            return
+
+        dataXMLelements = _getXMLPartitionDataType()
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                partit = _get_first_child(react, "partitions")
+                if partit is not None:
+                    part_datas = _get_all_children(partit, "data")
+                    for part_data in part_datas:
+                        forId = _get_first_child(part_data, "tar")
+                        if forId is not None:
+                            if forId.attrib['id'] == vTar:
+                                oldData = ""
+                                if vAppend:
+                                    oldData = _get_first_child_text(part_data, "excluded")
+                                _change_subelement(part_data, "excluded", dataXMLelements, oldData + vExcl, True, "string")
+        return
+
+    def setDigiExclGrp(self, vWells, vTar, vExcl, vAppend):
+        """Saves the excl string for several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+            vExcl: The exclusion string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setDigiExcl(well, vTar, vExcl, vAppend)
         return
 
     def setClasNote(self, vReact, vTar, vNote, vAppend):
@@ -8563,6 +8676,62 @@ class Run:
         wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
         for well in wells:
             self.setClasNote(well, vTar, vNote, vAppend)
+        return
+
+    def setDigiNote(self, vReact, vTar, vNote, vAppend):
+        """Saves the note string for one react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
+            vNote: The note string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        expParent = self._node.getparent()
+        rootPar = expParent.getparent()
+        ver = rootPar.get('version')
+        if ver in ["1.0", "1.1", "1.2"]:
+            return
+
+        dataXMLelements = _getXMLPartitionDataType()
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                partit = _get_first_child(react, "partitions")
+                if partit is not None:
+                    part_datas = _get_all_children(partit, "data")
+                    for part_data in part_datas:
+                        forId = _get_first_child(part_data, "tar")
+                        if forId is not None:
+                            if forId.attrib['id'] == vTar:
+                                oldData = ""
+                                if vAppend:
+                                    oldData = _get_first_child_text(part_data, "note")
+                                _change_subelement(part_data, "note", dataXMLelements, oldData + vNote, True, "string")
+        return
+
+    def setDigiNoteGrp(self, vWells, vTar, vNote, vAppend):
+        """Saves the note string for several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+            vNote: The note string to save.
+            vAppend: If True, append to excisting string, if False replace.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setDigiNote(well, vTar, vNote, vAppend)
         return
 
     def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier"):
