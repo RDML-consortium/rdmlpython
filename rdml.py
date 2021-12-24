@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.1.0"
+    return "1.1.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -10089,6 +10089,21 @@ class Run:
                             retCSV += "Yes\t"
                         else:
                             retCSV += "No\t"
+                    elif rCol in [rar_baseline, rar_lower_limit, rar_upper_limit, rar_log_lin_fluorescence,
+                                  rar_indiv_PCR_eff, rar_R2, rar_meanEff_Skip, rar_stdEff_Skip,
+                                  rar_meanEff_Skip_Plat, rar_stdEff_Skip_Plat, rar_meanEff_Skip_Mean,
+                                  rar_stdEff_Skip_Mean, rar_meanEff_Skip_Plat_Mean, rar_stdEff_Skip_Plat_Mean,
+                                  rar_meanEff_Skip_Out, rar_stdEff_Skip_Out, rar_meanEff_Skip_Plat_Out,
+                                  rar_stdEff_Skip_Plat_Out]:
+                        retCSV += "{0:0.6f}".format(float(res[rRow][rCol])) + "\t"
+                    elif rCol in [rar_Cq_common, rar_Cq_grp, rar_Cq_Skip, rar_Cq_Skip_Plat,
+                                  rar_Cq_Skip_Mean, rar_Cq_Skip_Plat_Mean, rar_Cq_Skip_Out,
+                                  rar_Cq_Skip_Plat_Out]:
+                        retCSV += "{0:0.4f}".format(float(res[rRow][rCol])) + "\t"
+                    elif rCol in [rar_N0_indiv_eff, rar_meanN0_Skip, rar_meanN0_Skip_Plat,
+                                  rar_meanN0_Skip_Mean, rar_meanN0_Skip_Plat_Mean,
+                                  rar_meanN0_Skip_Out, rar_meanN0_Skip_Plat_Out]:
+                        retCSV += "{0:0.6e}".format(float(res[rRow][rCol])) + "\t"
                     else:
                         retCSV += str(res[rRow][rCol]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
@@ -11764,7 +11779,7 @@ def main():
                     cli_ResStr = ""
                     for cli_row in cli_result["resultsList"]:
                         for cli_col in cli_row:
-                            if type(cli_col) is float:
+                            if isinstance(cli_col, np.float64) or isinstance(cli_col, float):
                                 cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
                             else:
                                 cli_ResStr += str(cli_col) + "\t"
