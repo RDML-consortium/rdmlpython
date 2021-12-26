@@ -6752,7 +6752,7 @@ class Run:
             adps = _get_all_children(react_datas[0], "adp")
             for adp in adps:
                 headArr.append(_get_first_child_text(adp, "cyc"))
-            headArr = sorted(headArr, key=int)
+            headArr = sorted(headArr, key=float)
         else:
             mdps = _get_all_children(react_datas[0], "mdp")
             for mdp in mdps:
@@ -6796,7 +6796,7 @@ class Run:
                         cyc = _get_first_child_text(adp, "cyc")
                         fluor = _get_first_child_text(adp, "fluor")
                         fluorList.append([cyc, fluor])
-                    fluorList = sorted(fluorList, key=_sort_list_int)
+                    fluorList = sorted(fluorList, key=_sort_list_float)
                 else:
                     mdps = _get_all_children(react_data, "mdp")
                     for mdp in mdps:
