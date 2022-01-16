@@ -9228,6 +9228,23 @@ class Run:
         absMinFluor = np.nanmin(rawMod)
         if absMinFluor < 0.0:
             finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction!"
+            vecMinFluor = np.nanmin(rawMod, axis=1)
+            for oRow in range(0, spFl[0]):
+                if vecMinFluor[oRow] < 0.0:
+                    corrFactor = vecMinFluor[oRow] * -1.0
+                    logFact = 0
+                    if corrFactor < 1.0:
+                        sumHelp = corrFactor
+                        while sumHelp <= 1.0 and logFact <= 10:
+                            sumHelp *= 10
+                            logFact += 1
+                        corrFactor += np.power(10, -1.0 * (logFact + 1))
+                    if corrFactor >= 1.0:
+                        corrFactor += 0.1
+                    for oCol in range(0, spFl[1]):
+                        rawFluor[oRow, oCol] += corrFactor
+                    baseCorFluor = rawFluor.copy()
+                    rawMod = rawFluor.copy()
 
         rawMod[np.isnan(rawMod)] = 0
         rawMod[rawMod <= 0.00000001] = np.nan
