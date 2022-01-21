@@ -8977,9 +8977,11 @@ class Run:
         reacts = _get_all_children(self._node, "react")
 
         # First get the max number of cycles and create the numpy array
+        colCount = 0
         for react in reacts:
             react_datas = _get_all_children(react, "data")
             for react_data in react_datas:
+                colCount += 1
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = _get_first_child_text(adp, "cyc")
@@ -8987,7 +8989,7 @@ class Run:
         adp_cyc_max = math.ceil(adp_cyc_max)
 
         # spFl is the shape for all fluorescence numpy data arrays
-        spFl = (len(reacts), int(adp_cyc_max))
+        spFl = (colCount, int(adp_cyc_max))
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor <= 0.00000001] = np.nan
 
@@ -10378,9 +10380,11 @@ class Run:
         reacts = _get_all_children(self._node, "react")
 
         # First get the max number of cycles + all temperatures and create the numpy array
+        colCount = 0
         for react in reacts:
             react_datas = _get_all_children(react, "data")
             for react_data in react_datas:
+                colCount += 1
                 mdps = _get_all_children(react_data, "mdp")
                 for mdp in mdps:
                     collAllTemp[_get_first_child_text(mdp, "tmp")] = 1
@@ -10394,7 +10398,7 @@ class Run:
             count += 1
 
         # spFl is the shape for all fluorescence numpy data arrays
-        spFl = (len(reacts), len(tempList))
+        spFl = (colCount, len(tempList))
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor < 1] = np.nan
 
