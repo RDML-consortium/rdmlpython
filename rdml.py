@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.1.1"
+    return "1.1.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -2725,6 +2725,69 @@ class Rdml:
 
         if count > 0:
             mess = str(count) + " duplicate react elements were removed!\n"
+
+        return mess
+
+    def fixTempsMeltcurve(self):
+        """Searches in experiment-run-react for different temps in one read and keeps the mean.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the modifications.
+        """
+
+        mess = ""
+        count = 0
+        allExp = _get_all_children(self._node, "experiment")
+        for node in allExp:
+            subNodes = _get_all_children(node, "run")
+            for subNode in subNodes:
+                # Check we have always the same number of columns
+                colCount = -10
+                rowCount = 0
+                reactNodes = _get_all_children(subNode, "react")
+                for reactNode in reactNodes:
+                    dataNodes = _get_all_children(reactNode, "data")
+                    rowCount += 1
+                    for dataNode in dataNodes:
+                        lastNodes = _get_all_children(dataNode, "mdp")
+                        if colCount < 0:
+                            colCount = len(lastNodes)
+                        else:
+                            if colCount != len(lastNodes):
+                                mess = "The wells have different number of temperatures in the "
+                                mess += "melting curve, fixing is not possible!\n"
+                                return mess
+                # Read the temps in a matrix
+                allTemps = np.zeros((rowCount, colCount), dtype=np.float64)
+                currRow = -1
+                for reactNode in reactNodes:
+                    dataNodes = _get_all_children(reactNode, "data")
+                    currRow += 1
+                    for dataNode in dataNodes:
+                        lastNodes = _get_all_children(dataNode, "mdp")
+                        currCol = -1
+                        for mdp in lastNodes:
+                            currCol += 1
+                            allTemps[currRow, currCol] = float(_get_first_child_text(mdp, "tmp"))
+                meanTemp = np.mean(allTemps, axis=0)
+                # Rewrite the temperatures
+                currRow = -1
+                for reactNode in reactNodes:
+                    dataNodes = _get_all_children(reactNode, "data")
+                    currRow += 1
+                    for dataNode in dataNodes:
+                        lastNodes = _get_all_children(dataNode, "mdp")
+                        currCol = -1
+                        for mdp in lastNodes:
+                            currCol += 1
+                            editNode = _get_first_child(mdp, "tmp")
+                            editNode.text = str("%.2f" % float(meanTemp[currCol]))
+                            count += 1
+        if count > 0:
+            mess = "The temperatures in the melting curve were " + str(count) + " times rewritten!\n"
 
         return mess
 
