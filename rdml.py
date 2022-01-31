@@ -3396,6 +3396,25 @@ class Rdml:
 
         _move_subelement(self._node, "experiment", id, self.xmlkeys(), newposition)
 
+    def move_experiment_run(self, id, oldid, runid):
+        """Moves a run to a different experiment.
+
+        Args:
+            self: The class self parameter.
+            id: The experiments unique id to insert to
+            oldid: The experiments unique id with the current run
+            runid: The runs unique id
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        newExp = self.get_experiment(byid=id)
+        oldExp = self.get_experiment(byid=oldid)
+        theRun = oldExp.get_run(byid=runid)
+        place = _get_tag_pos(newExp._node, "run", newExp.xmlkeys(), 999999999)
+        newExp._node.insert(place, theRun._node)
+
     def get_experiment(self, byid=None, byposition=None):
         """Returns an experiment element by position or id.
 
