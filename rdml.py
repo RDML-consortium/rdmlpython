@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.1.2"
+    return "1.2.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -2926,6 +2926,54 @@ class Rdml:
 
         _move_subelement(self._node, "experimenter", id, self.xmlkeys(), newposition)
 
+    def import_experimenter(self, experimenter):
+        """Imports the element to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            experimenter: The target to import as Experimenter element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), 999999)
+        currId = experimenter["id"]
+        allChildren = _get_all_children(self._node, "experimenter")
+        count = -1
+        for node in allChildren:
+            count += 1
+            if node.get('id') == currId:
+                pos = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), count)
+                self._node.remove(node)
+        self._node.insert(pos, experimenter._node)
+
+    def import_all_experimenters(self, add_rd, addMode):
+        """Imports all elements to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            add_rd: The rdml to import the experimenters from
+            addMode: "all" (default) , "only-new" or "update"
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        known = {}
+        for exp in self.experimenters():
+            known[exp["id"]] = 1
+
+        for addEle in add_rd.experimenters():
+            if addMode == "only-new":
+                if addEle["id"] not in known:
+                    self.import_experimenter(addEle)
+            elif addMode == "update":
+                if addEle["id"] in known:
+                    self.import_experimenter(addEle)
+            else:
+                self.import_experimenter(addEle)
+
     def get_experimenter(self, byid=None, byposition=None):
         """Returns an experimenter element by position or id.
 
@@ -3002,6 +3050,54 @@ class Rdml:
 
         _move_subelement(self._node, "documentation", id, self.xmlkeys(), newposition)
 
+    def import_documentation(self, documentation):
+        """Imports the element to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            documentation: The target to import as Experimenter element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), 999999)
+        currId = documentation["id"]
+        allChildren = _get_all_children(self._node, "documentation")
+        count = -1
+        for node in allChildren:
+            count += 1
+            if node.get('id') == currId:
+                pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), count)
+                self._node.remove(node)
+        self._node.insert(pos, documentation._node)
+
+    def import_all_documentations(self, add_rd, addMode):
+        """Imports all elements to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            add_rd: The rdml to import the documentations from
+            addMode: "all" (default) , "only-new" or "update"
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        known = {}
+        for exp in self.documentations():
+            known[exp["id"]] = 1
+
+        for addEle in add_rd.documentations():
+            if addMode == "only-new":
+                if addEle["id"] not in known:
+                    self.import_documentation(addEle)
+            elif addMode == "update":
+                if addEle["id"] in known:
+                    self.import_documentation(addEle)
+            else:
+                self.import_documentation(addEle)
+
     def get_documentation(self, byid=None, byposition=None):
         """Returns an documentation element by position or id.
 
@@ -3077,6 +3173,54 @@ class Rdml:
         """
 
         _move_subelement(self._node, "dye", id, self.xmlkeys(), newposition)
+
+    def import_dye(self, dye):
+        """Imports the element to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            dye: The target to import as Experimenter element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "dye", self.xmlkeys(), 999999)
+        currId = dye["id"]
+        allChildren = _get_all_children(self._node, "dye")
+        count = -1
+        for node in allChildren:
+            count += 1
+            if node.get('id') == currId:
+                pos = _get_tag_pos(self._node, "dye", self.xmlkeys(), count)
+                self._node.remove(node)
+        self._node.insert(pos, dye._node)
+
+    def import_all_dyes(self, add_rd, addMode):
+        """Imports all elements to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            add_rd: The rdml to import the dyes from
+            addMode: "all" (default) , "only-new" or "update"
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        known = {}
+        for exp in self.dyes():
+            known[exp["id"]] = 1
+
+        for addEle in add_rd.dyes():
+            if addMode == "only-new":
+                if addEle["id"] not in known:
+                    self.import_dye(addEle)
+            elif addMode == "update":
+                if addEle["id"] in known:
+                    self.import_dye(addEle)
+            else:
+                self.import_dye(addEle)
 
     def get_dye(self, byid=None, byposition=None):
         """Returns an dye element by position or id.
@@ -3242,6 +3386,20 @@ class Rdml:
         """
 
         _move_subelement(self._node, "target", id, self.xmlkeys(), newposition)
+
+    def import_target(self, target):
+        """Imports the element to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            target: The target to import as Target element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "target", self.xmlkeys(), 999999)
+        self._node.insert(pos, target._node)
 
     def get_target(self, byid=None, byposition=None):
         """Returns an target element by position or id.
