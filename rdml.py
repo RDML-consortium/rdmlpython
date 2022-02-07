@@ -582,10 +582,13 @@ def _writeFileInRDML(rdmlName, fileName, data):
     needRewrite = False
 
     if os.path.isfile(rdmlName):
-        with zipfile.ZipFile(rdmlName, 'r') as RDMLin:
-            for item in RDMLin.infolist():
-                if item.filename == fileName:
-                    needRewrite = True
+        try:
+            with zipfile.ZipFile(rdmlName, 'r') as RDMLin:
+                for item in RDMLin.infolist():
+                    if item.filename == fileName:
+                        needRewrite = True
+        except zipfile.BadZipFile as e:
+            needRewrite = False
 
     if needRewrite:
         tempFolder, tempName = tempfile.mkstemp(dir=os.path.dirname(rdmlName))
@@ -4338,10 +4341,10 @@ class Rdml:
                 self.import_dye(add_rd.get_dye(byid=docId))
                 print("Dye+++: " + docId)
             for docId in addSamples:
-                self.import_sample(add_rd.get_sample(byid=docId))
+                self.import_sample(add_rd, add_rd.get_sample(byid=docId), "no-dep")
                 print("Samr+++: " + docId)
             for docId in addTargets:
-                self.import_target(add_rd.get_target(byid=docId))
+                self.import_target(add_rd, add_rd.get_target(byid=docId), "no-dep")
                 print("Tar+++: " + docId)
             for docId in addThermal:
                 self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
@@ -4618,10 +4621,10 @@ class Rdml:
             self.import_dye(add_rd.get_dye(byid=docId))
             print("Dye+++: " + docId)
         for docId in addSamples:
-            self.import_sample(add_rd.get_sample(byid=docId))
+            self.import_sample(add_rd, add_rd.get_sample(byid=docId), "no-dep")
             print("Samr+++: " + docId)
         for docId in addTargets:
-            self.import_target(add_rd.get_target(byid=docId))
+            self.import_target(add_rd, add_rd.get_target(byid=docId), "no-dep")
             print("Tar+++: " + docId)
         for docId in addThermal:
             self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
