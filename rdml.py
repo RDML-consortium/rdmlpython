@@ -3314,7 +3314,7 @@ class Rdml:
         Args:
             self: The class self parameter.
             add_rd: The rdml to import the samples from
-            sample: The target to import as Experimenter element
+            sample: The sample to import as Experimenter element
             addMode: "only-new" (default) , "all-dep" or "no-dep"
 
         Returns:
@@ -3324,10 +3324,24 @@ class Rdml:
         if addMode != "no-dep":
             presDocs = []
             addDocs = []
+            presThermal = []
+            addThermal = []
+            presExps = []
+            addExps = []
+
             exp = _get_all_children(self._node, "documentation")
             for node in exp:
                 presDocs.append(node.attrib['id'])
                 print("D Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "thermalCyclingConditions")
+            for node in exp:
+                presThermal.append(node.attrib['id'])
+                print("T Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "experimenter")
+            for node in exp:
+                presExps.append(node.attrib['id'])
+                print("E Pres: " + node.attrib['id'])
+
             subNodes = _get_all_children(sample._node, "documentation")
             for subNode in subNodes:
                 foundId = subNode.attrib['id']
@@ -3340,37 +3354,60 @@ class Rdml:
                         if addMode == "all-dep":
                             addDocs.append(foundId)
                             print("D All: " + foundId)
-            for docId in addDocs:
-                self.import_documentation(add_rd.get_documentation(byid=docId))
-                print("++++: " + docId)
 
-            presThermal = []
-            addThermal = []
-            exp = _get_all_children(self._node, "thermalCyclingConditions")
-            for node in exp:
-                presThermal.append(node.attrib['id'])
-                print("Pres: " + node.attrib['id'])
             subNode = _get_first_child(sample._node, "cdnaSynthesisMethod")
             if subNode is not None:
                 forId = _get_first_child(subNode, "thermalCyclingConditions")
                 if forId is not None:
                     foundId = forId.attrib['id']
-                    print("Work: " + foundId)
+                    print("T Work: " + foundId)
                     if foundId not in addThermal:
                         if foundId not in presThermal:
                             addThermal.append(foundId)
-                            print("Add: " + foundId)
+                            print("T Add: " + foundId)
                         if foundId not in addThermal:
                             if addMode == "all-dep":
                                 addThermal.append(foundId)
-                                print("All: " + foundId)
+                                print("T All: " + foundId)
 
+            # Get the dependent of the dependent
+            exp = _get_all_children(add_rd._node, "thermalCyclingConditions")
+            for node in exp:
+                if node.attrib['id'] in addThermal:
+                    subNodes = _get_all_children(node, "experimenter")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("SE Work: " + foundId)
+                        if foundId not in addExps:
+                            if foundId not in presExps:
+                                addExps.append(foundId)
+                                print("SE Add: " + foundId)
+                            if foundId not in addExps:
+                                if addMode == "all-dep":
+                                    addExps.append(foundId)
+                                    print("SE All: " + foundId)
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("SD Work: " + foundId)
+                        if foundId not in addDocs:
+                            if foundId not in presDocs:
+                                addDocs.append(foundId)
+                                print("SD Add: " + foundId)
+                            if foundId not in addDocs:
+                                if addMode == "all-dep":
+                                    addDocs.append(foundId)
+                                    print("SD All: " + foundId)
 
-
-
-
-
-
+            for docId in addDocs:
+                self.import_documentation(add_rd.get_documentation(byid=docId))
+                print("D+++: " + docId)
+            for docId in addThermal:
+                self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
+                print("T+++: " + docId)
+            for docId in addExps:
+                self.import_experimenter(add_rd.get_experimenter(byid=docId))
+                print("E+++: " + docId)
 
         pos = _get_tag_pos(self._node, "sample", self.xmlkeys(), 999999)
         currId = sample["id"]
@@ -3389,39 +3426,122 @@ class Rdml:
         Args:
             self: The class self parameter.
             add_rd: The rdml to import the dyes from
-            addMode: "all" (default) , "only-new", "update"
-                     "all-incl-dep" or "only-new-incl-dep"
+            addMode: "all" (default) , "only-new", "update", "all-incl-dep",
+                     "only-new-incl-dep" or "update-incl-dep"
 
         Returns:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-
-        allSam = _get_all_children(self._node, "sample")
-        for node in allSam:
-            subNode = _get_first_child(node, "cdnaSynthesisMethod")
-            if subNode is not None:
-                forId = _get_first_child(node, "thermalCyclingConditions")
-                if forId is not None:
-                    foundIds[forId.attrib['id']] = 0
-
-
-
-
-
         known = {}
-        for exp in self.dyes():
+        presDocs = []
+        addDocs = []
+        presThermal = []
+        addThermal = []
+        presExps = []
+        addExps = []
+
+        for exp in self.samples():
             known[exp["id"]] = 1
 
-        for addEle in add_rd.dyes():
-            if addMode == "only-new":
+        exp = _get_all_children(self._node, "documentation")
+        for node in exp:
+            presDocs.append(node.attrib['id'])
+            print("D Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "thermalCyclingConditions")
+        for node in exp:
+            presThermal.append(node.attrib['id'])
+            print("T Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "experimenter")
+        for node in exp:
+            presExps.append(node.attrib['id'])
+            print("E Pres: " + node.attrib['id'])
+
+        allNew = add_rd.samples()
+        for addEle in allNew:
+            readChild = False
+            if addMode in ["only-new", "only-new-incl-dep"]:
                 if addEle["id"] not in known:
-                    self.import_dye(addEle)
-            elif addMode == "update":
+                    self.import_sample(add_rd, addEle, "no-dep")
+                    readChild = True
+            elif addMode in ["update", "update-incl-dep"]:
                 if addEle["id"] in known:
-                    self.import_dye(addEle)
+                    self.import_sample(add_rd, addEle, "no-dep")
+                    readChild = True
             else:
-                self.import_dye(addEle)
+                self.import_sample(add_rd, addEle, "no-dep")
+                readChild = True
+
+            if readChild:
+                subNodes = _get_all_children(addEle._node, "documentation")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("D Work: " + foundId)
+                    if foundId not in addDocs:
+                        if foundId not in presDocs:
+                            addDocs.append(foundId)
+                            print("D Add: " + foundId)
+                        if foundId not in addDocs:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDocs.append(foundId)
+                                print("D All: " + foundId)
+
+                subNode = _get_first_child(addEle._node, "cdnaSynthesisMethod")
+                if subNode is not None:
+                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    if forId is not None:
+                        foundId = forId.attrib['id']
+                        print("T Work: " + foundId)
+                        if foundId not in addThermal:
+                            if foundId not in presThermal:
+                                addThermal.append(foundId)
+                                print("T Add: " + foundId)
+                            if foundId not in addThermal:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addThermal.append(foundId)
+                                    print("T All: " + foundId)
+
+        # Get the dependent of the dependent
+        print(addThermal)
+        exp = _get_all_children(add_rd._node, "thermalCyclingConditions")
+        for node in exp:
+            print("SE Check: " + node.attrib['id'])
+            if node.attrib['id'] in addThermal:
+                print("SE Base: " + node.attrib['id'])
+                subNodes = _get_all_children(node, "experimenter")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("SE Work: " + foundId)
+                    if foundId not in addExps:
+                        if foundId not in presExps:
+                            addExps.append(foundId)
+                            print("SE Add: " + foundId)
+                        if foundId not in addExps:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addExps.append(foundId)
+                                print("SE All: " + foundId)
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("SD Work: " + foundId)
+                    if foundId not in addDocs:
+                        if foundId not in presDocs:
+                            addDocs.append(foundId)
+                            print("SD Add: " + foundId)
+                        if foundId not in addDocs:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDocs.append(foundId)
+                                print("SD All: " + foundId)
+
+        for docId in addDocs:
+            self.import_documentation(add_rd.get_documentation(byid=docId))
+            print("D+++: " + docId)
+        for docId in addThermal:
+            self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
+            print("T+++: " + docId)
+        for docId in addExps:
+            self.import_experimenter(add_rd.get_experimenter(byid=docId))
+            print("E+++: " + docId)
 
     def get_sample(self, byid=None, byposition=None):
         """Returns an sample element by position or id.
@@ -3831,7 +3951,7 @@ class Rdml:
         exp = _get_all_children(self._node, "experimenter")
         for node in exp:
             presExps.append(node.attrib['id'])
-            print("Y Pres: " + node.attrib['id'])
+            print("E Pres: " + node.attrib['id'])
 
         allNew = add_rd.therm_cyc_cons()
         for addEle in allNew:
@@ -3868,7 +3988,7 @@ class Rdml:
                     if foundId not in addExps:
                         if foundId not in presExps:
                             addExps.append(foundId)
-                            print("Y Add: " + foundId)
+                            print("E Add: " + foundId)
                         if foundId not in addExps:
                             if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
                                 addExps.append(foundId)
@@ -3975,6 +4095,537 @@ class Rdml:
         theRun = oldExp.get_run(byid=runid)
         place = _get_tag_pos(newExp._node, "run", newExp.xmlkeys(), 999999999)
         newExp._node.insert(place, theRun._node)
+
+    def import_experiment(self, add_rd, experiment, addMode):
+        """Imports the element to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            add_rd: The rdml to import the experiments from
+            experiment: The experiment to import as Experimenter element
+            addMode: "only-new" (default) , "all-dep" or "no-dep"
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        if addMode != "no-dep":
+            presExps = []
+            addExps = []
+            presDocs = []
+            addDocs = []
+            presDyes = []
+            addDyes = []
+            presSamples = []
+            addSamples = []
+            presTargets = []
+            addTargets = []
+            presThermal = []
+            addThermal = []
+
+            exp = _get_all_children(self._node, "experimenter")
+            for node in exp:
+                presExps.append(node.attrib['id'])
+                print("Exp Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "documentation")
+            for node in exp:
+                presDocs.append(node.attrib['id'])
+                print("Doc Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "dye")
+            for node in exp:
+                presDyes.append(node.attrib['id'])
+                print("Dye Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "sample")
+            for node in exp:
+                presSamples.append(node.attrib['id'])
+                print("Sam Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "target")
+            for node in exp:
+                presTargets.append(node.attrib['id'])
+                print("Tar Pres: " + node.attrib['id'])
+            exp = _get_all_children(self._node, "thermalCyclingConditions")
+            for node in exp:
+                presThermal.append(node.attrib['id'])
+                print("Cyc Pres: " + node.attrib['id'])
+
+            subNodes = _get_all_children(experiment._node, "documentation")
+            for subNode in subNodes:
+                foundId = subNode.attrib['id']
+                print("Doc E Work: " + foundId)
+                if foundId not in addDocs:
+                    if foundId not in presDocs:
+                        addDocs.append(foundId)
+                        print("Doc E Add: " + foundId)
+                    if foundId not in addDocs:
+                        if addMode == "all-dep":
+                            addDocs.append(foundId)
+                            print("Doc E All: " + foundId)
+            runNodes = _get_all_children(experiment._node, "run")
+            for runNode in runNodes:
+                subNodes = _get_all_children(runNode, "documentation")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("Doc R Work: " + foundId)
+                    if foundId not in addDocs:
+                        if foundId not in presDocs:
+                            addDocs.append(foundId)
+                            print("Doc R Add: " + foundId)
+                        if foundId not in addDocs:
+                            if addMode == "all-dep":
+                                addDocs.append(foundId)
+                                print("Doc R All: " + foundId)
+                subNodes = _get_all_children(runNode, "experimenter")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("Exp R Work: " + foundId)
+                    if foundId not in addExps:
+                        if foundId not in presExps:
+                            addExps.append(foundId)
+                            print("Exp R Add: " + foundId)
+                        if foundId not in addExps:
+                            if addMode == "all-dep":
+                                addExps.append(foundId)
+                                print("Exp R All: " + foundId)
+                forId = _get_first_child(runNode, "thermalCyclingConditions")
+                if forId is not None:
+                    foundId = forId.attrib['id']
+                    print("T Work: " + foundId)
+                    if foundId not in addThermal:
+                        if foundId not in presThermal:
+                            addThermal.append(foundId)
+                            print("T Add: " + foundId)
+                        if foundId not in addThermal:
+                            if addMode == "all-dep":
+                                addThermal.append(foundId)
+                                print("T All: " + foundId)
+                reactNodes = _get_all_children(runNode, "react")
+                for reactNode in reactNodes:
+                    sampleNode = _get_first_child(reactNode, "sample")
+                    if sampleNode is not None:
+                        foundId = sampleNode.attrib['id']
+                        print("Sam R Work: " + foundId)
+                        if foundId not in addSamples:
+                            if foundId not in presSamples:
+                                addSamples.append(foundId)
+                                print("Sam R Add: " + foundId)
+                            if foundId not in addSamples:
+                                if addMode == "all-dep":
+                                    addSamples.append(foundId)
+                                    print("Sam R All: " + foundId)
+                    dataNodes = _get_all_children(reactNode, "data")
+                    for dataNode in dataNodes:
+                        lastNodes = _get_all_children(dataNode, "tar")
+                        for lastNode in lastNodes:
+                            foundId = lastNode.attrib['id']
+                            print("Tar R Work: " + foundId)
+                            if foundId not in addTargets:
+                                if foundId not in presTargets:
+                                    addTargets.append(foundId)
+                                    print("Tar R Add: " + foundId)
+                                if foundId not in addTargets:
+                                    if addMode == "all-dep":
+                                        addTargets.append(foundId)
+                                        print("Tar R All: " + foundId)
+                    partNodes = _get_all_children(reactNode, "partitions")
+                    for partNode in partNodes:
+                        dataNodes = _get_all_children(partNode, "data")
+                        for dataNode in dataNodes:
+                            lastNodes = _get_all_children(dataNode, "tar")
+                            for lastNode in lastNodes:
+                                foundId = lastNode.attrib['id']
+                                print("Tar R Work: " + foundId)
+                                if foundId not in addTargets:
+                                    if foundId not in presTargets:
+                                        addTargets.append(foundId)
+                                        print("Tar R Add: " + foundId)
+                                    if foundId not in addTargets:
+                                        if addMode == "all-dep":
+                                            addTargets.append(foundId)
+                                            print("Tar R All: " + foundId)
+
+            # Get the dependent of the dependent
+            exp = _get_all_children(add_rd._node, "sample")
+            for node in exp:
+                if node.attrib['id'] in addSamples:
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("SD Work: " + foundId)
+                        if foundId not in addDocs:
+                            if foundId not in presDocs:
+                                addDocs.append(foundId)
+                                print("SD Add: " + foundId)
+                            if foundId not in addDocs:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addDocs.append(foundId)
+                                    print("SD All: " + foundId)
+                    subNode = _get_first_child(experiment._node, "cdnaSynthesisMethod")
+                    if subNode is not None:
+                        forId = _get_first_child(subNode, "thermalCyclingConditions")
+                        if forId is not None:
+                            foundId = forId.attrib['id']
+                            print("STh Work: " + foundId)
+                            if foundId not in addThermal:
+                                if foundId not in presThermal:
+                                    addThermal.append(foundId)
+                                    print("STh Add: " + foundId)
+                                if foundId not in addThermal:
+                                    if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                        addThermal.append(foundId)
+                                        print("STh All: " + foundId)
+            exp = _get_all_children(add_rd._node, "target")
+            for node in exp:
+                if node.attrib['id'] in addTargets:
+                    subNodes = _get_all_children(node, "experimenter")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("SE Work: " + foundId)
+                        if foundId not in addExps:
+                            if foundId not in presExps:
+                                addExps.append(foundId)
+                                print("SE Add: " + foundId)
+                            if foundId not in addExps:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addExps.append(foundId)
+                                    print("SE All: " + foundId)
+                    subNodes = _get_first_child(node, "dyeId")
+                    if subNode is not None:
+                        foundId = subNode.attrib['id']
+                        print("SDy Work: " + foundId)
+                        if foundId not in addDyes:
+                            if foundId not in presDyes:
+                                addDyes.append(foundId)
+                                print("SDy Add: " + foundId)
+                            if foundId not in addDyes:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addDyes.append(foundId)
+                                    print("SDy All: " + foundId)
+            exp = _get_all_children(add_rd._node, "thermalCyclingConditions")
+            for node in exp:
+                if node.attrib['id'] in addThermal:
+                    subNodes = _get_all_children(node, "experimenter")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("SE Work: " + foundId)
+                        if foundId not in addExps:
+                            if foundId not in presExps:
+                                addExps.append(foundId)
+                                print("SE Add: " + foundId)
+                            if foundId not in addExps:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addExps.append(foundId)
+                                    print("SE All: " + foundId)
+                    subNodes = _get_all_children(node, "documentation")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("SD Work: " + foundId)
+                        if foundId not in addDocs:
+                            if foundId not in presDocs:
+                                addDocs.append(foundId)
+                                print("SD Add: " + foundId)
+                            if foundId not in addDocs:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addDocs.append(foundId)
+                                    print("SD All: " + foundId)
+
+            for docId in addExps:
+                self.import_experimenter(add_rd.get_experimenter(byid=docId))
+                print("Epr+++: " + docId)
+            for docId in addDocs:
+                self.import_documentation(add_rd.get_documentation(byid=docId))
+                print("Doc+++: " + docId)
+            for docId in addDyes:
+                self.import_dye(add_rd.get_dye(byid=docId))
+                print("Dye+++: " + docId)
+            for docId in addSamples:
+                self.import_sample(add_rd.get_sample(byid=docId))
+                print("Samr+++: " + docId)
+            for docId in addTargets:
+                self.import_target(add_rd.get_target(byid=docId))
+                print("Tar+++: " + docId)
+            for docId in addThermal:
+                self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
+                print("Ter+++: " + docId)
+
+        pos = _get_tag_pos(self._node, "experiment", self.xmlkeys(), 999999)
+        currId = experiment["id"]
+        allChildren = _get_all_children(self._node, "experiment")
+        count = -1
+        for node in allChildren:
+            count += 1
+            if node.get('id') == currId:
+                pos = _get_tag_pos(self._node, "experiment", self.xmlkeys(), count)
+                self._node.remove(node)
+        self._node.insert(pos, experiment._node)
+
+    def import_all_experiments(self, add_rd, addMode):
+        """Imports all elements to the end of the current list.
+
+        Args:
+            self: The class self parameter.
+            add_rd: The rdml to import the dyes from
+            addMode: "all" (default) , "only-new", "update", "all-incl-dep",
+                     "only-new-incl-dep" or "update-incl-dep"
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        known = {}
+        presExps = []
+        addExps = []
+        presDocs = []
+        addDocs = []
+        presDyes = []
+        addDyes = []
+        presSamples = []
+        addSamples = []
+        presTargets = []
+        addTargets = []
+        presThermal = []
+        addThermal = []
+
+        for exp in self.experiments():
+            known[exp["id"]] = 1
+
+        exp = _get_all_children(self._node, "experimenter")
+        for node in exp:
+            presExps.append(node.attrib['id'])
+            print("Exp Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "documentation")
+        for node in exp:
+            presDocs.append(node.attrib['id'])
+            print("Doc Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "dye")
+        for node in exp:
+            presDyes.append(node.attrib['id'])
+            print("Dye Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            presSamples.append(node.attrib['id'])
+            print("Sam Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "target")
+        for node in exp:
+            presTargets.append(node.attrib['id'])
+            print("Tar Pres: " + node.attrib['id'])
+        exp = _get_all_children(self._node, "thermalCyclingConditions")
+        for node in exp:
+            presThermal.append(node.attrib['id'])
+            print("Cyc Pres: " + node.attrib['id'])
+
+        allNew = add_rd.experiments()
+        for addEle in allNew:
+            readChild = False
+            if addMode in ["only-new", "only-new-incl-dep"]:
+                if addEle["id"] not in known:
+                    self.import_experiment(add_rd, addEle, "no-dep")
+                    readChild = True
+            elif addMode in ["update", "update-incl-dep"]:
+                if addEle["id"] in known:
+                    self.import_experiment(add_rd, addEle, "no-dep")
+                    readChild = True
+            else:
+                self.import_experiment(add_rd, addEle, "no-dep")
+                readChild = True
+
+            if readChild:
+                subNodes = _get_all_children(addEle._node, "documentation")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("Doc E Work: " + foundId)
+                    if foundId not in addDocs:
+                        if foundId not in presDocs:
+                            addDocs.append(foundId)
+                            print("Doc E Add: " + foundId)
+                        if foundId not in addDocs:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDocs.append(foundId)
+                                print("Doc E All: " + foundId)
+                runNodes = _get_all_children(addEle._node, "run")
+                for runNode in runNodes:
+                    subNodes = _get_all_children(runNode, "documentation")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("Doc R Work: " + foundId)
+                        if foundId not in addDocs:
+                            if foundId not in presDocs:
+                                addDocs.append(foundId)
+                                print("Doc R Add: " + foundId)
+                            if foundId not in addDocs:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addDocs.append(foundId)
+                                    print("Doc R All: " + foundId)
+                    subNodes = _get_all_children(runNode, "experimenter")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        print("Exp R Work: " + foundId)
+                        if foundId not in addExps:
+                            if foundId not in presExps:
+                                addExps.append(foundId)
+                                print("Exp R Add: " + foundId)
+                            if foundId not in addExps:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addExps.append(foundId)
+                                    print("Exp R All: " + foundId)
+                    forId = _get_first_child(runNode, "thermalCyclingConditions")
+                    if forId is not None:
+                        foundId = forId.attrib['id']
+                        print("T Work: " + foundId)
+                        if foundId not in addThermal:
+                            if foundId not in presThermal:
+                                addThermal.append(foundId)
+                                print("T Add: " + foundId)
+                            if foundId not in addThermal:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addThermal.append(foundId)
+                                    print("T All: " + foundId)
+                    reactNodes = _get_all_children(runNode, "react")
+                    for reactNode in reactNodes:
+                        sampleNode = _get_first_child(reactNode, "sample")
+                        if sampleNode is not None:
+                            foundId = sampleNode.attrib['id']
+                            print("Sam R Work: " + foundId)
+                            if foundId not in addSamples:
+                                if foundId not in presSamples:
+                                    addSamples.append(foundId)
+                                    print("Sam R Add: " + foundId)
+                                if foundId not in addSamples:
+                                    if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                        addSamples.append(foundId)
+                                        print("Sam R All: " + foundId)
+                        dataNodes = _get_all_children(reactNode, "data")
+                        for dataNode in dataNodes:
+                            lastNodes = _get_all_children(dataNode, "tar")
+                            for lastNode in lastNodes:
+                                foundId = lastNode.attrib['id']
+                                print("Tar R Work: " + foundId)
+                                if foundId not in addTargets:
+                                    if foundId not in presTargets:
+                                        addTargets.append(foundId)
+                                        print("Tar R Add: " + foundId)
+                                    if foundId not in addTargets:
+                                        if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                            addTargets.append(foundId)
+                                            print("Tar R All: " + foundId)
+                        partNodes = _get_all_children(reactNode, "partitions")
+                        for partNode in partNodes:
+                            dataNodes = _get_all_children(partNode, "data")
+                            for dataNode in dataNodes:
+                                lastNodes = _get_all_children(dataNode, "tar")
+                                for lastNode in lastNodes:
+                                    foundId = lastNode.attrib['id']
+                                    print("Tar R Work: " + foundId)
+                                    if foundId not in addTargets:
+                                        if foundId not in presTargets:
+                                            addTargets.append(foundId)
+                                            print("Tar R Add: " + foundId)
+                                        if foundId not in addTargets:
+                                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                                addTargets.append(foundId)
+                                                print("Tar R All: " + foundId)
+        # Get the dependent of the dependent
+        exp = _get_all_children(add_rd._node, "sample")
+        for node in exp:
+            if node.attrib['id'] in addSamples:
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("SD Work: " + foundId)
+                    if foundId not in addDocs:
+                        if foundId not in presDocs:
+                            addDocs.append(foundId)
+                            print("SD Add: " + foundId)
+                        if foundId not in addDocs:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDocs.append(foundId)
+                                print("SD All: " + foundId)
+                subNode = _get_first_child(experiment._node, "cdnaSynthesisMethod")
+                if subNode is not None:
+                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    if forId is not None:
+                        foundId = forId.attrib['id']
+                        print("STh Work: " + foundId)
+                        if foundId not in addThermal:
+                            if foundId not in presThermal:
+                                addThermal.append(foundId)
+                                print("STh Add: " + foundId)
+                            if foundId not in addThermal:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addThermal.append(foundId)
+                                    print("STh All: " + foundId)
+        exp = _get_all_children(add_rd._node, "target")
+        for node in exp:
+            if node.attrib['id'] in addTargets:
+                subNodes = _get_all_children(node, "experimenter")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("SE Work: " + foundId)
+                    if foundId not in addExps:
+                        if foundId not in presExps:
+                            addExps.append(foundId)
+                            print("SE Add: " + foundId)
+                        if foundId not in addExps:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addExps.append(foundId)
+                                print("SE All: " + foundId)
+                subNodes = _get_first_child(node, "dyeId")
+                if subNode is not None:
+                    foundId = subNode.attrib['id']
+                    print("SDy Work: " + foundId)
+                    if foundId not in addDyes:
+                        if foundId not in presDyes:
+                            addDyes.append(foundId)
+                            print("SDy Add: " + foundId)
+                        if foundId not in addDyes:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDyes.append(foundId)
+                                print("SDy All: " + foundId)
+        exp = _get_all_children(add_rd._node, "thermalCyclingConditions")
+        for node in exp:
+            if node.attrib['id'] in addThermal:
+                subNodes = _get_all_children(node, "experimenter")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("SE Work: " + foundId)
+                    if foundId not in addExps:
+                        if foundId not in presExps:
+                            addExps.append(foundId)
+                            print("SE Add: " + foundId)
+                        if foundId not in addExps:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addExps.append(foundId)
+                                print("SE All: " + foundId)
+                subNodes = _get_all_children(node, "documentation")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    print("SD Work: " + foundId)
+                    if foundId not in addDocs:
+                        if foundId not in presDocs:
+                            addDocs.append(foundId)
+                            print("SD Add: " + foundId)
+                        if foundId not in addDocs:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDocs.append(foundId)
+                                print("SD All: " + foundId)
+
+        for docId in addExps:
+            self.import_experimenter(add_rd.get_experimenter(byid=docId))
+            print("Epr+++: " + docId)
+        for docId in addDocs:
+            self.import_documentation(add_rd.get_documentation(byid=docId))
+            print("Doc+++: " + docId)
+        for docId in addDyes:
+            self.import_dye(add_rd.get_dye(byid=docId))
+            print("Dye+++: " + docId)
+        for docId in addSamples:
+            self.import_sample(add_rd.get_sample(byid=docId))
+            print("Samr+++: " + docId)
+        for docId in addTargets:
+            self.import_target(add_rd.get_target(byid=docId))
+            print("Tar+++: " + docId)
+        for docId in addThermal:
+            self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
+            print("Ter+++: " + docId)
 
     def get_experiment(self, byid=None, byposition=None):
         """Returns an experiment element by position or id.
