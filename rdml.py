@@ -9391,8 +9391,8 @@ class Run:
                 calcCq = _get_first_child_text(react_data, "cq")
                 calcN0 = _get_first_child_text(react_data, "N0")
                 calcEff = _get_first_child_text(react_data, "ampEff")
-                in_react["corrCq"] = ""
-                in_react["corrN0"] = ""
+                in_react["corrCq"] = calcCq
+                in_react["corrN0"] = calcN0
                 if not calcCorr == "":
                     calcCorr = float(calcCorr)
                     if not np.isnan(calcCorr):
