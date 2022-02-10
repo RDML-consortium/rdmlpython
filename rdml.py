@@ -1759,8 +1759,9 @@ def _numpyTwoAxisSave(var, fileName):
 
 
 def _getXMLDataType():
-    return ["tar", "cq", "N0", "ampEffMet", "ampEff", "ampEffSE", "corrF", "meltTemp",
-            "excl", "note", "adp", "mdp", "endPt", "bgFluor", "quantFluor"]
+    return ["tar", "cq", "N0", "ampEffMet", "ampEff", "ampEffSE", "corrF",
+            "corrP", "meltTemp", "excl", "note", "adp", "mdp", "endPt",
+            "bgFluor", "quantFluor"]
 
 
 def _getXMLPartitionDataType():
@@ -2373,6 +2374,7 @@ class Rdml:
         hint6 = ""
         hint7 = ""
         hint8 = ""
+        hint9 = ""
         exp1 = _get_all_children(self._node, "experiment")
         for node1 in exp1:
             exp2 = _get_all_children(node1, "run")
@@ -2411,13 +2413,17 @@ class Rdml:
                         for node5 in exp5:
                             hint6 = "Migration to v1.2 deleted react data \"corrF\" elements."
                             node4.remove(node5)
+                        exp5 = _get_all_children(node4, "corrP")
+                        for node5 in exp5:
+                            hint7 = "Migration to v1.2 deleted react data \"corrP\" elements."
+                            node4.remove(node5)
                         exp5 = _get_all_children(node4, "meltTemp")
                         for node5 in exp5:
-                            hint7 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
+                            hint8 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "note")
                         for node5 in exp5:
-                            hint8 = "Migration to v1.2 deleted react data \"note\" elements."
+                            hint9 = "Migration to v1.2 deleted react data \"note\" elements."
                             node4.remove(node5)
         if hint != "":
             ret.append(hint)
@@ -2435,6 +2441,8 @@ class Rdml:
             ret.append(hint7)
         if hint8 != "":
             ret.append(hint8)
+        if hint9 != "":
+            ret.append(hint9)
 
         exp1 = _get_all_children(self._node, "sample")
         hint = ""
@@ -7502,6 +7510,251 @@ class Experiment:
         data["runs"] = runs
         return data
 
+    def webAppInterRunCorr(self, overlapType="samples", corrLevel="plate", selAnnotation="", updateRDML=False):
+        """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            overlapType: Base the overlap on "calibrator", "samples" or "annotation".
+            corrLevel: Use one factor per "target" or "plate".
+            selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            updateRDML: If true, update the RDML data with the calculated values.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            rawData: A 2d array with the raw fluorescence values
+            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
+            resultsList: A 2d array object.
+            resultsCSV: A csv string.
+        """
+
+        allData = self.interRunCorr(overlapType=overlapType,
+                                    corrLevel=corrLevel,
+                                    selAnnotation=selAnnotation,
+                                    updateRDML=updateRDML)
+        if "resultsList" in allData:
+            header = res["resultsList"].pop(0)
+            resList = sorted(res["resultsList"], key=_sort_list_int)
+            for rRow in range(0, len(resList)):
+                for rCol in range(0, len(resList[rRow])):
+                    if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
+                        resList[rRow][rCol] = ""
+                    if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
+                        resList[rRow][rCol] = ""
+            allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
+
+        if "noRawData" in allData:
+            allData["error"] = allData["noRawData"]
+
+        return allData
+
+    def interRunCorr(self, overlapType="samples", corrLevel="plate", selAnnotation="", updateRDML=False):
+        """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            overlapType: Base the overlap on "calibrator", "samples" or "annotation".
+            corrLevel: Use one factor per "target" or "plate".
+            selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            updateRDML: If true, update the RDML data with the calculated values.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            rawData: A 2d array with the raw fluorescence values
+            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
+            resultsList: A 2d array object.
+            resultsCSV: A csv string.
+        """
+
+        res = {}
+        samSel = {}
+        allRuns = self.runs()
+        corrMat = np.zeros((len(allRuns), len(allRuns)), dtype=np.float64)
+        corrMat[0, 0] = 1.0
+
+        # Get the sample infos
+        if overlapType in ["calibrator", "annotation"]:
+            pRoot = self._node.getparent()
+            samples = _get_all_children(pRoot, "sample")
+            for sample in samples:
+                if sample.attrib['id'] != "":
+                    samId = sample.attrib['id']
+                    if overlapType == "calibrator":
+                        calibrator = _get_first_child_text(sample, "interRunCalibrator")
+                        if calibrator != "":
+                            if _string_to_bool(calibrator, triple=False):
+                                samSel[samId] = True
+                                continue
+                    if overlapType == "annotation":
+                        if selAnnotation == "":
+                            continue
+                        xref = _get_all_children(sample, "annotation")
+                        for node in xref:
+                            anno = _get_first_child_text(node, "property")
+                            if anno == selAnnotation:
+                                val = _get_first_child_text(node, "value")
+                                if val != "":
+                                    samSel[samId] = val
+
+        # Analyze the runs pair by pair
+        for cRunA in range(1, len(allRuns)):
+            possible = {}
+            runA = allRuns[cRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                samId = _get_first_child(react, "sample")
+                if samId is None:
+                    continue
+                if samId.attrib['id'] == "":
+                    continue
+                sample = samId.attrib['id']
+                if overlapType == "calibrator":
+                    if sample not in samSel:
+                        continue
+                    if not samSel[sample]:
+                        continue
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if tarId.attrib['id'] == "":
+                        continue
+                    target = tarId.attrib['id']
+                    excluded = _get_first_child_text(react_data, "excl")
+                    if excluded != "":
+                        continue
+                    n0Val = _get_first_child_text(react_data, "N0")
+                    if n0Val == "":
+                        continue
+                    try:
+                        n0Val = float(n0Val)
+                    except ValueError:
+                        continue
+                    if np.isnan(n0Val):
+                        continue
+                    if n0Val < 0.0:
+                        continue
+                    corrVal = _get_first_child_text(react_data, "corrF")
+                    if corrVal != "":
+                        try:
+                            n0Val = float(corrVal)
+                        except ValueError:
+                            pass
+                        if not np.isnan(corrVal):
+                            n0Val *= corrVal
+
+                    if target not in possible:
+                        possible[target] = {}
+                    if overlapType == "annotation":
+                        if sample not in samSel:
+                            continue
+                        if samSel[sample] == "":
+                            continue
+                        translSamp = samSel[sample]
+                        if translSamp not in possible[target]:
+                            possible[target][translSamp] = []
+                        possible[target][translSamp].append(n0Val)
+                    else:
+                        if sample not in possible[target]:
+                            possible[target][sample] = []
+                        possible[target][sample].append(n0Val)
+
+            for cRunB in range(0, len(allRuns)):
+                bOverlap = {}
+                if cRunA == cRunB:
+                    corrMat[cRunA, cRunB] = 1.0
+                    continue
+                if cRunA < cRunB:
+                    continue
+                runB = allRuns[cRunB]
+                reacts = _get_all_children(runB._node, "react")
+                for react in reacts:
+                    samId = _get_first_child(react, "sample")
+                    if samId is None:
+                        continue
+                    if samId.attrib['id'] == "":
+                        continue
+                    sample = samId.attrib['id']
+                    if overlapType == "calibrator":
+                        if sample not in samSel:
+                            continue
+                        if not samSel[sample]:
+                            continue
+                    react_datas = _get_all_children(react, "data")
+                    for react_data in react_datas:
+                        tarId = _get_first_child(react_data, "tar")
+                        if tarId is None:
+                            continue
+                        if tarId.attrib['id'] == "":
+                            continue
+                        target = tarId.attrib['id']
+                        # Keep only overlapping values
+                        if target not in possible:
+                            continue
+                        if overlapType == "annotation":
+                            if sample not in samSel:
+                                continue
+                            if samSel[sample] == "":
+                                continue
+                            translSamp = samSel[sample]
+                            if translSamp not in possible[target]:
+                                continue
+                        else:
+                            if sample not in possible[target]:
+                                continue
+                        excluded = _get_first_child_text(react_data, "excl")
+                        if excluded != "":
+                            continue
+                        n0Val = _get_first_child_text(react_data, "N0")
+                        if n0Val == "":
+                            continue
+                        try:
+                            n0Val = float(n0Val)
+                        except ValueError:
+                            continue
+                        if np.isnan(n0Val):
+                            continue
+                        if n0Val < 0.0:
+                            continue
+                        corrVal = _get_first_child_text(react_data, "corrF")
+                        if corrVal != "":
+                            try:
+                                n0Val = float(corrVal)
+                            except ValueError:
+                                pass
+                            if not np.isnan(corrVal):
+                                n0Val *= corrVal
+
+                        if target not in bOverlap:
+                            bOverlap[target] = {}
+                        if overlapType == "annotation":
+                            if sample not in samSel:
+                                continue
+                            if samSel[sample] == "":
+                                continue
+                            translSamp = samSel[sample]
+                            if translSamp not in bOverlap[target]:
+                                bOverlap[target][translSamp] = []
+                            bOverlap[target][translSamp].append(n0Val)
+                        else:
+                            if sample not in bOverlap[target]:
+                                bOverlap[target][sample] = []
+                            bOverlap[target][sample].append(n0Val)
+
+                for tar in bOverlap:
+                    print(tar)
+                    for sam in bOverlap[tar]:
+                        print("  " + sam)
+
+                corrMat[cRunA, cRunB] = 4.0
+            #    print(bOverlap)
+         #   print(possible)
+        print(corrMat)
+
+
+        return res
+
 
 class Run:
     """RDML-Python library
@@ -9386,51 +9639,75 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "ampEff")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
                 _add_first_child_to_dic(react_data, in_react, True, "corrF")
+                _add_first_child_to_dic(react_data, in_react, True, "corrP")
                 # Calculate the correction factors
-                calcCorr = _get_first_child_text(react_data, "corrF")
+                corrFac = _get_first_child_text(react_data, "corrF")
+                calcCorr = 1.0
+                if not corrFac == "":
+                    try:
+                        calcCorr = float(corrFac)
+                    except ValueError:
+                        calcCorr = 1.0
+                    if np.isnan(calcCorr):
+                        calcCorr = 1.0
+                    if calcCorr > 1.0:
+                        calcCorr = 1.0
+                plateFac = _get_first_child_text(react_data, "corrP")
+                calcPlate = 1.0
+                if not plateFac == "":
+                    try:
+                        calcPlate = float(plateFac)
+                    except ValueError:
+                        calcPlate = 0.0
+                    if np.isnan(calcPlate):
+                        calcPlate = 0.0
+                    if calcPlate < 0.0:
+                        calcPlate = 0.0
+                    calcCorr *= calcPlate
                 calcCq = _get_first_child_text(react_data, "cq")
                 calcN0 = _get_first_child_text(react_data, "N0")
-                calcEff = _get_first_child_text(react_data, "ampEff")
                 in_react["corrCq"] = calcCq
                 in_react["corrN0"] = calcN0
-                if not calcCorr == "":
-                    calcCorr = float(calcCorr)
-                    if not np.isnan(calcCorr):
-                        if 0.0 < calcCorr < 1.0:
-                            if calcEff == "":
-                                calcEff = 2.0
-                            else:
-                                calcEff = float(calcEff)
-                            if not np.isnan(calcEff):
-                                if 0.0 < calcEff < 3.0:
-                                    if not calcCq == "":
-                                        calcCq = float(calcCq)
-                                        if not np.isnan(calcCq):
-                                            if calcCq > 0.0:
-                                                finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
-                                                in_react["corrCq"] = "{:.3f}".format(finalCq)
-                                                anyCorrections = 1
-                                            else:
-                                                in_react["corrCq"] = "-1.0"
-                                    if not calcN0 == "":
-                                        calcN0 = float(calcN0)
-                                        if not np.isnan(calcN0):
-                                            if calcCq > 0.0:
-                                                finalN0 = calcCorr * calcN0
-                                                in_react["corrN0"] = "{:.2e}".format(finalN0)
-                                                anyCorrections = 1
-                                            else:
-                                                in_react["corrN0"] = "-1.0"
-                        if calcCorr == 0.0:
+                if calcCorr > 0.0001:
+                    calcEff = _get_first_child_text(react_data, "ampEff")
+                    if calcEff == "":
+                        calcEff = 2.0
+                    else:
+                        calcEff = float(calcEff)
+                    if not np.isnan(calcEff):
+                        if 0.0 < calcEff < 3.0:
                             if not calcCq == "":
-                                in_react["corrCq"] = ""
+                                calcCq = float(calcCq)
+                                if not np.isnan(calcCq):
+                                    if calcCq > 0.0:
+                                        finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
+                                        in_react["corrCq"] = "{:.3f}".format(finalCq)
+                                        if not corrFac == "":
+                                            anyCorrections = 1
+                                        if not plateFac == "":
+                                            anyCorrections = 1
+                                    else:
+                                        in_react["corrCq"] = "-1.0"
                             if not calcN0 == "":
-                                in_react["corrN0"] = 0.0
-                        if calcCorr == 1.0:
-                            if not calcCq == "":
-                                in_react["corrCq"] = calcCq
-                            if not calcN0 == "":
-                                in_react["corrN0"] = calcN0
+                                calcN0 = float(calcN0)
+                                if not np.isnan(calcN0):
+                                    if calcCq > 0.0:
+                                        finalN0 = calcCorr * calcN0
+                                        in_react["corrN0"] = "{:.2e}".format(finalN0)
+                                        if not corrFac == "":
+                                            anyCorrections = 1
+                                        if not plateFac == "":
+                                            anyCorrections = 1
+                                    else:
+                                        in_react["corrN0"] = "-1.0"
+                else:
+                    if not calcCq == "":
+                        in_react["corrCq"] = ""
+                    if not calcN0 == "":
+                        in_react["corrN0"] = 0.0
+                if calcPlate < 0.0:
+                    in_react["corrCq"] = ""
+                    in_react["corrN0"] = 0.0
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
