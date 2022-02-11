@@ -2652,13 +2652,25 @@ class Rdml:
                 zf.close()
 
         presentIds = []
+        recreateDye = False
         exp = _get_all_children(self._node, "target")
         for node in exp:
             presentIds.append(node.attrib['id'])
         for used_id in foundIds:
             if used_id not in presentIds:
                 self.new_target(id=used_id, type="toi", newposition=0)
+                elem = self.get_target(byid=used_id)
+                elem["dyeId"] = "recreated dye"
                 mess += "Recreated target: " + used_id + "\n"
+                recreateDye = True
+        presentIds = []
+        if recreateDye:
+            exp = _get_all_children(self._node, "dye")
+            for node in exp:
+                presentIds.append(node.attrib['id'])
+            if "recreated dye" not in presentIds:
+                self.new_dye(id="recreated dye", newposition=0)
+                mess += "Recreated new dye: recreated dye\n"
         return mess
 
     def repair_rdml_file(self):
@@ -7568,33 +7580,39 @@ class Experiment:
 
         res = {}
         samSel = {}
+        negSam = {}
         allRuns = self.runs()
         corrMat = np.zeros((len(allRuns), len(allRuns)), dtype=np.float64)
         corrMat[0, 0] = 1.0
 
         # Get the sample infos
-        if overlapType in ["calibrator", "annotation"]:
-            pRoot = self._node.getparent()
-            samples = _get_all_children(pRoot, "sample")
-            for sample in samples:
-                if sample.attrib['id'] != "":
-                    samId = sample.attrib['id']
-                    if overlapType == "calibrator":
-                        calibrator = _get_first_child_text(sample, "interRunCalibrator")
-                        if calibrator != "":
-                            if _string_to_bool(calibrator, triple=False):
-                                samSel[samId] = True
-                                continue
-                    if overlapType == "annotation":
-                        if selAnnotation == "":
+        pRoot = self._node.getparent()
+        samples = _get_all_children(pRoot, "sample")
+        for sample in samples:
+            if sample.attrib['id'] != "":
+                samId = sample.attrib['id']
+                samType = _get_first_child_text(sample, "type")
+                if samType != "":
+                    if samType in ["ntc", "nac", "ntp", "nrt"]:
+                        negSam[samId] = True
+                    else:
+                        negSam[samId] = False
+                if overlapType == "calibrator":
+                    calibrator = _get_first_child_text(sample, "interRunCalibrator")
+                    if calibrator != "":
+                        if _string_to_bool(calibrator, triple=False):
+                            samSel[samId] = True
                             continue
-                        xref = _get_all_children(sample, "annotation")
-                        for node in xref:
-                            anno = _get_first_child_text(node, "property")
-                            if anno == selAnnotation:
-                                val = _get_first_child_text(node, "value")
-                                if val != "":
-                                    samSel[samId] = val
+                if overlapType == "annotation":
+                    if selAnnotation == "":
+                        continue
+                    xref = _get_all_children(sample, "annotation")
+                    for node in xref:
+                        anno = _get_first_child_text(node, "property")
+                        if anno == selAnnotation:
+                            val = _get_first_child_text(node, "value")
+                            if val != "":
+                                samSel[samId] = val
 
         # Analyze the runs pair by pair
         for cRunA in range(1, len(allRuns)):
@@ -7608,6 +7626,10 @@ class Experiment:
                 if samId.attrib['id'] == "":
                     continue
                 sample = samId.attrib['id']
+                if sample not in negSam:
+                    continue
+                if negSam[sample]:
+                    continue
                 if overlapType == "calibrator":
                     if sample not in samSel:
                         continue
@@ -7742,11 +7764,43 @@ class Experiment:
                                 bOverlap[target][sample] = []
                             bOverlap[target][sample].append(n0Val)
 
+                plateSum = 0.0
+                plateNum = 0
+                geoTar = {}
                 for tar in bOverlap:
-                    print(tar)
+                    tarSum = 0.0
+                    tarNum = 0
+                    print("\n\n" + tar)
                     for sam in bOverlap[tar]:
-                        print("  " + sam)
-
+                        conSum = 0.0
+                        conNum = 0
+                        for bVal in bOverlap[tar][sam]:
+                            for aVal in possible[tar][sam]:
+                                conSum += math.log(aVal/bVal)
+                                tarSum += math.log(aVal/bVal)
+                                plateSum += math.log(aVal/bVal)
+                                conNum += 1
+                                tarNum += 1
+                                plateNum += 1
+                        print("  " + sam + ": ")
+                        print("    A Values: " + str(possible[tar][sam]))
+                        print("    B Values: " + str(bOverlap[tar][sam]))
+                        print("    A / B Number: " + str(conNum))
+                        print("    A / B Sum: " + str(conSum))
+                        conMean = math.exp(conSum/conNum)
+                        print("    A / B Geomean: " + str(conMean))
+        #            npTarRes = np.ma.asarray(geoTarColl, dtype=np.float64)
+        #            geoTarFac[tar] = scp.gmean(npTarRes)
+                    print("  " + tar + " A / B Number: " + str(tarNum))
+                    tarMean = math.exp(tarSum / tarNum)
+                    geoTar[tar] = tarMean
+                    print("  " + tar + " A / B Geomean: " + str(tarMean))
+                print("----------------------")
+                for tar in bOverlap:
+                    print("  " + tar + " A / B Geomean: " + str(geoTar[tar]))
+                print("Plate Factor: Plate Factor: A / B Number: " + str(plateNum))
+                plateMean = math.exp(plateSum / plateNum)
+                print("Plate Factor: Plate Factor: A / B Geomean: " + str(plateMean))
                 corrMat[cRunA, cRunB] = 4.0
             #    print(bOverlap)
          #   print(possible)
