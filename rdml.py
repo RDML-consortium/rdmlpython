@@ -1760,7 +1760,7 @@ def _numpyTwoAxisSave(var, fileName):
 
 def _getXMLDataType():
     return ["tar", "cq", "N0", "ampEffMet", "ampEff", "ampEffSE", "corrF",
-            "corrP", "meltTemp", "excl", "note", "adp", "mdp", "endPt",
+            "corrP", "corrCq", "meltTemp", "excl", "note", "adp", "mdp", "endPt",
             "bgFluor", "quantFluor"]
 
 
@@ -2375,6 +2375,7 @@ class Rdml:
         hint7 = ""
         hint8 = ""
         hint9 = ""
+        hint10 = ""
         exp1 = _get_all_children(self._node, "experiment")
         for node1 in exp1:
             exp2 = _get_all_children(node1, "run")
@@ -2417,13 +2418,17 @@ class Rdml:
                         for node5 in exp5:
                             hint7 = "Migration to v1.2 deleted react data \"corrP\" elements."
                             node4.remove(node5)
+                        exp5 = _get_all_children(node4, "corrCq")
+                        for node5 in exp5:
+                            hint8 = "Migration to v1.2 deleted react data \"corrCq\" elements."
+                            node4.remove(node5)
                         exp5 = _get_all_children(node4, "meltTemp")
                         for node5 in exp5:
-                            hint8 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
+                            hint9 = "Migration to v1.2 deleted react data \"meltTemp\" elements."
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "note")
                         for node5 in exp5:
-                            hint9 = "Migration to v1.2 deleted react data \"note\" elements."
+                            hint10 = "Migration to v1.2 deleted react data \"note\" elements."
                             node4.remove(node5)
         if hint != "":
             ret.append(hint)
@@ -2443,6 +2448,8 @@ class Rdml:
             ret.append(hint8)
         if hint9 != "":
             ret.append(hint9)
+        if hint10 != "":
+            ret.append(hint10)
 
         exp1 = _get_all_children(self._node, "sample")
         hint = ""
@@ -9807,6 +9814,7 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
                 _add_first_child_to_dic(react_data, in_react, True, "corrF")
                 _add_first_child_to_dic(react_data, in_react, True, "corrP")
+                _add_first_child_to_dic(react_data, in_react, True, "corrCq")
                 # Calculate the correction factors
                 corrFac = _get_first_child_text(react_data, "corrF")
                 calcCorr = 1.0
@@ -9831,50 +9839,29 @@ class Run:
                     if calcPlate < 0.0:
                         calcPlate = 0.0
                     calcCorr *= calcPlate
-                calcCq = _get_first_child_text(react_data, "cq")
                 calcN0 = _get_first_child_text(react_data, "N0")
-                in_react["corrCq"] = calcCq
                 in_react["corrN0"] = calcN0
                 if calcCorr > 0.0001:
-                    calcEff = _get_first_child_text(react_data, "ampEff")
-                    if calcEff == "":
-                        calcEff = 2.0
-                    else:
-                        calcEff = float(calcEff)
-                    if not np.isnan(calcEff):
-                        if 0.0 < calcEff < 3.0:
-                            if not calcCq == "":
-                                calcCq = float(calcCq)
-                                if not np.isnan(calcCq):
-                                    if calcCq > 0.0:
-                                        finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
-                                        in_react["corrCq"] = "{:.3f}".format(finalCq)
-                                        if not corrFac == "":
-                                            anyCorrections = 1
-                                        if not plateFac == "":
-                                            anyCorrections = 1
-                                    else:
-                                        in_react["corrCq"] = "-1.0"
-                            if not calcN0 == "":
-                                calcN0 = float(calcN0)
-                                if not np.isnan(calcN0):
-                                    if calcCq > 0.0:
-                                        finalN0 = calcCorr * calcN0
-                                        in_react["corrN0"] = "{:.2e}".format(finalN0)
-                                        if not corrFac == "":
-                                            anyCorrections = 1
-                                        if not plateFac == "":
-                                            anyCorrections = 1
-                                    else:
-                                        in_react["corrN0"] = "-1.0"
-                else:
-                    if not calcCq == "":
-                        in_react["corrCq"] = ""
                     if not calcN0 == "":
-                        in_react["corrN0"] = 0.0
+                        try:
+                            calcN0 = float(calcN0)
+                        except ValueError:
+                            pass
+                        else:
+                            if not np.isnan(calcN0):
+                                finalN0 = calcCorr * calcN0
+                                in_react["corrN0"] = "{:.2e}".format(finalN0)
+                                if not corrFac == "":
+                                    anyCorrections = 1
+                                if not plateFac == "":
+                                    anyCorrections = 1
+                else:
+                    if calcCorr < 0.0:
+                        in_react["corrN0"] = "-1.0"
+                    else:
+                        in_react["corrN0"] = "0.0"
                 if calcPlate < 0.0:
-                    in_react["corrCq"] = ""
-                    in_react["corrN0"] = 0.0
+                    in_react["corrN0"] = "-1.0"
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
@@ -12945,11 +12932,36 @@ class Run:
                             lCol = truePeakFinPos[rRow]
                             if lCol >= 0:
                                 if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
-                                    goodVal = "{:.3f}".format(peakResFluor[rRow][lCol] / peakResSumFuor[rRow])
+                                    finalFactor = peakResFluor[rRow][lCol] / peakResSumFuor[rRow]
+                                    goodVal = "{:.3f}".format(finalFactor)
+                                    print(str(finalFactor))
                                     _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
+                                    _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "-1.0", True, "string")
+                                    oldCq = _get_first_child_text(rdmlElemData[rRow], "cq")
+                                    if oldCq != "":
+                                        try:
+                                            oldCq = float(oldCq)
+                                        except ValueError:
+                                            pass
+                                        else:
+                                            ampEff = _get_first_child_text(rdmlElemData[rRow], "ampEff")
+                                            if ampEff != "":
+                                                try:
+                                                    ampEff = float(ampEff)
+                                                except ValueError:
+                                                    pass
+                                                else:
+                                                    if 0.01 < ampEff < 3.0:
+                                                        finalCq = oldCq - np.log10(finalFactor) / np.log10(ampEff)
+                                                        goodVal = "{:.3f}".format(finalCq)
+                                                        _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, goodVal, True, "string")
                                 goodVal = "{:.3f}".format(peakResTemp[rRow][lCol])
                                 _change_subelement(rdmlElemData[rRow], "meltTemp", dataXMLelements, goodVal, True, "string")
-
+                            else:
+                                if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
+                                     print(str(0.0))
+                                     _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, "0.0", True, "string")
+                                     _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "-1.0", True, "string")
             finalData["resultsList"] = resTable
         return finalData
 
