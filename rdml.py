@@ -7579,11 +7579,13 @@ class Experiment:
         """
 
         res = {}
+        runIds = []
+        targetUse = []
+        corrTargets = {}
+        corrMat = []
         samSel = {}
         negSam = {}
         allRuns = self.runs()
-        corrMat = np.zeros((len(allRuns), len(allRuns)), dtype=np.float64)
-        corrMat[0, 0] = 1.0
 
         # Get the sample infos
         pRoot = self._node.getparent()
@@ -7613,6 +7615,52 @@ class Experiment:
                             val = _get_first_child_text(node, "value")
                             if val != "":
                                 samSel[samId] = val
+        # Find all used Targets
+        for tRunA in range(0, len(allRuns)):
+            runA = allRuns[tRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if tarId.attrib['id'] == "":
+                        continue
+                    corrTargets[tarId.attrib['id']] = []
+        sortTargets = sorted(list(corrTargets.keys()))
+
+        # Create Plate Matrix
+        for row in range(0, len(allRuns)):
+            corrMat.append([])
+            targetUse.append({})
+            for col in range(0, len(allRuns)):
+                corrMat[row].append(-1.0)
+                if row == col:
+                    corrMat[row][col] = -2.0
+        corrMat[0][0] = -2.0
+        for tar in corrTargets:
+            for row in range(0, len(allRuns)):
+                corrTargets[tar].append([])
+                for col in range(0, len(allRuns)):
+                    corrTargets[tar][row].append(-1.0)
+                    if row == col:
+                        corrTargets[tar][row][col] = -2.0
+
+        # Collect Run - Target Information
+        for pRunA in range(0, len(allRuns)):
+            runA = allRuns[pRunA]
+            runIds.append(runA['id'])
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if tarId.attrib['id'] == "":
+                        continue
+                    targetUse[pRunA][tarId.attrib['id']] = True
 
         # Analyze the runs pair by pair
         for cRunA in range(1, len(allRuns)):
@@ -7655,7 +7703,7 @@ class Experiment:
                         continue
                     if np.isnan(n0Val):
                         continue
-                    if n0Val < 0.0:
+                    if n0Val <= 0.0:
                         continue
                     corrVal = _get_first_child_text(react_data, "corrF")
                     if corrVal != "":
@@ -7685,7 +7733,6 @@ class Experiment:
             for cRunB in range(0, len(allRuns)):
                 bOverlap = {}
                 if cRunA == cRunB:
-                    corrMat[cRunA, cRunB] = 1.0
                     continue
                 if cRunA < cRunB:
                     continue
@@ -7737,7 +7784,7 @@ class Experiment:
                             continue
                         if np.isnan(n0Val):
                             continue
-                        if n0Val < 0.0:
+                        if n0Val <= 0.0:
                             continue
                         corrVal = _get_first_child_text(react_data, "corrF")
                         if corrVal != "":
@@ -7766,47 +7813,113 @@ class Experiment:
 
                 plateSum = 0.0
                 plateNum = 0
-                geoTar = {}
                 for tar in bOverlap:
                     tarSum = 0.0
                     tarNum = 0
-                    print("\n\n" + tar)
                     for sam in bOverlap[tar]:
-                        conSum = 0.0
-                        conNum = 0
                         for bVal in bOverlap[tar][sam]:
                             for aVal in possible[tar][sam]:
-                                conSum += math.log(aVal/bVal)
                                 tarSum += math.log(aVal/bVal)
                                 plateSum += math.log(aVal/bVal)
-                                conNum += 1
                                 tarNum += 1
                                 plateNum += 1
-                        print("  " + sam + ": ")
-                        print("    A Values: " + str(possible[tar][sam]))
-                        print("    B Values: " + str(bOverlap[tar][sam]))
-                        print("    A / B Number: " + str(conNum))
-                        print("    A / B Sum: " + str(conSum))
-                        conMean = math.exp(conSum/conNum)
-                        print("    A / B Geomean: " + str(conMean))
-        #            npTarRes = np.ma.asarray(geoTarColl, dtype=np.float64)
-        #            geoTarFac[tar] = scp.gmean(npTarRes)
-                    print("  " + tar + " A / B Number: " + str(tarNum))
-                    tarMean = math.exp(tarSum / tarNum)
-                    geoTar[tar] = tarMean
-                    print("  " + tar + " A / B Geomean: " + str(tarMean))
-                print("----------------------")
-                for tar in bOverlap:
-                    print("  " + tar + " A / B Geomean: " + str(geoTar[tar]))
-                print("Plate Factor: Plate Factor: A / B Number: " + str(plateNum))
-                plateMean = math.exp(plateSum / plateNum)
-                print("Plate Factor: Plate Factor: A / B Geomean: " + str(plateMean))
-                corrMat[cRunA, cRunB] = 4.0
-            #    print(bOverlap)
-         #   print(possible)
-        print(corrMat)
+                    # npTarRes = np.ma.asarray(geoTarColl, dtype=np.float64)
+                    # geoTarFac[tar] = scp.gmean(npTarRes)
+                    if tarNum > 0:
+                        tarMean = math.exp(tarSum / tarNum)
+                    else:
+                        tarMean = -1.0
+                    if tarMean > 0.0:
+                        corrTargets[tar][cRunA][cRunB] = 1.0 / tarMean
+                        corrTargets[tar][cRunB][cRunA] = tarMean
+                    else:
+                        corrTargets[tar][cRunA][cRunB] = -1.0
+                        corrTargets[tar][cRunB][cRunA] = -1.0
+                if plateNum > 0:
+                    plateMean = math.exp(plateSum / plateNum)
+                else:
+                    plateMean = -1.0
+                if plateMean > 0.0:
+                    corrMat[cRunA][cRunB] = 1.0 / plateMean
+                    corrMat[cRunB][cRunA] = plateMean
+                else:
+                    corrMat[cRunA][cRunB] = -1.0
+                    corrMat[cRunB][cRunA] = -1.0
+
+        # Score Matrix values
+        for sRun in range(0, len(allRuns)):
+            maxVal = -3.0
+            for curr in range(0, len(allRuns)):
+                maxVal = max(maxVal, corrMat[sRun][curr])
+                maxVal = max(maxVal, corrMat[curr][sRun])
+            if maxVal > 0.0:
+                corrMat[sRun][sRun] = 1.0
+
+        finalFactor = []
+        finalTarFactor = {}
+        resTable = [[""]]
+        for runP in runIds:
+            resTable[0].append(runP)
+        tarCount = 0
+        for tar in sortTargets:
+            finalTarFactor[tar] = []
+            resTable.append([tar])
+            resTable.append(["Corr.Fact."])
+            tarCount += 2
+            for sRun in range(0, len(allRuns)):
+                if tar in targetUse[sRun] and targetUse[sRun][tar] is True:
+                    resTable[tarCount - 1].append("+")
+                    maxVal = -3.0
+                    for curr in range(0, len(allRuns)):
+                        maxVal = max(maxVal, corrTargets[tar][sRun][curr])
+                        maxVal = max(maxVal, corrTargets[tar][curr][sRun])
+                    if maxVal > 0.0:
+                        corrTargets[tar][sRun][sRun] = 1.0
+                    linSum = 0.0
+                    linNum = 0
+                    for fRunB in range(0, len(allRuns)):
+                        if corrTargets[tar][fRunB][sRun] > 0.0:
+                            linSum += math.log(corrTargets[tar][fRunB][sRun])
+                            linNum += 1
+                    if linNum > 0:
+                        curTarRes = math.exp(linSum / linNum)
+                        finalTarFactor[tar].append(curTarRes)
+                        resTable[tarCount].append(str(curTarRes))
+                    else:
+                        finalTarFactor[tar].append(-1.0)
+                        resTable[tarCount].append("no overlap")
+                else:
+                    resTable[tarCount - 1].append("-")
+                    resTable[tarCount].append("target missing")
+                    for curr in range(0, len(allRuns)):
+                        corrTargets[tar][sRun][curr] = -10.0
+                        corrTargets[tar][curr][sRun] = -10.0
+                    finalTarFactor[tar].append(-1.0)
+
+        # Calc final correction factors
+        resTable.append(["Plate"])
+        resTable.append(["Corr.Fact."])
+        tarCount += 2
+        for fRunA in range(0, len(allRuns)):
+            linSum = 0.0
+            linNum = 0
+            for fRunB in range(0, len(allRuns)):
+                if corrMat[fRunA][fRunB] > 0.0:
+                    linSum += math.log(corrMat[fRunB][fRunA])
+                    linNum += 1
+            resTable[tarCount - 1].append("")
+            if linNum > 0:
+                curRes = math.exp(linSum / linNum)
+                finalFactor.append(curRes)
+                resTable[tarCount].append(str(curRes))
+            else:
+                finalFactor.append(-1.0)
+                resTable[tarCount].append("no overlap")
 
 
+
+
+        print(resTable)
         return res
 
 
