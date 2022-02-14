@@ -7928,13 +7928,30 @@ class Experiment:
                         corrTargets[tar][sRun][curr] = -10.0
                         corrTargets[tar][curr][sRun] = -10.0
 
-        for rrr in corrMat:
-            print(rrr)
+        # Fill matix gaps
+        err = ""
+        for appNr in range(0, 2):
+            for mRow in range(0, len(allRuns)):
+                for mCol in range(0, len(allRuns)):
+                    if -9.0 < corrMat[mRow][mCol] < 0.0:
+                        _pco_fixPlateMatix(corrMat, mRow, mCol)
+        for mRow in range(0, len(allRuns)):
+            for mCol in range(0, len(allRuns)):
+                if -9.0 < corrMat[mRow][mCol] < 0.0:
+                    err = "Error Plate: Could not fix all matrix gaps."
 
-        _pco_fixPlateMatix(corrMat, 4, 5)
-
-        for rrr in corrMat:
-            print(rrr)
+        tarErr = {}
+        for tar in sortTargets:
+            tarErr[tar] = ""
+            for appNr in range(0, 2):
+                for mRow in range(0, len(allRuns)):
+                    for mCol in range(0, len(allRuns)):
+                        if -9.0 < corrTargets[tar][mRow][mCol] < 0.0:
+                            _pco_fixPlateMatix(corrTargets[tar], mRow, mCol)
+            for mRow in range(0, len(allRuns)):
+                for mCol in range(0, len(allRuns)):
+                    if -9.0 < corrTargets[tar][mRow][mCol] < 0.0:
+                        tarErr[tar] = "Error " + str(tar) + ": Could not fix all matrix gaps."
 
         # Calc final correction factors
         finalTarFactor = {}
@@ -7989,6 +8006,9 @@ class Experiment:
                 finalFactor.append(-1.0)
                 resTable[tarCount].append("no overlap")
 
+        print("Plate: " + err)
+        for tar in sortTargets:
+            print(tar + ": " + tarErr[tar])
 
         for rrr in resTable:
             print(rrr)
