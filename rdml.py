@@ -1717,6 +1717,58 @@ def _mca_linReg(xIn, yUse, start, stop):
     return [slope, intercept]
 
 
+def _pco_fixPlateMatix(mat, row, col):
+    """A function which calculates the missing values for the given position.
+
+    Args:
+        mat: The matrix to correct
+        row: The row position of the value to correct
+        col: The column position of the value to correct
+
+    Returns:
+        None, changes the values in the matrix.
+    """
+
+    matSize = len(mat)
+
+    # Return if there are useful no values
+    maxVal = -10
+    for curr in range(0, matSize):
+        maxVal = max(maxVal, mat[row][curr])
+        maxVal = max(maxVal, mat[curr][col])
+    if maxVal <= 0.0:
+        return
+
+    # Calc the missing values
+    finSum = 0.0
+    finNum = 0
+    for mCol in range(0, matSize):
+        if mCol == col:
+            continue
+        colSum = 0.0
+        colNum = 0
+        for mRow in range(0, matSize):
+            if mRow == row:
+                continue
+            if mat[mRow][mCol] <= 0.0:
+                continue
+            if mat[mRow][col] <= 0.0:
+                continue
+            colSum += math.log(mat[mRow][mCol] / mat[mRow][col])
+            colNum += 1
+        if colNum > 0:
+            colGeo = math.exp(colSum / colNum)
+            if colGeo > 0:
+                finSum += math.log(mat[row][mCol] / colGeo)
+                finNum += 1
+    finFact = -1.0
+    if finNum > 0:
+        finFact = math.exp(finSum / finNum)
+    if finNum > 0:
+        mat[row][col] = finFact
+        mat[col][row] = 1.0 / finFact
+
+
 def _cleanErrorString(inStr, cleanStyle):
     outStr = ";"
     inStr += ";"
@@ -7853,7 +7905,7 @@ class Experiment:
                     corrMat[cRunA][cRunB] = -1.0
                     corrMat[cRunB][cRunA] = -1.0
 
-        # Score Matrix values
+        # Set diagonal 1.0
         for sRun in range(0, len(allRuns)):
             maxVal = -3.0
             for curr in range(0, len(allRuns)):
@@ -7862,7 +7914,29 @@ class Experiment:
             if maxVal > 0.0:
                 corrMat[sRun][sRun] = 1.0
 
-        finalFactor = []
+        for tar in sortTargets:
+            for sRun in range(0, len(allRuns)):
+                if tar in targetUse[sRun] and targetUse[sRun][tar] is True:
+                    maxVal = -3.0
+                    for curr in range(0, len(allRuns)):
+                        maxVal = max(maxVal, corrTargets[tar][sRun][curr])
+                        maxVal = max(maxVal, corrTargets[tar][curr][sRun])
+                    if maxVal > 0.0:
+                        corrTargets[tar][sRun][sRun] = 1.0
+                else:
+                    for curr in range(0, len(allRuns)):
+                        corrTargets[tar][sRun][curr] = -10.0
+                        corrTargets[tar][curr][sRun] = -10.0
+
+        for rrr in corrMat:
+            print(rrr)
+
+        _pco_fixPlateMatix(corrMat, 4, 5)
+
+        for rrr in corrMat:
+            print(rrr)
+
+        # Calc final correction factors
         finalTarFactor = {}
         resTable = [[""]]
         for runP in runIds:
@@ -7876,12 +7950,6 @@ class Experiment:
             for sRun in range(0, len(allRuns)):
                 if tar in targetUse[sRun] and targetUse[sRun][tar] is True:
                     resTable[tarCount - 1].append("+")
-                    maxVal = -3.0
-                    for curr in range(0, len(allRuns)):
-                        maxVal = max(maxVal, corrTargets[tar][sRun][curr])
-                        maxVal = max(maxVal, corrTargets[tar][curr][sRun])
-                    if maxVal > 0.0:
-                        corrTargets[tar][sRun][sRun] = 1.0
                     linSum = 0.0
                     linNum = 0
                     for fRunB in range(0, len(allRuns)):
@@ -7898,12 +7966,10 @@ class Experiment:
                 else:
                     resTable[tarCount - 1].append("-")
                     resTable[tarCount].append("target missing")
-                    for curr in range(0, len(allRuns)):
-                        corrTargets[tar][sRun][curr] = -10.0
-                        corrTargets[tar][curr][sRun] = -10.0
                     finalTarFactor[tar].append(-1.0)
 
-        # Calc final correction factors
+
+        finalFactor = []
         resTable.append(["Plate"])
         resTable.append(["Corr.Fact."])
         tarCount += 2
@@ -7911,7 +7977,7 @@ class Experiment:
             linSum = 0.0
             linNum = 0
             for fRunB in range(0, len(allRuns)):
-                if corrMat[fRunA][fRunB] > 0.0:
+                if corrMat[fRunB][fRunA] > 0.0:
                     linSum += math.log(corrMat[fRunB][fRunA])
                     linNum += 1
             resTable[tarCount - 1].append("")
@@ -7924,9 +7990,9 @@ class Experiment:
                 resTable[tarCount].append("no overlap")
 
 
+        for rrr in resTable:
+            print(rrr)
 
-
-        print(resTable)
         return res
 
 
@@ -12934,7 +13000,6 @@ class Run:
                                 if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
                                     finalFactor = peakResFluor[rRow][lCol] / peakResSumFuor[rRow]
                                     goodVal = "{:.3f}".format(finalFactor)
-                                    print(str(finalFactor))
                                     _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
                                     _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "-1.0", True, "string")
                                     oldCq = _get_first_child_text(rdmlElemData[rRow], "cq")
@@ -12959,7 +13024,6 @@ class Run:
                                 _change_subelement(rdmlElemData[rRow], "meltTemp", dataXMLelements, goodVal, True, "string")
                             else:
                                 if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
-                                     print(str(0.0))
                                      _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, "0.0", True, "string")
                                      _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "-1.0", True, "string")
             finalData["resultsList"] = resTable
