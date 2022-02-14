@@ -7640,6 +7640,10 @@ class Experiment:
         res = {}
         runIds = []
         targetUse = []
+        tarOverlap = {}
+        tarPara = {}
+        thres_Sum = 0.0
+        thres_Num = 0
         corrTargets = {}
         corrMat = []
         samSel = {}
@@ -7699,12 +7703,25 @@ class Experiment:
                     corrMat[row][col] = -2.0
         corrMat[0][0] = -2.0
         for tar in corrTargets:
+            tarOverlap[tar] = []
+            tarPara[tar] = {}
+            tarPara[tar]["Eff_Sum"] = 0.0
+            tarPara[tar]["Eff_Num"] = 0
+            tarPara[tar]["Err_Sum"] = []
+            tarPara[tar]["Err_Num"] = []
+            tarPara[tar]["Thres_Sum"] = 0.0
+            tarPara[tar]["Thres_Num"] = 0
             for row in range(0, len(allRuns)):
                 corrTargets[tar].append([])
+                tarOverlap[tar].append([])
+                tarPara[tar]["Err_Sum"].append(0.0)
+                tarPara[tar]["Err_Num"].append(0)
                 for col in range(0, len(allRuns)):
                     corrTargets[tar][row].append(-1.0)
+                    tarOverlap[tar][row].append(0)
                     if row == col:
                         corrTargets[tar][row][col] = -2.0
+                        tarOverlap[tar][row][col] = -1.0
 
         # Collect Run - Target Information
         for pRunA in range(0, len(allRuns)):
@@ -7719,7 +7736,35 @@ class Experiment:
                         continue
                     if tarId.attrib['id'] == "":
                         continue
-                    targetUse[pRunA][tarId.attrib['id']] = True
+                    tar = tarId.attrib['id']
+                    targetUse[pRunA][tar] = True
+                    ampEff = _get_first_child_text(react_data, "ampEff")
+                    if ampEff != "":
+                        try:
+                            ampEff = float(ampEff)
+                        except ValueError:
+                            pass
+                        else:
+                            tarPara[tar]["Eff_Sum"] += ampEff
+                            tarPara[tar]["Eff_Num"] += 1
+                    effErr = _get_first_child_text(react_data, "ampEffSE")
+                    if effErr != "":
+                        try:
+                            effErr = float(effErr)
+                        except ValueError:
+                            pass
+                        else:
+                            tarPara[tar]["Err_Sum"][pRunA] += effErr
+                            tarPara[tar]["Err_Num"][pRunA] += 1
+                    thres = _get_first_child_text(react_data, "quantFluor")
+                    if thres != "":
+                        try:
+                            thres = float(thres)
+                        except ValueError:
+                            pass
+                        else:
+                            thres_Sum += math.log(thres)
+                            thres_Num += 1
 
         # Analyze the runs pair by pair
         for cRunA in range(1, len(allRuns)):
@@ -7869,6 +7914,8 @@ class Experiment:
                             if sample not in bOverlap[target]:
                                 bOverlap[target][sample] = []
                             bOverlap[target][sample].append(n0Val)
+                            tarOverlap[target][cRunA][cRunB] += 1
+                            tarOverlap[target][cRunB][cRunA] += 1
 
                 plateSum = 0.0
                 plateNum = 0
@@ -7985,7 +8032,6 @@ class Experiment:
                     resTable[tarCount].append("target missing")
                     finalTarFactor[tar].append(-1.0)
 
-
         finalFactor = []
         resTable.append(["Plate"])
         resTable.append(["Corr.Fact."])
@@ -8009,9 +8055,30 @@ class Experiment:
         print("Plate: " + err)
         for tar in sortTargets:
             print(tar + ": " + tarErr[tar])
+            print("Eff: Count - " + str(tarPara[tar]["Eff_Num"]))
+            if tarPara[tar]["Eff_Num"] > 0:
+                print("Eff: " + str(tarPara[tar]["Eff_Sum"] / tarPara[tar]["Eff_Num"]))
+            errSumTr = 0.0
+            errNum = 0
+            finErr = 0.0
+            for pRunA in range(0, len(allRuns)):
+                errSumTr += tarPara[tar]["Err_Sum"][pRunA] * tarPara[tar]["Err_Sum"][pRunA]
+                errNum += tarPara[tar]["Err_Num"][pRunA]
+            if errNum > 0:
+                finErr = math.sqrt(errSumTr) / math.sqrt(errNum)
+            print("Err: Count - " + str(errNum))
+            print("Err: " + str(finErr))
+
+            for rrr in tarOverlap[tar]:
+                print(rrr)
 
         for rrr in resTable:
             print(rrr)
+
+        if thres_Num > 0:
+            curTarRes = math.exp(thres_Sum / thres_Num)
+        print("Thres: Count - " + str(thres_Num))
+        print("Thres: " + str(curTarRes))
 
         return res
 
