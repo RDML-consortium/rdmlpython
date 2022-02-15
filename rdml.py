@@ -7614,9 +7614,6 @@ class Experiment:
                         resList[rRow][rCol] = ""
             allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
 
-        if "noRawData" in allData:
-            allData["error"] = allData["noRawData"]
-
         return allData
 
     def interRunCorr(self, overlapType="samples", corrLevel="plate", selAnnotation="", updateRDML=False):
@@ -7637,11 +7634,13 @@ class Experiment:
         """
 
         res = {}
-        res["run"] = []
+        res["runs"] = []
         res["target"] = {}
         res["plate"] = {}
         res["plate"]["corrF"] = []
         res["plate"]["matrix"] = []
+        err = ""
+        res["threshold"] = -1.0
         tarPara = {}
         thres_Sum = 0.0
         thres_Num = 0
@@ -7695,6 +7694,8 @@ class Experiment:
                     res["target"][tar]["present"] = {}
                     res["target"][tar]["overlap"] = []
                     res["target"][tar]["matrix"] = []
+                    res["target"][tar]["ampEff"] = -1.0
+                    res["target"][tar]["ampEffSE"] = -1.0
 
         sortTargets = sorted(list(res["target"].keys()))
 
@@ -7712,8 +7713,6 @@ class Experiment:
             tarPara[tar]["Eff_Num"] = 0
             tarPara[tar]["Err_Sum"] = []
             tarPara[tar]["Err_Num"] = []
-            tarPara[tar]["Thres_Sum"] = 0.0
-            tarPara[tar]["Thres_Num"] = 0
             for row in range(0, len(allRuns)):
                 res["target"][tar]["matrix"].append([])
                 res["target"][tar]["overlap"].append([])
@@ -7729,7 +7728,7 @@ class Experiment:
         # Collect Run - Target Information
         for pRunA in range(0, len(allRuns)):
             runA = allRuns[pRunA]
-            res["run"].append(runA['id'])
+            res["runs"].append(runA['id'])
             reacts = _get_all_children(runA._node, "react")
             for react in reacts:
                 react_datas = _get_all_children(react, "data")
@@ -7987,7 +7986,6 @@ class Experiment:
                         res["target"][tar]["matrix"][curr][sRun] = -10.0
 
         # Fill matix gaps
-        err = ""
         for appNr in range(0, 2):
             for mRow in range(0, len(allRuns)):
                 for mCol in range(0, len(allRuns)):
@@ -7998,9 +7996,7 @@ class Experiment:
                 if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
                     err = "Error Plate: Could not fix all matrix gaps."
 
-        tarErr = {}
         for tar in sortTargets:
-            tarErr[tar] = ""
             for appNr in range(0, 2):
                 for mRow in range(0, len(allRuns)):
                     for mCol in range(0, len(allRuns)):
@@ -8009,12 +8005,14 @@ class Experiment:
             for mRow in range(0, len(allRuns)):
                 for mCol in range(0, len(allRuns)):
                     if -9.0 < res["target"][tar]["matrix"][mRow][mCol] < 0.0:
-                        tarErr[tar] = "Error " + str(tar) + ": Could not fix all matrix gaps."
+                        if err != "":
+                            err += ";"
+                        err += "Error " + str(tar) + ": Could not fix all matrix gaps."
 
         # Calc final correction factors
         finalTarFactor = {}
         resTable = [[""]]
-        for runP in res["run"]:
+        for runP in res["runs"]:
             resTable[0].append(runP)
         tarCount = 0
         for tar in sortTargets:
@@ -8067,20 +8065,22 @@ class Experiment:
 
         print("Plate: " + err)
         for tar in sortTargets:
-            print(tar + ": " + tarErr[tar])
+            print(tar + ": " )
             print("Eff: Count - " + str(tarPara[tar]["Eff_Num"]))
             if tarPara[tar]["Eff_Num"] > 0:
-                print("Eff: " + str(tarPara[tar]["Eff_Sum"] / tarPara[tar]["Eff_Num"]))
+                res["target"][tar]["ampEff"] = tarPara[tar]["Eff_Sum"] / tarPara[tar]["Eff_Num"]
+                print("Eff: " + str(res["target"][tar]["ampEff"]))
             errSumTr = 0.0
             errNum = 0
-            finErr = 0.0
             for pRunA in range(0, len(allRuns)):
-                errSumTr += tarPara[tar]["Err_Sum"][pRunA] * tarPara[tar]["Err_Sum"][pRunA]
-                errNum += tarPara[tar]["Err_Num"][pRunA]
+                if tarPara[tar]["Err_Num"][pRunA] > 0:
+                    plateSE = tarPara[tar]["Err_Sum"][pRunA] / tarPara[tar]["Err_Num"][pRunA]
+                    errSumTr += (plateSE * math.sqrt(tarPara[tar]["Err_Num"][pRunA])) ** 2
+                    errNum += tarPara[tar]["Err_Num"][pRunA]
             if errNum > 0:
-                finErr = math.sqrt(errSumTr) / math.sqrt(errNum)
+                res["target"][tar]["ampEffSE"] = math.sqrt(errSumTr) / math.sqrt(errNum)
             print("Err: Count - " + str(errNum))
-            print("Err: " + str(finErr))
+            print("Err: " + str(res["target"][tar]["ampEffSE"]))
 
             for rrr in res["target"][tar]["overlap"]:
                 print(rrr)
@@ -8089,10 +8089,11 @@ class Experiment:
             print(rrr)
 
         if thres_Num > 0:
-            curTarRes = math.exp(thres_Sum / thres_Num)
+            res["threshold"] = math.exp(thres_Sum / thres_Num)
         print("Thres: Count - " + str(thres_Num))
-        print("Thres: " + str(curTarRes))
-
+        print("Thres: " + str(res["threshold"]))
+        if err != "":
+            res["error"] = err
         return res
 
 
