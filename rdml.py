@@ -4459,7 +4459,7 @@ class Rdml:
                         if foundId not in addDocs:
                             if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
                                 addDocs.append(foundId)
-                subNode = _get_first_child(experiment._node, "cdnaSynthesisMethod")
+                subNode = _get_first_child(node, "cdnaSynthesisMethod")
                 if subNode is not None:
                     forId = _get_first_child(subNode, "thermalCyclingConditions")
                     if forId is not None:
@@ -7604,8 +7604,8 @@ class Experiment:
                                     selAnnotation=selAnnotation,
                                     updateRDML=updateRDML)
         if "resultsList" in allData:
-            header = res["resultsList"].pop(0)
-            resList = sorted(res["resultsList"], key=_sort_list_int)
+            header = allData["resultsList"].pop(0)
+            resList = sorted(allData["resultsList"], key=_sort_list_int)
             for rRow in range(0, len(resList)):
                 for rCol in range(0, len(resList[rRow])):
                     if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
@@ -7631,21 +7631,20 @@ class Experiment:
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
-            rawData: A 2d array with the raw fluorescence values
-            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
-            resultsList: A 2d array object.
-            resultsCSV: A csv string.
+            run: A list of the run ids
+            target: A dictionary with the results per target
+            plate: A dictionary with the results per plate
         """
 
         res = {}
-        runIds = []
-        targetUse = []
-        tarOverlap = {}
+        res["run"] = []
+        res["target"] = {}
+        res["plate"] = {}
+        res["plate"]["corrF"] = []
+        res["plate"]["matrix"] = []
         tarPara = {}
         thres_Sum = 0.0
         thres_Num = 0
-        corrTargets = {}
-        corrMat = []
         samSel = {}
         negSam = {}
         allRuns = self.runs()
@@ -7690,20 +7689,24 @@ class Experiment:
                         continue
                     if tarId.attrib['id'] == "":
                         continue
-                    corrTargets[tarId.attrib['id']] = []
-        sortTargets = sorted(list(corrTargets.keys()))
+                    tar = tarId.attrib['id']
+                    res["target"][tar] = {}
+                    res["target"][tar]["corrF"] = []
+                    res["target"][tar]["present"] = {}
+                    res["target"][tar]["overlap"] = []
+                    res["target"][tar]["matrix"] = []
+
+        sortTargets = sorted(list(res["target"].keys()))
 
         # Create Plate Matrix
         for row in range(0, len(allRuns)):
-            corrMat.append([])
-            targetUse.append({})
+            res["plate"]["matrix"].append([])
             for col in range(0, len(allRuns)):
-                corrMat[row].append(-1.0)
+                res["plate"]["matrix"][row].append(-1.0)
                 if row == col:
-                    corrMat[row][col] = -2.0
-        corrMat[0][0] = -2.0
-        for tar in corrTargets:
-            tarOverlap[tar] = []
+                    res["plate"]["matrix"][row][col] = -2.0
+        res["plate"]["matrix"][0][0] = -2.0
+        for tar in res["target"]:
             tarPara[tar] = {}
             tarPara[tar]["Eff_Sum"] = 0.0
             tarPara[tar]["Eff_Num"] = 0
@@ -7712,21 +7715,21 @@ class Experiment:
             tarPara[tar]["Thres_Sum"] = 0.0
             tarPara[tar]["Thres_Num"] = 0
             for row in range(0, len(allRuns)):
-                corrTargets[tar].append([])
-                tarOverlap[tar].append([])
+                res["target"][tar]["matrix"].append([])
+                res["target"][tar]["overlap"].append([])
                 tarPara[tar]["Err_Sum"].append(0.0)
                 tarPara[tar]["Err_Num"].append(0)
                 for col in range(0, len(allRuns)):
-                    corrTargets[tar][row].append(-1.0)
-                    tarOverlap[tar][row].append(0)
+                    res["target"][tar]["matrix"][row].append(-1.0)
+                    res["target"][tar]["overlap"][row].append(0)
                     if row == col:
-                        corrTargets[tar][row][col] = -2.0
-                        tarOverlap[tar][row][col] = -1.0
+                        res["target"][tar]["matrix"][row][col] = -2.0
+                        res["target"][tar]["overlap"][row][col] = -2.0
 
         # Collect Run - Target Information
         for pRunA in range(0, len(allRuns)):
             runA = allRuns[pRunA]
-            runIds.append(runA['id'])
+            res["run"].append(runA['id'])
             reacts = _get_all_children(runA._node, "react")
             for react in reacts:
                 react_datas = _get_all_children(react, "data")
@@ -7737,7 +7740,7 @@ class Experiment:
                     if tarId.attrib['id'] == "":
                         continue
                     tar = tarId.attrib['id']
-                    targetUse[pRunA][tar] = True
+                    res["target"][tar]["present"][pRunA] = True
                     ampEff = _get_first_child_text(react_data, "ampEff")
                     if ampEff != "":
                         try:
@@ -7767,7 +7770,10 @@ class Experiment:
                             thres_Num += 1
 
         # Analyze the runs pair by pair
-        for cRunA in range(1, len(allRuns)):
+        for cRunA in range(0, len(allRuns)):
+            condCount = {}
+            for tar in res["target"]:
+                condCount[tar] = 0
             possible = {}
             runA = allRuns[cRunA]
             reacts = _get_all_children(runA._node, "react")
@@ -7833,10 +7839,13 @@ class Experiment:
                         if sample not in possible[target]:
                             possible[target][sample] = []
                         possible[target][sample].append(n0Val)
+                    condCount[target] += 1
 
             for cRunB in range(0, len(allRuns)):
                 bOverlap = {}
                 if cRunA == cRunB:
+                    for tar in res["target"]:
+                        res["target"][tar]["overlap"][cRunA][cRunA] = condCount[tar]
                     continue
                 if cRunA < cRunB:
                     continue
@@ -7910,12 +7919,14 @@ class Experiment:
                             if translSamp not in bOverlap[target]:
                                 bOverlap[target][translSamp] = []
                             bOverlap[target][translSamp].append(n0Val)
+                            res["target"][target]["overlap"][cRunA][cRunB] += 1
+                            res["target"][target]["overlap"][cRunB][cRunA] += 1
                         else:
                             if sample not in bOverlap[target]:
                                 bOverlap[target][sample] = []
                             bOverlap[target][sample].append(n0Val)
-                            tarOverlap[target][cRunA][cRunB] += 1
-                            tarOverlap[target][cRunB][cRunA] += 1
+                            res["target"][target]["overlap"][cRunA][cRunB] += 1
+                            res["target"][target]["overlap"][cRunB][cRunA] += 1
 
                 plateSum = 0.0
                 plateNum = 0
@@ -7936,55 +7947,55 @@ class Experiment:
                     else:
                         tarMean = -1.0
                     if tarMean > 0.0:
-                        corrTargets[tar][cRunA][cRunB] = 1.0 / tarMean
-                        corrTargets[tar][cRunB][cRunA] = tarMean
+                        res["target"][tar]["matrix"][cRunA][cRunB] = 1.0 / tarMean
+                        res["target"][tar]["matrix"][cRunB][cRunA] = tarMean
                     else:
-                        corrTargets[tar][cRunA][cRunB] = -1.0
-                        corrTargets[tar][cRunB][cRunA] = -1.0
+                        res["target"][tar]["matrix"][cRunA][cRunB] = -1.0
+                        res["target"][tar]["matrix"][cRunB][cRunA] = -1.0
                 if plateNum > 0:
                     plateMean = math.exp(plateSum / plateNum)
                 else:
                     plateMean = -1.0
                 if plateMean > 0.0:
-                    corrMat[cRunA][cRunB] = 1.0 / plateMean
-                    corrMat[cRunB][cRunA] = plateMean
+                    res["plate"]["matrix"][cRunA][cRunB] = 1.0 / plateMean
+                    res["plate"]["matrix"][cRunB][cRunA] = plateMean
                 else:
-                    corrMat[cRunA][cRunB] = -1.0
-                    corrMat[cRunB][cRunA] = -1.0
+                    res["plate"]["matrix"][cRunA][cRunB] = -1.0
+                    res["plate"]["matrix"][cRunB][cRunA] = -1.0
 
         # Set diagonal 1.0
         for sRun in range(0, len(allRuns)):
             maxVal = -3.0
             for curr in range(0, len(allRuns)):
-                maxVal = max(maxVal, corrMat[sRun][curr])
-                maxVal = max(maxVal, corrMat[curr][sRun])
+                maxVal = max(maxVal, res["plate"]["matrix"][sRun][curr])
+                maxVal = max(maxVal, res["plate"]["matrix"][curr][sRun])
             if maxVal > 0.0:
-                corrMat[sRun][sRun] = 1.0
+                res["plate"]["matrix"][sRun][sRun] = 1.0
 
         for tar in sortTargets:
             for sRun in range(0, len(allRuns)):
-                if tar in targetUse[sRun] and targetUse[sRun][tar] is True:
+                if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
                     maxVal = -3.0
                     for curr in range(0, len(allRuns)):
-                        maxVal = max(maxVal, corrTargets[tar][sRun][curr])
-                        maxVal = max(maxVal, corrTargets[tar][curr][sRun])
+                        maxVal = max(maxVal, res["target"][tar]["matrix"][sRun][curr])
+                        maxVal = max(maxVal, res["target"][tar]["matrix"][curr][sRun])
                     if maxVal > 0.0:
-                        corrTargets[tar][sRun][sRun] = 1.0
+                        res["target"][tar]["matrix"][sRun][sRun] = 1.0
                 else:
                     for curr in range(0, len(allRuns)):
-                        corrTargets[tar][sRun][curr] = -10.0
-                        corrTargets[tar][curr][sRun] = -10.0
+                        res["target"][tar]["matrix"][sRun][curr] = -10.0
+                        res["target"][tar]["matrix"][curr][sRun] = -10.0
 
         # Fill matix gaps
         err = ""
         for appNr in range(0, 2):
             for mRow in range(0, len(allRuns)):
                 for mCol in range(0, len(allRuns)):
-                    if -9.0 < corrMat[mRow][mCol] < 0.0:
-                        _pco_fixPlateMatix(corrMat, mRow, mCol)
+                    if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
+                        _pco_fixPlateMatix(res["plate"]["matrix"], mRow, mCol)
         for mRow in range(0, len(allRuns)):
             for mCol in range(0, len(allRuns)):
-                if -9.0 < corrMat[mRow][mCol] < 0.0:
+                if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
                     err = "Error Plate: Could not fix all matrix gaps."
 
         tarErr = {}
@@ -7993,17 +8004,17 @@ class Experiment:
             for appNr in range(0, 2):
                 for mRow in range(0, len(allRuns)):
                     for mCol in range(0, len(allRuns)):
-                        if -9.0 < corrTargets[tar][mRow][mCol] < 0.0:
-                            _pco_fixPlateMatix(corrTargets[tar], mRow, mCol)
+                        if -9.0 < res["target"][tar]["matrix"][mRow][mCol] < 0.0:
+                            _pco_fixPlateMatix(res["target"][tar]["matrix"], mRow, mCol)
             for mRow in range(0, len(allRuns)):
                 for mCol in range(0, len(allRuns)):
-                    if -9.0 < corrTargets[tar][mRow][mCol] < 0.0:
+                    if -9.0 < res["target"][tar]["matrix"][mRow][mCol] < 0.0:
                         tarErr[tar] = "Error " + str(tar) + ": Could not fix all matrix gaps."
 
         # Calc final correction factors
         finalTarFactor = {}
         resTable = [[""]]
-        for runP in runIds:
+        for runP in res["run"]:
             resTable[0].append(runP)
         tarCount = 0
         for tar in sortTargets:
@@ -8012,13 +8023,13 @@ class Experiment:
             resTable.append(["Corr.Fact."])
             tarCount += 2
             for sRun in range(0, len(allRuns)):
-                if tar in targetUse[sRun] and targetUse[sRun][tar] is True:
+                if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
                     resTable[tarCount - 1].append("+")
                     linSum = 0.0
                     linNum = 0
                     for fRunB in range(0, len(allRuns)):
-                        if corrTargets[tar][fRunB][sRun] > 0.0:
-                            linSum += math.log(corrTargets[tar][fRunB][sRun])
+                        if res["target"][tar]["matrix"][fRunB][sRun] > 0.0:
+                            linSum += math.log(res["target"][tar]["matrix"][fRunB][sRun])
                             linNum += 1
                     if linNum > 0:
                         curTarRes = math.exp(linSum / linNum)
@@ -8040,17 +8051,19 @@ class Experiment:
             linSum = 0.0
             linNum = 0
             for fRunB in range(0, len(allRuns)):
-                if corrMat[fRunB][fRunA] > 0.0:
-                    linSum += math.log(corrMat[fRunB][fRunA])
+                if res["plate"]["matrix"][fRunB][fRunA] > 0.0:
+                    linSum += math.log(res["plate"]["matrix"][fRunB][fRunA])
                     linNum += 1
             resTable[tarCount - 1].append("")
             if linNum > 0:
                 curRes = math.exp(linSum / linNum)
                 finalFactor.append(curRes)
                 resTable[tarCount].append(str(curRes))
+                res["plate"]["corrF"].append(curRes)
             else:
                 finalFactor.append(-1.0)
                 resTable[tarCount].append("no overlap")
+                res["plate"]["corrF"].append(-10.0)
 
         print("Plate: " + err)
         for tar in sortTargets:
@@ -8069,7 +8082,7 @@ class Experiment:
             print("Err: Count - " + str(errNum))
             print("Err: " + str(finErr))
 
-            for rrr in tarOverlap[tar]:
+            for rrr in res["target"][tar]["overlap"]:
                 print(rrr)
 
         for rrr in resTable:
