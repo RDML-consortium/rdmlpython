@@ -7662,7 +7662,7 @@ class Experiment:
         res["runs"] = []
         res["target"] = {}
         res["plate"] = {}
-        res["plate"]["corrF"] = []
+        res["plate"]["corrP"] = []
         res["plate"]["matrix"] = []
         err = ""
         res["threshold"] = -1.0
@@ -7715,7 +7715,7 @@ class Experiment:
                         continue
                     tar = tarId.attrib['id']
                     res["target"][tar] = {}
-                    res["target"][tar]["corrF"] = []
+                    res["target"][tar]["corrP"] = []
                     res["target"][tar]["present"] = {}
                     res["target"][tar]["overlap"] = []
                     res["target"][tar]["matrix"] = []
@@ -7839,7 +7839,7 @@ class Experiment:
                         continue
                     if n0Val <= 0.0:
                         continue
-                    corrVal = _get_first_child_text(react_data, "corrF")
+                    corrVal = _get_first_child_text(react_data, "corrP")
                     if corrVal != "":
                         try:
                             n0Val = float(corrVal)
@@ -7923,7 +7923,7 @@ class Experiment:
                             continue
                         if n0Val <= 0.0:
                             continue
-                        corrVal = _get_first_child_text(react_data, "corrF")
+                        corrVal = _get_first_child_text(react_data, "corrP")
                         if corrVal != "":
                             try:
                                 n0Val = float(corrVal)
@@ -8048,11 +8048,11 @@ class Experiment:
                             linNum += 1
                     if linNum > 0:
                         curTarRes = math.exp(linSum / linNum)
-                        res["target"][tar]["corrF"].append(curTarRes)
+                        res["target"][tar]["corrP"].append(curTarRes)
                     else:
-                        res["target"][tar]["corrF"].append(-1.0)
+                        res["target"][tar]["corrP"].append(-1.0)
                 else:
-                    res["target"][tar]["corrF"].append(-10.0)
+                    res["target"][tar]["corrP"].append(-10.0)
 
         for fRunA in range(0, len(allRuns)):
             linSum = 0.0
@@ -8063,9 +8063,9 @@ class Experiment:
                     linNum += 1
             if linNum > 0:
                 curRes = math.exp(linSum / linNum)
-                res["plate"]["corrF"].append(curRes)
+                res["plate"]["corrP"].append(curRes)
             else:
-                res["plate"]["corrF"].append(-10.0)
+                res["plate"]["corrP"].append(-10.0)
 
         for tar in sortTargets:
             if tarPara[tar]["Eff_Num"] > 0:
@@ -8104,12 +8104,12 @@ class Experiment:
                         if tarId.attrib['id'] == "":
                             continue
                         tar = tarId.attrib['id']
-                        corrFac = -1.0
+                        corrPlate = -1.0
                         if tar in res["target"]:
-                            corrFac = res["target"][tar]["corrF"][pRunA]
+                            corrPlate = res["target"][tar]["corrP"][pRunA]
                         if corrLevel == "plate":
-                            corrFac = res["plate"]["corrF"][pRunA]
-                        goodVal = "{:.4f}".format(corrFac)
+                            corrPlate = res["plate"]["corrP"][pRunA]
+                        goodVal = "{:.4f}".format(corrPlate)
                         _change_subelement(react_data, "corrP", dataXMLelements, goodVal, True, "string")
                         n0Val = _get_first_child_text(react_data, "N0")
                         if n0Val == "":
@@ -8120,11 +8120,20 @@ class Experiment:
                             continue
                         if n0Val <= 0.0:
                             continue
+                        corrFac = _get_first_child_text(react_data, "corrF")
+                        if corrFac == "":
+                            corrFac = "1.0"
+                        try:
+                            corrFac = float(corrFac)
+                        except ValueError:
+                            corrFac = 1.0
+                        if corrFac < 0.0:
+                            continue
                         if res["threshold"] <= 0.0:
                             continue
-                        if n0Val <= 0.0:
+                        if res["target"][tar]["ampEff"] <= 0.0:
                             continue
-                        Cq_corr = (math.log10(res["threshold"]) - math.log10(n0Val * corrFac)) / math.log10(res["target"][tar]["ampEff"])
+                        Cq_corr = (math.log10(res["threshold"]) - math.log10((n0Val * corrFac) / corrPlate)) / math.log10(res["target"][tar]["ampEff"])
                         goodVal = "{:.4f}".format(Cq_corr)
                         print(goodVal)
                         _change_subelement(react_data, "corrCq", dataXMLelements, goodVal, True, "string")
@@ -10037,10 +10046,10 @@ class Run:
                     except ValueError:
                         calcPlate = 0.0
                     if np.isnan(calcPlate):
-                        calcPlate = 0.0
-                    if calcPlate < 0.0:
-                        calcPlate = 0.0
-                    calcCorr *= calcPlate
+                        calcCorr = 0.0
+                    if calcPlate == 0.0:
+                        calcCorr = 0.0
+                    calcCorr = calcCorr / calcPlate
                 calcN0 = _get_first_child_text(react_data, "N0")
                 in_react["corrN0"] = calcN0
                 if calcCorr > 0.0001:
