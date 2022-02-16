@@ -7581,6 +7581,31 @@ class Experiment:
         data["runs"] = runs
         return data
 
+    def getreactjson(self):
+        """Returns a json of the RDML object without fluorescence data.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A json of the data.
+        """
+
+        allRuns = self.runs()
+        runs = []
+        runCount = 0
+        for exp in allRuns:
+            runs.append(exp.tojson())
+            runs[runCount]["AllData"] = exp.getreactjson(curves=False)
+            runCount += 1
+        data = {
+            "id": self._node.get('id'),
+        }
+        _add_first_child_to_dic(self._node, data, True, "description")
+        data["documentations"] = self.documentation_ids()
+        data["runs"] = runs
+        return data
+
     def webAppInterRunCorr(self, overlapType="samples", corrLevel="plate", selAnnotation="", updateRDML=False):
         """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
 
@@ -7984,6 +8009,8 @@ class Experiment:
                     for curr in range(0, len(allRuns)):
                         res["target"][tar]["matrix"][sRun][curr] = -10.0
                         res["target"][tar]["matrix"][curr][sRun] = -10.0
+                        res["target"][tar]["overlap"][sRun][curr] = -10
+                        res["target"][tar]["overlap"][curr][sRun] = -10
 
         # Fill matix gaps
         for appNr in range(0, 2):
@@ -8010,19 +8037,9 @@ class Experiment:
                         err += "Error " + str(tar) + ": Could not fix all matrix gaps."
 
         # Calc final correction factors
-        finalTarFactor = {}
-        resTable = [[""]]
-        for runP in res["runs"]:
-            resTable[0].append(runP)
-        tarCount = 0
         for tar in sortTargets:
-            finalTarFactor[tar] = []
-            resTable.append([tar])
-            resTable.append(["Corr.Fact."])
-            tarCount += 2
             for sRun in range(0, len(allRuns)):
                 if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
-                    resTable[tarCount - 1].append("+")
                     linSum = 0.0
                     linNum = 0
                     for fRunB in range(0, len(allRuns)):
@@ -8031,20 +8048,12 @@ class Experiment:
                             linNum += 1
                     if linNum > 0:
                         curTarRes = math.exp(linSum / linNum)
-                        finalTarFactor[tar].append(curTarRes)
-                        resTable[tarCount].append(str(curTarRes))
+                        res["target"][tar]["corrF"].append(curTarRes)
                     else:
-                        finalTarFactor[tar].append(-1.0)
-                        resTable[tarCount].append("no overlap")
+                        res["target"][tar]["corrF"].append(-1.0)
                 else:
-                    resTable[tarCount - 1].append("-")
-                    resTable[tarCount].append("target missing")
-                    finalTarFactor[tar].append(-1.0)
+                    res["target"][tar]["corrF"].append(-10.0)
 
-        finalFactor = []
-        resTable.append(["Plate"])
-        resTable.append(["Corr.Fact."])
-        tarCount += 2
         for fRunA in range(0, len(allRuns)):
             linSum = 0.0
             linNum = 0
@@ -8052,24 +8061,15 @@ class Experiment:
                 if res["plate"]["matrix"][fRunB][fRunA] > 0.0:
                     linSum += math.log(res["plate"]["matrix"][fRunB][fRunA])
                     linNum += 1
-            resTable[tarCount - 1].append("")
             if linNum > 0:
                 curRes = math.exp(linSum / linNum)
-                finalFactor.append(curRes)
-                resTable[tarCount].append(str(curRes))
                 res["plate"]["corrF"].append(curRes)
             else:
-                finalFactor.append(-1.0)
-                resTable[tarCount].append("no overlap")
                 res["plate"]["corrF"].append(-10.0)
 
-        print("Plate: " + err)
         for tar in sortTargets:
-            print(tar + ": " )
-            print("Eff: Count - " + str(tarPara[tar]["Eff_Num"]))
             if tarPara[tar]["Eff_Num"] > 0:
                 res["target"][tar]["ampEff"] = tarPara[tar]["Eff_Sum"] / tarPara[tar]["Eff_Num"]
-                print("Eff: " + str(res["target"][tar]["ampEff"]))
             errSumTr = 0.0
             errNum = 0
             for pRunA in range(0, len(allRuns)):
@@ -8079,21 +8079,56 @@ class Experiment:
                     errNum += tarPara[tar]["Err_Num"][pRunA]
             if errNum > 0:
                 res["target"][tar]["ampEffSE"] = math.sqrt(errSumTr) / math.sqrt(errNum)
-            print("Err: Count - " + str(errNum))
-            print("Err: " + str(res["target"][tar]["ampEffSE"]))
-
-            for rrr in res["target"][tar]["overlap"]:
-                print(rrr)
-
-        for rrr in resTable:
-            print(rrr)
 
         if thres_Num > 0:
             res["threshold"] = math.exp(thres_Sum / thres_Num)
-        print("Thres: Count - " + str(thres_Num))
-        print("Thres: " + str(res["threshold"]))
         if err != "":
             res["error"] = err
+
+        ##############################
+        # write out the rdml results #
+        ##############################
+        if updateRDML is True:
+            dataXMLelements = _getXMLDataType()
+            for pRunA in range(0, len(allRuns)):
+                runA = allRuns[pRunA]
+                reacts = _get_all_children(runA._node, "react")
+                for react in reacts:
+                    react_datas = _get_all_children(react, "data")
+                    for react_data in react_datas:
+                        tarId = _get_first_child(react_data, "tar")
+                        _change_subelement(react_data, "corrP", dataXMLelements, "-1.0", True, "string")
+                        _change_subelement(react_data, "corrCq", dataXMLelements, "-1.0", True, "string")
+                        if tarId is None:
+                            continue
+                        if tarId.attrib['id'] == "":
+                            continue
+                        tar = tarId.attrib['id']
+                        corrFac = -1.0
+                        if tar in res["target"]:
+                            corrFac = res["target"][tar]["corrF"][pRunA]
+                        if corrLevel == "plate":
+                            corrFac = res["plate"]["corrF"][pRunA]
+                        goodVal = "{:.4f}".format(corrFac)
+                        _change_subelement(react_data, "corrP", dataXMLelements, goodVal, True, "string")
+                        n0Val = _get_first_child_text(react_data, "N0")
+                        if n0Val == "":
+                            continue
+                        try:
+                            n0Val = float(n0Val)
+                        except ValueError:
+                            continue
+                        if n0Val <= 0.0:
+                            continue
+                        if res["threshold"] <= 0.0:
+                            continue
+                        if n0Val <= 0.0:
+                            continue
+                        Cq_corr = (math.log10(res["threshold"]) - math.log10(n0Val * corrFac)) / math.log10(res["target"][tar]["ampEff"])
+                        goodVal = "{:.4f}".format(Cq_corr)
+                        print(goodVal)
+                        _change_subelement(react_data, "corrCq", dataXMLelements, goodVal, True, "string")
+
         return res
 
 
