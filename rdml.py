@@ -8135,7 +8135,6 @@ class Experiment:
                             continue
                         Cq_corr = (math.log10(res["threshold"]) - math.log10((n0Val * corrFac) / corrPlate)) / math.log10(res["target"][tar]["ampEff"])
                         goodVal = "{:.4f}".format(Cq_corr)
-                        print(goodVal)
                         _change_subelement(react_data, "corrCq", dataXMLelements, goodVal, True, "string")
 
         return res
