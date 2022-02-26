@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.2.0"
+    return "1.3.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -7606,13 +7606,12 @@ class Experiment:
         data["runs"] = runs
         return data
 
-    def webAppInterRunCorr(self, overlapType="samples", corrLevel="plate", selAnnotation="", updateRDML=False):
+    def webAppInterRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False):
         """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
-            overlapType: Base the overlap on "calibrator", "samples" or "annotation".
-            corrLevel: Use one factor per "target" or "plate".
+            overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
             updateRDML: If true, update the RDML data with the calculated values.
 
@@ -7625,7 +7624,6 @@ class Experiment:
         """
 
         allData = self.interRunCorr(overlapType=overlapType,
-                                    corrLevel=corrLevel,
                                     selAnnotation=selAnnotation,
                                     updateRDML=updateRDML)
         if "resultsList" in allData:
@@ -7641,13 +7639,12 @@ class Experiment:
 
         return allData
 
-    def interRunCorr(self, overlapType="samples", corrLevel="plate", selAnnotation="", updateRDML=False):
+    def interRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False):
         """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
-            overlapType: Base the overlap on "calibrator", "samples" or "annotation".
-            corrLevel: Use one factor per "target" or "plate".
+            overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
             updateRDML: If true, update the RDML data with the calculated values.
 
@@ -7685,12 +7682,6 @@ class Experiment:
                         negSam[samId] = True
                     else:
                         negSam[samId] = False
-                if overlapType == "calibrator":
-                    calibrator = _get_first_child_text(sample, "interRunCalibrator")
-                    if calibrator != "":
-                        if _string_to_bool(calibrator, triple=False):
-                            samSel[samId] = True
-                            continue
                 if overlapType == "annotation":
                     if selAnnotation == "":
                         continue
@@ -7715,10 +7706,8 @@ class Experiment:
                         continue
                     tar = tarId.attrib['id']
                     res["target"][tar] = {}
-                    res["target"][tar]["corrP"] = []
                     res["target"][tar]["present"] = {}
                     res["target"][tar]["overlap"] = []
-                    res["target"][tar]["matrix"] = []
                     res["target"][tar]["ampEff"] = -1.0
                     res["target"][tar]["ampEffSE"] = -1.0
 
@@ -7739,15 +7728,12 @@ class Experiment:
             tarPara[tar]["Err_Sum"] = []
             tarPara[tar]["Err_Num"] = []
             for row in range(0, len(allRuns)):
-                res["target"][tar]["matrix"].append([])
                 res["target"][tar]["overlap"].append([])
                 tarPara[tar]["Err_Sum"].append(0.0)
                 tarPara[tar]["Err_Num"].append(0)
                 for col in range(0, len(allRuns)):
-                    res["target"][tar]["matrix"][row].append(-1.0)
                     res["target"][tar]["overlap"][row].append(0)
                     if row == col:
-                        res["target"][tar]["matrix"][row][col] = -2.0
                         res["target"][tar]["overlap"][row][col] = -2.0
 
         # Collect Run - Target Information
@@ -7764,6 +7750,9 @@ class Experiment:
                     if tarId.attrib['id'] == "":
                         continue
                     tar = tarId.attrib['id']
+                    excluded = _get_first_child_text(react_data, "excl")
+                    if excluded != "":
+                        continue
                     res["target"][tar]["present"][pRunA] = True
                     ampEff = _get_first_child_text(react_data, "ampEff")
                     if ampEff != "":
@@ -7812,11 +7801,6 @@ class Experiment:
                     continue
                 if negSam[sample]:
                     continue
-                if overlapType == "calibrator":
-                    if sample not in samSel:
-                        continue
-                    if not samSel[sample]:
-                        continue
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
                     tarId = _get_first_child(react_data, "tar")
@@ -7882,11 +7866,6 @@ class Experiment:
                     if samId.attrib['id'] == "":
                         continue
                     sample = samId.attrib['id']
-                    if overlapType == "calibrator":
-                        if sample not in samSel:
-                            continue
-                        if not samSel[sample]:
-                            continue
                     react_datas = _get_all_children(react, "data")
                     for react_data in react_datas:
                         tarId = _get_first_child(react_data, "tar")
@@ -7955,27 +7934,13 @@ class Experiment:
                 plateSum = 0.0
                 plateNum = 0
                 for tar in bOverlap:
-                    tarSum = 0.0
-                    tarNum = 0
                     for sam in bOverlap[tar]:
                         for bVal in bOverlap[tar][sam]:
                             for aVal in possible[tar][sam]:
-                                tarSum += math.log(aVal/bVal)
                                 plateSum += math.log(aVal/bVal)
-                                tarNum += 1
                                 plateNum += 1
                     # npTarRes = np.ma.asarray(geoTarColl, dtype=np.float64)
                     # geoTarFac[tar] = scp.gmean(npTarRes)
-                    if tarNum > 0:
-                        tarMean = math.exp(tarSum / tarNum)
-                    else:
-                        tarMean = -1.0
-                    if tarMean > 0.0:
-                        res["target"][tar]["matrix"][cRunA][cRunB] = 1.0 / tarMean
-                        res["target"][tar]["matrix"][cRunB][cRunA] = tarMean
-                    else:
-                        res["target"][tar]["matrix"][cRunA][cRunB] = -1.0
-                        res["target"][tar]["matrix"][cRunB][cRunA] = -1.0
                 if plateNum > 0:
                     plateMean = math.exp(plateSum / plateNum)
                 else:
@@ -7999,16 +7964,9 @@ class Experiment:
         for tar in sortTargets:
             for sRun in range(0, len(allRuns)):
                 if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
-                    maxVal = -3.0
-                    for curr in range(0, len(allRuns)):
-                        maxVal = max(maxVal, res["target"][tar]["matrix"][sRun][curr])
-                        maxVal = max(maxVal, res["target"][tar]["matrix"][curr][sRun])
-                    if maxVal > 0.0:
-                        res["target"][tar]["matrix"][sRun][sRun] = 1.0
+                    pass
                 else:
                     for curr in range(0, len(allRuns)):
-                        res["target"][tar]["matrix"][sRun][curr] = -10.0
-                        res["target"][tar]["matrix"][curr][sRun] = -10.0
                         res["target"][tar]["overlap"][sRun][curr] = -10
                         res["target"][tar]["overlap"][curr][sRun] = -10
 
@@ -8023,37 +7981,7 @@ class Experiment:
                 if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
                     err = "Error Plate: Could not fix all matrix gaps."
 
-        for tar in sortTargets:
-            for appNr in range(0, 2):
-                for mRow in range(0, len(allRuns)):
-                    for mCol in range(0, len(allRuns)):
-                        if -9.0 < res["target"][tar]["matrix"][mRow][mCol] < 0.0:
-                            _pco_fixPlateMatix(res["target"][tar]["matrix"], mRow, mCol)
-            for mRow in range(0, len(allRuns)):
-                for mCol in range(0, len(allRuns)):
-                    if -9.0 < res["target"][tar]["matrix"][mRow][mCol] < 0.0:
-                        if err != "":
-                            err += ";"
-                        err += "Error " + str(tar) + ": Could not fix all matrix gaps."
-
         # Calc final correction factors
-        for tar in sortTargets:
-            for sRun in range(0, len(allRuns)):
-                if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
-                    linSum = 0.0
-                    linNum = 0
-                    for fRunB in range(0, len(allRuns)):
-                        if res["target"][tar]["matrix"][fRunB][sRun] > 0.0:
-                            linSum += math.log(res["target"][tar]["matrix"][fRunB][sRun])
-                            linNum += 1
-                    if linNum > 0:
-                        curTarRes = math.exp(linSum / linNum)
-                        res["target"][tar]["corrP"].append(curTarRes)
-                    else:
-                        res["target"][tar]["corrP"].append(-1.0)
-                else:
-                    res["target"][tar]["corrP"].append(-10.0)
-
         for fRunA in range(0, len(allRuns)):
             linSum = 0.0
             linNum = 0
@@ -8104,12 +8032,7 @@ class Experiment:
                         if tarId.attrib['id'] == "":
                             continue
                         tar = tarId.attrib['id']
-                        corrPlate = -1.0
-                        if tar in res["target"]:
-                            corrPlate = res["target"][tar]["corrP"][pRunA]
-                        if corrLevel == "plate":
-                            corrPlate = res["plate"]["corrP"][pRunA]
-                        goodVal = "{:.4f}".format(corrPlate)
+                        goodVal = "{:.4f}".format(res["plate"]["corrP"][pRunA])
                         _change_subelement(react_data, "corrP", dataXMLelements, goodVal, True, "string")
                         n0Val = _get_first_child_text(react_data, "N0")
                         if n0Val == "":
