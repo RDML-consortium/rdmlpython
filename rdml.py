@@ -7606,39 +7606,6 @@ class Experiment:
         data["runs"] = runs
         return data
 
-    def webAppInterRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False):
-        """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
-
-        Args:
-            self: The class self parameter.
-            overlapType: Base the overlap on "samples" or "annotation".
-            selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
-            updateRDML: If true, update the RDML data with the calculated values.
-
-        Returns:
-            A dictionary with the resulting data, presence and format depending on input.
-            rawData: A 2d array with the raw fluorescence values
-            baselineCorrectedData: A 2d array with the baseline corrected raw fluorescence values
-            resultsList: A 2d array object.
-            resultsCSV: A csv string.
-        """
-
-        allData = self.interRunCorr(overlapType=overlapType,
-                                    selAnnotation=selAnnotation,
-                                    updateRDML=updateRDML)
-        if "resultsList" in allData:
-            header = allData["resultsList"].pop(0)
-            resList = sorted(allData["resultsList"], key=_sort_list_int)
-            for rRow in range(0, len(resList)):
-                for rCol in range(0, len(resList[rRow])):
-                    if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
-                        resList[rRow][rCol] = ""
-                    if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
-                        resList[rRow][rCol] = ""
-            allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
-
-        return allData
-
     def interRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False):
         """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
 
@@ -7656,6 +7623,13 @@ class Experiment:
         """
 
         res = {}
+        if overlapType not in ["samples", "annotation"]:
+            res["error"] = "Error: Unknown overlap type."
+            return res
+        if overlapType == "annotation":
+            if selAnnotation == "":
+                res["error"] = "Error: Selection of annotation required."
+                return res
         res["runs"] = []
         res["target"] = {}
         res["plate"] = {}
@@ -8059,6 +8033,24 @@ class Experiment:
                         Cq_corr = (math.log10(res["threshold"]) - math.log10((n0Val * corrFac) / corrPlate)) / math.log10(res["target"][tar]["ampEff"])
                         goodVal = "{:.4f}".format(Cq_corr)
                         _change_subelement(react_data, "corrCq", dataXMLelements, goodVal, True, "string")
+
+        return res
+
+    def absoluteQuantification(self, method="reference", estimate=True, updateRDML=False):
+        """Perform absolute quantification on the experiment.
+
+        Args:
+            self: The class self parameter.
+            method: Base the overlap on "reference", "cq-guess", "optical" or "standard-curve".
+            estimate: If true, missing targets are estimated.
+            updateRDML: If true, update the RDML data with the calculated values.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+        """
+
+        res = {}
+
 
         return res
 
