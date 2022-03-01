@@ -1900,7 +1900,7 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
 
-        data = "<rdml version='1.2' xmlns:rdml='http://www.rdml.org' xmlns='http://www.rdml.org'>\n<dateMade>"
+        data = "<rdml version='1.3' xmlns:rdml='http://www.rdml.org' xmlns='http://www.rdml.org'>\n<dateMade>"
         data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         data += "</dateMade>\n<dateUpdated>"
         data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -8001,12 +8001,14 @@ class Experiment:
                         tarId = _get_first_child(react_data, "tar")
                         _change_subelement(react_data, "corrP", dataXMLelements, "-1.0", True, "string")
                         _change_subelement(react_data, "corrCq", dataXMLelements, "-1.0", True, "string")
+                        corrPlate = -1.0
                         if tarId is None:
                             continue
                         if tarId.attrib['id'] == "":
                             continue
                         tar = tarId.attrib['id']
-                        goodVal = "{:.4f}".format(res["plate"]["corrP"][pRunA])
+                        corrPlate = res["plate"]["corrP"][pRunA]
+                        goodVal = "{:.4f}".format(corrPlate)
                         _change_subelement(react_data, "corrP", dataXMLelements, goodVal, True, "string")
                         n0Val = _get_first_child_text(react_data, "N0")
                         if n0Val == "":
@@ -8025,6 +8027,8 @@ class Experiment:
                         except ValueError:
                             corrFac = 1.0
                         if corrFac < 0.0:
+                            continue
+                        if corrPlate < 0.0:
                             continue
                         if res["threshold"] <= 0.0:
                             continue
@@ -8050,8 +8054,121 @@ class Experiment:
         """
 
         res = {}
+        res["runs"] = []
+        res["target"] = {}
+        err = ""
+        res["threshold"] = -1.0
+        res["fluorCorr"] = -1.0
+        res["absUnit"] = ""
+        tarPara = {}
+        thres_Sum = 0.0
+        thres_Num = 0
+        negSam = {}
+        allRuns = self.runs()
 
+        # Get the sample infos
+        pRoot = self._node.getparent()
+        samples = _get_all_children(pRoot, "sample")
+        for sample in samples:
+            if sample.attrib['id'] != "":
+                samId = sample.attrib['id']
+                samType = _get_first_child_text(sample, "type")
+                if samType != "":
+                    if samType in ["ntc", "nac", "ntp", "nrt"]:
+                        negSam[samId] = True
+                    else:
+                        negSam[samId] = False
 
+        # Find all used Targets
+        for tRunA in range(0, len(allRuns)):
+            runA = allRuns[tRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if tarId.attrib['id'] == "":
+                        continue
+                    tar = tarId.attrib['id']
+                    res["target"][tar] = {}
+                    res["target"][tar]["present"] = {}
+                    res["target"][tar]["overlap"] = []
+                    res["target"][tar]["ampEff"] = -1.0
+                    res["target"][tar]["ampEffSE"] = -1.0
+
+        for tar in res["target"]:
+            tarPara[tar] = {}
+            tarPara[tar]["Eff_Sum"] = 0.0
+            tarPara[tar]["Eff_Num"] = 0
+            tarPara[tar]["Err_Sum"] = []
+            tarPara[tar]["Err_Num"] = []
+
+        sortTargets = sorted(list(res["target"].keys()))
+
+        # Collect Run - Target Information
+        for pRunA in range(0, len(allRuns)):
+            runA = allRuns[pRunA]
+            res["runs"].append({})
+            res["runs"][pRunA]['id'] = runA['id']
+            run_thres_Sum = 0.0
+            run_thres_Num = 0
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if tarId.attrib['id'] == "":
+                        continue
+                    tar = tarId.attrib['id']
+                    excluded = _get_first_child_text(react_data, "excl")
+                    if excluded != "":
+                        continue
+                    res["target"][tar]["present"][pRunA] = True
+                    ampEff = _get_first_child_text(react_data, "ampEff")
+                    if ampEff != "":
+                        try:
+                            ampEff = float(ampEff)
+                        except ValueError:
+                            pass
+                        else:
+                            tarPara[tar]["Eff_Sum"] += ampEff
+                            tarPara[tar]["Eff_Num"] += 1
+                    effErr = _get_first_child_text(react_data, "ampEffSE")
+                    if effErr != "":
+                        try:
+                            effErr = float(effErr)
+                        except ValueError:
+                            pass
+                        else:
+                            tarPara[tar]["Err_Sum"][pRunA] += effErr
+                            tarPara[tar]["Err_Num"][pRunA] += 1
+                    thres = _get_first_child_text(react_data, "quantFluor")
+                    if thres != "":
+                        try:
+                            thres = float(thres)
+                        except ValueError:
+                            pass
+                        else:
+                            thres_Sum += math.log(thres)
+                            thres_Num += 1
+                            run_thres_Sum += math.log(thres)
+                            run_thres_Num += 1
+            if run_thres_Num > 0:
+                res["runs"][pRunA]["threshold"] = math.exp(run_thres_Sum / run_thres_Num)
+            else:
+                res["runs"][pRunA]["threshold"] = -1.0
+            print("Run: " + str(pRunA) + " Thres: " + str(res["runs"][pRunA]["threshold"]))
+        if thres_Num > 0:
+            res["threshold"] = math.exp(thres_Sum / thres_Num)
+            res["fluorCorr"] = (res["threshold"] / np.power(1.9, 35.0)) * 2
+            res["absUnit"] = "cop"
+
+        print("Final Thres: " + str(res["threshold"]))
+        print("flourCorr: " + str(res["fluorCorr"]))
         return res
 
 
@@ -9941,6 +10058,7 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "corrP")
                 _add_first_child_to_dic(react_data, in_react, True, "corrCq")
                 # Calculate the correction factors
+                givenCq = _get_first_child_text(react_data, "corrCq")
                 corrFac = _get_first_child_text(react_data, "corrF")
                 calcCorr = 1.0
                 if not corrFac == "":
@@ -9980,13 +10098,41 @@ class Run:
                                     anyCorrections = 1
                                 if not plateFac == "":
                                     anyCorrections = 1
+                                if givenCq == "":
+                                    calcEff = _get_first_child_text(react_data, "ampEff")
+                                    if calcEff == "":
+                                        calcEff = 2.0
+                                    try:
+                                        calcEff = float(calcEff)
+                                    except ValueError:
+                                        pass
+                                    else:
+                                        if not np.isnan(calcEff):
+                                            if 0.0 < calcEff < 3.0:
+                                                calcCq = _get_first_child_text(react_data, "cq")
+                                                if not calcCq == "":
+                                                    try:
+                                                        calcCq = float(calcCq)
+                                                    except ValueError:
+                                                        pass
+                                                    else:
+                                                        if not np.isnan(calcCq):
+                                                            if calcCq > 0.0:
+                                                                finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
+                                                                #in_react["corrCq"] = "{:.3f}".format(finalCq)
                 else:
                     if calcCorr < 0.0:
                         in_react["corrN0"] = "-1.0"
+                       # if givenCq == "":
+                           # in_react["corrCq"] = -1.0
                     else:
                         in_react["corrN0"] = "0.0"
+                       # if givenCq == "":
+                            #in_react["corrCq"] = -1.0
                 if calcPlate < 0.0:
                     in_react["corrN0"] = "-1.0"
+                 #   if givenCq == "":
+                    #    in_react["corrCq"] = -1.0
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
