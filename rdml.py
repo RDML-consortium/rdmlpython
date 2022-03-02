@@ -2506,6 +2506,8 @@ class Rdml:
         exp1 = _get_all_children(self._node, "sample")
         hint = ""
         hint2 = ""
+        hint3 = ""
+        hint4 = ""
         for node1 in exp1:
             exp2 = _get_all_children(node1, "type")
             if "targetId" in exp2[0].attrib:
@@ -2514,10 +2516,21 @@ class Rdml:
             for elCount in range(1, len(exp2)):
                 node1.remove(exp2[elCount])
                 hint2 = "Migration to v1.2 deleted sample \"type\" elements."
+            exp2q = _get_all_children(node1, "quantity")
+            if "targetId" in exp2q[0].attrib:
+                del exp2q[0].attrib["targetId"]
+                hint3 = "Migration to v1.2 deleted sample quantity \"targetId\" attribute."
+            for elCount in range(1, len(exp2q)):
+                node1.remove(exp2q[elCount])
+                hint4 = "Migration to v1.2 deleted sample \"quantity\" elements."
         if hint != "":
             ret.append(hint)
         if hint2 != "":
             ret.append(hint2)
+        if hint3 != "":
+            ret.append(hint3)
+        if hint4 != "":
+            ret.append(hint4)
 
         exp1 = _get_all_children(self._node, "target")
         hint = ""
@@ -2667,13 +2680,17 @@ class Rdml:
             presentIds.append(node.attrib['id'])
         for used_id in foundIds:
             if used_id not in presentIds:
-                self.new_sample(id=used_id, type="unkn", newposition=0)
+                self.new_sample(id=used_id, newposition=0)
                 mess += "Recreated sample: " + used_id + "\n"
         # Find lost target
         foundIds = {}
         allExp = _get_all_children(self._node, "sample")
         for node in allExp:
             subNodes = _get_all_children(node, "type")
+            for subNode in subNodes:
+                if "targetId" in subNode.attrib:
+                    foundIds[subNode.attrib['targetId']] = 0
+            subNodes = _get_all_children(node, "quantity")
             for subNode in subNodes:
                 if "targetId" in subNode.attrib:
                     foundIds[subNode.attrib['targetId']] = 0
@@ -3349,30 +3366,19 @@ class Rdml:
             ret.append(Sample(node))
         return ret
 
-    def new_sample(self, id, type, targetId=None, newposition=None):
+    def new_sample(self, id, newposition=None):
         """Creates a new sample element.
 
         Args:
             self: The class self parameter.
             id: Sample unique id (required)
-            type: Sample type (required)
-            targetId: The target linked to the type (makes sense in "pos" or "ntp" context) (optional)
             newposition: Experimenters position in the list of experimenters (optional)
 
         Returns:
             Nothing, changes self.
         """
 
-        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
-            raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
         new_node = _create_new_element(self._node, "sample", id)
-        typeEL = et.SubElement(new_node, "type")
-        typeEL.text = type
-        ver = self._node.get('version')
-        if ver == "1.3":
-            if targetId is not None:
-                if not targetId == "":
-                    typeEL.attrib["targetId"] = targetId
         place = _get_tag_pos(self._node, "sample", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
 
@@ -3406,6 +3412,10 @@ class Rdml:
         if addMode != "no-dep":
             presDocs = []
             addDocs = []
+            presDyes = []
+            addDyes = []
+            presTargets = []
+            addTargets = []
             presThermal = []
             addThermal = []
             presExps = []
@@ -3414,6 +3424,12 @@ class Rdml:
             exp = _get_all_children(self._node, "documentation")
             for node in exp:
                 presDocs.append(node.attrib['id'])
+            exp = _get_all_children(self._node, "dye")
+            for node in exp:
+                presDyes.append(node.attrib['id'])
+            exp = _get_all_children(self._node, "target")
+            for node in exp:
+                presTargets.append(node.attrib['id'])
             exp = _get_all_children(self._node, "thermalCyclingConditions")
             for node in exp:
                 presThermal.append(node.attrib['id'])
@@ -3431,6 +3447,28 @@ class Rdml:
                         if addMode == "all-dep":
                             addDocs.append(foundId)
 
+            subNodes = _get_all_children(sample._node, "type")
+            for subNode in subNodes:
+                if 'targetId' in subNode.attrib:
+                    foundId = subNode.attrib['targetId']
+                    if foundId not in addTargets:
+                        if foundId not in presTargets:
+                            addTargets.append(foundId)
+                        if foundId not in addTargets:
+                            if addMode == "all-dep":
+                                addTargets.append(foundId)
+
+            subNodes = _get_all_children(sample._node, "quantity")
+            for subNode in subNodes:
+                if 'targetId' in subNode.attrib:
+                    foundId = subNode.attrib['targetId']
+                    if foundId not in addTargets:
+                        if foundId not in presTargets:
+                            addTargets.append(foundId)
+                        if foundId not in addTargets:
+                            if addMode == "all-dep":
+                                addTargets.append(foundId)
+
             subNode = _get_first_child(sample._node, "cdnaSynthesisMethod")
             if subNode is not None:
                 forId = _get_first_child(subNode, "thermalCyclingConditions")
@@ -3444,6 +3482,27 @@ class Rdml:
                                 addThermal.append(foundId)
 
             # Get the dependent of the dependent
+            exp = _get_all_children(add_rd._node, "target")
+            for node in exp:
+                if node.attrib['id'] in addTargets:
+                    subNodes = _get_all_children(node, "experimenter")
+                    for subNode in subNodes:
+                        foundId = subNode.attrib['id']
+                        if foundId not in addExps:
+                            if foundId not in presExps:
+                                addExps.append(foundId)
+                            if foundId not in addExps:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addExps.append(foundId)
+                    subNode = _get_first_child(node, "dyeId")
+                    if subNode is not None:
+                        foundId = subNode.attrib['id']
+                        if foundId not in addDyes:
+                            if foundId not in presDyes:
+                                addDyes.append(foundId)
+                            if foundId not in addDyes:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addDyes.append(foundId)
             exp = _get_all_children(add_rd._node, "thermalCyclingConditions")
             for node in exp:
                 if node.attrib['id'] in addThermal:
@@ -3468,6 +3527,10 @@ class Rdml:
 
             for docId in addDocs:
                 self.import_documentation(add_rd.get_documentation(byid=docId))
+            for docId in addDyes:
+                self.import_dye(add_rd.get_dye(byid=docId))
+            for docId in addTargets:
+                self.import_target(add_rd, add_rd.get_target(byid=docId), "no-dep")
             for docId in addThermal:
                 self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
             for docId in addExps:
@@ -3500,6 +3563,10 @@ class Rdml:
         known = {}
         presDocs = []
         addDocs = []
+        presDyes = []
+        addDyes = []
+        presTargets = []
+        addTargets = []
         presThermal = []
         addThermal = []
         presExps = []
@@ -3511,6 +3578,12 @@ class Rdml:
         exp = _get_all_children(self._node, "documentation")
         for node in exp:
             presDocs.append(node.attrib['id'])
+        exp = _get_all_children(self._node, "dye")
+        for node in exp:
+            presDyes.append(node.attrib['id'])
+        exp = _get_all_children(self._node, "target")
+        for node in exp:
+            presTargets.append(node.attrib['id'])
         exp = _get_all_children(self._node, "thermalCyclingConditions")
         for node in exp:
             presThermal.append(node.attrib['id'])
@@ -3544,6 +3617,28 @@ class Rdml:
                             if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
                                 addDocs.append(foundId)
 
+                subNodes = _get_all_children(addEle._node, "type")
+                for subNode in subNodes:
+                    if 'targetId' in subNode.attrib:
+                        foundId = subNode.attrib['targetId']
+                        if foundId not in addTargets:
+                            if foundId not in presTargets:
+                                addTargets.append(foundId)
+                            if foundId not in addTargets:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addTargets.append(foundId)
+
+                subNodes = _get_all_children(addEle._node, "quantity")
+                for subNode in subNodes:
+                    if 'targetId' in subNode.attrib:
+                        foundId = subNode.attrib['targetId']
+                        if foundId not in addTargets:
+                            if foundId not in presTargets:
+                                addTargets.append(foundId)
+                            if foundId not in addTargets:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addTargets.append(foundId)
+
                 subNode = _get_first_child(addEle._node, "cdnaSynthesisMethod")
                 if subNode is not None:
                     forId = _get_first_child(subNode, "thermalCyclingConditions")
@@ -3557,6 +3652,27 @@ class Rdml:
                                     addThermal.append(foundId)
 
         # Get the dependent of the dependent
+        exp = _get_all_children(add_rd._node, "target")
+        for node in exp:
+            if node.attrib['id'] in addTargets:
+                subNodes = _get_all_children(node, "experimenter")
+                for subNode in subNodes:
+                    foundId = subNode.attrib['id']
+                    if foundId not in addExps:
+                        if foundId not in presExps:
+                            addExps.append(foundId)
+                        if foundId not in addExps:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addExps.append(foundId)
+                subNode = _get_first_child(node, "dyeId")
+                if subNode is not None:
+                    foundId = subNode.attrib['id']
+                    if foundId not in addDyes:
+                        if foundId not in presDyes:
+                            addDyes.append(foundId)
+                        if foundId not in addDyes:
+                            if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                addDyes.append(foundId)
         exp = _get_all_children(add_rd._node, "thermalCyclingConditions")
         for node in exp:
             if node.attrib['id'] in addThermal:
@@ -3581,6 +3697,10 @@ class Rdml:
 
         for docId in addDocs:
             self.import_documentation(add_rd.get_documentation(byid=docId))
+        for docId in addDyes:
+            self.import_dye(add_rd.get_dye(byid=docId))
+        for docId in addTargets:
+            self.import_target(add_rd, add_rd.get_target(byid=docId), "no-dep")
         for docId in addThermal:
             self.import_therm_cyc_cons(add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep")
         for docId in addExps:
@@ -4230,7 +4350,27 @@ class Rdml:
                             if foundId not in addDocs:
                                 if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
                                     addDocs.append(foundId)
-                    subNode = _get_first_child(experiment._node, "cdnaSynthesisMethod")
+                    subNodes = _get_all_children(node, "type")
+                    for subNode in subNodes:
+                        if 'targetId' in subNode.attrib:
+                            foundId = subNode.attrib['targetId']
+                            if foundId not in addTargets:
+                                if foundId not in presTargets:
+                                    addTargets.append(foundId)
+                                if foundId not in addTargets:
+                                    if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                        addTargets.append(foundId)
+                    subNodes = _get_all_children(node, "quantity")
+                    for subNode in subNodes:
+                        if 'targetId' in subNode.attrib:
+                            foundId = subNode.attrib['targetId']
+                            if foundId not in addTargets:
+                                if foundId not in presTargets:
+                                    addTargets.append(foundId)
+                                if foundId not in addTargets:
+                                    if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                        addTargets.append(foundId)
+                    subNode = _get_first_child(node, "cdnaSynthesisMethod")
                     if subNode is not None:
                         forId = _get_first_child(subNode, "thermalCyclingConditions")
                         if forId is not None:
@@ -4459,6 +4599,26 @@ class Rdml:
                         if foundId not in addDocs:
                             if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
                                 addDocs.append(foundId)
+                subNodes = _get_all_children(node, "type")
+                for subNode in subNodes:
+                    if 'targetId' in subNode.attrib:
+                        foundId = subNode.attrib['targetId']
+                        if foundId not in addTargets:
+                            if foundId not in presTargets:
+                                addTargets.append(foundId)
+                            if foundId not in addTargets:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addTargets.append(foundId)
+                subNodes = _get_all_children(node, "quantity")
+                for subNode in subNodes:
+                    if 'targetId' in subNode.attrib:
+                        foundId = subNode.attrib['targetId']
+                        if foundId not in addTargets:
+                            if foundId not in presTargets:
+                                addTargets.append(foundId)
+                            if foundId not in addTargets:
+                                if addMode in ["update-incl-dep", "all-incl-dep", "only-new-incl-dep"]:
+                                    addTargets.append(foundId)
                 subNode = _get_first_child(node, "cdnaSynthesisMethod")
                 if subNode is not None:
                     forId = _get_first_child(subNode, "thermalCyclingConditions")
@@ -5243,15 +5403,6 @@ class Sample:
                 else:
                     return None
             raise RdmlError('Sample cdnaSynthesisMethod programming read error.')
-        if key == "quantity":
-            ele = _get_first_child(self._node, key)
-            vdic = {}
-            vdic["value"] = _get_first_child_text(ele, "value")
-            vdic["unit"] = _get_first_child_text(ele, "unit")
-            if len(vdic.keys()) != 0:
-                return vdic
-            else:
-                return None
         par = self._node.getparent()
         ver = par.get('version')
         if ver == "1.1":
@@ -5331,21 +5482,6 @@ class Sample:
                 else:
                     ele.remove(forId)
             _remove_irrelevant_subelement(self._node, "cdnaSynthesisMethod")
-            return
-        if key == "quantity":
-            if value is None:
-                return
-            if "value" not in value or "unit" not in value:
-                raise RdmlError('Sample ' + key + ' must have a dictionary with "value" and "unit" as value.')
-            if value["unit"] not in ["", "cop", "fold", "dil", "ng", "nMol", "other"]:
-                raise RdmlError('Unknown or unsupported sample ' + key + ' value "' + value + '".')
-            ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-            _change_subelement(ele, "value", ["value", "unit"], value["value"], True, "float")
-            if value["value"] != "":
-                _change_subelement(ele, "unit", ["value", "unit"], value["unit"], True, "string")
-            else:
-                _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
-            _remove_irrelevant_subelement(self._node, key)
             return
         par = self._node.getparent()
         ver = par.get('version')
@@ -5439,11 +5575,11 @@ class Sample:
         par = self._node.getparent()
         ver = par.get('version')
         if ver == "1.1":
-            return ["id", "description", "interRunCalibrator", "quantity", "calibratorSample",
+            return ["id", "description", "interRunCalibrator", "calibratorSample",
                     "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                     "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
                     "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
-        return ["id", "description", "annotation", "interRunCalibrator", "quantity", "calibratorSample",
+        return ["id", "description", "annotation", "interRunCalibrator", "calibratorSample",
                 "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                 "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
                 "templateQuantity"]
@@ -5574,11 +5710,138 @@ class Sample:
             Nothing, changes self.
         """
 
-        ls = self.types()
-        if len(ls) < 2:
-            return
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver != "1.3":
+            ls = self.types()
+            if len(ls) < 2:
+                return
 
         elem = _get_first_child_by_pos_or_id(self._node, "type", None, byposition)
+        self._node.remove(elem)
+
+    def quantitys(self):
+        """Returns a list of the types in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of dics with type and id strings.
+        """
+
+        typesList = _get_all_children(self._node, "quantity")
+        ret = []
+        for node in typesList:
+            data = {}
+            _add_first_child_to_dic(node, data, False, "value")
+            _add_first_child_to_dic(node, data, False, "unit")
+            if "targetId" in node.attrib:
+                data["targetId"] = node.attrib["targetId"]
+            else:
+                data["targetId"] = ""
+            ret.append(data)
+        return ret
+
+    def new_quantity(self, value, unit, targetId=None, newposition=None):
+        """Creates a new type element.
+
+        Args:
+            self: The class self parameter.
+            value: The value of the quantity
+            unit: The "cop", "fold", "dil", "ng", "nMol" or "other" type of quantity
+            targetId: The target linked to the type (makes sense in "pos" or "ntp" context)
+            newposition: The new position of the element
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if unit not in ["cop", "fold", "dil", "ng", "nMol", "other"]:
+            raise RdmlError('Unknown or unsupported sample quantity unit "' + unit + '".')
+        if value == "":
+            raise RdmlError('Sample quantity value can not be empty.')
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver != "1.3":
+            ls = self.quantitys()
+            if len(ls) != 0:
+                return
+        new_node = et.Element("quantity")
+        _change_subelement(new_node, "value", ["value", "unit"], value, True, "float")
+        _change_subelement(new_node, "unit", ["value", "unit"], unit, True, "string")
+        if ver == "1.3":
+            if targetId is not None:
+                if not targetId == "":
+                    new_node.attrib["targetId"] = targetId
+        place = _get_tag_pos(self._node, "quantity", self.xmlkeys(), newposition)
+        self._node.insert(place, new_node)
+
+    def edit_quantity(self, value, unit, oldposition, newposition=None, targetId=None):
+        """Edits a type element.
+
+        Args:
+            self: The class self parameter.
+            value: The value of the quantity
+            unit: The "cop", "fold", "dil", "ng", "nMol" or "other" type of quantity
+            oldposition: The old position of the element
+            newposition: The new position of the element
+            targetId: The target linked to the type (makes sense in "pos" or "ntp" context)
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        if unit not in ["cop", "fold", "dil", "ng", "nMol", "other"]:
+            raise RdmlError('Unknown or unsupported sample quantity unit "' + unit + '".')
+        if value == "":
+            raise RdmlError('Sample quantity value can not be empty.')
+        if oldposition is None:
+            raise RdmlError('A oldposition is required to edit a quantity.')
+
+        pos = _get_tag_pos(self._node, "quantity", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "quantity", None, oldposition)
+        _change_subelement(ele, "value", ["value", "unit"], value, True, "float")
+        _change_subelement(ele, "unit", ["value", "unit"], unit, True, "string")
+        par = self._node.getparent()
+        ver = par.get('version')
+        if "targetId" in ele.attrib:
+            del ele.attrib["targetId"]
+        if ver == "1.3":
+            if targetId is not None:
+                if not targetId == "":
+                    ele.attrib["targetId"] = targetId
+        self._node.insert(pos, ele)
+
+    def move_quantity(self, oldposition, newposition):
+        """Moves the element to the new position in the list.
+
+        Args:
+            self: The class self parameter.
+            oldposition: The old position of the element
+            newposition: The new position of the element
+
+        Returns:
+            No return value, changes self. Function may raise RdmlError if required.
+        """
+
+        pos = _get_tag_pos(self._node, "quantity", self.xmlkeys(), newposition)
+        ele = _get_first_child_by_pos_or_id(self._node, "quantity", None, oldposition)
+        self._node.insert(pos, ele)
+
+    def delete_quantity(self, byposition):
+        """Deletes an type element.
+
+        Args:
+            self: The class self parameter.
+            byposition: Select the element by position in the list.
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        elem = _get_first_child_by_pos_or_id(self._node, "quantity", None, byposition)
         self._node.remove(elem)
 
     def xrefs(self):
@@ -5870,12 +6133,7 @@ class Sample:
             data["annotations"] = self.annotations()
         data["types"] = self.types()
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
-        elem = _get_first_child(self._node, "quantity")
-        if elem is not None:
-            qdic = {}
-            _add_first_child_to_dic(elem, qdic, False, "value")
-            _add_first_child_to_dic(elem, qdic, False, "unit")
-            data["quantity"] = qdic
+        data["quantitys"] = self.quantitys()
         _add_first_child_to_dic(self._node, data, True, "calibratorSample")
         elem = _get_first_child(self._node, "cdnaSynthesisMethod")
         if elem is not None:
@@ -6175,6 +6433,11 @@ class Target:
             allExp = _get_all_children(par, "sample")
             for node in allExp:
                 subNodes = _get_all_children(node, "type")
+                for subNode in subNodes:
+                    if "targetId" in subNode.attrib:
+                        if subNode.attrib['targetId'] == oldValue:
+                            subNode.attrib['targetId'] = value
+                subNodes = _get_all_children(node, "quantity")
                 for subNode in subNodes:
                     if "targetId" in subNode.attrib:
                         if subNode.attrib['targetId'] == oldValue:
@@ -8652,7 +8915,9 @@ class Run:
                 ret += "Skipped reaction \"" + sLin[0] + "\"\n"
                 continue
             if sLin[1] not in samTypeLookup:
-                rootEl.new_sample(sLin[1], sLin[2])
+                rootEl.new_sample(sLin[1])
+                samEl = rootEl.get_sample(byid=sLin[1])
+                samEl.new_type(sLin[2])
                 samTypeLookup[sLin[1]] = sLin[2]
                 ret += "Created sample \"" + sLin[1] + "\" with type \"" + sLin[2] + "\"\n"
             if sLin[3] not in tarTypeLookup:
@@ -8959,7 +9224,9 @@ class Run:
                         posSampleTypeName = "unkn"
                         if posSampleType != -1:
                             posSampleTypeName = sLin[posSampleType]
-                        rootEl.new_sample(sLin[posSample], posSampleTypeName)
+                        rootEl.new_sample(sLin[posSample])
+                        samEl = rootEl.get_sample(byid=sLin[posSample])
+                        samEl.new_type(sLin[posSampleTypeName])
                         samTypeLookup[sLin[posSample]] = posSampleTypeName
                         ret += "Created sample \"" + sLin[posSample] + "\" with type \"" + posSampleTypeName + "\"\n"
 
@@ -9289,7 +9556,9 @@ class Run:
             if react is None:
                 sampleName = "Sample in " + well
                 if sampleName not in samTypeLookup:
-                    rootEl.new_sample(sampleName, "unkn")
+                    rootEl.new_sample(sampleName)
+                    samEl = rootEl.get_sample(byid=sampleName)
+                    samEl.new_type("unkn")
                     samTypeLookup[sampleName] = "unkn"
                     ret += "Created sample \"" + sampleName + "\" with type \"" + "unkn" + "\"\n"
                 new_node = et.Element("react", id=wellPos)
