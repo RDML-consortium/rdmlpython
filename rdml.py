@@ -656,6 +656,42 @@ def _wellRangeToList(wells, columns):
     return res
 
 
+def _sampleTypeToDics(rootEl):
+    """Translates all ele in samples to dic {sample Id}{target Id} with ele value.
+
+    Args:
+        rootEl: The root node of the rdml file
+
+    Returns:
+        returns a dictionary {sample Id}{target Id} with ele value.
+    """
+    tar = []
+    ret = {}
+
+    # Get all targets
+    targets = _get_all_children(rootEl, "target")
+    for node in targets:
+        if 'id' in node.attrib:
+            tar.append(node.attrib['id'])
+
+    samples = _get_all_children(rootEl, "sample")
+    for node in samples:
+        if 'id' in node.attrib:
+            currSam = node.attrib['id']
+            ret[currSam] = {}
+            for currTar in tar:
+                ret[currSam][currTar] = "unkn"
+            subEles = _get_all_children(node, "type")
+            for subNode in subEles:
+                if 'targetId' not in subNode.attrib:
+                    for currTar in tar:
+                        ret[currSam][currTar] = subNode.text
+            for subNode in subEles:
+                if 'targetId' in subNode.attrib:
+                    ret[currSam][subNode.attrib['targetId']] = subNode.text
+    return ret
+
+
 def _lrp_linReg(xIn, yUse):
     """A function which calculates the slope or the intercept by linear regression.
 
@@ -7904,31 +7940,24 @@ class Experiment:
         thres_Sum = 0.0
         thres_Num = 0
         samSel = {}
-        negSam = {}
         allRuns = self.runs()
 
         # Get the sample infos
         pRoot = self._node.getparent()
-        samples = _get_all_children(pRoot, "sample")
-        for sample in samples:
-            if sample.attrib['id'] != "":
-                samId = sample.attrib['id']
-                samType = _get_first_child_text(sample, "type")
-                if samType != "":
-                    if samType in ["ntc", "nac", "ntp", "nrt"]:
-                        negSam[samId] = True
-                    else:
-                        negSam[samId] = False
-                if overlapType == "annotation":
-                    if selAnnotation == "":
-                        continue
-                    xref = _get_all_children(sample, "annotation")
-                    for node in xref:
-                        anno = _get_first_child_text(node, "property")
-                        if anno == selAnnotation:
-                            val = _get_first_child_text(node, "value")
-                            if val != "":
-                                samSel[samId] = val
+        transSamTar = _sampleTypeToDics(pRoot)
+        if overlapType == "annotation":
+            if selAnnotation != "":
+                samples = _get_all_children(pRoot, "sample")
+                for sample in samples:
+                    if sample.attrib['id'] != "":
+                        samId = sample.attrib['id']
+                        xref = _get_all_children(sample, "annotation")
+                        for node in xref:
+                            anno = _get_first_child_text(node, "property")
+                            if anno == selAnnotation:
+                                val = _get_first_child_text(node, "value")
+                                if val != "":
+                                    samSel[samId] = val
         # Find all used Targets
         for tRunA in range(0, len(allRuns)):
             runA = allRuns[tRunA]
@@ -8034,10 +8063,6 @@ class Experiment:
                 if samId.attrib['id'] == "":
                     continue
                 sample = samId.attrib['id']
-                if sample not in negSam:
-                    continue
-                if negSam[sample]:
-                    continue
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
                     tarId = _get_first_child(react_data, "tar")
@@ -8046,6 +8071,8 @@ class Experiment:
                     if tarId.attrib['id'] == "":
                         continue
                     target = tarId.attrib['id']
+                    if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt"]:
+                        continue
                     excluded = _get_first_child_text(react_data, "excl")
                     if excluded != "":
                         continue
@@ -8326,21 +8353,7 @@ class Experiment:
         tarPara = {}
         thres_Sum = 0.0
         thres_Num = 0
-        negSam = {}
         allRuns = self.runs()
-
-        # Get the sample infos
-        pRoot = self._node.getparent()
-        samples = _get_all_children(pRoot, "sample")
-        for sample in samples:
-            if sample.attrib['id'] != "":
-                samId = sample.attrib['id']
-                samType = _get_first_child_text(sample, "type")
-                if samType != "":
-                    if samType in ["ntc", "nac", "ntp", "nrt"]:
-                        negSam[samId] = True
-                    else:
-                        negSam[samId] = False
 
         # Find all used Targets
         for tRunA in range(0, len(allRuns)):
@@ -8758,7 +8771,6 @@ class Run:
             A string with the data.
         """
 
-        samTypeLookup = {}
         tarTypeLookup = {}
         tarDyeLookup = {}
         data = ""
@@ -8766,13 +8778,7 @@ class Run:
         # Get the information for the lookup dictionaries
         pExp = self._node.getparent()
         pRoot = pExp.getparent()
-        samples = _get_all_children(pRoot, "sample")
-        for sample in samples:
-            if sample.attrib['id'] != "":
-                samId = sample.attrib['id']
-                forType = _get_first_child_text(sample, "type")
-                if forType != "":
-                    samTypeLookup[samId] = forType
+        transSamTar = _sampleTypeToDics(pRoot)
         targets = _get_all_children(pRoot, "target")
         for target in targets:
             if target.attrib['id'] != "":
@@ -8815,13 +8821,11 @@ class Run:
             reactId = react.get('id')
             dataSample = reactId + '\t'
             react_sample = "No Sample"
-            react_sample_type = "No Sample Type"
             forId = _get_first_child(react, "sample")
             if forId is not None:
                 if forId.attrib['id'] != "":
                     react_sample = forId.attrib['id']
-                    react_sample_type = samTypeLookup[react_sample]
-            dataSample += react_sample + '\t' + react_sample_type
+            dataSample += react_sample + '\t'
             react_datas = _get_all_children(react, "data")
             for react_data in react_datas:
                 dataLine = dataSample
@@ -8834,6 +8838,11 @@ class Run:
                         react_target = forId.attrib['id']
                         react_target_type = tarTypeLookup[react_target]
                         react_target_dye = tarDyeLookup[react_target]
+                react_sample_type = "No Sample Type"
+                if react_sample in transSamTar:
+                    if react_target in transSamTar[react_sample]:
+                        react_sample_type = transSamTar[react_sample][react_target]
+                dataLine = dataSample + react_sample_type
                 dataLine += "\t" + react_target + '\t' + react_target_type + '\t' + react_target_dye
                 fluorList = []
                 if dMode == "amp":
@@ -8888,13 +8897,16 @@ class Run:
         samTypeLookup = {}
         tarTypeLookup = {}
         dyeLookup = {}
+        transSamTar = _sampleTypeToDics(rootEl._node)
         samples = _get_all_children(rootEl._node, "sample")
         for sample in samples:
             if sample.attrib['id'] != "":
                 samId = sample.attrib['id']
-                forType = _get_first_child_text(sample, "type")
-                if forType != "":
-                    samTypeLookup[samId] = forType
+                samTypeLookup[samId] = "unkn"
+                forType = _get_all_children(sample, "type")
+                for subNode in forType:
+                    if 'targetId' not in subNode.attrib:
+                        samTypeLookup[samId] = subNode.text
         targets = _get_all_children(rootEl._node, "target")
         for target in targets:
             if target.attrib['id'] != "":
@@ -8920,6 +8932,15 @@ class Run:
                 samEl.new_type(sLin[2])
                 samTypeLookup[sLin[1]] = sLin[2]
                 ret += "Created sample \"" + sLin[1] + "\" with type \"" + sLin[2] + "\"\n"
+                if sLin[1] not in transSamTar:
+                    transSamTar[sLin[1]] = {}
+            if sLin[2] != samTypeLookup[sLin[1]]:
+                if ((sLin[3] not in transSamTar[sLin[1]]) or
+                        (transSamTar[sLin[1]][sLin[3]] != sLin[2])):
+                    samEl = rootEl.get_sample(byid=sLin[1])
+                    samEl.new_type(sLin[2], targetId=sLin[3])
+                    transSamTar[sLin[1]][sLin[3]] = sLin[2]
+                    ret += "Created sample \"" + sLin[1] + "\" with type \"" + sLin[2] + "\" for target \"" + sLin[3] + "\"\n"
             if sLin[3] not in tarTypeLookup:
                 if sLin[5] not in dyeLookup:
                     rootEl.new_dye(sLin[5])
@@ -9070,6 +9091,7 @@ class Run:
         for sample in samples:
             if sample.attrib['id'] != "":
                 samId = sample.attrib['id']
+                samTypeLookup[samId] = "unkn"
                 forType = _get_first_child_text(sample, "type")
                 if forType != "":
                     samTypeLookup[samId] = forType
@@ -10148,17 +10170,10 @@ class Run:
         tabLines = []
 
         # Fill the lookup dics
-        samTypeLookup = {}
         tarTypeLookup = {}
         tarDyeLookup = {}
 
-        samples = _get_all_children(rootEl._node, "sample")
-        for sample in samples:
-            if sample.attrib['id'] != "":
-                samId = sample.attrib['id']
-                forType = _get_first_child_text(sample, "type")
-                if forType != "":
-                    samTypeLookup[samId] = forType
+        transSamTar = _sampleTypeToDics(rootEl._node)
         targets = _get_all_children(rootEl._node, "target")
         for target in targets:
             if target.attrib['id'] != "":
@@ -10178,13 +10193,11 @@ class Run:
             pIdLetter = chr(ord("A") + int(posId / int(self["pcrFormat_columns"])))
             pWell = pIdLetter + str(pIdNumber)
             pSample = ""
-            pSampleType = ""
             pFileName = ""
             forId = _get_first_child(react, "sample")
             if forId is not None:
                 if forId.attrib['id'] != "":
                     pSample = forId.attrib['id']
-                    pSampleType = samTypeLookup[forId.attrib['id']]
             partit = _get_first_child(react, "partitions")
             if partit is not None:
                 endPtTable = _get_first_child_text(partit, "endPtTable")
@@ -10193,6 +10206,7 @@ class Run:
                 pVolume = _get_first_child_text(partit, "volume")
                 partit_datas = _get_all_children(partit, "data")
                 for partit_data in partit_datas:
+                    pSampleType = ""
                     pTarget = ""
                     pTargetType = ""
                     pDye = ""
@@ -10200,6 +10214,7 @@ class Run:
                     if forId is not None:
                         if forId.attrib['id'] != "":
                             pTarget = forId.attrib['id']
+                            pSampleType = transSamTar[pSample][pTarget]
                             pTargetType = tarTypeLookup[pTarget]
                             pDye = tarDyeLookup[pTarget]
                     pCopies = _get_first_child_text(partit_data, "conc")
@@ -10921,6 +10936,7 @@ class Run:
         expParent = self._node.getparent()
         rootPar = expParent.getparent()
         dataVersion = rootPar.get('version')
+        transSamTar = _sampleTypeToDics(rootPar)
 
         if dataVersion == "1.0":
             raise RdmlError('LinRegPCR requires RDML version > 1.0.')
@@ -11161,8 +11177,6 @@ class Run:
             if lu_target.attrib['id'] != "":
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
 
-        dicLU_samSpecType = {}
-        dicLU_samGenType = {}
         dicLU_samNucl = {}
         luSamples = _get_all_children(parRoot, "sample")
         for lu_sample in luSamples:
@@ -11173,26 +11187,14 @@ class Run:
             if lu_Nucl == "":
                 lu_Nucl = "cDNA"
             if lu_sample.attrib['id'] != "":
-                dicLU_TypeData = {}
-                typesList = _get_all_children(lu_sample, "type")
-                for node in typesList:
-                    if "targetId" in node.attrib:
-                        dicLU_TypeData[node.attrib["targetId"]] = node.text
-                    else:
-                        dicLU_samGenType[lu_sample.attrib['id']] = node.text
-                dicLU_samSpecType[lu_sample.attrib['id']] = dicLU_TypeData
                 dicLU_samNucl[lu_sample.attrib['id']] = lu_Nucl
 
         # Update the table with dictionary help
         for oRow in range(0, spFl[0]):
             if res[oRow][rar_sample] != "":
-                # Try to get specific type information else general else "unkn"
-                if res[oRow][rar_tar] in dicLU_samSpecType[res[oRow][rar_sample]]:
-                    res[oRow][rar_sample_type] = dicLU_samSpecType[res[oRow][rar_sample]][res[oRow][rar_tar]]
-                elif res[oRow][rar_sample] in dicLU_samGenType:
-                    res[oRow][rar_sample_type] = dicLU_samGenType[res[oRow][rar_sample]]
-                else:
-                    res[oRow][rar_sample_type] = "unkn"
+                if res[oRow][rar_sample] != "":
+                    if res[oRow][rar_tar] != "":
+                        res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][res[oRow][rar_tar]]
                 res[oRow][rar_sample_nucleotide] = dicLU_samNucl[res[oRow][rar_sample]]
             if res[oRow][rar_tar] != "":
                 res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
@@ -12411,6 +12413,7 @@ class Run:
         expParent = self._node.getparent()
         rootPar = expParent.getparent()
         dataVersion = rootPar.get('version')
+        transSamTar = _sampleTypeToDics(rootPar)
 
         if dataVersion == "1.0":
             raise RdmlError('MeltCurveAnalysis requires RDML version > 1.0.')
@@ -12555,31 +12558,11 @@ class Run:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
                 dicLU_tarMelt[lu_target.attrib['id']] = meltingTemperature
 
-        dicLU_samSpecType = {}
-        dicLU_samGenType = {}
-        luSamples = _get_all_children(parRoot, "sample")
-        for lu_sample in luSamples:
-            lu_Nucl = ""
-            if lu_sample.attrib['id'] != "":
-                dicLU_TypeData = {}
-                typesList = _get_all_children(lu_sample, "type")
-                for node in typesList:
-                    if "targetId" in node.attrib:
-                        dicLU_TypeData[node.attrib["targetId"]] = node.text
-                    else:
-                        dicLU_samGenType[lu_sample.attrib['id']] = node.text
-                dicLU_samSpecType[lu_sample.attrib['id']] = dicLU_TypeData
-
         # Update the table with dictionary help
         for oRow in range(0, spFl[0]):
             if res[oRow][rar_sample] != "":
-                # Try to get specific type information else general else "unkn"
-                if res[oRow][rar_tar] in dicLU_samSpecType[res[oRow][rar_sample]]:
-                    res[oRow][rar_sample_type] = dicLU_samSpecType[res[oRow][rar_sample]][res[oRow][rar_tar]]
-                elif res[oRow][rar_sample] in dicLU_samGenType:
-                    res[oRow][rar_sample_type] = dicLU_samGenType[res[oRow][rar_sample]]
-                else:
-                    res[oRow][rar_sample_type] = "unkn"
+                if res[oRow][rar_tar] != "":
+                    res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][res[oRow][rar_tar]]
             if res[oRow][rar_tar] != "":
 
                 res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
