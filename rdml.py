@@ -868,9 +868,12 @@ def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
                 sumx2 += i * i
                 sumxy += i * np.log10(fluor[aRow, i - 1])
                 nincl += 1
-        ssx[j] = sumx2 - sumx * sumx / nincl
-        sxy[j] = sumxy - sumx * sumy / nincl
-        slope[j] = sxy[j] / ssx[j]
+        if nincl == 0.0:
+          slope[j] = 0.0
+        else:
+          ssx[j] = sumx2 - sumx * sumx / nincl
+          sxy[j] = sumxy - sumx * sumy / nincl
+          slope[j] = sxy[j] / ssx[j]
 
     return [slope[0], slope[1]]
 
