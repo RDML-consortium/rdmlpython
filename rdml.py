@@ -7932,8 +7932,12 @@ class Experiment:
         res["runs"] = []
         res["target"] = {}
         res["plate"] = {}
+        res["tsv"] = {}
         res["plate"]["corrP"] = []
         res["plate"]["matrix"] = []
+        res["plate"]["threshold"] = []
+        res["plate"]["Thres_Sum"] = []
+        res["plate"]["Thres_Num"] = []
         err = ""
         res["threshold"] = -1.0
         tarPara = {}
@@ -7976,12 +7980,17 @@ class Experiment:
                     res["target"][tar]["overlap"] = []
                     res["target"][tar]["ampEff"] = -1.0
                     res["target"][tar]["ampEffSE"] = -1.0
+                    res["target"][tar]["runAmpEff"] = []
+                    res["target"][tar]["runAmpEffSE"] = []
 
         sortTargets = sorted(list(res["target"].keys()))
 
         # Create Plate Matrix
         for row in range(0, len(allRuns)):
             res["plate"]["matrix"].append([])
+            res["plate"]["threshold"].append(-1.0)
+            res["plate"]["Thres_Sum"].append(0.0)
+            res["plate"]["Thres_Num"].append(0)
             for col in range(0, len(allRuns)):
                 res["plate"]["matrix"][row].append(-1.0)
                 if row == col:
@@ -7991,10 +8000,16 @@ class Experiment:
             tarPara[tar] = {}
             tarPara[tar]["Eff_Sum"] = 0.0
             tarPara[tar]["Eff_Num"] = 0
+            tarPara[tar]["Run_Eff_Sum"] = []
+            tarPara[tar]["Run_Eff_Num"] = []
             tarPara[tar]["Err_Sum"] = []
             tarPara[tar]["Err_Num"] = []
             for row in range(0, len(allRuns)):
                 res["target"][tar]["overlap"].append([])
+                res["target"][tar]["runAmpEff"].append(-1.0)
+                res["target"][tar]["runAmpEffSE"].append(-1.0)
+                tarPara[tar]["Run_Eff_Sum"].append(0.0)
+                tarPara[tar]["Run_Eff_Num"].append(0)
                 tarPara[tar]["Err_Sum"].append(0.0)
                 tarPara[tar]["Err_Num"].append(0)
                 for col in range(0, len(allRuns)):
@@ -8029,6 +8044,8 @@ class Experiment:
                         else:
                             tarPara[tar]["Eff_Sum"] += ampEff
                             tarPara[tar]["Eff_Num"] += 1
+                            tarPara[tar]["Run_Eff_Sum"][pRunA] += ampEff
+                            tarPara[tar]["Run_Eff_Num"][pRunA] += 1
                     effErr = _get_first_child_text(react_data, "ampEffSE")
                     if effErr != "":
                         try:
@@ -8045,6 +8062,8 @@ class Experiment:
                         except ValueError:
                             pass
                         else:
+                            res["plate"]["Thres_Sum"][pRunA] += math.log(thres)
+                            res["plate"]["Thres_Num"][pRunA] += 1
                             thres_Sum += math.log(thres)
                             thres_Num += 1
 
@@ -8267,15 +8286,90 @@ class Experiment:
             for pRunA in range(0, len(allRuns)):
                 if tarPara[tar]["Err_Num"][pRunA] > 0:
                     plateSE = tarPara[tar]["Err_Sum"][pRunA] / tarPara[tar]["Err_Num"][pRunA]
+                    res["target"][tar]["runAmpEffSE"][pRunA] = plateSE
                     errSumTr += (plateSE * math.sqrt(tarPara[tar]["Err_Num"][pRunA])) ** 2
                     errNum += tarPara[tar]["Err_Num"][pRunA]
+                if tarPara[tar]["Run_Eff_Num"][pRunA] > 0:
+                    res["target"][tar]["runAmpEff"][pRunA] = tarPara[tar]["Run_Eff_Sum"][pRunA] / tarPara[tar]["Run_Eff_Num"][pRunA]
             if errNum > 0:
                 res["target"][tar]["ampEffSE"] = math.sqrt(errSumTr) / math.sqrt(errNum)
 
         if thres_Num > 0:
             res["threshold"] = math.exp(thres_Sum / thres_Num)
+            for pRunA in range(0, len(allRuns)):
+                res["plate"]["threshold"][pRunA] = math.exp(res["plate"]["Thres_Sum"][pRunA] / res["plate"]["Thres_Num"][pRunA])
         if err != "":
             res["error"] = err
+
+        # Table creation
+        runLine = ""
+        for tRun in res["runs"]:
+            runLine += "\t" + tRun
+
+        res["tsv"]["run_correction_factors"] = runLine
+        res["tsv"]["run_correction_factors"] += "\nCorrection Factor"
+        for tCorr in res["plate"]["corrP"]:
+            if tCorr > 0.0:
+                res["tsv"]["run_correction_factors"] += "\t" + "{:.4f}".format(tCorr)
+            else:
+                res["tsv"]["run_correction_factors"] += "\tNot available"
+        res["tsv"]["run_correction_factors"] += "\n"
+
+        res["tsv"]["pcr_efficiency"] = "Target\tCombined\tSE Combined" + runLine
+        res["tsv"]["pcr_efficiency"] += "\n"
+
+        for tar in sortTargets:
+            res["tsv"]["pcr_efficiency"] += tar
+            tCorr = res["target"][tar]["ampEff"]
+            if tCorr > 0.0:
+                res["tsv"]["pcr_efficiency"] += '\t' + "{:.4f}".format(tCorr)
+            else:
+                res["tsv"]["pcr_efficiency"] += "\tNot available"
+            tCorr = res["target"][tar]["ampEffSE"]
+            if tCorr > 0.0:
+                res["tsv"]["pcr_efficiency"] += '\t' + "{:.4f}".format(tCorr)
+            else:
+                res["tsv"]["pcr_efficiency"] += "\tNot available"
+            for pRunA in range(0, len(allRuns)):
+                tCorr = res["target"][tar]["runAmpEff"][pRunA]
+                if tCorr > 0.0:
+                    res["tsv"]["pcr_efficiency"] += '\t' + "{:.4f}".format(tCorr)
+                else:
+                    res["tsv"]["pcr_efficiency"] += "\tNot available"
+            res["tsv"]["pcr_efficiency"] += '\n'
+
+        res["tsv"]["threshold"] = "\tCombined" + runLine
+        res["tsv"]["threshold"] += "\nThreshold"
+        tCorr = res["threshold"]
+        if tCorr > 0.0:
+            res["tsv"]["threshold"] += '\t' + "{:.4f}".format(tCorr)
+        else:
+            res["tsv"]["threshold"] += "\tNot available"
+        for tCorr in res["plate"]["threshold"]:
+            if tCorr > 0.0:
+                res["tsv"]["threshold"] += "\t" + "{:.4f}".format(tCorr)
+            else:
+                res["tsv"]["threshold"] += "\tNot available"
+        res["tsv"]["threshold"] += "\n"
+
+        res["tsv"]["overlapping_conditions"] = ""
+        for tar in sortTargets:
+            res["tsv"]["overlapping_conditions"] += tar + runLine + "\n"
+            for row in range(0, len(allRuns)):
+                res["tsv"]["overlapping_conditions"] += res["runs"][row]
+                for col in range(0, len(allRuns)):
+                    print (tar + " - " + str(row)  + ":" + str(col) + " " + str(res["target"][tar]["overlap"][row][col]))
+                    overCount = res["target"][tar]["overlap"][row][col]
+                    overOut = str(overCount)
+                    if overCount < 0:
+                        overOut = "Not available"
+                    if overCount < -9:
+                        overOut = "Not present"
+                    res["tsv"]["overlapping_conditions"] += '\t' + overOut
+                res["tsv"]["overlapping_conditions"] += '\n'
+            for row in range(0, len(allRuns)):
+                res["tsv"]["overlapping_conditions"] += '\t'
+            res["tsv"]["overlapping_conditions"] += '\n'
 
         ##############################
         # write out the rdml results #
@@ -8380,6 +8474,9 @@ class Experiment:
             tarPara[tar]["Eff_Num"] = 0
             tarPara[tar]["Err_Sum"] = []
             tarPara[tar]["Err_Num"] = []
+            for row in range(0, len(allRuns)):
+                tarPara[tar]["Err_Sum"].append(0.0)
+                tarPara[tar]["Err_Num"].append(0)
 
         sortTargets = sorted(list(res["target"].keys()))
 
