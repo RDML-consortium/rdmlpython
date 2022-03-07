@@ -611,6 +611,22 @@ def _writeFileInRDML(rdmlName, fileName, data):
             RDMLout.writestr(fileName, data)
 
 
+def _niceQuantityType(txt):
+    if txt == "cop":
+        return "copies per microliter"
+    if txt == "fold":
+        return "fold change"
+    if txt == "dil":
+        return "dilution"
+    if txt == "nMol":
+        return "nanomol per microliter"
+    if txt == "ng":
+        return "nanogram per microliter"
+    if txt == "other":
+        return "other unit"
+    return txt
+
+
 def _wellRangeToList(wells, columns):
     """Translates a range like "B2-C3" to list ["B2","B3","C2","C3"].
 
@@ -7905,7 +7921,7 @@ class Experiment:
         data["runs"] = runs
         return data
 
-    def interRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False):
+    def interRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False, calcCorrection=True):
         """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -7913,6 +7929,7 @@ class Experiment:
             overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
             updateRDML: If true, update the RDML data with the calculated values.
+            calcCorrection: If false, only the combined threshold and PCR efficiency is calculated
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -7953,7 +7970,7 @@ class Experiment:
             if selAnnotation != "":
                 samples = _get_all_children(pRoot, "sample")
                 for sample in samples:
-                    if sample.attrib['id'] != "":
+                    if "id" in sample.attrib:
                         samId = sample.attrib['id']
                         xref = _get_all_children(sample, "annotation")
                         for node in xref:
@@ -7972,7 +7989,7 @@ class Experiment:
                     tarId = _get_first_child(react_data, "tar")
                     if tarId is None:
                         continue
-                    if tarId.attrib['id'] == "":
+                    if "id" not in tarId.attrib:
                         continue
                     tar = tarId.attrib['id']
                     res["target"][tar] = {}
@@ -8028,7 +8045,7 @@ class Experiment:
                     tarId = _get_first_child(react_data, "tar")
                     if tarId is None:
                         continue
-                    if tarId.attrib['id'] == "":
+                    if "id" not in tarId.attrib:
                         continue
                     tar = tarId.attrib['id']
                     excluded = _get_first_child_text(react_data, "excl")
@@ -8068,85 +8085,19 @@ class Experiment:
                             thres_Num += 1
 
         # Analyze the runs pair by pair
-        for cRunA in range(0, len(allRuns)):
-            condCount = {}
-            for tar in res["target"]:
-                condCount[tar] = 0
-            possible = {}
-            runA = allRuns[cRunA]
-            reacts = _get_all_children(runA._node, "react")
-            for react in reacts:
-                samId = _get_first_child(react, "sample")
-                if samId is None:
-                    continue
-                if samId.attrib['id'] == "":
-                    continue
-                sample = samId.attrib['id']
-                react_datas = _get_all_children(react, "data")
-                for react_data in react_datas:
-                    tarId = _get_first_child(react_data, "tar")
-                    if tarId is None:
-                        continue
-                    if tarId.attrib['id'] == "":
-                        continue
-                    target = tarId.attrib['id']
-                    if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt"]:
-                        continue
-                    excluded = _get_first_child_text(react_data, "excl")
-                    if excluded != "":
-                        continue
-                    n0Val = _get_first_child_text(react_data, "N0")
-                    if n0Val == "":
-                        continue
-                    try:
-                        n0Val = float(n0Val)
-                    except ValueError:
-                        continue
-                    if np.isnan(n0Val):
-                        continue
-                    if n0Val <= 0.0:
-                        continue
-                    corrVal = _get_first_child_text(react_data, "corrP")
-                    if corrVal != "":
-                        try:
-                            n0Val = float(corrVal)
-                        except ValueError:
-                            pass
-                        if not np.isnan(corrVal):
-                            n0Val *= corrVal
-
-                    if target not in possible:
-                        possible[target] = {}
-                    if overlapType == "annotation":
-                        if sample not in samSel:
-                            continue
-                        if samSel[sample] == "":
-                            continue
-                        translSamp = samSel[sample]
-                        if translSamp not in possible[target]:
-                            possible[target][translSamp] = []
-                        possible[target][translSamp].append(n0Val)
-                    else:
-                        if sample not in possible[target]:
-                            possible[target][sample] = []
-                        possible[target][sample].append(n0Val)
-                    condCount[target] += 1
-
-            for cRunB in range(0, len(allRuns)):
-                bOverlap = {}
-                if cRunA == cRunB:
-                    for tar in res["target"]:
-                        res["target"][tar]["overlap"][cRunA][cRunA] = condCount[tar]
-                    continue
-                if cRunA < cRunB:
-                    continue
-                runB = allRuns[cRunB]
-                reacts = _get_all_children(runB._node, "react")
+        if calcCorrection:
+            for cRunA in range(0, len(allRuns)):
+                condCount = {}
+                for tar in res["target"]:
+                    condCount[tar] = 0
+                possible = {}
+                runA = allRuns[cRunA]
+                reacts = _get_all_children(runA._node, "react")
                 for react in reacts:
                     samId = _get_first_child(react, "sample")
                     if samId is None:
                         continue
-                    if samId.attrib['id'] == "":
+                    if "id" not in samId.attrib:
                         continue
                     sample = samId.attrib['id']
                     react_datas = _get_all_children(react, "data")
@@ -8154,23 +8105,11 @@ class Experiment:
                         tarId = _get_first_child(react_data, "tar")
                         if tarId is None:
                             continue
-                        if tarId.attrib['id'] == "":
+                        if "id" not in tarId.attrib:
                             continue
                         target = tarId.attrib['id']
-                        # Keep only overlapping values
-                        if target not in possible:
+                        if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt"]:
                             continue
-                        if overlapType == "annotation":
-                            if sample not in samSel:
-                                continue
-                            if samSel[sample] == "":
-                                continue
-                            translSamp = samSel[sample]
-                            if translSamp not in possible[target]:
-                                continue
-                        else:
-                            if sample not in possible[target]:
-                                continue
                         excluded = _get_first_child_text(react_data, "excl")
                         if excluded != "":
                             continue
@@ -8194,89 +8133,172 @@ class Experiment:
                             if not np.isnan(corrVal):
                                 n0Val *= corrVal
 
-                        if target not in bOverlap:
-                            bOverlap[target] = {}
+                        if target not in possible:
+                            possible[target] = {}
                         if overlapType == "annotation":
                             if sample not in samSel:
                                 continue
                             if samSel[sample] == "":
                                 continue
                             translSamp = samSel[sample]
-                            if translSamp not in bOverlap[target]:
-                                bOverlap[target][translSamp] = []
-                            bOverlap[target][translSamp].append(n0Val)
-                            res["target"][target]["overlap"][cRunA][cRunB] += 1
-                            res["target"][target]["overlap"][cRunB][cRunA] += 1
+                            if translSamp not in possible[target]:
+                                possible[target][translSamp] = []
+                            possible[target][translSamp].append(n0Val)
                         else:
-                            if sample not in bOverlap[target]:
-                                bOverlap[target][sample] = []
-                            bOverlap[target][sample].append(n0Val)
-                            res["target"][target]["overlap"][cRunA][cRunB] += 1
-                            res["target"][target]["overlap"][cRunB][cRunA] += 1
+                            if sample not in possible[target]:
+                                possible[target][sample] = []
+                            possible[target][sample].append(n0Val)
+                        condCount[target] += 1
 
-                plateSum = 0.0
-                plateNum = 0
-                for tar in bOverlap:
-                    for sam in bOverlap[tar]:
-                        for bVal in bOverlap[tar][sam]:
-                            for aVal in possible[tar][sam]:
-                                plateSum += math.log(aVal/bVal)
-                                plateNum += 1
-                    # npTarRes = np.ma.asarray(geoTarColl, dtype=np.float64)
-                    # geoTarFac[tar] = scp.gmean(npTarRes)
-                if plateNum > 0:
-                    plateMean = math.exp(plateSum / plateNum)
-                else:
-                    plateMean = -1.0
-                if plateMean > 0.0:
-                    res["plate"]["matrix"][cRunA][cRunB] = 1.0 / plateMean
-                    res["plate"]["matrix"][cRunB][cRunA] = plateMean
-                else:
-                    res["plate"]["matrix"][cRunA][cRunB] = -1.0
-                    res["plate"]["matrix"][cRunB][cRunA] = -1.0
+                for cRunB in range(0, len(allRuns)):
+                    bOverlap = {}
+                    if cRunA == cRunB:
+                        for tar in res["target"]:
+                            res["target"][tar]["overlap"][cRunA][cRunA] = condCount[tar]
+                        continue
+                    if cRunA < cRunB:
+                        continue
+                    runB = allRuns[cRunB]
+                    reacts = _get_all_children(runB._node, "react")
+                    for react in reacts:
+                        samId = _get_first_child(react, "sample")
+                        if samId is None:
+                            continue
+                        if "id" not in samId.attrib:
+                            continue
+                        sample = samId.attrib['id']
+                        react_datas = _get_all_children(react, "data")
+                        for react_data in react_datas:
+                            tarId = _get_first_child(react_data, "tar")
+                            if tarId is None:
+                                continue
+                            if "id" not in tarId.attrib:
+                                continue
+                            target = tarId.attrib['id']
+                            # Keep only overlapping values
+                            if target not in possible:
+                                continue
+                            if overlapType == "annotation":
+                                if sample not in samSel:
+                                    continue
+                                if samSel[sample] == "":
+                                    continue
+                                translSamp = samSel[sample]
+                                if translSamp not in possible[target]:
+                                    continue
+                            else:
+                                if sample not in possible[target]:
+                                    continue
+                            excluded = _get_first_child_text(react_data, "excl")
+                            if excluded != "":
+                                continue
+                            n0Val = _get_first_child_text(react_data, "N0")
+                            if n0Val == "":
+                                continue
+                            try:
+                                n0Val = float(n0Val)
+                            except ValueError:
+                                continue
+                            if np.isnan(n0Val):
+                                continue
+                            if n0Val <= 0.0:
+                                continue
+                            corrVal = _get_first_child_text(react_data, "corrP")
+                            if corrVal != "":
+                                try:
+                                    n0Val = float(corrVal)
+                                except ValueError:
+                                    pass
+                                if not np.isnan(corrVal):
+                                    n0Val *= corrVal
 
-        # Set diagonal 1.0
-        for sRun in range(0, len(allRuns)):
-            maxVal = -3.0
-            for curr in range(0, len(allRuns)):
-                maxVal = max(maxVal, res["plate"]["matrix"][sRun][curr])
-                maxVal = max(maxVal, res["plate"]["matrix"][curr][sRun])
-            if maxVal > 0.0:
-                res["plate"]["matrix"][sRun][sRun] = 1.0
+                            if target not in bOverlap:
+                                bOverlap[target] = {}
+                            if overlapType == "annotation":
+                                if sample not in samSel:
+                                    continue
+                                if samSel[sample] == "":
+                                    continue
+                                translSamp = samSel[sample]
+                                if translSamp not in bOverlap[target]:
+                                    bOverlap[target][translSamp] = []
+                                bOverlap[target][translSamp].append(n0Val)
+                                res["target"][target]["overlap"][cRunA][cRunB] += 1
+                                res["target"][target]["overlap"][cRunB][cRunA] += 1
+                            else:
+                                if sample not in bOverlap[target]:
+                                    bOverlap[target][sample] = []
+                                bOverlap[target][sample].append(n0Val)
+                                res["target"][target]["overlap"][cRunA][cRunB] += 1
+                                res["target"][target]["overlap"][cRunB][cRunA] += 1
 
-        for tar in sortTargets:
+                    plateSum = 0.0
+                    plateNum = 0
+                    for tar in bOverlap:
+                        for sam in bOverlap[tar]:
+                            for bVal in bOverlap[tar][sam]:
+                                for aVal in possible[tar][sam]:
+                                    plateSum += math.log(aVal/bVal)
+                                    plateNum += 1
+                        # npTarRes = np.ma.asarray(geoTarColl, dtype=np.float64)
+                        # geoTarFac[tar] = scp.gmean(npTarRes)
+                    if plateNum > 0:
+                        plateMean = math.exp(plateSum / plateNum)
+                    else:
+                        plateMean = -1.0
+                    if plateMean > 0.0:
+                        res["plate"]["matrix"][cRunA][cRunB] = 1.0 / plateMean
+                        res["plate"]["matrix"][cRunB][cRunA] = plateMean
+                    else:
+                        res["plate"]["matrix"][cRunA][cRunB] = -1.0
+                        res["plate"]["matrix"][cRunB][cRunA] = -1.0
+
+            # Set diagonal 1.0
             for sRun in range(0, len(allRuns)):
-                if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
-                    pass
-                else:
-                    for curr in range(0, len(allRuns)):
-                        res["target"][tar]["overlap"][sRun][curr] = -10
-                        res["target"][tar]["overlap"][curr][sRun] = -10
+                maxVal = -3.0
+                for curr in range(0, len(allRuns)):
+                    maxVal = max(maxVal, res["plate"]["matrix"][sRun][curr])
+                    maxVal = max(maxVal, res["plate"]["matrix"][curr][sRun])
+                if maxVal > 0.0:
+                    res["plate"]["matrix"][sRun][sRun] = 1.0
 
-        # Fill matix gaps
-        for appNr in range(0, 2):
+            for tar in sortTargets:
+                for sRun in range(0, len(allRuns)):
+                    if sRun in res["target"][tar]["present"] and res["target"][tar]["present"][sRun] is True:
+                        pass
+                    else:
+                        for curr in range(0, len(allRuns)):
+                            res["target"][tar]["overlap"][sRun][curr] = -10
+                            res["target"][tar]["overlap"][curr][sRun] = -10
+
+            # Handle a single run
+            if len(allRuns) == 1:
+                res["plate"]["matrix"][0][0] = 1.0
+
+            # Fill matix gaps
+            for appNr in range(0, 2):
+                for mRow in range(0, len(allRuns)):
+                    for mCol in range(0, len(allRuns)):
+                        if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
+                            _pco_fixPlateMatix(res["plate"]["matrix"], mRow, mCol)
             for mRow in range(0, len(allRuns)):
                 for mCol in range(0, len(allRuns)):
                     if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
-                        _pco_fixPlateMatix(res["plate"]["matrix"], mRow, mCol)
-        for mRow in range(0, len(allRuns)):
-            for mCol in range(0, len(allRuns)):
-                if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
-                    err = "Error Plate: Could not fix all matrix gaps."
+                        err = "Error Plate: Could not fix all matrix gaps."
 
-        # Calc final correction factors
-        for fRunA in range(0, len(allRuns)):
-            linSum = 0.0
-            linNum = 0
-            for fRunB in range(0, len(allRuns)):
-                if res["plate"]["matrix"][fRunB][fRunA] > 0.0:
-                    linSum += math.log(res["plate"]["matrix"][fRunB][fRunA])
-                    linNum += 1
-            if linNum > 0:
-                curRes = math.exp(linSum / linNum)
-                res["plate"]["corrP"].append(curRes)
-            else:
-                res["plate"]["corrP"].append(-10.0)
+            # Calc final correction factors
+            for fRunA in range(0, len(allRuns)):
+                linSum = 0.0
+                linNum = 0
+                for fRunB in range(0, len(allRuns)):
+                    if res["plate"]["matrix"][fRunB][fRunA] > 0.0:
+                        linSum += math.log(res["plate"]["matrix"][fRunB][fRunA])
+                        linNum += 1
+                if linNum > 0:
+                    curRes = math.exp(linSum / linNum)
+                    res["plate"]["corrP"].append(curRes)
+                else:
+                    res["plate"]["corrP"].append(-10.0)
 
         for tar in sortTargets:
             if tarPara[tar]["Eff_Num"] > 0:
@@ -8298,6 +8320,9 @@ class Experiment:
             res["threshold"] = math.exp(thres_Sum / thres_Num)
             for pRunA in range(0, len(allRuns)):
                 res["plate"]["threshold"][pRunA] = math.exp(res["plate"]["Thres_Sum"][pRunA] / res["plate"]["Thres_Num"][pRunA])
+        else:
+            res["threshold"] = -1.0
+
         if err != "":
             res["error"] = err
 
@@ -8317,7 +8342,6 @@ class Experiment:
 
         res["tsv"]["pcr_efficiency"] = "Target\tCombined\tSE Combined" + runLine
         res["tsv"]["pcr_efficiency"] += "\n"
-
         for tar in sortTargets:
             res["tsv"]["pcr_efficiency"] += tar
             tCorr = res["target"][tar]["ampEff"]
@@ -8358,7 +8382,6 @@ class Experiment:
             for row in range(0, len(allRuns)):
                 res["tsv"]["overlapping_conditions"] += res["runs"][row]
                 for col in range(0, len(allRuns)):
-                    print (tar + " - " + str(row)  + ":" + str(col) + " " + str(res["target"][tar]["overlap"][row][col]))
                     overCount = res["target"][tar]["overlap"][row][col]
                     overOut = str(overCount)
                     if overCount < 0:
@@ -8388,7 +8411,7 @@ class Experiment:
                         corrPlate = -1.0
                         if tarId is None:
                             continue
-                        if tarId.attrib['id'] == "":
+                        if "id" not in tarId.attrib:
                             continue
                         tar = tarId.attrib['id']
                         corrPlate = res["plate"]["corrP"][pRunA]
@@ -8437,111 +8460,124 @@ class Experiment:
             A dictionary with the resulting data, presence and format depending on input.
         """
 
+        pRoot = self._node.getparent()
+        transSamTar = _sampleTypeToDics(pRoot)
+
         res = {}
-        res["runs"] = []
-        res["target"] = {}
-        err = ""
-        res["threshold"] = -1.0
-        res["fluorCorr"] = -1.0
+        res["fluorN0Fact"] = -1.0
         res["absUnit"] = ""
-        tarPara = {}
-        thres_Sum = 0.0
-        thres_Num = 0
         allRuns = self.runs()
 
-        # Find all used Targets
-        for tRunA in range(0, len(allRuns)):
-            runA = allRuns[tRunA]
+        # Get the merged data from inter run correction
+        interRun = self.interRunCorr(overlapType="samples", selAnnotation="", updateRDML=False, calcCorrection=False)
+        res["tsv"] = {}
+        res["tsv"]["threshold"] = interRun["tsv"]["threshold"]
+        res["tsv"]["pcr_efficiency"] = interRun["tsv"]["pcr_efficiency"]
+        res["threshold"] = interRun["threshold"]
+        res["target"] = {}
+        res["quantity"] = {}
+        res["quantity"]["cop"] = {}
+        res["quantity"]["fold"] = {}
+        res["quantity"]["dil"] = {}
+        res["quantity"]["nMol"] = {}
+        res["quantity"]["ng"] = {}
+        res["quantity"]["other"] = {}
+        for tar in interRun["target"]:
+            res["target"][tar] = {}
+            res["target"][tar]["ampEff"] = interRun["target"][tar]["ampEff"]
+            res["target"][tar]["ampEffSE"] = interRun["target"][tar]["ampEffSE"]
+            res["quantity"]["cop"][tar] = {}
+            res["quantity"]["cop"][tar]["count"] = 0
+            res["quantity"]["cop"][tar]["samples"] = {}
+            res["quantity"]["fold"][tar] = {}
+            res["quantity"]["fold"][tar]["count"] = 0
+            res["quantity"]["fold"][tar]["samples"] = {}
+            res["quantity"]["dil"][tar] = {}
+            res["quantity"]["dil"][tar]["count"] = 0
+            res["quantity"]["dil"][tar]["samples"] = {}
+            res["quantity"]["nMol"][tar] = {}
+            res["quantity"]["nMol"][tar]["count"] = 0
+            res["quantity"]["nMol"][tar]["samples"] = {}
+            res["quantity"]["ng"][tar] = {}
+            res["quantity"]["ng"][tar]["count"] = 0
+            res["quantity"]["ng"][tar]["samples"] = {}
+            res["quantity"]["other"][tar] = {}
+            res["quantity"]["other"][tar]["count"] = 0
+            res["quantity"]["other"][tar]["samples"] = {}
+
+        # collect the react data for samples used in the experiment sorted by targets
+        stdSamples = {}
+        for pRun in range(0, len(allRuns)):
+            runA = allRuns[pRun]
             reacts = _get_all_children(runA._node, "react")
             for react in reacts:
+                samId = _get_first_child(react, "sample")
+                if samId is None:
+                    continue
+                if "id" not in samId.attrib:
+                    continue
+                sampleID = samId.attrib['id']
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
                     tarId = _get_first_child(react_data, "tar")
                     if tarId is None:
                         continue
-                    if tarId.attrib['id'] == "":
+                    if "id" not in tarId.attrib:
                         continue
-                    tar = tarId.attrib['id']
-                    res["target"][tar] = {}
-                    res["target"][tar]["present"] = {}
-                    res["target"][tar]["overlap"] = []
-                    res["target"][tar]["ampEff"] = -1.0
-                    res["target"][tar]["ampEffSE"] = -1.0
-
-        for tar in res["target"]:
-            tarPara[tar] = {}
-            tarPara[tar]["Eff_Sum"] = 0.0
-            tarPara[tar]["Eff_Num"] = 0
-            tarPara[tar]["Err_Sum"] = []
-            tarPara[tar]["Err_Num"] = []
-            for row in range(0, len(allRuns)):
-                tarPara[tar]["Err_Sum"].append(0.0)
-                tarPara[tar]["Err_Num"].append(0)
-
-        sortTargets = sorted(list(res["target"].keys()))
-
-        # Collect Run - Target Information
-        for pRunA in range(0, len(allRuns)):
-            runA = allRuns[pRunA]
-            res["runs"].append({})
-            res["runs"][pRunA]['id'] = runA['id']
-            run_thres_Sum = 0.0
-            run_thres_Num = 0
-            reacts = _get_all_children(runA._node, "react")
-            for react in reacts:
-                react_datas = _get_all_children(react, "data")
-                for react_data in react_datas:
-                    tarId = _get_first_child(react_data, "tar")
-                    if tarId is None:
+                    target = tarId.attrib['id']
+                    if transSamTar[sampleID][target] != 'std':
                         continue
-                    if tarId.attrib['id'] == "":
-                        continue
-                    tar = tarId.attrib['id']
                     excluded = _get_first_child_text(react_data, "excl")
                     if excluded != "":
                         continue
-                    res["target"][tar]["present"][pRunA] = True
-                    ampEff = _get_first_child_text(react_data, "ampEff")
-                    if ampEff != "":
-                        try:
-                            ampEff = float(ampEff)
-                        except ValueError:
-                            pass
-                        else:
-                            tarPara[tar]["Eff_Sum"] += ampEff
-                            tarPara[tar]["Eff_Num"] += 1
-                    effErr = _get_first_child_text(react_data, "ampEffSE")
-                    if effErr != "":
-                        try:
-                            effErr = float(effErr)
-                        except ValueError:
-                            pass
-                        else:
-                            tarPara[tar]["Err_Sum"][pRunA] += effErr
-                            tarPara[tar]["Err_Num"][pRunA] += 1
-                    thres = _get_first_child_text(react_data, "quantFluor")
-                    if thres != "":
-                        try:
-                            thres = float(thres)
-                        except ValueError:
-                            pass
-                        else:
-                            thres_Sum += math.log(thres)
-                            thres_Num += 1
-                            run_thres_Sum += math.log(thres)
-                            run_thres_Num += 1
-            if run_thres_Num > 0:
-                res["runs"][pRunA]["threshold"] = math.exp(run_thres_Sum / run_thres_Num)
-            else:
-                res["runs"][pRunA]["threshold"] = -1.0
-            print("Run: " + str(pRunA) + " Thres: " + str(res["runs"][pRunA]["threshold"]))
-        if thres_Num > 0:
-            res["threshold"] = math.exp(thres_Sum / thres_Num)
-            res["fluorCorr"] = (res["threshold"] / np.power(1.9, 35.0)) * 2
+                    if target not in stdSamples:
+                        stdSamples[target] = {}
+                    if sampleID not in stdSamples[target]:
+                        stdSamples[target][sampleID] = []
+                    stdSamples[target][sampleID].append(react_data)
+
+        # Get the quantity information only for the used samples
+        samples = _get_all_children(pRoot, "sample")
+        for currTar in interRun["target"]:
+            for sample in samples:
+                if "id" in sample.attrib:
+                    samId = sample.attrib['id']
+                    if currTar not in stdSamples:
+                        continue
+                    if samId not in stdSamples[currTar]:
+                        continue
+                    subEles = _get_all_children(sample, "quantity")
+                    for subNode in subEles:
+                        if 'targetId' in subNode.attrib:
+                            if subNode.attrib['targetId'] != currTar:
+                                continue
+                        qUnit = _get_first_child_text(subNode, "unit")
+                        qValue = float(_get_first_child_text(subNode, "value"))
+                        if qUnit == "dil":
+                            if qValue != 0.0:
+                                qValue = 1.0 / qValue
+                        if qUnit in res["quantity"]:
+                            if currTar in res["quantity"][qUnit]:
+                                if qValue not in res["quantity"][qUnit][currTar]["samples"]:
+                                    res["quantity"][qUnit][currTar]["samples"][qValue] = {}
+                                res["quantity"][qUnit][currTar]["samples"][qValue][samId] = 1
+                                res["quantity"][qUnit][currTar]["count"] += 1
+
+        print(res["quantity"])
+
+
+        if res["threshold"] > 0:
+            res["fluorN0Fact"] = float((res["threshold"] / np.power(1.9, 35.0)) / (10 / 20))  # 20 ul, 10 copies
             res["absUnit"] = "cop"
 
+            res["tsv"]["fluorN0Fact"] = '1.0\t' + _niceQuantityType(res["absUnit"]) + '\tcorrespond to\t'
+            res["tsv"]["fluorN0Fact"] += "{:.4e}".format(res["fluorN0Fact"]) + '\tflourecsence\n'
+
+        print(res["threshold"] / np.power(1.9, 35.0))
+        print((res["threshold"] / np.power(1.9, 35.0)) / res["fluorN0Fact"] )
+
         print("Final Thres: " + str(res["threshold"]))
-        print("flourCorr: " + str(res["fluorCorr"]))
+        print("flourCorr: " + str(res["fluorN0Fact"]))
         return res
 
 
@@ -10500,20 +10536,20 @@ class Run:
                                                         if not np.isnan(calcCq):
                                                             if calcCq > 0.0:
                                                                 finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
-                                                                #in_react["corrCq"] = "{:.3f}".format(finalCq)
+                                                                in_react["corrCq"] = "{:.3f}".format(finalCq)
                 else:
                     if calcCorr < 0.0:
                         in_react["corrN0"] = "-1.0"
-                       # if givenCq == "":
-                           # in_react["corrCq"] = -1.0
+                        if givenCq == "":
+                            in_react["corrCq"] = -1.0
                     else:
                         in_react["corrN0"] = "0.0"
-                       # if givenCq == "":
-                            #in_react["corrCq"] = -1.0
+                        if givenCq == "":
+                            in_react["corrCq"] = -1.0
                 if calcPlate < 0.0:
                     in_react["corrN0"] = "-1.0"
-                 #   if givenCq == "":
-                    #    in_react["corrCq"] = -1.0
+                    if givenCq == "":
+                        in_react["corrCq"] = -1.0
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
