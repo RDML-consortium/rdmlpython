@@ -2618,6 +2618,7 @@ class Rdml:
         """
 
         mess = ""
+        rdml_version = self._node.get('version')
 
         # Find lost dyes
         foundIds = {}
@@ -2733,6 +2734,9 @@ class Rdml:
         for used_id in foundIds:
             if used_id not in presentIds:
                 self.new_sample(id=used_id, newposition=0)
+                if rdml_version != '1.3':
+                    elem = self.get_sample(byid=used_id)
+                    elem.new_type("opt", targetId=None)
                 mess += "Recreated sample: " + used_id + "\n"
         # Find lost target
         foundIds = {}
@@ -8447,18 +8451,24 @@ class Experiment:
 
         return res
 
-    def absoluteQuantification(self, method="reference", estimate=True, updateRDML=False):
+    def absoluteQuantification(self, method="reference", quantUnit="cop", estimate=True, updateRDML=False):
         """Perform absolute quantification on the experiment.
 
         Args:
             self: The class self parameter.
             method: Base the overlap on "reference", "cq-guess", "optical" or "standard-curve".
+            quantUnit: The unit used for quantification "cop", "fold", "dil", "nMol", "ng" or "other"
             estimate: If true, missing targets are estimated.
             updateRDML: If true, update the RDML data with the calculated values.
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
         """
+
+        if method not in ["reference", "cq-guess", "optical", "standard-curve"]:
+            raise RdmlError('Error: Unknown method used in absoluteQuantification.')
+        if quantUnit not in ["cop", "fold", "dil", "nMol", "ng", "other"]:
+            raise RdmlError('Error: Unknown quantUnit used in absoluteQuantification.')
 
         mol = 6.02214076e23  # copies / Mole
         baseWeight = 660  # g / mol per base
@@ -8581,42 +8591,113 @@ class Experiment:
                 if tarId not in interRun["target"]:
                     continue
                 seqEle = _get_first_child(target, "sequences")
-                if seqEle:
+                if seqEle is not None:
                     ampliconEle = _get_first_child(seqEle, "amplicon")
-                    if ampliconEle:
+                    if ampliconEle is not None:
                         amplicon = _get_first_child_text(ampliconEle, "sequence")
                         if amplicon != "":
                             if len(amplicon) > 20:
                                 res["target"][tarId]["ampliconLen"] = len(amplicon)
 
         if res["threshold"] > 0:
-            fluorN0Fact = float((res["threshold"] / np.power(1.9, 35.0)) / (10 / 20))  # 20 ul, 10 copies
-            for tar in interRun["target"]:
-                res["fluorN0Fact"][tar] = fluorN0Fact
-            res["absUnit"] = "cop"
+            if method == "reference":
+                selUntit = quantUnit
+                res["absUnit"] = selUntit
+                for qTar in interRun["target"]:
+                    if len(res["quantity"][selUntit]["samples"][qTar]) > 0:
+                        sortValues = sorted(list(res["quantity"][selUntit]["samples"][qTar].keys()), reverse=True)
+                        selSamples = list(res["quantity"][selUntit]["samples"][qTar][sortValues[0]].keys())
+                        geo_sum = 0.0
+                        geo_num = 0
+                        for qSamp in selSamples:
+                            for react_data in stdSamples[qTar][qSamp]:
+                                corrFac = _get_first_child_text(react_data, "corrF")
+                                calcCorr = 1.0
+                                if not corrFac == "":
+                                    try:
+                                        calcCorr = float(corrFac)
+                                    except ValueError:
+                                        calcCorr = 1.0
+                                    if np.isnan(calcCorr):
+                                        calcCorr = 1.0
+                                    if calcCorr > 1.0:
+                                        calcCorr = 1.0
+                                plateFac = _get_first_child_text(react_data, "corrP")
+                                calcPlate = 1.0
+                                if not plateFac == "":
+                                    try:
+                                        calcPlate = float(plateFac)
+                                    except ValueError:
+                                        calcPlate = 0.0
+                                    if np.isnan(calcPlate):
+                                        calcCorr = 0.0
+                                    if calcPlate == 0.0:
+                                        calcCorr = 0.0
+                                    calcCorr = calcCorr / calcPlate
+                                calcN0 = _get_first_child_text(react_data, "N0")
+                                if calcCorr > 0.0001:
+                                    if not calcN0 == "":
+                                        try:
+                                            calcN0 = float(calcN0)
+                                        except ValueError:
+                                            pass
+                                        else:
+                                            if not np.isnan(calcN0):
+                                                finalN0 = calcCorr * calcN0
+                                                geo_sum += math.log(finalN0)
+                                                geo_num += 1
+                        if geo_num > 0:
+                            geoN0 = math.exp(geo_sum / geo_num)
+                            res["fluorN0Fact"][qTar] = geoN0 / sortValues[0]
+                if estimate is True:
+                    geoTar_sum = 0.0
+                    geoTar_num = 0
+                    for qTar in interRun["target"]:
+                        if res["fluorN0Fact"][qTar] > 0.0:
+                            geoTar_sum += math.log(res["fluorN0Fact"][qTar])
+                            geoTar_num += 1
+                    if geoTar_num > 0:
+                        geoTar = math.exp(geoTar_sum / geoTar_num)
+                        for qTar in interRun["target"]:
+                            if res["fluorN0Fact"][qTar] <= 0.0:
+                                res["fluorN0Fact"][qTar] = geoTar
 
-            res["tsv"]["fluorN0Fact"] = 'Target\tQuant. Fact.\tAmplicon Length\tTreshold\t'
+            if method == "cq-guess":
+                res["absUnit"] = "cop"
+                fluorN0Fact = float((res["threshold"] / np.power(1.9, 35.0)) / (10 / 20))  # 20 ul, 10 copies
+                for tar in interRun["target"]:
+                    res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
+
+            if method == "optical":
+                pass
+
+            if method == "standard-curve":
+                pass
+
+            res["tsv"]["fluorN0Fact"] = 'Target\tQuant. Fact.\tAmplicon Length\tPCR Efficiency\tTreshold\t'
             res["tsv"]["fluorN0Fact"] += _niceQuantityType("cop") + ' at Threshold\t'
-            res["tsv"]["fluorN0Fact"] += _niceQuantityType("ng") + ' at Threshold\tTarget\n'
+            res["tsv"]["fluorN0Fact"] += _niceQuantityType("ng") + ' at Threshold\n'
             for tar in sortTargets:
                 res["tsv"]["fluorN0Fact"] += tar + '\t'
                 res["tsv"]["fluorN0Fact"] += "{:.4e}".format(res["fluorN0Fact"][tar]) + '\t'
                 res["tsv"]["fluorN0Fact"] += str(res["target"][tar]["ampliconLen"]) + '\t'
+                res["tsv"]["fluorN0Fact"] += "{:.4f}".format(res["target"][tar]["ampEff"]) + '\t'
                 res["tsv"]["fluorN0Fact"] += "{:.4f}".format(res["threshold"]) + '\t'
                 if res["fluorN0Fact"][tar] > 0.0:
                     copiesCalc = res["threshold"] / res["fluorN0Fact"][tar]
                     nMolCalc = 10e9 * copiesCalc / mol
                     ngCalc = baseWeight * nMolCalc * res["target"][tar]["ampliconLen"]
                     res["tsv"]["fluorN0Fact"] += "{:.2e}".format(copiesCalc) + '\t'
-                    res["tsv"]["fluorN0Fact"] += "{:.4f}".format(ngCalc) + '\t'
+                    res["tsv"]["fluorN0Fact"] += "{:.4f}".format(ngCalc)
                 else:
-                    res["tsv"]["fluorN0Fact"] += '\t\t'
-                res["tsv"]["fluorN0Fact"] += '\t'
+                    res["tsv"]["fluorN0Fact"] += '\t'
                 res["tsv"]["fluorN0Fact"] += '\n'
 
 
             csvStandard = ""
             for oUnit in ["cop", "fold", "dil", "nMol", "ng", "ng", "ng", "other"]:
+                if res["absUnit"] != oUnit:
+                    continue
                 for oTar in res["quantity"][oUnit]["samples"]:
                     sortStdValues = sorted(list(res["quantity"][oUnit]["samples"][oTar].keys()), reverse=True)
                     for oValue in sortStdValues:
@@ -8633,8 +8714,10 @@ class Experiment:
                                             csvStandard += react.attrib['id']
                                         csvStandard += '\t' + oSample
                                         csvStandard += '\t' + oTar
-
-                                        csvStandard += '\t' + "{:.4f}".format(oValue) + '\t'
+                                        if oUnit == "cop":
+                                            csvStandard += '\t' + "{:.2f}".format(oValue) + '\t'
+                                        else:
+                                            csvStandard += '\t' + "{:.4e}".format(oValue) + '\t'
                                         corrFac = _get_first_child_text(react_data, "corrF")
                                         calcCorr = 1.0
                                         if not corrFac == "":
@@ -8670,8 +8753,10 @@ class Experiment:
                                                         if res["fluorN0Fact"][oTar] > 0.0:
                                                             finalN0 = calcCorr * calcN0
                                                             calcQuant = finalN0 / res["fluorN0Fact"][oTar]
-                                                            calcQuant *= 100 / res["target"][tar]["ampliconLen"]
-                                                        csvStandard += "{:.4f}".format(calcQuant)
+                                                            if oUnit == "cop":
+                                                                csvStandard += "{:.2f}".format(calcQuant)
+                                                            else:
+                                                                csvStandard += "{:.4e}".format(calcQuant)
                                         csvStandard += '\t' + _niceQuantityType(oUnit) + '\n'
             if csvStandard != "":
                 res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
@@ -12398,9 +12483,15 @@ class Run:
                             goodVal = "{:.2e}".format(N0Val)
                         _change_subelement(rdmlElemData[rRow], "N0", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
-                        goodVal = "{:.3f}".format(meanEffVal)
+                        if np.isnan(meanEffVal):
+                            goodVal = "-1.0"
+                        else:
+                            goodVal = "{:.3f}".format(meanEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEff", dataXMLelements, goodVal, True, "string")
-                        goodVal = "{:.3f}".format(stdEffVal)
+                        if np.isnan(stdEffVal):
+                            goodVal = "-1.0"
+                        else:
+                            goodVal = "{:.3f}".format(stdEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEffSE", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                     goodVal = "{:.3f}".format(vecBackground[rRow])
