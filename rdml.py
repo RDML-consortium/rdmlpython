@@ -8472,6 +8472,11 @@ class Experiment:
 
         mol = 6.02214076e23  # copies / Mole
         baseWeight = 660  # g / mol per base
+        neg_sum = 0.0
+        neg_num = 0
+        negFluor = 0.0
+        finalFluor = 1e12
+        finalConc = -1.0
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
 
@@ -8527,6 +8532,7 @@ class Experiment:
 
         # Collect the react data for samples used in the experiment sorted by targets
         stdSamples = {}
+        optSamples = {}
         for pRun in range(0, len(allRuns)):
             runA = allRuns[pRun]
             reacts = _get_all_children(runA._node, "react")
@@ -8545,11 +8551,19 @@ class Experiment:
                     if "id" not in tarId.attrib:
                         continue
                     target = tarId.attrib['id']
-                    if transSamTar[sampleID][target] != 'std':
-                        continue
                     excluded = _get_first_child_text(react_data, "excl")
                     if excluded != "":
                         continue
+                    if method == "optical":
+                        if transSamTar[sampleID][target] != 'opt':
+                            continue
+                        else:
+                            if sampleID not in optSamples:
+                                optSamples[sampleID] = []
+                            optSamples[sampleID].append(react_data)
+                    else:
+                        if transSamTar[sampleID][target] != 'std':
+                            continue
                     if target not in stdSamples:
                         stdSamples[target] = {}
                     if sampleID not in stdSamples[target]:
@@ -8582,6 +8596,22 @@ class Experiment:
                                     res["quantity"][qUnit]["samples"][currTar][qValue] = {}
                                 res["quantity"][qUnit]["samples"][currTar][qValue][samId] = 1
                                 res["quantity"][qUnit]["count"] += 1
+
+        optQuantity = {}
+        for sample in samples:
+            if "id" in sample.attrib:
+                samId = sample.attrib['id']
+                if samId not in optSamples:
+                    continue
+                subEles = _get_all_children(sample, "quantity")
+                for subNode in subEles:
+                    qUnit = _get_first_child_text(subNode, "unit")
+                    if qUnit != "ng":
+                        continue
+                    qValue = float(_get_first_child_text(subNode, "value"))
+                    if qValue not in optQuantity:
+                        optQuantity[qValue] = {}
+                    optQuantity[qValue][samId] = -1.0
 
         # Get the amplicon length only for the used targets
         targets = _get_all_children(pRoot, "target")
@@ -8669,7 +8699,41 @@ class Experiment:
                     res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
 
             if method == "optical":
-                pass
+                res["absUnit"] = "cop"
+                concFluor = {}
+                for currConc in optQuantity:
+                    fluor_sum = 0.0
+                    fluor_num = 0
+                    for currSamp in optQuantity[currConc]:
+                        for react_data in optSamples[currSamp]:
+                            adps = _get_all_children(react_data, "adp")
+                            for adp in adps:
+                                cyc = int(float(_get_first_child_text(adp, "cyc")))
+                                if cyc < 6:
+                                    if currConc > 0.000001:
+                                        fluor_sum += math.log(float(_get_first_child_text(adp, "fluor")))
+                                        fluor_num += 1
+                                    else:
+                                        neg_sum += math.log(float(_get_first_child_text(adp, "fluor")))
+                                        neg_num += 1
+                    if fluor_num > 0:
+                        concFluor[currConc] = math.exp(fluor_sum / fluor_num)
+                if neg_num > 0:
+                    negFluor = math.exp(neg_sum / neg_num)
+
+                thresCopies = -1.0
+                for currConc in concFluor:
+                    currFluor = concFluor[currConc] - negFluor
+                    if float(res["threshold"]) + negFluor < currFluor < finalFluor:
+                        finalFluor = currFluor
+                        finalConc = currConc
+                        copies = currConc * mol / (100 * baseWeight * 1e9)  # currConc in ng, 100 bp
+                        thresCopies = copies * float(res["threshold"]) / currFluor
+
+                if thresCopies > 0.0:
+                    fluorN0Fact = float(res["threshold"]) / thresCopies
+                    for tar in interRun["target"]:
+                        res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
 
             if method == "standard-curve":
                 pass
@@ -8685,7 +8749,7 @@ class Experiment:
                 res["tsv"]["fluorN0Fact"] += "{:.4f}".format(res["threshold"]) + '\t'
                 if res["fluorN0Fact"][tar] > 0.0:
                     copiesCalc = res["threshold"] / res["fluorN0Fact"][tar]
-                    nMolCalc = 10e9 * copiesCalc / mol
+                    nMolCalc = 1e9 * copiesCalc / mol
                     ngCalc = baseWeight * nMolCalc * res["target"][tar]["ampliconLen"]
                     res["tsv"]["fluorN0Fact"] += "{:.2e}".format(copiesCalc) + '\t'
                     res["tsv"]["fluorN0Fact"] += "{:.4f}".format(ngCalc)
@@ -8693,74 +8757,94 @@ class Experiment:
                     res["tsv"]["fluorN0Fact"] += '\t'
                 res["tsv"]["fluorN0Fact"] += '\n'
 
+            if method == "optical":
+                csvStandard = ""
+                if neg_num > 0:
+                    csvStandard += 'Threshold\t' + _niceQuantityType("ng") + '\t'
+                    csvStandard += "{:.2f}".format(float(res["threshold"])) + '\t\n'
 
-            csvStandard = ""
-            for oUnit in ["cop", "fold", "dil", "nMol", "ng", "ng", "ng", "other"]:
-                if res["absUnit"] != oUnit:
-                    continue
-                for oTar in res["quantity"][oUnit]["samples"]:
-                    sortStdValues = sorted(list(res["quantity"][oUnit]["samples"][oTar].keys()), reverse=True)
-                    for oValue in sortStdValues:
-                        for oSample in res["quantity"][oUnit]["samples"][oTar][oValue]:
-                            if oTar in stdSamples:
-                                if oSample in stdSamples[oTar]:
-                                    for react_data in stdSamples[oTar][oSample]:
-                                        react = react_data.getparent()
-                                        run = react.getparent()
-                                        if 'id' in run.attrib:
-                                            csvStandard += run.attrib['id']
-                                        csvStandard += '\t'
-                                        if 'id' in react.attrib:
-                                            csvStandard += react.attrib['id']
-                                        csvStandard += '\t' + oSample
-                                        csvStandard += '\t' + oTar
-                                        if oUnit == "cop":
-                                            csvStandard += '\t' + "{:.2f}".format(oValue) + '\t'
-                                        else:
-                                            csvStandard += '\t' + "{:.4e}".format(oValue) + '\t'
-                                        corrFac = _get_first_child_text(react_data, "corrF")
-                                        calcCorr = 1.0
-                                        if not corrFac == "":
-                                            try:
-                                                calcCorr = float(corrFac)
-                                            except ValueError:
-                                                calcCorr = 1.0
-                                            if np.isnan(calcCorr):
-                                                calcCorr = 1.0
-                                            if calcCorr > 1.0:
-                                                calcCorr = 1.0
-                                        plateFac = _get_first_child_text(react_data, "corrP")
-                                        calcPlate = 1.0
-                                        if not plateFac == "":
-                                            try:
-                                                calcPlate = float(plateFac)
-                                            except ValueError:
-                                                calcPlate = 0.0
-                                            if np.isnan(calcPlate):
-                                                calcCorr = 0.0
-                                            if calcPlate == 0.0:
-                                                calcCorr = 0.0
-                                            calcCorr = calcCorr / calcPlate
-                                        calcN0 = _get_first_child_text(react_data, "N0")
-                                        if calcCorr > 0.0001:
-                                            if not calcN0 == "":
+                csvStandard += 'No DNA\t' + _niceQuantityType("ng") + '\t'
+                csvStandard += "{:.2f}".format(negFluor) + '\t\n'
+
+                sortedConc = sorted(list(concFluor.keys()))
+                for currConc in sortedConc:
+                    csvStandard += "{:.2f}".format(currConc) + '\t' + _niceQuantityType("ng")
+                    resFluor = concFluor[currConc] - negFluor
+                    csvStandard += '\t' + "{:.2f}".format(resFluor)
+                    calcFluor = finalFluor * currConc / finalConc
+                    csvStandard += '\t' + "{:.2f}".format(calcFluor) + '\n'
+
+                if csvStandard != "":
+                    res["tsv"]["standard"] = "Concentration\tUnit\tFluorescence\tCalculated\n"
+                    res["tsv"]["standard"] += csvStandard
+            else:
+                csvStandard = ""
+                for oUnit in ["cop", "fold", "dil", "nMol", "ng", "other"]:
+                    if res["absUnit"] != oUnit:
+                        continue
+                    for oTar in res["quantity"][oUnit]["samples"]:
+                        sortStdValues = sorted(list(res["quantity"][oUnit]["samples"][oTar].keys()), reverse=True)
+                        for oValue in sortStdValues:
+                            for oSample in res["quantity"][oUnit]["samples"][oTar][oValue]:
+                                if oTar in stdSamples:
+                                    if oSample in stdSamples[oTar]:
+                                        for react_data in stdSamples[oTar][oSample]:
+                                            react = react_data.getparent()
+                                            run = react.getparent()
+                                            if 'id' in run.attrib:
+                                                csvStandard += run.attrib['id']
+                                            csvStandard += '\t'
+                                            if 'id' in react.attrib:
+                                                csvStandard += react.attrib['id']
+                                            csvStandard += '\t' + oSample
+                                            csvStandard += '\t' + oTar
+                                            if oUnit == "cop":
+                                                csvStandard += '\t' + "{:.2f}".format(oValue) + '\t'
+                                            else:
+                                                csvStandard += '\t' + "{:.4e}".format(oValue) + '\t'
+                                            corrFac = _get_first_child_text(react_data, "corrF")
+                                            calcCorr = 1.0
+                                            if not corrFac == "":
                                                 try:
-                                                    calcN0 = float(calcN0)
+                                                    calcCorr = float(corrFac)
                                                 except ValueError:
-                                                    pass
-                                                else:
-                                                    if not np.isnan(calcN0):
-                                                        if res["fluorN0Fact"][oTar] > 0.0:
-                                                            finalN0 = calcCorr * calcN0
-                                                            calcQuant = finalN0 / res["fluorN0Fact"][oTar]
-                                                            if oUnit == "cop":
-                                                                csvStandard += "{:.2f}".format(calcQuant)
-                                                            else:
-                                                                csvStandard += "{:.4e}".format(calcQuant)
-                                        csvStandard += '\t' + _niceQuantityType(oUnit) + '\n'
-            if csvStandard != "":
-                res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
-                res["tsv"]["standard"] += csvStandard
+                                                    calcCorr = 1.0
+                                                if np.isnan(calcCorr):
+                                                    calcCorr = 1.0
+                                                if calcCorr > 1.0:
+                                                    calcCorr = 1.0
+                                            plateFac = _get_first_child_text(react_data, "corrP")
+                                            calcPlate = 1.0
+                                            if not plateFac == "":
+                                                try:
+                                                    calcPlate = float(plateFac)
+                                                except ValueError:
+                                                    calcPlate = 0.0
+                                                if np.isnan(calcPlate):
+                                                    calcCorr = 0.0
+                                                if calcPlate == 0.0:
+                                                    calcCorr = 0.0
+                                                calcCorr = calcCorr / calcPlate
+                                            calcN0 = _get_first_child_text(react_data, "N0")
+                                            if calcCorr > 0.0001:
+                                                if not calcN0 == "":
+                                                    try:
+                                                        calcN0 = float(calcN0)
+                                                    except ValueError:
+                                                        pass
+                                                    else:
+                                                        if not np.isnan(calcN0):
+                                                            if res["fluorN0Fact"][oTar] > 0.0:
+                                                                finalN0 = calcCorr * calcN0
+                                                                calcQuant = finalN0 / res["fluorN0Fact"][oTar]
+                                                                if oUnit == "cop":
+                                                                    csvStandard += "{:.2f}".format(calcQuant)
+                                                                else:
+                                                                    csvStandard += "{:.4e}".format(calcQuant)
+                                            csvStandard += '\t' + _niceQuantityType(oUnit) + '\n'
+                if csvStandard != "":
+                    res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
+                    res["tsv"]["standard"] += csvStandard
         return res
 
 
