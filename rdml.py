@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.3.0"
+    return "1.3.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -8003,6 +8003,8 @@ class Experiment:
                     res["target"][tar]["ampEffSE"] = -1.0
                     res["target"][tar]["runAmpEff"] = []
                     res["target"][tar]["runAmpEffSE"] = []
+                    res["target"][tar]["runAmpEffNum"] = []
+                    res["target"][tar]["runAmpEffSENum"] = []
 
         sortTargets = sorted(list(res["target"].keys()))
 
@@ -8029,6 +8031,8 @@ class Experiment:
                 res["target"][tar]["overlap"].append([])
                 res["target"][tar]["runAmpEff"].append(-1.0)
                 res["target"][tar]["runAmpEffSE"].append(-1.0)
+                res["target"][tar]["runAmpEffNum"].append(0)
+                res["target"][tar]["runAmpEffSENum"].append(0)
                 tarPara[tar]["Run_Eff_Sum"].append(0.0)
                 tarPara[tar]["Run_Eff_Num"].append(0)
                 tarPara[tar]["Err_Sum"].append(0.0)
@@ -8310,11 +8314,13 @@ class Experiment:
             errSumTr = 0.0
             errNum = 0
             for pRunA in range(0, len(allRuns)):
+                res["target"][tar]["runAmpEffSENum"][pRunA] = tarPara[tar]["Err_Num"][pRunA]
                 if tarPara[tar]["Err_Num"][pRunA] > 0:
                     plateSE = tarPara[tar]["Err_Sum"][pRunA] / tarPara[tar]["Err_Num"][pRunA]
                     res["target"][tar]["runAmpEffSE"][pRunA] = plateSE
                     errSumTr += (plateSE * math.sqrt(tarPara[tar]["Err_Num"][pRunA])) ** 2
                     errNum += tarPara[tar]["Err_Num"][pRunA]
+                res["target"][tar]["runAmpEffNum"][pRunA] = tarPara[tar]["Run_Eff_Num"][pRunA]
                 if tarPara[tar]["Run_Eff_Num"][pRunA] > 0:
                     res["target"][tar]["runAmpEff"][pRunA] = tarPara[tar]["Run_Eff_Sum"][pRunA] / tarPara[tar]["Run_Eff_Num"][pRunA]
             if errNum > 0:
@@ -8456,7 +8462,7 @@ class Experiment:
 
         Args:
             self: The class self parameter.
-            method: Base the overlap on "reference", "cq-guess", "optical" or "standard-curve".
+            method: Base the overlap on "reference", "cq-guess" or "optical".
             quantUnit: The unit used for quantification "cop", "fold", "dil", "nMol", "ng" or "other"
             estimate: If true, missing targets are estimated.
             updateRDML: If true, update the RDML data with the calculated values.
@@ -8465,7 +8471,7 @@ class Experiment:
             A dictionary with the resulting data, presence and format depending on input.
         """
 
-        if method not in ["reference", "cq-guess", "optical", "standard-curve"]:
+        if method not in ["reference", "cq-guess", "optical"]:
             raise RdmlError('Error: Unknown method used in absoluteQuantification.')
         if quantUnit not in ["cop", "fold", "dil", "nMol", "ng", "other"]:
             raise RdmlError('Error: Unknown quantUnit used in absoluteQuantification.')
@@ -8514,13 +8520,21 @@ class Experiment:
         res["quantity"]["other"]["count"] = 0
 
         res["target"] = {}
+        res["standard"] = {}
         for tar in interRun["target"]:
             res["fluorN0Fact"][tar] = -1.0
             # This are the used targets
             res["target"][tar] = {}
+            res["standard"][tar] = {}
+            res["standard"][tar]["ampEff"] = -1.0
+            res["standard"][tar]["ampEffSE"] = -1.0
             res["target"][tar]["ampliconLen"] = 100
             res["target"][tar]["ampEff"] = interRun["target"][tar]["ampEff"]
             res["target"][tar]["ampEffSE"] = interRun["target"][tar]["ampEffSE"]
+            res["target"][tar]["runAmpEff"] = interRun["target"][tar]["runAmpEff"]
+            res["target"][tar]["runAmpEffSE"] = interRun["target"][tar]["runAmpEffSE"]
+            res["target"][tar]["runAmpEffNum"] = interRun["target"][tar]["runAmpEffNum"]
+            res["target"][tar]["runAmpEffSENum"] = interRun["target"][tar]["runAmpEffSENum"]
             res["quantity"]["cop"]["samples"][tar] = {}
             res["quantity"]["fold"]["samples"][tar] = {}
             res["quantity"]["dil"]["samples"][tar] = {}
@@ -8631,54 +8645,135 @@ class Experiment:
 
         if res["threshold"] > 0:
             if method == "reference":
-                selUntit = quantUnit
-                res["absUnit"] = selUntit
+                stdCurves = {}
+                res["absUnit"] = quantUnit
                 for qTar in interRun["target"]:
-                    if len(res["quantity"][selUntit]["samples"][qTar]) > 0:
-                        sortValues = sorted(list(res["quantity"][selUntit]["samples"][qTar].keys()), reverse=True)
-                        selSamples = list(res["quantity"][selUntit]["samples"][qTar][sortValues[0]].keys())
-                        geo_sum = 0.0
-                        geo_num = 0
-                        for qSamp in selSamples:
-                            for react_data in stdSamples[qTar][qSamp]:
-                                corrFac = _get_first_child_text(react_data, "corrF")
-                                calcCorr = 1.0
-                                if not corrFac == "":
-                                    try:
-                                        calcCorr = float(corrFac)
-                                    except ValueError:
-                                        calcCorr = 1.0
-                                    if np.isnan(calcCorr):
-                                        calcCorr = 1.0
-                                    if calcCorr > 1.0:
-                                        calcCorr = 1.0
-                                plateFac = _get_first_child_text(react_data, "corrP")
-                                calcPlate = 1.0
-                                if not plateFac == "":
-                                    try:
-                                        calcPlate = float(plateFac)
-                                    except ValueError:
-                                        calcPlate = 0.0
-                                    if np.isnan(calcPlate):
-                                        calcCorr = 0.0
-                                    if calcPlate == 0.0:
-                                        calcCorr = 0.0
-                                    calcCorr = calcCorr / calcPlate
-                                calcN0 = _get_first_child_text(react_data, "N0")
-                                if calcCorr > 0.0001:
-                                    if not calcN0 == "":
+                    stdCurves[qTar] = {}
+                    for pRunA in range(0, len(allRuns)):
+                        runA = allRuns[pRunA]
+                        stdCurves[qTar][runA['id']] = {}
+                        stdCurves[qTar][runA['id']]["x"] = []
+                        stdCurves[qTar][runA['id']]["Cq"] = []
+                    if len(res["quantity"][quantUnit]["samples"][qTar]) > 0:
+                        sortValues = sorted(list(res["quantity"][quantUnit]["samples"][qTar].keys()), reverse=True)
+                        for qValue in res["quantity"][quantUnit]["samples"][qTar]:
+                            geo_sum = 0.0
+                            geo_num = 0
+                            selSamples = list(res["quantity"][quantUnit]["samples"][qTar][qValue].keys())
+                            for qSamp in selSamples:
+                                for react_data in stdSamples[qTar][qSamp]:
+                                    corrFac = _get_first_child_text(react_data, "corrF")
+                                    calcCorr = 1.0
+                                    if not corrFac == "":
                                         try:
-                                            calcN0 = float(calcN0)
+                                            calcCorr = float(corrFac)
                                         except ValueError:
-                                            pass
-                                        else:
-                                            if not np.isnan(calcN0):
-                                                finalN0 = calcCorr * calcN0
-                                                geo_sum += math.log(finalN0)
-                                                geo_num += 1
-                        if geo_num > 0:
-                            geoN0 = math.exp(geo_sum / geo_num)
-                            res["fluorN0Fact"][qTar] = geoN0 / sortValues[0]
+                                            calcCorr = 1.0
+                                        if np.isnan(calcCorr):
+                                            calcCorr = 1.0
+                                        if calcCorr > 1.0:
+                                            calcCorr = 1.0
+                                    plateFac = _get_first_child_text(react_data, "corrP")
+                                    calcPlate = 1.0
+                                    if not plateFac == "":
+                                        try:
+                                            calcPlate = float(plateFac)
+                                        except ValueError:
+                                            calcPlate = 0.0
+                                        if np.isnan(calcPlate):
+                                            calcCorr = 0.0
+                                        if calcPlate == 0.0:
+                                            calcCorr = 0.0
+                                        calcCorr = calcCorr / calcPlate
+                                    calcN0 = _get_first_child_text(react_data, "N0")
+                                    if calcCorr > 0.0001:
+                                        if not calcN0 == "":
+                                            try:
+                                                calcN0 = float(calcN0)
+                                            except ValueError:
+                                                pass
+                                            else:
+                                                if not np.isnan(calcN0):
+                                                    finalN0 = calcCorr * calcN0
+                                                    geo_sum += math.log(finalN0)
+                                                    geo_num += 1
+                                                    reactEff = 2.0
+                                                    readEff = _get_first_child_text(react_data, "ampEff")
+                                                    if readEff != "":
+                                                        try:
+                                                            reactEff = float(readEff)
+                                                        except ValueError:
+                                                            reactEff = 2.0
+                                                    if reactEff > 0.0:
+                                                        if finalN0 > 0.0:
+                                                            reactCq = (math.log10(res["threshold"]) - math.log10(finalN0)) / math.log10(reactEff)
+                                                            react = react_data.getparent()
+                                                            run = react.getparent()
+                                                            if 'id' in run.attrib:
+                                                                stdCurves[qTar][run.attrib['id']]["x"].append(math.log10(qValue))
+                                                                stdCurves[qTar][run.attrib['id']]["Cq"].append(reactCq)
+                            if qValue == sortValues[0]:
+                                if geo_num > 0:
+                                    geoN0 = math.exp(geo_sum / geo_num)
+                                    res["fluorN0Fact"][qTar] = geoN0 / sortValues[0]
+
+                stdCurvesCsv = ""
+                for tar in stdCurves:
+                    finalEff = 0.0
+                    effSum = 0.0
+                    effNum = 0
+                    finalErr = 0.0
+                    errSum = 0.0
+                    errNum = 0
+                    for runPos in range(0, len(allRuns)):
+                        runEle = allRuns[runPos]
+                        runID = runEle['id']
+                        if runID in stdCurves[tar]:
+                            if len(stdCurves[tar][runID]["x"]) > 0:
+                                curvePCREff = res["target"][tar]["runAmpEff"][runPos]
+                                curvePCREffSE = res["target"][tar]["runAmpEffSE"][runPos]
+                                curveLinReg = scp.stats.linregress(x=stdCurves[tar][runID]["x"], y=stdCurves[tar][runID]["Cq"])
+                                dilPCREff = float(np.power(10.0, -1.0 / curveLinReg.slope))
+                                dilPCREffSE = float(curveLinReg.stderr)
+                                rSquared = float(curveLinReg.rvalue) ** 2
+                                dilFactor = 10 * float(np.power(curvePCREff, -1.0 / np.log10(dilPCREff)))
+
+                                effSum += dilPCREff * res["target"][tar]["runAmpEffNum"][runPos]
+                                effNum += res["target"][tar]["runAmpEffNum"][runPos]
+                                errSum += (dilPCREffSE * math.sqrt(res["target"][tar]["runAmpEffSENum"][runPos])) ** 2
+                                errNum += res["target"][tar]["runAmpEffSENum"][runPos]
+
+                                stdCurvesCsv += tar + '\t'
+                                stdCurvesCsv += runID + '\t'
+                                stdCurvesCsv += "{:.4f}".format(curvePCREff) + '\t'
+                                stdCurvesCsv += "{:.4f}".format(curvePCREffSE) + '\t'
+                                stdCurvesCsv += "{:.4f}".format(dilPCREff) + '\t'
+                                stdCurvesCsv += "{:.4f}".format(dilPCREffSE) + '\t'
+                                stdCurvesCsv += "{:.4f}".format(rSquared) + '\t'
+                                stdCurvesCsv += "{:.4f}".format(dilFactor) + '\n'
+
+                    if effNum > 0:
+                        finalEff = effSum / effNum
+                    if errNum > 0:
+                        finalErr = math.sqrt(errSum) / math.sqrt(errNum)
+
+                    res["standard"][tar]["ampEff"] = finalEff
+                    res["standard"][tar]["ampEffSE"] = finalErr
+
+                    stdCurvesCsv += tar + '\t'
+                    stdCurvesCsv += 'Combined\t'
+                    stdCurvesCsv += "{:.4f}".format(res["target"][tar]["ampEff"]) + '\t'
+                    stdCurvesCsv += "{:.4f}".format(res["target"][tar]["ampEffSE"]) + '\t'
+                    stdCurvesCsv += "{:.4f}".format(finalEff) + '\t'
+                    stdCurvesCsv += "{:.4f}".format(finalErr) + '\t'
+                    stdCurvesCsv += '\t'
+                    stdCurvesCsv += '\n'
+
+                if stdCurvesCsv != "":
+                    res["tsv"]["dilStandard"] = "Target\tRun\tCurve PCR Efficiency\tCurve Error\t"
+                    res["tsv"]["dilStandard"] += "Dilution PCR Efficiency\tDilution Error\tDilution R^2\tDilution Factor\n"
+                    res["tsv"]["dilStandard"] += stdCurvesCsv
+
                 if estimate is True:
                     geoTar_sum = 0.0
                     geoTar_num = 0
@@ -8734,9 +8829,6 @@ class Experiment:
                     fluorN0Fact = float(res["threshold"]) / thresCopies
                     for tar in interRun["target"]:
                         res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
-
-            if method == "standard-curve":
-                pass
 
             res["tsv"]["fluorN0Fact"] = 'Target\tQuant. Fact.\tAmplicon Length\tPCR Efficiency\tTreshold\t'
             res["tsv"]["fluorN0Fact"] += _niceQuantityType("cop") + ' at Threshold\t'
