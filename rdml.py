@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.3.1"
+    return "1.4.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -884,9 +884,12 @@ def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
                 sumx2 += i * i
                 sumxy += i * np.log10(fluor[aRow, i - 1])
                 nincl += 1
-        ssx[j] = sumx2 - sumx * sumx / nincl
-        sxy[j] = sumxy - sumx * sumy / nincl
-        slope[j] = sxy[j] / ssx[j]
+        if nincl != 0.0:
+            ssx[j] = sumx2 - sumx * sumx / nincl
+            sxy[j] = sumxy - sumx * sumy / nincl
+            slope[j] = sxy[j] / ssx[j]
+        else:
+            slope[j] = -999.9
 
     return [slope[0], slope[1]]
 
@@ -903,14 +906,12 @@ def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
         An float with the max mean.
     """
 
-    maxFlour = np.nanmax(fluor[:, -11:], axis=1)
-
-    maxFlour[vecSkipSample] = np.nan
-    maxFlour[vecNoPlateau] = np.nan
-
     # Ignore all nan slices, to fix them below
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
+        maxFlour = np.nanmax(fluor[:, -11:], axis=1)
+        maxFlour[vecSkipSample] = np.nan
+        maxFlour[vecNoPlateau] = np.nan
         maxMean = np.nanmean(maxFlour)
     if np.isnan(maxMean):
         maxMean = np.nanmax(maxFlour)
@@ -1833,6 +1834,7 @@ def _cleanErrorString(inStr, cleanStyle):
         strList = inStr.split(";")
         knownWarn = ["amplification in negative control", "plateau in negative control",
                      "no amplification in positive control", "baseline error in positive control",
+                     "instable baseline", "instable baseline in positive control",
                      "no plateau in positive control", "noisy sample in positive control",
                      "Cq < 10, N0 unreliable", "Cq > 34", "no indiv PCR eff can be calculated",
                      "PCR efficiency outlier", "no amplification", "baseline error", "no plateau",
@@ -8770,7 +8772,7 @@ class Experiment:
                     stdCurvesCsv += '\n'
 
                 if stdCurvesCsv != "":
-                    res["tsv"]["dilStandard"] = "Target\tRun\tCurve PCR Efficiency\tCurve Error\t"
+                    res["tsv"]["dilStandard"] = "Target\tRun\tCurve PCR Efficiency\tCurve Standard Error\t"
                     res["tsv"]["dilStandard"] += "Dilution PCR Efficiency\tDilution Error\tDilution R^2\tDilution Factor\n"
                     res["tsv"]["dilStandard"] += stdCurvesCsv
 
@@ -11328,7 +11330,8 @@ class Run:
             self.setDigiNote(well, vTar, vNote, vAppend)
         return
 
-    def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier"):
+    def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True,
+                        excludeEfficiency="outlier", excludeInstableBaseline=True):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -11337,6 +11340,7 @@ class Run:
             updateRDML: If true, update the RDML data with the calculated values.
             excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
             excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
+            excludeInstableBaseline: If true, instable baselines give a baseline error.
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -11351,6 +11355,7 @@ class Run:
                              updateRDML=updateRDML,
                              excludeNoPlateau=excludeNoPlateau,
                              excludeEfficiency=excludeEfficiency,
+                             excludeInstableBaseline=excludeInstableBaseline,
                              saveRaw=False,
                              saveBaslineCorr=True,
                              saveResultsList=True,
@@ -11397,7 +11402,7 @@ class Run:
         return allData
 
     def linRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier",
-                  commaConv=False, ignoreExclusion=False,
+                  excludeInstableBaseline=True, commaConv=False, ignoreExclusion=False,
                   saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False,
                   timeRun=False, verbose=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
@@ -11408,6 +11413,7 @@ class Run:
             updateRDML: If true, update the RDML data with the calculated values.
             excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
             excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
+            excludeInstableBaseline: If true, instable baselines give a baseline error.
             commaConv: If true, convert comma separator to dot.
             ignoreExclusion: If true, ignore the RDML exclusion strings.
             saveRaw: If true, no raw values are given in the returned data
@@ -11489,17 +11495,18 @@ class Run:
                    "Cq (mean eff) - no plateau - stat efficiency",   # 47
                    "amplification",   # 48
                    "baseline error",   # 49
-                   "plateau",   # 50
-                   "noisy sample",   # 51
-                   "PCR efficiency outside mean rage",   # 52
-                   "PCR efficiency outside mean rage - no plateau",   # 53
-                   "PCR efficiency outlier",   # 54
-                   "PCR efficiency outlier - no plateau",   # 55
-                   "short log lin phase",   # 56
-                   "Cq is shifting",   # 57
-                   "too low Cq eff",   # 58
-                   "too low Cq N0",   # 59
-                   "used for W-o-L setting"]]   # 60
+                   "instable baseline",   # 50
+                   "plateau",   # 51
+                   "noisy sample",   # 52
+                   "PCR efficiency outside mean rage",   # 53
+                   "PCR efficiency outside mean rage - no plateau",   # 54
+                   "PCR efficiency outlier",   # 55
+                   "PCR efficiency outlier - no plateau",   # 56
+                   "short log lin phase",   # 57
+                   "Cq is shifting",   # 58
+                   "too low Cq eff",   # 59
+                   "too low Cq N0",   # 60
+                   "used for W-o-L setting"]]   # 61
         rar_id = 0
         rar_well = 1
         rar_sample = 2
@@ -11550,17 +11557,18 @@ class Run:
         rar_Cq_Skip_Plat_Out = 47
         rar_amplification = 48
         rar_baseline_error = 49
-        rar_plateau = 50
-        rar_noisy_sample = 51
-        rar_effOutlier_Skip_Mean = 52
-        rar_effOutlier_Skip_Plat_Mean = 53
-        rar_effOutlier_Skip_Out = 54
-        rar_effOutlier_Skip_Plat_Out = 55
-        rar_shortLogLinPhase = 56
-        rar_CqIsShifting = 57
-        rar_tooLowCqEff = 58
-        rar_tooLowCqN0 = 59
-        rar_isUsedInWoL = 60
+        rar_instable_baseline = 50
+        rar_plateau = 51
+        rar_noisy_sample = 52
+        rar_effOutlier_Skip_Mean = 53
+        rar_effOutlier_Skip_Plat_Mean = 54
+        rar_effOutlier_Skip_Out = 55
+        rar_effOutlier_Skip_Plat_Out = 56
+        rar_shortLogLinPhase = 57
+        rar_CqIsShifting = 58
+        rar_tooLowCqEff = 59
+        rar_tooLowCqN0 = 60
+        rar_isUsedInWoL = 61
 
         res = []
         finalData = {}
@@ -11632,7 +11640,7 @@ class Run:
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            ""])  # Must match header length
+                            "", ""])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -11719,6 +11727,7 @@ class Run:
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
+        vecInstableBaseline = np.zeros(spFl[0], dtype=np.bool_)
         vecNoPlateau = np.zeros(spFl[0], dtype=np.bool_)
         vecNoisySample = np.zeros(spFl[0], dtype=np.bool_)
         vecSkipSample = np.zeros(spFl[0], dtype=np.bool_)
@@ -11812,22 +11821,14 @@ class Run:
         if absMinFluor < 0.0:
             finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction!"
             vecMinFluor = np.nanmin(rawMod, axis=1)
+            vecMaxFluor = np.nanmax(rawMod, axis=1)
             for oRow in range(0, spFl[0]):
                 if vecMinFluor[oRow] < 0.0:
-                    corrFactor = vecMinFluor[oRow] * -1.0
-                    logFact = 0
-                    if corrFactor < 1.0:
-                        sumHelp = corrFactor
-                        while sumHelp <= 1.0 and logFact <= 10:
-                            sumHelp *= 10
-                            logFact += 1
-                        corrFactor += np.power(10, -1.0 * (logFact + 1))
-                    if corrFactor >= 1.0:
-                        corrFactor += 0.1
+                    corrFactor = (vecMaxFluor[oRow] - vecMinFluor[oRow]) / 5.0 - vecMinFluor[oRow]
                     for oCol in range(0, spFl[1]):
                         rawFluor[oRow, oCol] += corrFactor
-                    baseCorFluor = rawFluor.copy()
-                    rawMod = rawFluor.copy()
+            baseCorFluor = rawFluor.copy()
+            rawMod = rawFluor.copy()
 
         rawMod[np.isnan(rawMod)] = 0
         rawMod[rawMod <= 0.00000001] = np.nan
@@ -11875,7 +11876,7 @@ class Run:
 
             # There must be an increase in fluorescence after the amplification.
             if ((minCorFluor[oRow, posEight] + minCorFluor[oRow, posNine]) / 2) / \
-                    ((minCorFluor[oRow, posZero] + minCorFluor[oRow, posOne]) / 2) < 1.2:
+                    ((minCorFluor[oRow, posZero] + minCorFluor[oRow, posOne]) / 2) < 2.0:
                 if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, posZero:posNine + 1]) < 7:
                     vecNoAmplification[oRow] = True
 
@@ -11919,7 +11920,7 @@ class Run:
         # The for loop go through all the react/target table and make calculations one by one
         for oRow in range(0, spFl[0]):
             if verbose:
-                print('React: ' + str(oRow))
+                print('React: ' + str(oRow) + " Pos: " + res[oRow][0] + " Well: " + res[oRow][1])
             # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
             # minimum fluorescence value assigned as baseline value for the considered reaction :
             if not vecNoAmplification[oRow]:
@@ -12102,9 +12103,11 @@ class Run:
                     CtShiftDown = 0.0
 
                 if np.abs(CtShiftUp - CtShiftDown) > 1.0:
-                    vecBaselineError[oRow] = True
-                    vecSkipSample[oRow] = True
-                    vecCtIsShifting[oRow] = True
+                    vecInstableBaseline[oRow] = True
+                    if excludeInstableBaseline:
+                        vecBaselineError[oRow] = True
+                        vecSkipSample[oRow] = True
+                        vecCtIsShifting[oRow] = True
                 else:
                     if not vecBaselineError[oRow]:
                         vecSkipSample[oRow] = False
@@ -12471,6 +12474,7 @@ class Run:
 
             res[rRow][rar_amplification] = not vecNoAmplification[rRow]
             res[rRow][rar_baseline_error] = vecBaselineError[rRow]
+            res[rRow][rar_instable_baseline] = vecInstableBaseline[rRow]
             res[rRow][rar_plateau] = not vecNoPlateau[rRow]
             res[rRow][rar_noisy_sample] = vecNoisySample[rRow]
             res[rRow][rar_effOutlier_Skip_Mean] = vecEffOutlier_Skip_Mean[rRow]
@@ -12535,6 +12539,8 @@ class Run:
                         exclVal += "no amplification in positive control;"
                 if res[rRow][rar_baseline_error]:
                     exclVal += "baseline error in positive control;"
+                if res[rRow][rar_instable_baseline]:
+                    exclVal += "instable baseline in positive control;"
                 if not res[rRow][rar_plateau]:
                     noteVal += "no plateau in positive control;"
                 if res[rRow][rar_noisy_sample]:
@@ -12567,6 +12573,8 @@ class Run:
                     noteVal += "no amplification;"
                 if res[rRow][rar_baseline_error]:
                     noteVal += "baseline error;"
+                if res[rRow][rar_instable_baseline]:
+                    noteVal += "instable baseline;"
                 if not res[rRow][rar_plateau]:
                     noteVal += "no plateau;"
                 if res[rRow][rar_noisy_sample]:
@@ -12687,7 +12695,7 @@ class Run:
 
             for rRow in range(0, len(res)):
                 for rCol in range(0, len(res[rRow])):
-                    if rCol in [rar_amplification, rar_baseline_error, rar_plateau, rar_noisy_sample,
+                    if rCol in [rar_amplification, rar_baseline_error, rar_instable_baseline, rar_plateau, rar_noisy_sample,
                                 rar_effOutlier_Skip_Mean, rar_effOutlier_Skip_Plat_Mean, rar_effOutlier_Skip_Out,
                                 rar_effOutlier_Skip_Plat_Out, rar_shortLogLinPhase, rar_CqIsShifting,
                                 rar_tooLowCqEff, rar_tooLowCqN0, rar_isUsedInWoL]:
@@ -14000,6 +14008,8 @@ def main():
                         help='LinRegPCR: provide a range for for exclusion from mean PCR efficiency')
     parser.add_argument('--excludeNoPlateau', action='store_true',
                         help='LinRegPCR: exclude no plateau samples from mean PCR efficiency')
+    parser.add_argument('--includeInstableBaseline', action='store_true',
+                        help='LinRegPCR: include samples with an instable baseline')
     parser.add_argument('--excludeEfficiency', metavar="outlier",
                         help='LinRegPCR: choose [outlier, mean, include] to exclude different individual efficiency ' +
                              'samples from mean PCR efficiency')
@@ -14139,6 +14149,7 @@ def main():
         cli_pcrEfficiencyExl = 0.05
         cli_excludeNoPlateau = False
         cli_excludeEfficiency = "outlier"
+        cli_excludeInstableBaseline = True
         cli_commaConv = False
         cli_ignoreExclusion = False
         cli_timeRun = False
@@ -14154,6 +14165,10 @@ def main():
             cli_excludeNoPlateau = True
         if args.excludeEfficiency:
             cli_excludeEfficiency = args.excludeEfficiency
+        if args.includeInstableBaseline:
+            cli_excludeInstableBaseline = False
+        else:
+            cli_excludeInstableBaseline = True
         if args.commaConv:
             cli_commaConv = True
         if args.ignoreExclusion:
@@ -14173,6 +14188,7 @@ def main():
 
         cli_result = cli_run.linRegPCR(pcrEfficiencyExl=cli_pcrEfficiencyExl, updateRDML=cli_saveRDML,
                                        excludeNoPlateau=cli_excludeNoPlateau, excludeEfficiency=cli_excludeEfficiency,
+                                       excludeInstableBaseline=cli_excludeInstableBaseline,
                                        commaConv=cli_commaConv, ignoreExclusion=cli_ignoreExclusion,
                                        saveRaw=cli_saveRawData, saveBaslineCorr=cli_saveBaselineData,
                                        saveResultsList=False, saveResultsCSV=cli_saveResultData,
