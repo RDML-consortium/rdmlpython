@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.4.0"
+    return "1.4.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -11746,6 +11746,8 @@ class Run:
         startCyc = np.zeros(spFl[0], dtype=np.int64)
         startCycFix = np.zeros(spFl[0], dtype=np.int64)
 
+        negShiftBaseline = np.zeros(spFl[0], dtype=np.float64)
+
         # Initialization of the PCR efficiency vectors
         pcrEff = np.ones(spFl[0], dtype=np.float64)
 
@@ -11824,9 +11826,9 @@ class Run:
             vecMaxFluor = np.nanmax(rawMod, axis=1)
             for oRow in range(0, spFl[0]):
                 if vecMinFluor[oRow] < 0.0:
-                    corrFactor = (vecMaxFluor[oRow] - vecMinFluor[oRow]) / 5.0 - vecMinFluor[oRow]
+                    negShiftBaseline[oRow] = (vecMaxFluor[oRow] - vecMinFluor[oRow]) / 5.0 - vecMinFluor[oRow]
                     for oCol in range(0, spFl[1]):
-                        rawFluor[oRow, oCol] += corrFactor
+                        rawFluor[oRow, oCol] += negShiftBaseline[oRow]
             baseCorFluor = rawFluor.copy()
             rawMod = rawFluor.copy()
 
@@ -12430,7 +12432,7 @@ class Run:
         # write out the results #
         #########################
         for rRow in range(0, len(res)):
-            res[rRow][rar_baseline] = vecBackground[rRow]
+            res[rRow][rar_baseline] = vecBackground[rRow] - negShiftBaseline[rRow]
             res[rRow][rar_lower_limit] = lowWin[vecTarget[rRow]]
             res[rRow][rar_upper_limit] = upWin[vecTarget[rRow]]
             res[rRow][rar_threshold_common] = threshold[0]
@@ -12678,7 +12680,7 @@ class Run:
                             goodVal = "{:.3f}".format(stdEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEffSE", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
-                    goodVal = "{:.3f}".format(vecBackground[rRow])
+                    goodVal = "{:.3f}".format(vecBackground[rRow] - negShiftBaseline[rRow])
                     _change_subelement(rdmlElemData[rRow], "bgFluor", dataXMLelements, goodVal, True, "string")
                     goodVal = "{:.3f}".format(threshold[0])
                     _change_subelement(rdmlElemData[rRow], "quantFluor", dataXMLelements, goodVal, True, "string")
