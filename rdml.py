@@ -8941,6 +8941,100 @@ class Experiment:
                     res["tsv"]["standard"] += csvStandard
         return res
 
+    def genorm(self, overlapType="samples", selAnnotation=""):
+        """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            overlapType: Base the overlap on "samples" or "annotation".
+            selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            run: A list of the run ids
+            target: A dictionary with the results per target
+            plate: A dictionary with the results per plate
+        """
+
+        res = {}
+        if overlapType not in ["samples", "annotation"]:
+            res["error"] = "Error: Unknown overlap type."
+            return res
+        if overlapType == "annotation":
+            if selAnnotation == "":
+                res["error"] = "Error: Selection of annotation required."
+                return res
+        res["runs"] = []
+        res["target"] = {}
+        res["plate"] = {}
+        res["tsv"] = {}
+        res["plate"]["corrP"] = []
+        res["plate"]["matrix"] = []
+        res["plate"]["threshold"] = []
+        res["plate"]["Thres_Sum"] = []
+        res["plate"]["Thres_Num"] = []
+        err = ""
+        res["threshold"] = -1.0
+        tarPara = {}
+        thres_Sum = 0.0
+        thres_Num = 0
+        samSel = {}
+        tarType = {}
+        usedSam = {}
+        usedTar = {}
+        allRuns = self.runs()
+
+        # Get the sample infos
+        pRoot = self._node.getparent()
+        transSamTar = _sampleTypeToDics(pRoot)
+        if overlapType == "annotation":
+            if selAnnotation != "":
+                samples = _get_all_children(pRoot, "sample")
+                for sample in samples:
+                    if "id" in sample.attrib:
+                        samId = sample.attrib['id']
+                        xref = _get_all_children(sample, "annotation")
+                        for node in xref:
+                            anno = _get_first_child_text(node, "property")
+                            if anno == selAnnotation:
+                                val = _get_first_child_text(node, "value")
+                                if val != "":
+                                    samSel[samId] = val
+        targets = _get_all_children(pRoot, "target")
+        for target in targets:
+            if "id" in target.attrib:
+                tarId = target.attrib['id']
+                tarType[tarId] = _get_first_child_text(target, "type")
+
+        # Find all used Targets
+        for tRunA in range(0, len(allRuns)):
+            runA = allRuns[tRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                samId = _get_first_child(react, "sample")
+                if samId is None:
+                    continue
+                if "id" not in samId.attrib:
+                    continue
+                sam = samId.attrib['id']
+                usedSam[sam] = 1
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if "id" not in tarId.attrib:
+                        continue
+                    tar = tarId.attrib['id']
+                    if tarType[tar] == "ref":
+                        usedTar[tar] = 1
+
+
+
+        print(usedSam)
+        print(usedTar)
+
+        return res
 
 class Run:
     """RDML-Python library
