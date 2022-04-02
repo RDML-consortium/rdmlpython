@@ -26,7 +26,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.4.1"
+    return "1.5.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1838,7 +1838,7 @@ def _cleanErrorString(inStr, cleanStyle):
                      "no plateau in positive control", "noisy sample in positive control",
                      "Cq < 10, N0 unreliable", "Cq > 34", "no indiv PCR eff can be calculated",
                      "PCR efficiency outlier", "no amplification", "baseline error", "no plateau",
-                     "noisy sample", "Cq too high"]
+                     "noisy sample", "Cq too high", "N0 unreliable"]
         for ele in strList:
             if ele in knownWarn:
                 continue
@@ -8118,7 +8118,7 @@ class Experiment:
                         if "id" not in tarId.attrib:
                             continue
                         target = tarId.attrib['id']
-                        if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt"]:
+                        if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
                             continue
                         excluded = _get_first_child_text(react_data, "excl")
                         if excluded != "":
@@ -11821,12 +11821,13 @@ class Run:
         # There should be no negative values in uncorrected raw data
         absMinFluor = np.nanmin(rawMod)
         if absMinFluor < 0.0:
-            finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction!"
+            finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
+            finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!"
             vecMinFluor = np.nanmin(rawMod, axis=1)
             vecMaxFluor = np.nanmax(rawMod, axis=1)
             for oRow in range(0, spFl[0]):
                 if vecMinFluor[oRow] < 0.0:
-                    negShiftBaseline[oRow] = (vecMaxFluor[oRow] - vecMinFluor[oRow]) / 5.0 - vecMinFluor[oRow]
+                    negShiftBaseline[oRow] = (vecMaxFluor[oRow] - vecMinFluor[oRow]) / 100.0 - vecMinFluor[oRow]
                     for oCol in range(0, spFl[1]):
                         rawFluor[oRow, oCol] += negShiftBaseline[oRow]
             baseCorFluor = rawFluor.copy()
@@ -11929,6 +11930,7 @@ class Run:
                 #  Make sure baseline is overestimated, without using slope criterion
                 #  increase baseline per cycle till eff > 2 or remaining log lin points < pointsInWoL
                 #  fastest when vecBackground is directly set to 5 point below stopCyc
+                vecBaselineError[oRow] = True
                 start = stopCyc[oRow]
 
                 # Find the first value that is not NaN
@@ -11969,12 +11971,13 @@ class Run:
                         baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
 
                     if (slopeLow < slopeHigh or
-                            vecBackground[oRow] < 0.95 * vecMinFluor[oRow] or
+                            slopeHigh < math.log10(1.2) or
+                            vecBackground[oRow] <= 0.0 or  # was < 0.95 * vecMinFluor[oRow]
                             countTrials > 1000):
                         break
 
-                if vecBackground[oRow] < 0.95 * vecMinFluor[oRow]:
-                    vecBaselineError[oRow] = True
+                if slopeLow < slopeHigh:
+                    vecBaselineError[oRow] = False
 
                 # 2. fine tune slope of total line
                 stepVal = 0.005 * vecBackground[oRow]
@@ -11984,6 +11987,7 @@ class Run:
                 curSlopeDiff = 10
                 curSignDiff = 0
                 SlopeHasShifted = False
+                lastSlope = -1.0
                 while True:
                     countTrials += 1
                     trialsToShift += 1
@@ -11994,6 +11998,7 @@ class Run:
                     lastSignDiff = curSignDiff
                     lastSlopeDiff = curSlopeDiff
                     vecDefBackgrd[oRow] = vecBackground[oRow]
+                    lastSlope = slopeHigh
                     # apply baseline
                     baseCorFluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
                     baseCorFluor[np.isnan(baseCorFluor)] = 0
@@ -12027,11 +12032,11 @@ class Run:
                     if (((np.abs(curSlopeDiff - lastSlopeDiff) < 0.00001) and
                             (curSignDiff == lastSignDiff) and SlopeHasShifted) or
                             (np.abs(curSlopeDiff) < 0.0001) or
+                            (slopeHigh < math.log10(1.2)) or
                             (countTrials > 1000)):
                         break
 
-                # reinstate samples that reach the slope diff criterion within 0.9 * vecMinFluor
-                if curSlopeDiff < 0.0001 and vecDefBackgrd[oRow] > 0.9 * vecMinFluor[oRow]:
+                if curSlopeDiff < 0.0001:
                     vecBaselineError[oRow] = False
 
                 # 3: skip sample when fluor[stopCyc]/fluor[startCyc] < 20
@@ -12039,8 +12044,9 @@ class Run:
                 if baseCorFluor[oRow, stopCyc[oRow] - 1] / baseCorFluor[oRow, startCycFix[oRow] - 1] < loglinlen:
                     vecShortLogLin[oRow] = True
 
-                pcrEff[oRow] = np.power(10, slopeHigh)
-            else:
+                pcrEff[oRow] = np.power(10, lastSlope)
+
+            if vecNoAmplification[oRow] or vecBaselineError[oRow]:
                 vecSkipSample[oRow] = True
                 vecDefBackgrd[oRow] = 0.99 * vecMinFluor[oRow]
                 baseCorFluor[oRow] = rawFluor[oRow] - vecDefBackgrd[oRow]
@@ -12053,7 +12059,9 @@ class Run:
                 startCycFix[oRow] = spFl[1] + 1
 
                 pcrEff[oRow] = np.nan
-            if vecBaselineError[oRow]:
+
+            # Negative controls should not be part of the mean calculations
+            if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
                 vecSkipSample[oRow] = True
 
         vecBackground = vecDefBackgrd
@@ -12066,53 +12074,51 @@ class Run:
         checkBaseline = np.log10(upWin[0]) - np.log10(meanPcrEff)
         for oRow in range(0, spFl[0]):
             if vecShortLogLin[oRow] and not vecNoAmplification[oRow]:
-                # Recalculate it separately from the good values
-                checkFluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
-                checkFluor[np.isnan(checkFluor)] = 0.0
-                checkFluor[checkFluor <= 0.00000001] = np.nan
+                if not vecBaselineError[oRow]:
+                    # Recalculate it separately from the good values
+                    checkFluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
+                    checkFluor[np.isnan(checkFluor)] = 0.0
+                    checkFluor[checkFluor <= 0.00000001] = np.nan
 
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    maxFlour = np.nanmax(checkFluor)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        maxFlour = np.nanmax(checkFluor)
 
-                if np.isnan(maxFlour):
-                    tempMeanX, tempMeanY, tempPcrEff, _unused, _unused2, _unused3 = _lrp_paramInWindow(baseCorFluor,
-                                                                                                       oRow,
-                                                                                                       upWin[0],
-                                                                                                       lowWin[0])
-                else:
+                    if np.isnan(maxFlour):
+                        tempMeanX, tempMeanY, tempPcrEff, _unused, _unused2, _unused3 = _lrp_paramInWindow(baseCorFluor,
+                                                                                                           oRow,
+                                                                                                           upWin[0],
+                                                                                                           lowWin[0])
+                    else:
+                        tempMeanX, tempMeanY, tempPcrEff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor,
+                                                                                                           oRow,
+                                                                                                           upWin[0],
+                                                                                                           lowWin[0])
+
+                    if tempPcrEff > 1.000000000001:
+                        CtShiftUp = tempMeanX + (checkBaseline - tempMeanY) / np.log10(tempPcrEff)
+                    else:
+                        CtShiftUp = 0.0
+
+                    checkFluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
+                    checkFluor[np.isnan(checkFluor)] = 0
+                    checkFluor[checkFluor <= 0.00000001] = np.nan
                     tempMeanX, tempMeanY, tempPcrEff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor,
                                                                                                        oRow,
                                                                                                        upWin[0],
                                                                                                        lowWin[0])
 
-                if tempPcrEff > 1.000000000001:
-                    CtShiftUp = tempMeanX + (checkBaseline - tempMeanY) / np.log10(tempPcrEff)
-                else:
-                    CtShiftUp = 0.0
+                    if tempPcrEff > 1.000000000001:
+                        CtShiftDown = tempMeanX + (checkBaseline - tempMeanY) / np.log10(tempPcrEff)
+                    else:
+                        CtShiftDown = 0.0
 
-                checkFluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
-                checkFluor[np.isnan(checkFluor)] = 0
-                checkFluor[checkFluor <= 0.00000001] = np.nan
-                tempMeanX, tempMeanY, tempPcrEff, _unused, _unused2, _unused3 = _lrp_paramInWindow(checkFluor,
-                                                                                                   oRow,
-                                                                                                   upWin[0],
-                                                                                                   lowWin[0])
-
-                if tempPcrEff > 1.000000000001:
-                    CtShiftDown = tempMeanX + (checkBaseline - tempMeanY) / np.log10(tempPcrEff)
-                else:
-                    CtShiftDown = 0.0
-
-                if np.abs(CtShiftUp - CtShiftDown) > 1.0:
-                    vecInstableBaseline[oRow] = True
-                    if excludeInstableBaseline:
-                        vecBaselineError[oRow] = True
-                        vecSkipSample[oRow] = True
-                        vecCtIsShifting[oRow] = True
-                else:
-                    if not vecBaselineError[oRow]:
-                        vecSkipSample[oRow] = False
+                    if np.abs(CtShiftUp - CtShiftDown) > 1.0:
+                        vecInstableBaseline[oRow] = True
+                        if excludeInstableBaseline:
+                            vecBaselineError[oRow] = True
+                            vecSkipSample[oRow] = True
+                            vecCtIsShifting[oRow] = True
 
         vecSkipSample[vecExcludedByUser] = True
         # Update the window
@@ -12527,9 +12533,13 @@ class Run:
             if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                 if cqVal > 0.0:
                     exclVal += "amplification in negative control;"
+                    if res[rRow][rar_baseline_error]:
+                        exclVal += "baseline error;"
                 else:
                     if res[rRow][rar_amplification]:
                         exclVal += "amplification in negative control;"
+                    if res[rRow][rar_baseline_error]:
+                        exclVal += "baseline error;"
                 if res[rRow][rar_plateau]:
                     noteVal += "plateau in negative control;"
 

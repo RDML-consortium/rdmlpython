@@ -1,12 +1,68 @@
-Version 1.1.0  -  xx.11.2021
+Version 1.5.0  -  XX.04.2022
+----------------------------
+
+- Improved baseline calculation. Minimum PCR efficiency
+  is now 1.2, only a found baseline is throwing no
+  baseline error and an additional error is implemented
+  for instable baseline.
+
+- "ntc", "nac", "ntp", "nrt" and "opt" samples do not
+  contribute to mean PCR efficiency calculation.
+
+
+Version 1.4.0  -  internal
+----------------------------
+
+- First implementation of baseline correction for negative
+  values. Not released beyond GitHub.
+
+
+Version 1.3.0  -  14.02.2022
+----------------------------
+
+- Implemented RDML-Analyze with absolute quantification.
+
+- Quantities can be attached to a target.
+
+- Improved inter run correction functionality.
+
+
+Version 1.2.0  -  18.02.2022
+----------------------------
+
+- Implemented RDML-Analyze with inter run correction.
+
+- Implemented RDML-Merge to combine two RDML files.
+
+- Runs can be moved to different experiments within a file.
+
+- Modified handling of negative fluorescence values. Before
+  they were set to nan, now they are shifted to a small
+  positive value.
+
+- Fixed the handling of multiplex files.
+
+- Implemented a function to fix different melting curve
+  temperatures within one scan.
+
+
+Version 1.1.1  -  24.12.2021
+----------------------------
+
+- Reduced unnecessary precision in variable output.
+
+- Fixed bug in csv output of curve data.
+
+
+Version 1.1.0  -  24.11.2021
 ----------------------------
 
 - RDML files require the xml data in the file rdml_data.xml.
-  As some machines do not follow this requirement, the 
-  function load_any_zip(self, filename) opens the first 
+  As some machines do not follow this requirement, the
+  function load_any_zip(self, filename) opens the first
   file contained in the compressed archive.
 
-- Upon import of amplification or melting curve data wells 
+- Upon import of amplification or melting curve data wells
   without the columns Well, Sample, Sample Type, Target, 
   Target Type and Dye are skipped with a message. This is 
   intended to be used for empty wells.
