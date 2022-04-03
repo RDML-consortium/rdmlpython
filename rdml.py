@@ -8964,24 +8964,14 @@ class Experiment:
             if selAnnotation == "":
                 res["error"] = "Error: Selection of annotation required."
                 return res
-        res["runs"] = []
-        res["target"] = {}
-        res["plate"] = {}
         res["tsv"] = {}
-        res["plate"]["corrP"] = []
-        res["plate"]["matrix"] = []
-        res["plate"]["threshold"] = []
-        res["plate"]["Thres_Sum"] = []
-        res["plate"]["Thres_Num"] = []
         err = ""
-        res["threshold"] = -1.0
-        tarPara = {}
-        thres_Sum = 0.0
-        thres_Num = 0
         samSel = {}
         tarType = {}
-        usedSam = {}
+        usedCond = {}
         usedTar = {}
+        lookupCond = {}
+        lookupTar = {}
         allRuns = self.runs()
 
         # Get the sample infos
@@ -9000,13 +8990,15 @@ class Experiment:
                                 val = _get_first_child_text(node, "value")
                                 if val != "":
                                     samSel[samId] = val
+
+        # Find all present Targets
         targets = _get_all_children(pRoot, "target")
         for target in targets:
             if "id" in target.attrib:
                 tarId = target.attrib['id']
                 tarType[tarId] = _get_first_child_text(target, "type")
 
-        # Find all used Targets
+        # Find all used Targets and Conditions
         for tRunA in range(0, len(allRuns)):
             runA = allRuns[tRunA]
             reacts = _get_all_children(runA._node, "react")
@@ -9016,8 +9008,7 @@ class Experiment:
                     continue
                 if "id" not in samId.attrib:
                     continue
-                sam = samId.attrib['id']
-                usedSam[sam] = 1
+                sample = samId.attrib['id']
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
                     tarId = _get_first_child(react_data, "tar")
@@ -9025,14 +9016,161 @@ class Experiment:
                         continue
                     if "id" not in tarId.attrib:
                         continue
-                    tar = tarId.attrib['id']
-                    if tarType[tar] == "ref":
-                        usedTar[tar] = 1
+                    target = tarId.attrib['id']
+                    if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                        continue
+                    excluded = _get_first_child_text(react_data, "excl")
+                    if excluded != "":
+                        continue
+                    if tarType[target] == "ref":
+                        usedTar[target] = 1
+                        if overlapType == "annotation":
+                            usedCond[samSel[sample]] = 1
+                        else:
+                            usedCond[sample] = 1
 
+        res["reference"] = sorted(usedTar, key=lambda key: usedTar[key])
+        res["conditions"] = sorted(usedCond, key=lambda key: usedCond[key])
+        num = 0
+        res["reference"].append("remove_me")
+        for cRef in res["reference"]:
+            lookupTar[cRef] = num
+            num += 1
+        num = 0
+        for cCon in res["conditions"]:
+            lookupCond[cCon] = num
+            num += 1
 
+        # Span the matrix
+        gridSize = (len(res["conditions"]), len(res["reference"]))
+        n0_sum = np.zeros(gridSize, dtype=np.float64)
+        n0_num = np.zeros(gridSize, dtype=np.int64)
+        n0_geo = np.zeros(gridSize, dtype=np.float64)
 
-        print(usedSam)
-        print(usedTar)
+        # Fill the matrix
+        for tRunA in range(0, len(allRuns)):
+            runA = allRuns[tRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                samId = _get_first_child(react, "sample")
+                if samId is None:
+                    continue
+                if "id" not in samId.attrib:
+                    continue
+                sample = samId.attrib['id']
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if "id" not in tarId.attrib:
+                        continue
+                    target = tarId.attrib['id']
+                    if target not in res["reference"]:
+                        continue
+
+                    if overlapType == "annotation":
+                        if samSel[sample] not in res["conditions"]:
+                            continue
+                    else:
+                        if sample not in res["conditions"]:
+                            continue
+                    n0Val = _get_first_child_text(react_data, "N0")
+                    if n0Val == "":
+                        continue
+                    try:
+                        n0Val = float(n0Val)
+                    except ValueError:
+                        continue
+                    if np.isnan(n0Val):
+                        continue
+                    if n0Val <= 0.0:
+                        continue
+                    corrVal = _get_first_child_text(react_data, "corrP")
+                    if corrVal != "":
+                        try:
+                            n0Val = float(corrVal)
+                        except ValueError:
+                            pass
+                        if not np.isnan(corrVal):
+                            n0Val *= corrVal
+                    if overlapType == "annotation":
+                        n0_sum[lookupCond[samSel[sample]], lookupTar[target]] += np.log(n0Val)
+                        n0_num[lookupCond[samSel[sample]], lookupTar[target]] += 1
+                    else:
+                        n0_sum[lookupCond[sample], lookupTar[target]] += np.log(n0Val)
+                        n0_num[lookupCond[sample], lookupTar[target]] += 1
+        with np.errstate(divide='ignore', invalid='ignore'):
+            n0_geo = np.exp(n0_sum / n0_num)
+
+        # Remove empty columns and rows
+        if np.amax(n0_num) == 0:
+            res["error"] = "Error: No data to run geNorm+ on."
+            return res
+        columMax = np.amax(n0_num, axis=0)
+        for col in range(len(columMax) -1, -1, -1):
+            if columMax[col] == 0:
+                del res["reference"][col]
+                n0_num = np.delete(n0_num, col, axis=1)
+                n0_geo = np.delete(n0_geo, col, axis=1)
+        rowMax = np.amax(n0_num, axis=1)
+        for row in range(len(rowMax) -1, -1, -1):
+            if rowMax[row] == 0:
+                del res["conditions"][row]
+                n0_num = np.delete(n0_num, row, axis=0)
+                n0_geo = np.delete(n0_geo, row, axis=0)
+
+        # Calculate M factor
+        mFactor = np.zeros(np.shape(n0_geo)[1], dtype=np.float64)
+        for col in range(0, np.shape(n0_geo)[1]):
+            logRes = np.log(np.delete(n0_geo, col, axis=1) / n0_geo[:, col][:, None])
+            stdRes = np.nanstd(logRes, axis=0)
+            mFactor[col] = np.nanmean(stdRes)
+
+        # Calculate V factor
+        vFactor = np.zeros(np.shape(n0_geo)[1] - 2, dtype=np.float64)
+        mFactorInds = mFactor.argsort()
+        sorted_mFactor = mFactor[mFactorInds[::1]]
+        sorted_n0_geo = n0_geo[:, mFactorInds[::1]]
+        sorted_Refs = np.array(res["reference"])[mFactorInds[::1]]
+        for col in range(1, np.shape(n0_geo)[1] - 1):
+            sum_a = np.nansum(np.log(sorted_n0_geo[:, 0:col + 1]), axis=1)
+            sum_b = np.nansum(np.log(sorted_n0_geo[:, 0:col + 2]), axis=1)
+            num_a = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 1])), axis=1)
+            num_b = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 2])), axis=1)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
+                logDiff = np.log(geoDiff)
+                vFactor[col - 1] = np.nanstd(logDiff, axis=0)
+
+        print(vFactor)
+
+        # np.savetxt("vvvmean.txt", sorted_n0_geo, fmt='%.18e', delimiter='\t', newline='\n')
+
+       # print(sorted_n0_geo[0:5, 0:1 + 1])
+       # print(np.log(sorted_n0_geo[0:5, 0:1 + 1]))
+       # sssum = np.nansum(np.log(sorted_n0_geo[0:5, 0:1 + 1]), axis=1)
+       # nnnum = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[0:5, 0:1 + 1])), axis=1)
+       # with np.errstate(divide='ignore', invalid='ignore'):
+       #     gggeo = np.exp(sssum / nnnum)
+       # print(sssum)
+       # print(nnnum)
+       # print(gggeo)
+
+        # np.savetxt("geomean.txt", n0_geo, fmt='%.18e', delimiter='\t', newline='\n')
+
+       # print(res["conditions"])
+     #   print(res["reference"])
+     #   print(mFactor)
+
+     #   print(sorted_mFactor)
+     #   print(sorted_Refs)
+
+     #   print(n0_geo)
+     #   print(sorted_n0_geo)
+        # print(n0_num)
+       # print(rowMax)
+       # print(n0_geo)
 
         return res
 
