@@ -9108,6 +9108,8 @@ class Experiment:
             res["error"] = "Error: No data to run geNorm+ on."
             return res
         columMax = np.amax(n0_num, axis=0)
+        # columMax[9] = 0.0
+        # columMax[10] = 0.0
         for col in range(len(columMax) -1, -1, -1):
             if columMax[col] == 0:
                 del res["reference"][col]
@@ -9123,9 +9125,12 @@ class Experiment:
         # Calculate M factor
         mFactor = np.zeros(np.shape(n0_geo)[1], dtype=np.float64)
         for col in range(0, np.shape(n0_geo)[1]):
-            logRes = np.log(np.delete(n0_geo, col, axis=1) / n0_geo[:, col][:, None])
-            stdRes = np.nanstd(logRes, axis=0)
+            logRes = np.log2(n0_geo[:, col][:, None] / np.delete(n0_geo, col, axis=1))
+            stdRes = np.nanstd(logRes, axis=0, ddof=1)
             mFactor[col] = np.nanmean(stdRes)
+        #    print(res["reference"][col])
+        #    print(stdRes)
+        #    print(mFactor[col])
 
         # Calculate V factor
         vFactor = np.zeros(np.shape(n0_geo)[1] - 2, dtype=np.float64)
@@ -9140,8 +9145,9 @@ class Experiment:
             num_b = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 2])), axis=1)
             with np.errstate(divide='ignore', invalid='ignore'):
                 geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
-                logDiff = np.log(geoDiff)
-                vFactor[col - 1] = np.nanstd(logDiff, axis=0)
+                logDiff = np.log2(geoDiff)
+                vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
+
 
         print(vFactor)
 
