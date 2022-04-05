@@ -9148,8 +9148,32 @@ class Experiment:
                 logDiff = np.log2(geoDiff)
                 vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
 
+        # Calculate the plus
+        sorted_ac = np.concatenate((sorted_n0_geo[:, 0][:, None], sorted_n0_geo[:, 2][:, None]), axis=1)
+        sum_ab = np.nansum(np.log(sorted_n0_geo[:, 0:2]), axis=1)
+        sum_bc = np.nansum(np.log(sorted_n0_geo[:, 1:3]), axis=1)
+        sum_ac = np.nansum(np.log(sorted_ac), axis=1)
+        sum_3 = np.nansum(np.log(sorted_n0_geo[:, 0:3]), axis=1)
+        num_ab = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:2])), axis=1)
+        num_bc = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 1:2])), axis=1)
+        num_ac = np.count_nonzero(~np.isnan(np.log(sorted_ac)), axis=1)
+        num_3 = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:3])), axis=1)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            vFactor_ab = np.nanstd(np.log2(np.exp(sum_ab / num_ab) / np.exp(sum_3 / num_3)), axis=0, ddof=1)
+            vFactor_bc = np.nanstd(np.log2(np.exp(sum_bc / num_bc) / np.exp(sum_3 / num_3)), axis=0, ddof=1)
+            vFactor_ac = np.nanstd(np.log2(np.exp(sum_ac / num_ac) / np.exp(sum_3 / num_3)), axis=0, ddof=1)
+        string_all = " vs " + sorted_Refs[0] + ", " + sorted_Refs[1] + ", " + sorted_Refs[2]
+        string_ab = sorted_Refs[0] + ", " + sorted_Refs[1] + string_all
+        string_bc = sorted_Refs[1] + ", " + sorted_Refs[2] + string_all
+        string_ac = sorted_Refs[0] + ", " + sorted_Refs[2] + string_all
 
         print(vFactor)
+        print(string_ab)
+        print(vFactor_ab)
+        print(string_bc)
+        print(vFactor_bc)
+        print(string_ac)
+        print(vFactor_ac)
 
         # np.savetxt("vvvmean.txt", sorted_n0_geo, fmt='%.18e', delimiter='\t', newline='\n')
 
@@ -9169,8 +9193,8 @@ class Experiment:
      #   print(res["reference"])
      #   print(mFactor)
 
-     #   print(sorted_mFactor)
-     #   print(sorted_Refs)
+        print(sorted_mFactor)
+        print(sorted_Refs)
 
      #   print(n0_geo)
      #   print(sorted_n0_geo)
