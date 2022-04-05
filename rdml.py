@@ -8942,7 +8942,7 @@ class Experiment:
         return res
 
     def genorm(self, overlapType="samples", selAnnotation=""):
-        """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
+        """Finds most stable reference genes. Returns a json with additional data.
 
         Args:
             self: The class self parameter.
@@ -9201,6 +9201,35 @@ class Experiment:
         # print(n0_num)
        # print(rowMax)
        # print(n0_geo)
+
+        return res
+
+    def relative(self, overlapType="samples", selAnnotation=""):
+        """Calulates relative expression and returns a json with additional data.
+
+        Args:
+            self: The class self parameter.
+            overlapType: Base the overlap on "samples" or "annotation".
+            selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            run: A list of the run ids
+            target: A dictionary with the results per target
+            plate: A dictionary with the results per plate
+        """
+
+        res = {}
+        if overlapType not in ["samples", "annotation"]:
+            res["error"] = "Error: Unknown overlap type."
+            return res
+        if overlapType == "annotation":
+            if selAnnotation == "":
+                res["error"] = "Error: Selection of annotation required."
+                return res
+        res["tsv"] = {}
+        err = ""
+
 
         return res
 
