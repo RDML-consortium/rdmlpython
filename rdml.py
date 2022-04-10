@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+import io
 import os
 import re
 import datetime
@@ -16,6 +17,8 @@ import json
 import csv
 import numpy as np
 import scipy.stats as scp
+from matplotlib.backends.backend_svg import FigureCanvasSVG as figSVG
+from matplotlib.figure import Figure as plt_fig
 from lxml import etree as et
 
 
@@ -8941,13 +8944,15 @@ class Experiment:
                     res["tsv"]["standard"] += csvStandard
         return res
 
-    def genorm(self, overlapType="samples", selAnnotation=""):
+    def genorm(self, overlapType="samples", selAnnotation="", saveResultsCSV=False, saveResultsSVG=False):
         """Finds most stable reference genes. Returns a json with additional data.
 
         Args:
             self: The class self parameter.
             overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            saveResultsCSV: Save the results as tsv file
+            saveResultsSVG: Save results as svg, this sets saveResultsCSV=True
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -8964,6 +8969,10 @@ class Experiment:
             if selAnnotation == "":
                 res["error"] = "Error: Selection of annotation required."
                 return res
+
+        if saveResultsSVG:
+            saveResultsCSV = True
+
         res["tsv"] = {}
         err = ""
         samSel = {}
@@ -9032,7 +9041,6 @@ class Experiment:
         res["reference"] = sorted(usedTar, key=lambda key: usedTar[key])
         res["conditions"] = sorted(usedCond, key=lambda key: usedCond[key])
         num = 0
-        res["reference"].append("remove_me")
         for cRef in res["reference"]:
             lookupTar[cRef] = num
             num += 1
@@ -9103,21 +9111,40 @@ class Experiment:
         with np.errstate(divide='ignore', invalid='ignore'):
             n0_geo = np.exp(n0_sum / n0_num)
 
+        # Save the raw data
+        res["reference"] = sorted(usedTar, key=lambda key: usedTar[key])
+        if saveResultsCSV:
+            res["tsv"]["n0_count"] = "\t"
+            res["tsv"]["n0_values"] = "\t"
+            for tar in res["reference"]:
+                res["tsv"]["n0_count"] += tar + "\t"
+                res["tsv"]["n0_values"] += tar + "\t"
+            res["tsv"]["n0_count"] = re.sub(r"\t$", "\n", res["tsv"]["n0_count"])
+            res["tsv"]["n0_values"] = re.sub(r"\t$", "\n", res["tsv"]["n0_values"])
+            for row in range(0, len(res["conditions"])):
+                res["tsv"]["n0_count"] += res["conditions"][row] + "\t"
+                res["tsv"]["n0_values"] += res["conditions"][row] + "\t"
+                for col in range(0, len(n0_num[row])):
+                    res["tsv"]["n0_count"] += str(n0_num[row, col]) + "\t"
+                    res["tsv"]["n0_values"] += "{:.4e}".format(n0_geo[row, col]) + "\t"
+                res["tsv"]["n0_count"] = re.sub(r"\t$", "\n", res["tsv"]["n0_count"])
+                res["tsv"]["n0_values"] = re.sub(r"\t$", "\n", res["tsv"]["n0_values"])
+
         # Remove empty columns and rows
         if np.amax(n0_num) == 0:
             res["error"] = "Error: No data to run geNorm+ on."
             return res
         columMax = np.amax(n0_num, axis=0)
-        # columMax[9] = 0.0
-        # columMax[10] = 0.0
         for col in range(len(columMax) -1, -1, -1):
             if columMax[col] == 0:
+                err += "Removed target: " + res["reference"][col] + ";"
                 del res["reference"][col]
                 n0_num = np.delete(n0_num, col, axis=1)
                 n0_geo = np.delete(n0_geo, col, axis=1)
         rowMax = np.amax(n0_num, axis=1)
         for row in range(len(rowMax) -1, -1, -1):
             if rowMax[row] == 0:
+                err += "Removed condition: " + res["conditions"][row] + ";"
                 del res["conditions"][row]
                 n0_num = np.delete(n0_num, row, axis=0)
                 n0_geo = np.delete(n0_geo, row, axis=0)
@@ -9138,7 +9165,26 @@ class Experiment:
         sorted_mFactor = mFactor[mFactorInds[::1]]
         sorted_n0_geo = n0_geo[:, mFactorInds[::1]]
         sorted_Refs = np.array(res["reference"])[mFactorInds[::1]]
+
+        res["m_targets"] = []
+        res["m_values"] = []
+        for col in range(np.shape(n0_geo)[1] - 1, -1, -1):
+            res["m_targets"].append(str(sorted_Refs[col]))
+            res["m_values"].append(float(sorted_mFactor[col]))
+
+        if saveResultsCSV:
+            res["tsv"]["m_values"] = ""
+            for tar in res["m_targets"]:
+                res["tsv"]["m_values"] += tar + "\t"
+            res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
+            for mVal in res["m_values"]:
+                res["tsv"]["m_values"] += "{:.6f}".format(mVal) + "\t"
+            res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
+
+        res["v_labels"] = []
+        res["v_values"] = []
         for col in range(1, np.shape(n0_geo)[1] - 1):
+            res["v_labels"].append("v" + str(col+1) + "/" + str(col+2))
             sum_a = np.nansum(np.log(sorted_n0_geo[:, 0:col + 1]), axis=1)
             sum_b = np.nansum(np.log(sorted_n0_geo[:, 0:col + 2]), axis=1)
             num_a = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 1])), axis=1)
@@ -9147,60 +9193,57 @@ class Experiment:
                 geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
                 logDiff = np.log2(geoDiff)
                 vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
+                res["v_values"].append(float(np.nanstd(logDiff, axis=0, ddof=1)))
 
-        # Calculate the plus
-        sorted_ac = np.concatenate((sorted_n0_geo[:, 0][:, None], sorted_n0_geo[:, 2][:, None]), axis=1)
-        sum_ab = np.nansum(np.log(sorted_n0_geo[:, 0:2]), axis=1)
-        sum_bc = np.nansum(np.log(sorted_n0_geo[:, 1:3]), axis=1)
-        sum_ac = np.nansum(np.log(sorted_ac), axis=1)
-        sum_3 = np.nansum(np.log(sorted_n0_geo[:, 0:3]), axis=1)
-        num_ab = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:2])), axis=1)
-        num_bc = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 1:2])), axis=1)
-        num_ac = np.count_nonzero(~np.isnan(np.log(sorted_ac)), axis=1)
-        num_3 = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:3])), axis=1)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            vFactor_ab = np.nanstd(np.log2(np.exp(sum_ab / num_ab) / np.exp(sum_3 / num_3)), axis=0, ddof=1)
-            vFactor_bc = np.nanstd(np.log2(np.exp(sum_bc / num_bc) / np.exp(sum_3 / num_3)), axis=0, ddof=1)
-            vFactor_ac = np.nanstd(np.log2(np.exp(sum_ac / num_ac) / np.exp(sum_3 / num_3)), axis=0, ddof=1)
-        string_all = " vs " + sorted_Refs[0] + ", " + sorted_Refs[1] + ", " + sorted_Refs[2]
-        string_ab = sorted_Refs[0] + ", " + sorted_Refs[1] + string_all
-        string_bc = sorted_Refs[1] + ", " + sorted_Refs[2] + string_all
-        string_ac = sorted_Refs[0] + ", " + sorted_Refs[2] + string_all
+        if saveResultsCSV:
+            res["tsv"]["v_values"] = ""
+            for lab in res["v_labels"]:
+                res["tsv"]["v_values"] += lab + "\t"
+            res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
+            for vVal in res["v_values"]:
+                res["tsv"]["v_values"] += "{:.6f}".format(vVal) + "\t"
+            res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
 
-        print(vFactor)
-        print(string_ab)
-        print(vFactor_ab)
-        print(string_bc)
-        print(vFactor_bc)
-        print(string_ac)
-        print(vFactor_ac)
+        if saveResultsSVG:
+            res["svg"] = {}
+            fig = plt_fig()
+            axis = fig.add_subplot(1, 1, 1)
+            axis.bar(res["m_targets"], res["m_values"])
+            axis.tick_params(labelsize=16)
+            axis.tick_params(axis="x", labelrotation=90)
+            xLim = axis.get_xlim()
+            yLim = axis.get_ylim()
+            if yLim[1] < 0.8:
+                axis.set_ylim(0.0, 0.8)
+            else:
+                axis.set_ylim(0.0, None)
+            axis.plot(xLim, [0.5, 0.5], "k--")
+            fig.tight_layout()
+            with io.StringIO() as mFile:
+                figSVG(fig).print_svg(mFile)
+                mFile.seek(0)
+                res["svg"]["m_values"] = mFile.read()
 
-        # np.savetxt("vvvmean.txt", sorted_n0_geo, fmt='%.18e', delimiter='\t', newline='\n')
+            fig2 = plt_fig()
+            axis2 = fig2.add_subplot(1, 1, 1)
+            axis2.plot(res["v_labels"], res["v_values"])
+            axis2.tick_params(labelsize=16)
+            axis2.tick_params(axis="x", labelrotation=90)
+            xLim2 = axis2.get_xlim()
+            yLim2 = axis2.get_ylim()
+            if yLim2[1] < 0.2:
+                axis2.set_ylim(0.0, 0.2)
+            else:
+                axis2.set_ylim(0.0, None)
+            axis2.plot(xLim2, [0.15, 0.15], "k--")
+            fig2.tight_layout()
+            with io.StringIO() as mFile2:
+                figSVG(fig2).print_svg(mFile2)
+                mFile2.seek(0)
+                res["svg"]["v_values"] = mFile2.read()
 
-       # print(sorted_n0_geo[0:5, 0:1 + 1])
-       # print(np.log(sorted_n0_geo[0:5, 0:1 + 1]))
-       # sssum = np.nansum(np.log(sorted_n0_geo[0:5, 0:1 + 1]), axis=1)
-       # nnnum = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[0:5, 0:1 + 1])), axis=1)
-       # with np.errstate(divide='ignore', invalid='ignore'):
-       #     gggeo = np.exp(sssum / nnnum)
-       # print(sssum)
-       # print(nnnum)
-       # print(gggeo)
-
-        # np.savetxt("geomean.txt", n0_geo, fmt='%.18e', delimiter='\t', newline='\n')
-
-       # print(res["conditions"])
-     #   print(res["reference"])
-     #   print(mFactor)
-
-        print(sorted_mFactor)
-        print(sorted_Refs)
-
-     #   print(n0_geo)
-     #   print(sorted_n0_geo)
-        # print(n0_num)
-       # print(rowMax)
-       # print(n0_geo)
+        if err != "":
+            res["error"] = err
 
         return res
 
