@@ -7930,6 +7930,96 @@ class Experiment:
         data["runs"] = runs
         return data
 
+    def getExperimentData(self, refListOnly=False):
+        """Get the N0 data from an experiment.
+
+        Args:
+            self: The class self parameter.
+            refListOnly: Return only a list of reference genes
+
+        Returns:
+            A dictionary with the resulting data, presence and format depending on input.
+            references: A list of the references target ids
+            N0: A dictionary with the results per target
+        """
+
+        res = {}
+        res["reference"] = {}
+        res["N0"] = {}
+        tarType = {}
+        refTar = {}
+
+        allRuns = self.runs()
+
+        # Find all present Targets
+        targets = _get_all_children(pRoot, "target")
+        for target in targets:
+            if "id" in target.attrib:
+                tarId = target.attrib['id']
+                tarType[tarId] = _get_first_child_text(target, "type")
+
+        # Find all used Targets and N0
+        for tRunA in range(0, len(allRuns)):
+            runA = allRuns[tRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                samId = _get_first_child(react, "sample")
+                if samId is None:
+                    continue
+                if "id" not in samId.attrib:
+                    continue
+                sample = samId.attrib['id']
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if "id" not in tarId.attrib:
+                        continue
+                    target = tarId.attrib['id']
+                    excluded = _get_first_child_text(react_data, "excl")
+                    if excluded != "":
+                        continue
+                    if tarType[target] == "ref":
+                        refTar[target] = 1
+                    n0Val = _get_first_child_text(react_data, "N0")
+                    if n0Val == "":
+                        continue
+                    try:
+                        n0Val = float(n0Val)
+                    except ValueError:
+                        continue
+                    if not math.isfinite(n0Val):
+                        continue
+                    if n0Val <= 0.0:
+                        continue
+                    corrFVal = _get_first_child_text(react_data, "corrF")
+                    if corrFVal != "":
+                        try:
+                            corrFVal = float(corrFVal)
+                        except ValueError:
+                            pass
+                        if math.isfinite(corrFVal):
+                            n0Val *= corrFVal
+                    corrPVal = _get_first_child_text(react_data, "corrP")
+                    if corrPVal != "":
+                        try:
+                            corrPVal = float(corrPVal)
+                        except ValueError:
+                            pass
+                        if math.isfinite(corrPVal):
+                            if corrPVal != 0.0:
+                                n0Val /= corrPVal
+
+                    if target not in res["N0"]:
+                        res["N0"][target] = {}
+                    if sample not in res["N0"][target]:
+                        res["N0"][target][sample] = []
+                    res["N0"][target][sample].append(n0Val)
+
+        res["reference"] = sorted(refTar, key=lambda key: refTar[key])
+        return res
+
     def interRunCorr(self, overlapType="samples", selAnnotation="", updateRDML=False, calcCorrection=True):
         """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
 
@@ -8133,18 +8223,18 @@ class Experiment:
                             n0Val = float(n0Val)
                         except ValueError:
                             continue
-                        if np.isnan(n0Val):
+                        if not math.isfinite(n0Val):
                             continue
                         if n0Val <= 0.0:
                             continue
-                        corrVal = _get_first_child_text(react_data, "corrP")
-                        if corrVal != "":
+                        corrFVal = _get_first_child_text(react_data, "corrF")
+                        if corrFVal != "":
                             try:
-                                n0Val = float(corrVal)
+                                corrFVal = float(corrFVal)
                             except ValueError:
                                 pass
-                            if not np.isnan(corrVal):
-                                n0Val *= corrVal
+                            if math.isfinite(corrFVal):
+                                n0Val *= corrFVal
 
                         if target not in possible:
                             possible[target] = {}
@@ -8212,18 +8302,18 @@ class Experiment:
                                 n0Val = float(n0Val)
                             except ValueError:
                                 continue
-                            if np.isnan(n0Val):
+                            if not math.isfinite(n0Val):
                                 continue
                             if n0Val <= 0.0:
                                 continue
-                            corrVal = _get_first_child_text(react_data, "corrP")
-                            if corrVal != "":
+                            corrFVal = _get_first_child_text(react_data, "corrF")
+                            if corrFVal != "":
                                 try:
-                                    n0Val = float(corrVal)
+                                    corrFVal = float(corrFVal)
                                 except ValueError:
                                     pass
-                                if not np.isnan(corrVal):
-                                    n0Val *= corrVal
+                                if math.isfinite(corrFVal):
+                                    n0Val *= corrFVal
 
                             if target not in bOverlap:
                                 bOverlap[target] = {}
@@ -8674,7 +8764,7 @@ class Experiment:
                                             calcCorr = float(corrFac)
                                         except ValueError:
                                             calcCorr = 1.0
-                                        if np.isnan(calcCorr):
+                                        if not math.isfinite(calcCorr):
                                             calcCorr = 1.0
                                         if calcCorr > 1.0:
                                             calcCorr = 1.0
@@ -8685,7 +8775,7 @@ class Experiment:
                                             calcPlate = float(plateFac)
                                         except ValueError:
                                             calcPlate = 0.0
-                                        if np.isnan(calcPlate):
+                                        if not math.isfinite(calcPlate):
                                             calcCorr = 0.0
                                         if calcPlate == 0.0:
                                             calcCorr = 0.0
@@ -8698,7 +8788,7 @@ class Experiment:
                                             except ValueError:
                                                 pass
                                             else:
-                                                if not np.isnan(calcN0):
+                                                if math.isfinite(calcN0):
                                                     finalN0 = calcCorr * calcN0
                                                     geo_sum += math.log(finalN0)
                                                     geo_num += 1
@@ -8906,7 +8996,7 @@ class Experiment:
                                                     calcCorr = float(corrFac)
                                                 except ValueError:
                                                     calcCorr = 1.0
-                                                if np.isnan(calcCorr):
+                                                if not math.isfinite(calcCorr):
                                                     calcCorr = 1.0
                                                 if calcCorr > 1.0:
                                                     calcCorr = 1.0
@@ -8917,7 +9007,7 @@ class Experiment:
                                                     calcPlate = float(plateFac)
                                                 except ValueError:
                                                     calcPlate = 0.0
-                                                if np.isnan(calcPlate):
+                                                if not math.isfinite(calcPlate):
                                                     calcCorr = 0.0
                                                 if calcPlate == 0.0:
                                                     calcCorr = 0.0
@@ -8930,7 +9020,7 @@ class Experiment:
                                                     except ValueError:
                                                         pass
                                                     else:
-                                                        if not np.isnan(calcN0):
+                                                        if math.isfinite(calcN0):
                                                             if res["fluorN0Fact"][oTar] > 0.0:
                                                                 finalN0 = calcCorr * calcN0
                                                                 calcQuant = finalN0 / res["fluorN0Fact"][oTar]
@@ -9090,18 +9180,27 @@ class Experiment:
                         n0Val = float(n0Val)
                     except ValueError:
                         continue
-                    if np.isnan(n0Val):
+                    if not math.isfinite(n0Val):
                         continue
                     if n0Val <= 0.0:
                         continue
-                    corrVal = _get_first_child_text(react_data, "corrP")
-                    if corrVal != "":
+                    corrFVal = _get_first_child_text(react_data, "corrF")
+                    if corrFVal != "":
                         try:
-                            n0Val = float(corrVal)
+                            corrFVal = float(corrFVal)
                         except ValueError:
                             pass
-                        if not np.isnan(corrVal):
-                            n0Val *= corrVal
+                        if math.isfinite(corrFVal):
+                            n0Val *= corrFVal
+                    corrPVal = _get_first_child_text(react_data, "corrP")
+                    if corrPVal != "":
+                        try:
+                            corrPVal = float(corrPVal)
+                        except ValueError:
+                            pass
+                        if math.isfinite(corrPVal):
+                            if corrPVal != 0.0:
+                                n0Val /= corrPVal
                     if overlapType == "annotation":
                         n0_sum[lookupCond[samSel[sample]], lookupTar[target]] += np.log(n0Val)
                         n0_num[lookupCond[samSel[sample]], lookupTar[target]] += 1
@@ -11178,7 +11277,7 @@ class Run:
                         calcCorr = float(corrFac)
                     except ValueError:
                         calcCorr = 1.0
-                    if np.isnan(calcCorr):
+                    if not math.isfinite(calcCorr):
                         calcCorr = 1.0
                     if calcCorr > 1.0:
                         calcCorr = 1.0
@@ -11189,7 +11288,7 @@ class Run:
                         calcPlate = float(plateFac)
                     except ValueError:
                         calcPlate = 0.0
-                    if np.isnan(calcPlate):
+                    if not math.isfinite(calcPlate):
                         calcCorr = 0.0
                     if calcPlate == 0.0:
                         calcCorr = 0.0
@@ -11203,7 +11302,7 @@ class Run:
                         except ValueError:
                             pass
                         else:
-                            if not np.isnan(calcN0):
+                            if math.isfinite(calcN0):
                                 finalN0 = calcCorr * calcN0
                                 in_react["corrN0"] = "{:.2e}".format(finalN0)
                                 if not corrFac == "":
@@ -11219,7 +11318,7 @@ class Run:
                                     except ValueError:
                                         pass
                                     else:
-                                        if not np.isnan(calcEff):
+                                        if math.isfinite(calcEff):
                                             if 0.0 < calcEff < 3.0:
                                                 calcCq = _get_first_child_text(react_data, "cq")
                                                 if not calcCq == "":
@@ -11228,9 +11327,9 @@ class Run:
                                                     except ValueError:
                                                         pass
                                                     else:
-                                                        if not np.isnan(calcCq):
+                                                        if math.isfinite(calcCq):
                                                             if calcCq > 0.0:
-                                                                finalCq = calcCq - np.log10(calcCorr) / np.log10(calcEff)
+                                                                finalCq = calcCq - math.log10(calcCorr) / math.log10(calcEff)
                                                                 in_react["corrCq"] = "{:.3f}".format(finalCq)
                 else:
                     if calcCorr < 0.0:
@@ -11704,7 +11803,7 @@ class Run:
                 for col in range(5, len(res["baselineCorrectedData"][row])):
                     cyc = res["baselineCorrectedData"][0][col]
                     fluor = res["baselineCorrectedData"][row][col]
-                    if not (np.isnan(fluor) or fluor <= 0.0):
+                    if np.isfinite(fluor) and fluor > 0.0:
                         bas_fluor_min = min(bas_fluor_min, float(fluor))
                         bas_fluor_max = max(bas_fluor_max, float(fluor))
                         in_bas = [cyc, fluor, ""]
@@ -11724,9 +11823,9 @@ class Run:
             resList = sorted(res["resultsList"], key=_sort_list_int)
             for rRow in range(0, len(resList)):
                 for rCol in range(0, len(resList[rRow])):
-                    if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
+                    if isinstance(resList[rRow][rCol], np.float64) and not np.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
-                    if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
+                    if isinstance(resList[rRow][rCol], float) and not math.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
             allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
 
@@ -12901,7 +13000,7 @@ class Run:
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
                 if diffMeanEff:
-                    if np.isnan(res[rRow][rar_indiv_PCR_eff]):
+                    if not np.isfinite(res[rRow][rar_indiv_PCR_eff]):
                         noteVal += "no indiv PCR eff can be calculated;"
                     else:
                         if excludeEfficiency == "outlier":
@@ -12937,7 +13036,7 @@ class Run:
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
                 if diffMeanEff:
-                    if np.isnan(res[rRow][rar_indiv_PCR_eff]):
+                    if not np.isfinite(res[rRow][rar_indiv_PCR_eff]):
                         noteVal += "no indiv PCR eff can be calculated;"
                     else:
                         if excludeEfficiency == "outlier":
@@ -13007,18 +13106,18 @@ class Run:
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
                     if dataVersion == "1.3":
-                        if np.isnan(N0Val):
+                        if not np.isfinite(N0Val):
                             goodVal = "-1.0"
                         else:
                             goodVal = "{:.2e}".format(N0Val)
                         _change_subelement(rdmlElemData[rRow], "N0", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
-                        if np.isnan(meanEffVal):
+                        if not np.isfinite(meanEffVal):
                             goodVal = "-1.0"
                         else:
                             goodVal = "{:.3f}".format(meanEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEff", dataXMLelements, goodVal, True, "string")
-                        if np.isnan(stdEffVal):
+                        if not np.isfinite(stdEffVal):
                             goodVal = "-1.0"
                         else:
                             goodVal = "{:.3f}".format(stdEffVal)
@@ -13131,7 +13230,7 @@ class Run:
                     for col in range(6, len(res["derivative"]["smoothed"][row])):
                         tmp = res["derivative"]["smoothed"][0][col]
                         fluor = res["derivative"]["smoothed"][row][col]
-                        if not (np.isnan(fluor) or fluor <= 0.0):
+                        if np.isfinite(fluor) and fluor > 0.0:
                             bas_temp_min = min(bas_temp_min, float(tmp))
                             bas_temp_max = max(bas_temp_max, float(tmp))
                             bas_fluor_min = min(bas_fluor_min, float(fluor))
@@ -13159,7 +13258,7 @@ class Run:
                     for col in range(6, len(res["derivative"]["normalized"][row])):
                         tmp = res["derivative"]["normalized"][0][col]
                         fluor = res["derivative"]["normalized"][row][col]
-                        if not (np.isnan(fluor) or fluor <= 0.0):
+                        if np.isfinite(fluor) and fluor > 0.0:
                             bas_temp_min = min(bas_temp_min, float(tmp))
                             bas_temp_max = max(bas_temp_max, float(tmp))
                             bas_fluor_min = min(bas_fluor_min, float(fluor))
@@ -13187,7 +13286,7 @@ class Run:
                     for col in range(6, len(res["derivative"]["firstDerivative"][row])):
                         tmp = res["derivative"]["firstDerivative"][0][col]
                         fluor = res["derivative"]["firstDerivative"][row][col]
-                        if not (np.isnan(fluor) or fluor <= 0.0):
+                        if np.isfinite(fluor) and fluor > 0.0:
                             bas_temp_min = min(bas_temp_min, float(tmp))
                             bas_temp_max = max(bas_temp_max, float(tmp))
                             bas_fluor_min = min(bas_fluor_min, float(fluor))
@@ -13209,9 +13308,9 @@ class Run:
             resList = res["resultsList"]
             for rRow in range(0, len(resList)):
                 for rCol in range(0, len(resList[rRow])):
-                    if isinstance(resList[rRow][rCol], np.float64) and np.isnan(resList[rRow][rCol]):
+                    if isinstance(resList[rRow][rCol], np.float64) and not np.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
-                    if isinstance(resList[rRow][rCol], float) and math.isnan(resList[rRow][rCol]):
+                    if isinstance(resList[rRow][rCol], float) and not math.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
             allData["Meltcurve_Result_Table"] = json.dumps(resList, cls=NpEncoder)
 
