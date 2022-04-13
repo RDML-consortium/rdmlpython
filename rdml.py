@@ -9376,6 +9376,7 @@ class Experiment:
 
         res = {}
         tarType = {}
+        samAnno = {}
         if overlapType not in ["samples", "annotation"]:
             res["error"] = "Error: Unknown overlap type."
             return res
@@ -9393,6 +9394,21 @@ class Experiment:
         n0data = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
+
+        # Find the sample annotoation
+        if overlapType == "annotation":
+            if selAnnotation != "":
+                samples = _get_all_children(pRoot, "sample")
+                for sample in samples:
+                    if "id" in sample.attrib:
+                        samId = sample.attrib['id']
+                        xref = _get_all_children(sample, "annotation")
+                        for node in xref:
+                            anno = _get_first_child_text(node, "property")
+                            if anno == selAnnotation:
+                                val = _get_first_child_text(node, "value")
+                                if val != "":
+                                    samAnno[samId] = val
 
         # Find all target types
         targets = _get_all_children(pRoot, "target")
@@ -9424,12 +9440,12 @@ class Experiment:
                     res["tec_data"][sample][target]["N0_sd"] = -1.0
                     res["tec_data"][sample][target]["N0_cv"] = -1.0
                 else:
-                    res["tec_data"][sample][target]["N0_mean"] = np.mean(n0data["N0"][sample][target])
+                    res["tec_data"][sample][target]["N0_mean"] = float(np.mean(n0data["N0"][sample][target]))
                     if len(n0data["N0"][sample][target]) == 1:
                         res["tec_data"][sample][target]["N0_sd"] = 0.0
                         res["tec_data"][sample][target]["N0_cv"] = 0.0
                     else:
-                        res["tec_data"][sample][target]["N0_sd"] = np.std(n0data["N0"][sample][target], ddof=1)
+                        res["tec_data"][sample][target]["N0_sd"] = float(np.std(n0data["N0"][sample][target], ddof=1))
                         calcCV = res["tec_data"][sample][target]["N0_sd"] / res["tec_data"][sample][target]["N0_mean"]
                         res["tec_data"][sample][target]["N0_cv"] = calcCV
                         if calcCV > 0.3:
@@ -9443,27 +9459,83 @@ class Experiment:
             res["ref_data"][sample]["N0_gem"] = -1.0
             res["ref_data"][sample]["ref_missing"] = False
             for target in selReferences:
+                if sample not in res["tec_data"]:
+                    continue
                 if target not in res["tec_data"][sample]:
                     res["ref_data"][sample]["ref_missing"] = True
                     continue
                 if res["tec_data"][sample][target]["n_tec_rep"] == 0:
                     res["ref_data"][sample]["ref_missing"] = True
                     continue
-                print(sample + " - " + target + " - Add: " + str(res["tec_data"][sample][target]["N0_mean"]))
                 res["ref_data"][sample]["N0_sum"] += math.log(res["tec_data"][sample][target]["N0_mean"])
                 res["ref_data"][sample]["N0_num"] += 1
             if res["ref_data"][sample]["N0_num"] > 0:
                 geoMean = math.exp(res["ref_data"][sample]["N0_sum"] / res["ref_data"][sample]["N0_num"])
                 res["ref_data"][sample]["N0_gem"] = geoMean
-                print(sample + " - " + target + " - Geo: " + str(geoMean))
 
+        # Calculate relative gene expression
+        minRel = float("inf")
+        for sample in n0data["N0"]:
+            res["rel_data"][sample] = {}
+            for target in n0data["N0"][sample]:
+                if sample not in transSamTar:
+                    continue
+                if target not in transSamTar[sample]:
+                    continue
+                if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                    continue
+                if sample not in res["tec_data"]:
+                    continue
+                if target not in res["tec_data"][sample]:
+                    continue
+                if "target_type" not in res["tec_data"][sample][target]:
+                    continue
+                if res["tec_data"][sample][target]["target_type"] == "ref":
+                    continue
+                res["rel_data"][sample][target] = {}
+                res["rel_data"][sample][target]["rel_expression"] = -1.0
+                res["rel_data"][sample][target]["ref_missing"] = res["ref_data"][sample]["ref_missing"]
+                if not res["rel_data"][sample][target]["ref_missing"]:
+                    if sample not in res["ref_data"]:
+                        continue
+                    relEx = res["tec_data"][sample][target]["N0_mean"] / res["ref_data"][sample]["N0_gem"]
+                    res["rel_data"][sample][target]["rel_expression"] = relEx
+                    minRel = min(minRel, relEx)
+        for sample in res["rel_data"]:
+            for target in res["rel_data"][sample]:
+                if res["rel_data"][sample][target]["rel_expression"] > 0.0:
+                    res["rel_data"][sample][target]["rel_expression"] /= minRel
 
-
-
+        if overlapType == "annotation":
+            res["anno_data"] = {}
+            res["anno_key"] = selAnnotation
+            for sample in res["rel_data"]:
+                for target in res["rel_data"][sample]:
+                    if res["rel_data"][sample][target]["rel_expression"] > 0.0:
+                        if sample in samAnno:
+                            if target not in res["anno_data"]:
+                                res["anno_data"][target] = {}
+                            if samAnno[sample] not in res["anno_data"][target]:
+                                res["anno_data"][target][samAnno[sample]] = {}
+                            if "rel_exp_vals" not in res["anno_data"][target][samAnno[sample]]:
+                                res["anno_data"][target][samAnno[sample]]["rel_exp_vals"] = []
+                            res["anno_data"][target][samAnno[sample]]["rel_exp_vals"].append(res["rel_data"][sample][target]["rel_expression"])
+            for target in res["anno_data"]:
+                for annoVal in res["anno_data"][target]:
+                    annoCollVals = res["anno_data"][target][annoVal]["rel_exp_vals"]
+                    if len(annoCollVals) == 0:
+                        res["anno_data"][target][annoVal]["mean"] = -1.0
+                        res["anno_data"][target][annoVal]["sem"] = -1.0
+                    else:
+                        res["anno_data"][target][annoVal]["mean"] = float(np.mean(annoCollVals))
+                        if len(annoCollVals) == 1:
+                            res["anno_data"][target][annoVal]["sem"] = 0.0
+                        else:
+                            res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
 
         if saveResultsCSV:
             res["tsv"]["technical_data"] = "Sample\tSample Type\tTarget\tTarget Type\tError\tNote\t"
-            res["tsv"]["technical_data"] += "n tec. rep.\tMean N0\tSD N0\tCV N0\n"
+            res["tsv"]["technical_data"] += "n Tec. Rep.\tMean N0\tSD N0\tCV N0\n"
             sortSam = sorted(res["tec_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["tec_data"][sample].keys())
@@ -9489,6 +9561,32 @@ class Experiment:
                 res["tsv"]["reference_data"] += str(res["ref_data"][sample]["N0_num"]) + "\t"
                 res["tsv"]["reference_data"] += "{:.6e}".format(res["ref_data"][sample]["N0_gem"]) + "\n"
 
+            res["tsv"]["relative_data"] = "Sample\tSample Type\tTarget\tTarget Type\tRel. Expression\n"
+            sortSam = sorted(res["rel_data"].keys())
+            for sample in sortSam:
+                sortTar = sorted(res["rel_data"][sample].keys())
+                for target in sortTar:
+                    res["tsv"]["relative_data"] += sample + "\t"
+                    res["tsv"]["relative_data"] += res["tec_data"][sample][target]["sample_type"] + "\t"
+                    res["tsv"]["relative_data"] += target + "\t"
+                    res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
+                    if res["rel_data"][sample][target]["ref_missing"]:
+                        res["tsv"]["relative_data"] += "Reference Genes without N0"
+                    res["tsv"]["relative_data"] += "{:.4f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\n"
+
+            if overlapType == "annotation":
+                res["tsv"]["annotation_data"] = "Target\t" + res["anno_key"] + "\tRel. Expression\tSEM\tRaw Values\n"
+                sortTar = sorted(res["anno_data"].keys())
+                for target in sortTar:
+                    sortAnno = sorted(res["anno_data"][target].keys())
+                    for annoVal in sortAnno:
+                        res["tsv"]["annotation_data"] += target + "\t"
+                        res["tsv"]["annotation_data"] += annoVal + "\t"
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
+                        for indivVal in res["anno_data"][target][annoVal]["rel_exp_vals"]:
+                            res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
+                        res["tsv"]["annotation_data"] +=  "\n"
 
         return res
 
