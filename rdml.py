@@ -8050,12 +8050,10 @@ class Experiment:
 
         res = {}
         if overlapType not in ["samples", "annotation"]:
-            res["error"] = "Error: Unknown overlap type."
-            return res
+            raise RdmlError('Error: Unknown overlap type.')
         if overlapType == "annotation":
             if selAnnotation == "":
-                res["error"] = "Error: Selection of annotation required."
-                return res
+                raise RdmlError('Error: Selection of annotation required.')
         res["runs"] = []
         res["target"] = {}
         res["plate"] = {}
@@ -8563,7 +8561,7 @@ class Experiment:
 
         return res
 
-    def absoluteQuantification(self, method="reference", quantUnit="cop", estimate=True, updateRDML=False):
+    def absoluteQuantification(self, method="reference", quantUnit="cop", estimate=True, overlapType="samples", selAnnotation="", inclAnnotation=False):
         """Perform absolute quantification on the experiment.
 
         Args:
@@ -8571,7 +8569,9 @@ class Experiment:
             method: Base the overlap on "reference", "cq-guess" or "optical".
             quantUnit: The unit used for quantification "cop", "fold", "dil", "nMol", "ng" or "other"
             estimate: If true, missing targets are estimated.
-            updateRDML: If true, update the RDML data with the calculated values.
+            overlapType: Base the overlap on "samples" or "annotation".
+            selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            inclAnnotation: If true, all annotations are included in csv output
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -8581,6 +8581,11 @@ class Experiment:
             raise RdmlError('Error: Unknown method used in absoluteQuantification.')
         if quantUnit not in ["cop", "fold", "dil", "nMol", "ng", "other"]:
             raise RdmlError('Error: Unknown quantUnit used in absoluteQuantification.')
+        if overlapType not in ["samples", "annotation"]:
+            raise RdmlError('Error: Unknown overlap type.')
+        if overlapType == "annotation":
+            if selAnnotation == "":
+                raise RdmlError('Error: Selection of annotation required.')
 
         mol = 6.02214076e23  # copies / Mole
         baseWeight = 660  # g / mol per base
@@ -9064,12 +9069,10 @@ class Experiment:
 
         res = {}
         if overlapType not in ["samples", "annotation"]:
-            res["error"] = "Error: Unknown overlap type."
-            return res
+            raise RdmlError('Error: Unknown overlap type.')
         if overlapType == "annotation":
             if selAnnotation == "":
-                res["error"] = "Error: Selection of annotation required."
-                return res
+                raise RdmlError('Error: Selection of annotation required.')
 
         if saveResultsSVG:
             saveResultsCSV = True
@@ -9149,6 +9152,11 @@ class Experiment:
         for cCon in res["conditions"]:
             lookupCond[cCon] = num
             num += 1
+
+        if len(res["reference"]) < 2:
+            raise RdmlError('Error: geNorm requires at least two reference genes.')
+        if len(res["conditions"]) < 2:
+            raise RdmlError('Error: geNorm requires at least two conditions.')
 
         # Span the matrix
         gridSize = (len(res["conditions"]), len(res["reference"]))
@@ -9259,6 +9267,12 @@ class Experiment:
                 n0_num = np.delete(n0_num, row, axis=0)
                 n0_geo = np.delete(n0_geo, row, axis=0)
 
+        print(np.shape(n0_geo)[1])
+        if np.shape(n0_geo)[1] < 2:
+            raise RdmlError('Error: geNorm requires at least two reference genes.')
+        if np.shape(n0_geo)[0] < 2:
+            raise RdmlError('Error: geNorm requires at least two conditions.')
+
         # Calculate M factor
         mFactor = np.zeros(np.shape(n0_geo)[1], dtype=np.float64)
         for col in range(0, np.shape(n0_geo)[1]):
@@ -9287,32 +9301,35 @@ class Experiment:
             for tar in res["m_targets"]:
                 res["tsv"]["m_values"] += tar + "\t"
             res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
-            for mVal in res["m_values"]:
-                res["tsv"]["m_values"] += "{:.6f}".format(mVal) + "\t"
-            res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
+            if np.shape(n0_geo)[1] > 2:
+                for mVal in res["m_values"]:
+                    res["tsv"]["m_values"] += "{:.6f}".format(mVal) + "\t"
+                res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
 
-        res["v_labels"] = []
-        res["v_values"] = []
-        for col in range(1, np.shape(n0_geo)[1] - 1):
-            res["v_labels"].append("v" + str(col+1) + "/" + str(col+2))
-            sum_a = np.nansum(np.log(sorted_n0_geo[:, 0:col + 1]), axis=1)
-            sum_b = np.nansum(np.log(sorted_n0_geo[:, 0:col + 2]), axis=1)
-            num_a = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 1])), axis=1)
-            num_b = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 2])), axis=1)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
-                logDiff = np.log2(geoDiff)
-                vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
-                res["v_values"].append(float(np.nanstd(logDiff, axis=0, ddof=1)))
+        if np.shape(n0_geo)[1] > 2:
+            res["v_labels"] = []
+            res["v_values"] = []
+            for col in range(1, np.shape(n0_geo)[1] - 1):
+                res["v_labels"].append("v" + str(col+1) + "/" + str(col+2))
+                sum_a = np.nansum(np.log(sorted_n0_geo[:, 0:col + 1]), axis=1)
+                sum_b = np.nansum(np.log(sorted_n0_geo[:, 0:col + 2]), axis=1)
+                num_a = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 1])), axis=1)
+                num_b = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 2])), axis=1)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
+                    logDiff = np.log2(geoDiff)
+                    vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
+                    res["v_values"].append(float(np.nanstd(logDiff, axis=0, ddof=1)))
 
         if saveResultsCSV:
-            res["tsv"]["v_values"] = ""
-            for lab in res["v_labels"]:
-                res["tsv"]["v_values"] += lab + "\t"
-            res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
-            for vVal in res["v_values"]:
-                res["tsv"]["v_values"] += "{:.6f}".format(vVal) + "\t"
-            res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
+            if np.shape(n0_geo)[1] > 2:
+                res["tsv"]["v_values"] = ""
+                for lab in res["v_labels"]:
+                    res["tsv"]["v_values"] += lab + "\t"
+                res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
+                for vVal in res["v_values"]:
+                    res["tsv"]["v_values"] += "{:.6f}".format(vVal) + "\t"
+                res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
 
         if saveResultsSVG:
             res["svg"] = {}
@@ -9334,36 +9351,38 @@ class Experiment:
                 mFile.seek(0)
                 res["svg"]["m_values"] = mFile.read()
 
-            fig2 = plt_fig()
-            axis2 = fig2.add_subplot(1, 1, 1)
-            axis2.plot(res["v_labels"], res["v_values"])
-            axis2.tick_params(labelsize=16)
-            axis2.tick_params(axis="x", labelrotation=90)
-            xLim2 = axis2.get_xlim()
-            yLim2 = axis2.get_ylim()
-            if yLim2[1] < 0.2:
-                axis2.set_ylim(0.0, 0.2)
-            else:
-                axis2.set_ylim(0.0, None)
-            axis2.plot(xLim2, [0.15, 0.15], "k--")
-            fig2.tight_layout()
-            with io.StringIO() as mFile2:
-                figSVG(fig2).print_svg(mFile2)
-                mFile2.seek(0)
-                res["svg"]["v_values"] = mFile2.read()
+            if np.shape(n0_geo)[1] > 2:
+                fig2 = plt_fig()
+                axis2 = fig2.add_subplot(1, 1, 1)
+                axis2.plot(res["v_labels"], res["v_values"])
+                axis2.tick_params(labelsize=16)
+                axis2.tick_params(axis="x", labelrotation=90)
+                xLim2 = axis2.get_xlim()
+                yLim2 = axis2.get_ylim()
+                if yLim2[1] < 0.2:
+                    axis2.set_ylim(0.0, 0.2)
+                else:
+                    axis2.set_ylim(0.0, None)
+                axis2.plot(xLim2, [0.15, 0.15], "k--")
+                fig2.tight_layout()
+                with io.StringIO() as mFile2:
+                    figSVG(fig2).print_svg(mFile2)
+                    mFile2.seek(0)
+                    res["svg"]["v_values"] = mFile2.read()
 
         if err != "":
             res["error"] = err
 
         return res
 
-    def relative(self, overlapType="samples", selAnnotation="", selReferences=[], saveResultsCSV=False):
+    def relative(self, overlapType="samples", selAnnotation="", inclAnnotation= False, selReferences=[], saveResultsCSV=False):
         """Calulates relative expression and returns a json with additional data.
 
         Args:
             self: The class self parameter.
             overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            inclAnnotation: If true, all annotations are included in csv output
             selReferences: The list of reference genes to correct for.
             saveResultsCSV: Save the results as tsv file.
 
@@ -9378,12 +9397,10 @@ class Experiment:
         tarType = {}
         samAnno = {}
         if overlapType not in ["samples", "annotation"]:
-            res["error"] = "Error: Unknown overlap type."
-            return res
+            raise RdmlError('Error: Unknown overlap type.')
         if overlapType == "annotation":
             if selAnnotation == "":
-                res["error"] = "Error: Selection of annotation required."
-                return res
+                raise RdmlError('Error: Selection of annotation required.')
 
         res["tec_data"] = {}
         res["ref_data"] = {}
