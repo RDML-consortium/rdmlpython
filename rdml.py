@@ -8594,13 +8594,68 @@ class Experiment:
         negFluor = 0.0
         finalFluor = 1e12
         finalConc = -1.0
+        n0data = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
 
         res = {}
+        tarType = {}
+        samSelAnno = {}
+        samAllAnnos = {}
+        allAnnoKeys = {}
+        overSelAnno = {}
         res["fluorN0Fact"] = {}
         res["absUnit"] = ""
         allRuns = self.runs()
+
+        # Find the sample annotoation
+        samples = _get_all_children(pRoot, "sample")
+        for sample in samples:
+            if "id" in sample.attrib:
+                samId = sample.attrib['id']
+                xref = _get_all_children(sample, "annotation")
+                for node in xref:
+                    anno = _get_first_child_text(node, "property")
+                    if anno == "":
+                        continue
+                    val = _get_first_child_text(node, "value")
+                    if val == "":
+                        continue
+                    if overlapType == "annotation":
+                        if anno == selAnnotation:
+                            samSelAnno[samId] = val
+                    if anno not in allAnnoKeys:
+                        allAnnoKeys[anno] = 1
+                    if samId not in samAllAnnos:
+                        samAllAnnos[samId] = {}
+                    if anno not in samAllAnnos[samId]:
+                        samAllAnnos[samId][anno] = val
+        sortedAnnoKeys = sorted(allAnnoKeys.keys())
+
+        # Check the annotation overlap
+        if overlapType == "annotation":
+            for samId in samAllAnnos:
+                if selAnnotation not in samAllAnnos[samId]:
+                    continue
+                currSelVal = samAllAnnos[samId][selAnnotation]
+                for selAnno in samAllAnnos[samId]:
+                    if selAnno == selAnnotation:
+                        continue
+                    if selAnno not in overSelAnno:
+                        overSelAnno[selAnno] = {}
+                        overSelAnno[selAnno]["conf"] = False
+                        overSelAnno[selAnno]["data"] = {}
+                        overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][selAnno]
+                    else:
+                        if overSelAnno[selAnno]["data"][currSelVal] != samAllAnnos[samId][selAnno]:
+                            overSelAnno[selAnno]["conf"] = True
+
+        # Find all target types
+        targets = _get_all_children(pRoot, "target")
+        for target in targets:
+            if "id" in target.attrib:
+                tarId = target.attrib['id']
+                tarType[tarId] = _get_first_child_text(target, "type")
 
         # Get the merged data from inter run correction
         interRun = self.interRunCorr(overlapType="samples", selAnnotation="", updateRDML=False, calcCorrection=False)
@@ -9048,6 +9103,155 @@ class Experiment:
                 if csvStandard != "":
                     res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
                     res["tsv"]["standard"] += csvStandard
+
+            # Mean the technical replicates
+            res["tec_data"] = {}
+            for sample in n0data["N0"]:
+                res["tec_data"][sample] = {}
+                for target in n0data["N0"][sample]:
+                    if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                        continue
+                    res["tec_data"][sample][target] = {}
+                    res["tec_data"][sample][target]["sample_type"] = ""
+                    res["tec_data"][sample][target]["error"] = ""
+                    res["tec_data"][sample][target]["note"] = ""
+                    if sample in transSamTar:
+                        if target in transSamTar[sample]:
+                            res["tec_data"][sample][target]["sample_type"] = transSamTar[sample][target]
+                    res["tec_data"][sample][target]["target_type"] = ""
+                    if target in tarType:
+                        res["tec_data"][sample][target]["target_type"] = tarType[target]
+                    res["tec_data"][sample][target]["n_tec_rep"] = len(n0data["N0"][sample][target])
+                    res["tec_data"][sample][target]["raw_vals"] = []
+                    if len(n0data["N0"][sample][target]) == 0:
+                        res["tec_data"][sample][target]["error"] += "No N0 values;"
+                        res["tec_data"][sample][target]["cop_mean"] = -1.0
+                        res["tec_data"][sample][target]["cop_sd"] = -1.0
+                        res["tec_data"][sample][target]["cop_cv"] = -1.0
+                    else:
+                        for n0Val in n0data["N0"][sample][target]:
+                            res["tec_data"][sample][target]["raw_vals"].append(n0Val / res["fluorN0Fact"][target])
+                        res["tec_data"][sample][target]["cop_mean"] = float(np.mean(res["tec_data"][sample][target]["raw_vals"]))
+                        if len(n0data["N0"][sample][target]) == 1:
+                            res["tec_data"][sample][target]["cop_sd"] = 0.0
+                            res["tec_data"][sample][target]["cop_cv"] = 0.0
+                        else:
+                            res["tec_data"][sample][target]["cop_sd"] = float(np.std(res["tec_data"][sample][target]["raw_vals"], ddof=1))
+                            calcCV = res["tec_data"][sample][target]["cop_sd"] / res["tec_data"][sample][target]["cop_mean"]
+                            res["tec_data"][sample][target]["cop_cv"] = calcCV
+                            if calcCV > 0.3:
+                                res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
+
+            if overlapType == "annotation":
+                res["anno_data"] = {}
+                res["anno_key"] = selAnnotation
+                for sample in res["tec_data"]:
+                    for target in res["tec_data"][sample]:
+                        if res["tec_data"][sample][target]["cop_mean"] > 0.0:
+                            if sample in samSelAnno:
+                                if target not in res["anno_data"]:
+                                    res["anno_data"][target] = {}
+                                if samSelAnno[sample] not in res["anno_data"][target]:
+                                    res["anno_data"][target][samSelAnno[sample]] = {}
+                                if "raw_vals" not in res["anno_data"][target][samSelAnno[sample]]:
+                                    res["anno_data"][target][samSelAnno[sample]]["raw_vals"] = []
+                                res["anno_data"][target][samSelAnno[sample]]["raw_vals"].append(res["tec_data"][sample][target]["cop_mean"])
+                for target in res["anno_data"]:
+                    for annoVal in res["anno_data"][target]:
+                        annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
+                        if len(annoCollVals) == 0:
+                            res["anno_data"][target][annoVal]["mean"] = -1.0
+                            res["anno_data"][target][annoVal]["sem"] = -1.0
+                        else:
+                            res["anno_data"][target][annoVal]["mean"] = float(np.mean(annoCollVals))
+                            if len(annoCollVals) == 1:
+                                res["anno_data"][target][annoVal]["sem"] = 0.0
+                            else:
+                                res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
+
+            res["tsv"]["technical_data"] = "Sample\tSample Type\t"
+            if inclAnnotation:
+                for currAnno in sortedAnnoKeys:
+                    res["tsv"]["technical_data"] += currAnno + "\t"
+            res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
+            res["tsv"]["technical_data"] += "n Tec. Rep.\tUnit\tMean\tSD\tCV\tRaw Values\n"
+            sortSam = sorted(res["tec_data"].keys())
+            for sample in sortSam:
+                sortTar = sorted(res["tec_data"][sample].keys())
+                for target in sortTar:
+                    res["tsv"]["technical_data"] += sample + "\t"
+                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["sample_type"] + "\t"
+                    if inclAnnotation:
+                        for currAnno in sortedAnnoKeys:
+                            annoVal = ""
+                            if sample in samAllAnnos:
+                                if currAnno in samAllAnnos[sample]:
+                                    annoVal = samAllAnnos[sample][currAnno]
+                            res["tsv"]["technical_data"] += annoVal + "\t"
+                    res["tsv"]["technical_data"] += target + "\t"
+                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
+                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["error"] + "\t"
+                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["note"] + "\t"
+                    res["tsv"]["technical_data"] += str(res["tec_data"][sample][target]["n_tec_rep"]) + "\t"
+                    res["tsv"]["technical_data"] += res["absUnit"] + "\t"
+                    if res["absUnit"] == "cop":
+                        res["tsv"]["technical_data"] += "{:.2f}".format(
+                            res["tec_data"][sample][target]["cop_mean"]) + "\t"
+                        res["tsv"]["technical_data"] += "{:.6f}".format(
+                            res["tec_data"][sample][target]["cop_sd"]) + "\t"
+                        res["tsv"]["technical_data"] += "{:.2f}".format(
+                            res["tec_data"][sample][target]["cop_cv"]) + "\t"
+                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                            res["tsv"]["technical_data"] += "{:.2f}".format(indivVal) + ";"
+                    else:
+                        res["tsv"]["technical_data"] += "{:.6e}".format(
+                            res["tec_data"][sample][target]["cop_mean"]) + "\t"
+                        res["tsv"]["technical_data"] += "{:.6e}".format(
+                            res["tec_data"][sample][target]["cop_sd"]) + "\t"
+                        res["tsv"]["technical_data"] += "{:.6f}".format(
+                            res["tec_data"][sample][target]["cop_cv"]) + "\t"
+                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                            res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
+
+                    res["tsv"]["technical_data"] += "\n"
+
+            if overlapType == "annotation":
+                res["tsv"]["annotation_data"] = res["anno_key"] + "\t"
+                if inclAnnotation:
+                    for currAnno in sortedAnnoKeys:
+                        if currAnno == selAnnotation:
+                            continue
+                        if currAnno not in overSelAnno:
+                            continue
+                        if overSelAnno[currAnno]["conf"]:
+                            continue
+                        res["tsv"]["annotation_data"] += currAnno + "\t"
+                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tRaw Values\n"
+                sortTar = sorted(res["anno_data"].keys())
+                for target in sortTar:
+                    sortAnno = sorted(res["anno_data"][target].keys())
+                    for annoVal in sortAnno:
+                        res["tsv"]["annotation_data"] += annoVal + "\t"
+                        if inclAnnotation:
+                            for currAnno in sortedAnnoKeys:
+                                if currAnno == selAnnotation:
+                                    continue
+                                if currAnno not in overSelAnno:
+                                    continue
+                                if overSelAnno[currAnno]["conf"]:
+                                    continue
+                                annoData = ""
+                                if currAnno in overSelAnno:
+                                    if annoVal in overSelAnno[currAnno]["data"]:
+                                        annoData = overSelAnno[currAnno]["data"][annoVal]
+                                res["tsv"]["annotation_data"] += annoData + "\t"
+                        res["tsv"]["annotation_data"] += target + "\t"
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
+                        for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
+                            res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
+                        res["tsv"]["annotation_data"] += "\n"
+
         return res
 
     def genorm(self, overlapType="samples", selAnnotation="", saveResultsCSV=False, saveResultsSVG=False):
@@ -9395,7 +9599,10 @@ class Experiment:
 
         res = {}
         tarType = {}
-        samAnno = {}
+        samSelAnno = {}
+        samAllAnnos = {}
+        allAnnoKeys = {}
+        overSelAnno = {}
         if overlapType not in ["samples", "annotation"]:
             raise RdmlError('Error: Unknown overlap type.')
         if overlapType == "annotation":
@@ -9413,19 +9620,46 @@ class Experiment:
         transSamTar = _sampleTypeToDics(pRoot)
 
         # Find the sample annotoation
+        samples = _get_all_children(pRoot, "sample")
+        for sample in samples:
+            if "id" in sample.attrib:
+                samId = sample.attrib['id']
+                xref = _get_all_children(sample, "annotation")
+                for node in xref:
+                    anno = _get_first_child_text(node, "property")
+                    if anno == "":
+                        continue
+                    val = _get_first_child_text(node, "value")
+                    if val == "":
+                        continue
+                    if overlapType == "annotation":
+                        if anno == selAnnotation:
+                            samSelAnno[samId] = val
+                    if anno not in allAnnoKeys:
+                        allAnnoKeys[anno] = 1
+                    if samId not in samAllAnnos:
+                        samAllAnnos[samId] = {}
+                    if anno not in samAllAnnos[samId]:
+                        samAllAnnos[samId][anno] = val
+        sortedAnnoKeys = sorted(allAnnoKeys.keys())
+
+        # Check the annotation overlap
         if overlapType == "annotation":
-            if selAnnotation != "":
-                samples = _get_all_children(pRoot, "sample")
-                for sample in samples:
-                    if "id" in sample.attrib:
-                        samId = sample.attrib['id']
-                        xref = _get_all_children(sample, "annotation")
-                        for node in xref:
-                            anno = _get_first_child_text(node, "property")
-                            if anno == selAnnotation:
-                                val = _get_first_child_text(node, "value")
-                                if val != "":
-                                    samAnno[samId] = val
+            for samId in samAllAnnos:
+                if selAnnotation not in samAllAnnos[samId]:
+                    continue
+                currSelVal = samAllAnnos[samId][selAnnotation]
+                for selAnno in samAllAnnos[samId]:
+                    if selAnno == selAnnotation:
+                        continue
+                    if selAnno not in overSelAnno:
+                        overSelAnno[selAnno] = {}
+                        overSelAnno[selAnno]["conf"] = False
+                        overSelAnno[selAnno]["data"] = {}
+                        overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][selAnno]
+                    else:
+                        if overSelAnno[selAnno]["data"][currSelVal] != samAllAnnos[samId][selAnno]:
+                            overSelAnno[selAnno]["conf"] = True
 
         # Find all target types
         targets = _get_all_children(pRoot, "target")
@@ -9535,14 +9769,14 @@ class Experiment:
             for sample in res["rel_data"]:
                 for target in res["rel_data"][sample]:
                     if res["rel_data"][sample][target]["rel_expression"] > 0.0:
-                        if sample in samAnno:
+                        if sample in samSelAnno:
                             if target not in res["anno_data"]:
                                 res["anno_data"][target] = {}
-                            if samAnno[sample] not in res["anno_data"][target]:
-                                res["anno_data"][target][samAnno[sample]] = {}
-                            if "raw_vals" not in res["anno_data"][target][samAnno[sample]]:
-                                res["anno_data"][target][samAnno[sample]]["raw_vals"] = []
-                            res["anno_data"][target][samAnno[sample]]["raw_vals"].append(res["rel_data"][sample][target]["rel_expression"])
+                            if samSelAnno[sample] not in res["anno_data"][target]:
+                                res["anno_data"][target][samSelAnno[sample]] = {}
+                            if "raw_vals" not in res["anno_data"][target][samSelAnno[sample]]:
+                                res["anno_data"][target][samSelAnno[sample]]["raw_vals"] = []
+                            res["anno_data"][target][samSelAnno[sample]]["raw_vals"].append(res["rel_data"][sample][target]["rel_expression"])
             for target in res["anno_data"]:
                 for annoVal in res["anno_data"][target]:
                     annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
@@ -9557,7 +9791,11 @@ class Experiment:
                             res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
 
         if saveResultsCSV:
-            res["tsv"]["technical_data"] = "Sample\tSample Type\tTarget\tTarget Type\tError\tNote\t"
+            res["tsv"]["technical_data"] = "Sample\tSample Type\t"
+            if inclAnnotation:
+                for currAnno in sortedAnnoKeys:
+                    res["tsv"]["technical_data"] += currAnno + "\t"
+            res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
             res["tsv"]["technical_data"] += "n Tec. Rep.\tMean N0\tSD N0\tCV N0\tRaw Values\n"
             sortSam = sorted(res["tec_data"].keys())
             for sample in sortSam:
@@ -9565,6 +9803,13 @@ class Experiment:
                 for target in sortTar:
                     res["tsv"]["technical_data"] += sample + "\t"
                     res["tsv"]["technical_data"] += res["tec_data"][sample][target]["sample_type"] + "\t"
+                    if inclAnnotation:
+                        for currAnno in sortedAnnoKeys:
+                            annoVal = ""
+                            if sample in samAllAnnos:
+                                if currAnno in samAllAnnos[sample]:
+                                    annoVal = samAllAnnos[sample][currAnno]
+                            res["tsv"]["technical_data"] += annoVal + "\t"
                     res["tsv"]["technical_data"] += target + "\t"
                     res["tsv"]["technical_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
                     res["tsv"]["technical_data"] += res["tec_data"][sample][target]["error"] + "\t"
@@ -9577,10 +9822,21 @@ class Experiment:
                         res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
                     res["tsv"]["technical_data"] += "\n"
 
-            res["tsv"]["reference_data"] = "Sample\tError\tn Ref. Genes\tGeometric Mean N0\tRaw Values\n"
+            res["tsv"]["reference_data"] = "Sample\t"
+            if inclAnnotation:
+                for currAnno in sortedAnnoKeys:
+                    res["tsv"]["reference_data"] += currAnno + "\t"
+            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\tRaw Values\n"
             sortSam = sorted(res["ref_data"].keys())
             for sample in sortSam:
                 res["tsv"]["reference_data"] += sample + "\t"
+                if inclAnnotation:
+                    for currAnno in sortedAnnoKeys:
+                        annoVal = ""
+                        if sample in samAllAnnos:
+                            if currAnno in samAllAnnos[sample]:
+                                annoVal = samAllAnnos[sample][currAnno]
+                        res["tsv"]["reference_data"] += annoVal + "\t"
                 if res["ref_data"][sample]["ref_missing"]:
                     res["tsv"]["reference_data"] += "Reference Genes without N0"
                 res["tsv"]["reference_data"] += "\t"
@@ -9590,13 +9846,24 @@ class Experiment:
                     res["tsv"]["reference_data"] += "{:.4e}".format(indivVal) + ";"
                 res["tsv"]["reference_data"] += "\n"
 
-            res["tsv"]["relative_data"] = "Sample\tSample Type\tTarget\tTarget Type\tRel. Expression\tRaw Values\n"
+            res["tsv"]["relative_data"] = "Sample\tSample Type\t"
+            if inclAnnotation:
+                for currAnno in sortedAnnoKeys:
+                    res["tsv"]["relative_data"] += currAnno + "\t"
+            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\tRaw Values\n"
             sortSam = sorted(res["rel_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["rel_data"][sample].keys())
                 for target in sortTar:
                     res["tsv"]["relative_data"] += sample + "\t"
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["sample_type"] + "\t"
+                    if inclAnnotation:
+                        for currAnno in sortedAnnoKeys:
+                            annoVal = ""
+                            if sample in samAllAnnos:
+                                if currAnno in samAllAnnos[sample]:
+                                    annoVal = samAllAnnos[sample][currAnno]
+                            res["tsv"]["relative_data"] += annoVal + "\t"
                     res["tsv"]["relative_data"] += target + "\t"
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
                     if res["rel_data"][sample][target]["ref_missing"]:
@@ -9607,13 +9874,36 @@ class Experiment:
                     res["tsv"]["relative_data"] += "\n"
 
             if overlapType == "annotation":
-                res["tsv"]["annotation_data"] = "Target\t" + res["anno_key"] + "\tRel. Expression\tSEM\tRaw Values\n"
+                res["tsv"]["annotation_data"] = res["anno_key"] + "\t"
+                if inclAnnotation:
+                    for currAnno in sortedAnnoKeys:
+                        if currAnno == selAnnotation:
+                            continue
+                        if currAnno not in overSelAnno:
+                            continue
+                        if overSelAnno[currAnno]["conf"]:
+                            continue
+                        res["tsv"]["annotation_data"] += currAnno + "\t"
+                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tRaw Values\n"
                 sortTar = sorted(res["anno_data"].keys())
                 for target in sortTar:
                     sortAnno = sorted(res["anno_data"][target].keys())
                     for annoVal in sortAnno:
-                        res["tsv"]["annotation_data"] += target + "\t"
                         res["tsv"]["annotation_data"] += annoVal + "\t"
+                        if inclAnnotation:
+                            for currAnno in sortedAnnoKeys:
+                                if currAnno == selAnnotation:
+                                    continue
+                                if currAnno not in overSelAnno:
+                                    continue
+                                if overSelAnno[currAnno]["conf"]:
+                                    continue
+                                annoData = ""
+                                if currAnno in overSelAnno:
+                                    if annoVal in overSelAnno[currAnno]["data"]:
+                                        annoData = overSelAnno[currAnno]["data"][annoVal]
+                                res["tsv"]["annotation_data"] += annoData + "\t"
+                        res["tsv"]["annotation_data"] += target + "\t"
                         res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
                         res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
                         for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
