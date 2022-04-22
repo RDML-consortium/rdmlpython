@@ -3796,6 +3796,88 @@ class Rdml:
         elem = _get_first_child_by_pos_or_id(self._node, "sample", byid, byposition)
         self._node.remove(elem)
 
+    def export_annotations(self):
+        """Returns a table the samples with the annotations in a string.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A table with \t seperators.
+        """
+
+        ver = self.get('version')
+        if ver == "1.1":
+            return ""
+
+        ret = "Sample"
+        lookupAnno = {}
+
+        # Collect the unique annotation keys
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            annos = _get_all_children(node, "annotation")
+            for node in annos:
+                prop = _get_first_child_text(node, "property")
+                if prop != "":
+                    lookupAnno[prop] = 1
+
+        # Sort the keys and correct lookup
+        annoSort = list(lookupAnno.keys())
+        annoSort.sort()
+        anno_pos = 1
+        for anno in annoSort:
+            ret += '\t' + anno
+            lookupAnno[anno] = anno_pos
+            anno_pos += 1
+        ret += '\n'
+
+        # Fill the table grid
+        resTab = []
+        sam_pos = 0
+        for node in exp:
+            resTab.append([node.attrib['id']])
+            for anno in annoSort:
+                resTab[sam_pos].append("")
+            annos = _get_all_children(node, "annotation")
+            for node in annos:
+                prop = _get_first_child_text(node, "property")
+                value = _get_first_child_text(node, "value")
+                if prop != "":
+                    resTab[sam_pos][lookupAnno[prop]] = value
+            sam_pos += 1
+
+        # Print Table out
+        for row in resTab:
+            for colTxt in row:
+                ret += colTxt + '\t' 
+            ret = re.sub(r"\t$", "\n", ret)
+
+        return ret
+
+    def import_annotations(self, csvData):
+        """Returns a list of the annotations in the xml file.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of dics with property and value strings.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return []
+        xref = _get_all_children(self._node, "annotation")
+        ret = []
+        for node in xref:
+            data = {}
+            _add_first_child_to_dic(node, data, True, "property")
+            _add_first_child_to_dic(node, data, True, "value")
+            ret.append(data)
+        return ret
+
     def targets(self):
         """Returns a list of all target elements.
 
@@ -6076,6 +6158,51 @@ class Sample:
         _change_subelement(ele, "property", ["property", "value"], property, True, "string")
         _change_subelement(ele, "value", ["property", "value"], value, True, "string")
         self._node.insert(pos, ele)
+
+    def edit_annotation_value(self, property, value=None):
+        """Edits an annotation element.
+
+        Args:
+            self: The class self parameter.
+            property: The property
+            value: Its value
+
+        Returns:
+            Nothing, changes self.
+        """
+
+        par = self._node.getparent()
+        ver = par.get('version')
+        if ver == "1.1":
+            return
+        if property == "":
+            raise RdmlError('A property is required to edit a annotation.')
+        allAnnos = _get_all_children(self._node, "annotation")
+        foundProp = False
+        if value == None:
+            foundProp = True
+        if value == "":
+            foundProp = True
+        for node in allAnnos:
+            curProp = _get_first_child_text(node, "property")
+            if curProp == "":
+               self._node.remove(node)
+               continue
+            if property == curProp:
+                if value == None:
+                    self._node.remove(node)
+                    continue
+                if value == "":
+                    self._node.remove(node)
+                    continue
+                if foundProp == False:
+                    _change_subelement(node, "value", ["property", "value"], value, True, "string")
+                    foundProp = True
+                else:
+                    self._node.remove(node)
+                    continue
+        if foundProp == False:
+           self.new_annotation(property=property, value=value, newposition=9999999999)
 
     def move_annotation(self, oldposition, newposition):
         """Moves the element to the new position in the list.
