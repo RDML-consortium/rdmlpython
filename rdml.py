@@ -3806,10 +3806,6 @@ class Rdml:
             A table with \t seperators.
         """
 
-        ver = self.get('version')
-        if ver == "1.1":
-            return ""
-
         ret = "Sample"
         lookupAnno = {}
 
@@ -3860,23 +3856,33 @@ class Rdml:
 
         Args:
             self: The class self parameter.
+            csvData: A tsv file with the annotation data
 
         Returns:
             A list of dics with property and value strings.
         """
 
-        par = self._node.getparent()
-        ver = par.get('version')
+        ver = self._node.get('version')
         if ver == "1.1":
-            return []
-        xref = _get_all_children(self._node, "annotation")
-        ret = []
-        for node in xref:
-            data = {}
-            _add_first_child_to_dic(node, data, True, "property")
-            _add_first_child_to_dic(node, data, True, "value")
-            ret.append(data)
-        return ret
+            return ""
+
+        err = ""
+        with open(csvData, newline='') as tfile:  # add encoding='utf-8' ?
+            annoTab = list(csv.reader(tfile, delimiter='\t'))
+            if len(annoTab) < 2:
+                raise RdmlError('The annotation file must have at least two rows.')
+            if len(annoTab[0]) < 2:
+                raise RdmlError('The annotation file must have at least two columns.')
+            for row in range(1, len(annoTab)):
+                samId = annoTab[row][0]
+                if samId != "":
+                    for col in range(1, len(annoTab[0])):
+                        annoProp = annoTab[0][col]
+                        annoVal = annoTab[row][col]
+                        if annoProp != "":
+                            el = self.get_sample(byid=samId)
+                            el.edit_annotation_value(property=annoProp, value=annoVal)
+        return err
 
     def targets(self):
         """Returns a list of all target elements.
