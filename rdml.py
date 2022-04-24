@@ -3859,14 +3859,13 @@ class Rdml:
             csvData: A tsv file with the annotation data
 
         Returns:
-            A list of dics with property and value strings.
+            Nothing.
         """
 
         ver = self._node.get('version')
         if ver == "1.1":
             return ""
 
-        err = ""
         with open(csvData, newline='') as tfile:  # add encoding='utf-8' ?
             annoTab = list(csv.reader(tfile, delimiter='\t'))
             if len(annoTab) < 2:
@@ -3882,7 +3881,96 @@ class Rdml:
                         if annoProp != "":
                             el = self.get_sample(byid=samId)
                             el.edit_annotation_value(property=annoProp, value=annoVal)
-        return err
+        return
+
+    def rename_annotation_property(self, oldProperty, newProperty):
+        """Returns a list of the annotations in the xml file.
+
+        Args:
+            self: The class self parameter.
+            oldProperty: The old property value to be replaced
+            newProperty: The new property value to use
+
+        Returns:
+            A list of dics with property and value strings.
+        """
+
+        ver = self._node.get('version')
+        if ver == "1.1":
+            return ""
+
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            annos = _get_all_children(node, "annotation")
+            for node2 in annos:
+                prop = _get_first_child(node2, "property")
+                if prop.text == oldProperty:
+                    prop.text = newProperty
+        return
+
+    def rename_annotation_value(self, property, oldValue, newValue):
+        """Returns a list of the annotations in the xml file.
+
+        Args:
+            self: The class self parameter.
+            property: The property to work in
+            oldValue: The old value to be replaced
+            newProperty: The new value to use
+
+        Returns:
+            A list of dics with property and value strings.
+        """
+
+        ver = self._node.get('version')
+        if ver == "1.1":
+            return ""
+
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            annos = _get_all_children(node, "annotation")
+            for node2 in annos:
+                prop = _get_first_child(node2, "property")
+                value = _get_first_child(node2, "value")
+                if prop.text == property:
+                    if value.text == oldValue:
+                        value.text = newValue
+        return
+
+    def combine_annotations(self, combinedPoperty, leftProperty, connectProperty, rightProperty):
+        """Returns a list of the annotations in the xml file.
+
+        Args:
+            self: The class self parameter.
+            combinedPoperty: The new property name
+            leftProperty: The property to take the left part of the new value
+            connectProperty: A string to place between the new values
+            rightProperty: The property to take the right part of the new value
+
+        Returns:
+            A list of dics with property and value strings.
+        """
+
+        ver = self._node.get('version')
+        if ver == "1.1":
+            return ""
+
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            leftVal = ""
+            rightVal = ""
+            annos = _get_all_children(node, "annotation")
+            for node2 in annos:
+                prop = _get_first_child_text(node2, "property")
+                if prop == leftProperty:
+                    leftVal = _get_first_child_text(node2, "value")
+                if prop == rightProperty:
+                    rightVal = _get_first_child_text(node2, "value")
+            if leftVal != "":
+                if rightVal != "":
+                    el = Sample(node)
+                    newVal = leftVal + connectProperty + rightVal
+                    el.edit_annotation_value(property=combinedPoperty, value=newVal)
+        return
 
     def targets(self):
         """Returns a list of all target elements.
