@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.5.2"
+    return "1.5.3"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -12521,13 +12521,14 @@ class Run:
             self.setDigiNote(well, vTar, vNote, vAppend)
         return
 
-    def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True,
+    def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=False, excludeNoPlateau=True,
                         excludeEfficiency="outlier", excludeInstableBaseline=True):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
             pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
+            updateTargetEfficiency: If true, the PCR efficiencies and errors of the targets are updated.
             updateRDML: If true, update the RDML data with the calculated values.
             excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
             excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
@@ -12543,6 +12544,7 @@ class Run:
 
         allData = self.getreactjson()
         res = self.linRegPCR(pcrEfficiencyExl=pcrEfficiencyExl,
+                             updateTargetEfficiency=updateTargetEfficiency,
                              updateRDML=updateRDML,
                              excludeNoPlateau=excludeNoPlateau,
                              excludeEfficiency=excludeEfficiency,
@@ -12592,7 +12594,8 @@ class Run:
 
         return allData
 
-    def linRegPCR(self, pcrEfficiencyExl=0.05, updateRDML=False, excludeNoPlateau=True, excludeEfficiency="outlier",
+    def linRegPCR(self, pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=False,
+                  excludeNoPlateau=True, excludeEfficiency="outlier",
                   excludeInstableBaseline=True, commaConv=False, ignoreExclusion=False,
                   saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False,
                   timeRun=False, verbose=False):
@@ -12601,6 +12604,7 @@ class Run:
         Args:
             self: The class self parameter.
             pcrEfficiencyExl: Exclude samples with an efficiency outside the given range (0.05).
+            updateTargetEfficiency: If true, the PCR efficiencies and errors of the targets are updated.
             updateRDML: If true, update the RDML data with the calculated values.
             excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
             excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
@@ -13820,6 +13824,8 @@ class Run:
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
             self["cqDetectionMethod"] = 'automated threshold and baseline settings'
             dataXMLelements = _getXMLDataType()
+            collectedTargetEff = {}
+            collectedTargetErr = {}
             for rRow in range(0, len(res)):
                 if rdmlElemData[rRow] is not None:
                     cqVal = np.NaN
@@ -13875,16 +13881,36 @@ class Run:
                         else:
                             goodVal = "{:.3f}".format(meanEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEff", dataXMLelements, goodVal, True, "string")
+                        if updateTargetEfficiency:
+                            collectedTargetEff[res[rRow][rar_tar]] = goodVal
                         if not np.isfinite(stdEffVal):
                             goodVal = "-1.0"
                         else:
                             goodVal = "{:.3f}".format(stdEffVal)
                         _change_subelement(rdmlElemData[rRow], "ampEffSE", dataXMLelements, goodVal, True, "string")
+                        if updateTargetEfficiency:
+                             collectedTargetErr[res[rRow][rar_tar]] = goodVal
                         _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                     goodVal = "{:.3f}".format(vecBackground[rRow] - negShiftBaseline[rRow])
                     _change_subelement(rdmlElemData[rRow], "bgFluor", dataXMLelements, goodVal, True, "string")
                     goodVal = "{:.3f}".format(threshold[0])
                     _change_subelement(rdmlElemData[rRow], "quantFluor", dataXMLelements, goodVal, True, "string")
+            if updateTargetEfficiency:
+                tarXMLKeys = ["description", "documentation", "xRef", "type", "amplificationEfficiencyMethod",
+                              "amplificationEfficiency", "amplificationEfficiencySE", "meltingTemperature",
+                              "detectionLimit", "dyeId", "sequences", "commercialAssay"]
+                for curTar in collectedTargetEff:
+                    eleTars = _get_all_children(rootPar, "target")
+                    for eleTar in eleTars:
+                        foundId = eleTar.attrib['id']
+                        if foundId != curTar:
+                            continue
+                        eleEff = _get_or_create_subelement(eleTar, "amplificationEfficiency", tarXMLKeys)
+                        eleEff.text = collectedTargetEff[curTar]
+                        if dataVersion != "1.1":
+                            if curTar in collectedTargetErr:
+                                eleEffSE = _get_or_create_subelement(eleTar, "amplificationEfficiencySE", tarXMLKeys)
+                                eleEffSE.text = collectedTargetErr[curTar]
 
         if timeRun:
             stop_time = datetime.datetime.now() - start_time
