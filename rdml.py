@@ -10504,7 +10504,12 @@ class Run:
         wellData = []
         for react in reacts:
             reactId = react.get('id')
-            dataSample = reactId + '\t'
+            pWell = str(reactId)
+            if int(self["pcrFormat_columns"]) != 1 and int(self["pcrFormat_rows"]) != 1:
+                pIdNumber = (int(reactId) - 1) % int(self["pcrFormat_columns"]) + 1
+                pIdLetter = chr(ord("A") + int((int(reactId) - 1) / int(self["pcrFormat_columns"])))
+                pWell = pIdLetter + str(pIdNumber)
+            dataSample = pWell + '\t'
             react_sample = "No Sample"
             forId = _get_first_child(react, "sample")
             if forId is not None:
