@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.5.3"
+    return "1.6.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -9475,13 +9475,14 @@ class Experiment:
 
         return res
 
-    def genorm(self, overlapType="samples", selAnnotation="", saveResultsCSV=False, saveResultsSVG=False):
+    def genorm(self, selSamples="samples", selAnnotation="", selAnnoValue="", saveResultsCSV=False, saveResultsSVG=False):
         """Finds most stable reference genes. Returns a json with additional data.
 
         Args:
             self: The class self parameter.
-            overlapType: Base the overlap on "samples" or "annotation".
+            selSamples: Select "all" samples or samples with the "annotation" based on selAnnotation and selAnnoValue.
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            selAnnoValue: The value of the annotation to use if overlapType == "annotation", else ignored.
             saveResultsCSV: Save the results as tsv file
             saveResultsSVG: Save results as svg, this sets saveResultsCSV=True
 
@@ -9493,11 +9494,13 @@ class Experiment:
         """
 
         res = {}
-        if overlapType not in ["samples", "annotation"]:
-            raise RdmlError('Error: Unknown overlap type.')
-        if overlapType == "annotation":
+        if selSamples not in ["all", "annotation"]:
+            raise RdmlError('Error: Unknown sample selection.')
+        if selSamples == "annotation":
             if selAnnotation == "":
                 raise RdmlError('Error: Selection of annotation required.')
+            if selAnnoValue == "":
+                raise RdmlError('Error: Selection of annotation value required.')
 
         if saveResultsSVG:
             saveResultsCSV = True
@@ -9515,7 +9518,7 @@ class Experiment:
         # Get the sample infos
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
-        if overlapType == "annotation":
+        if selSamples == "annotation":
             if selAnnotation != "":
                 samples = _get_all_children(pRoot, "sample")
                 for sample in samples:
@@ -9562,8 +9565,9 @@ class Experiment:
                         continue
                     if tarType[target] == "ref":
                         usedTar[target] = 1
-                        if overlapType == "annotation":
-                            usedCond[samSel[sample]] = 1
+                        if selSamples == "annotation":
+                            if samSel[sample] == selAnnoValue:
+                                usedCond[sample] = 1
                         else:
                             usedCond[sample] = 1
 
@@ -9610,13 +9614,8 @@ class Experiment:
                     target = tarId.attrib['id']
                     if target not in res["reference"]:
                         continue
-
-                    if overlapType == "annotation":
-                        if samSel[sample] not in res["conditions"]:
-                            continue
-                    else:
-                        if sample not in res["conditions"]:
-                            continue
+                    if sample not in res["conditions"]:
+                        continue
                     n0Val = _get_first_child_text(react_data, "N0")
                     if n0Val == "":
                         continue
@@ -9645,12 +9644,8 @@ class Experiment:
                         if math.isfinite(corrPVal):
                             if corrPVal != 0.0:
                                 n0Val /= corrPVal
-                    if overlapType == "annotation":
-                        n0_sum[lookupCond[samSel[sample]], lookupTar[target]] += np.log(n0Val)
-                        n0_num[lookupCond[samSel[sample]], lookupTar[target]] += 1
-                    else:
-                        n0_sum[lookupCond[sample], lookupTar[target]] += np.log(n0Val)
-                        n0_num[lookupCond[sample], lookupTar[target]] += 1
+                    n0_sum[lookupCond[sample], lookupTar[target]] += np.log(n0Val)
+                    n0_num[lookupCond[sample], lookupTar[target]] += 1
         with np.errstate(divide='ignore', invalid='ignore'):
             n0_geo = np.exp(n0_sum / n0_num)
 
@@ -9779,7 +9774,7 @@ class Experiment:
             if np.shape(n0_geo)[1] > 2:
                 fig2 = plt_fig()
                 axis2 = fig2.add_subplot(1, 1, 1)
-                axis2.plot(res["v_labels"], res["v_values"])
+                axis2.bar(res["v_labels"], res["v_values"])
                 axis2.tick_params(labelsize=16)
                 axis2.tick_params(axis="x", labelrotation=90)
                 xLim2 = axis2.get_xlim()
