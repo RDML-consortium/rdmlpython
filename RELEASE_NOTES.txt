@@ -1,4 +1,13 @@
-Version 1.5.0  -  XX.04.2022
+Version 1.6.0  -  XX.10.2022
+----------------------------
+
+- Improved baseline calculation. The number of cycles 
+  in log phase is limited to a maximum of 12.
+
+- GeNorm can select a subset of samples.
+
+
+Version 1.5.0  -  17.04.2022
 ----------------------------
 
 - Improved baseline calculation. Minimum PCR efficiency

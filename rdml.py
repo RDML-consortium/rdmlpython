@@ -825,6 +825,7 @@ def _lrp_findStartCyc(fluor, aRow, stopCyc):
 
     # As long as there are no NaN and new values are increasing
     while (startCyc > firstNotNaN and
+           stopCyc - startCyc < 11 and
            not np.isnan(fluor[aRow, startCyc - 2]) and
            fluor[aRow, startCyc - 2] <= fluor[aRow, startCyc - 1]):
         startCyc -= 1
