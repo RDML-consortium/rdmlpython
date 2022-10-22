@@ -2021,6 +2021,8 @@ class Rdml:
                     data = zf.read(archiv_name).decode('utf-8')
                 except KeyError:
                     raise RdmlError('No readable data in compressed RDML file found.')
+                except UnicodeDecodeError:
+                    raise RdmlError('No readable unicode data in compressed RDML file found.')
                 else:
                     self.loadXMLString(data)
             zf.close()
