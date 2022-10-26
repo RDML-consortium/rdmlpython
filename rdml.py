@@ -2105,7 +2105,7 @@ class Rdml:
         elif version == '1.2':
             xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
-            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_REC.xsd'))
         else:
             notes += 'RDML version:\tFalse\tUnknown schema version' + version + '\n'
             return notes
@@ -2150,7 +2150,7 @@ class Rdml:
         elif version == '1.2':
             xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
-            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_CR.xsd'))
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_REC.xsd'))
         else:
             return False
         xmlschema = et.XMLSchema(xmlschema_doc)
@@ -10444,7 +10444,7 @@ class Run:
         return data
 
     def export_table(self, dMode):
-        """Returns a tab seperated table file with the react fluorescence data.
+        """Returns a tab seperated table file with the react fluorescence data in RDES format.
 
         Args:
             self: The class self parameter.
@@ -10476,6 +10476,10 @@ class Run:
 
         # Now create the header line
         data += "Well\tSample\tSample Type\tTarget\tTarget Type\tDye\t"
+        if dMode == "amp":
+            data += "Cq\t"
+        else:
+            data += "Tm\t"
         reacts = _get_all_children(self._node, "react")
         if len(reacts) < 1:
             return ""
@@ -10492,7 +10496,7 @@ class Run:
             mdps = _get_all_children(react_datas[0], "mdp")
             for mdp in mdps:
                 headArr.append(_get_first_child_text(mdp, "tmp"))
-            headArr = sorted(headArr, key=float, reverse=True)
+            headArr = sorted(headArr, key=float)
         for hElem in headArr:
             data += hElem + "\t"
         data += '\n'
@@ -10532,6 +10536,12 @@ class Run:
                         react_sample_type = transSamTar[react_sample][react_target]
                 dataLine = dataSample + react_sample_type
                 dataLine += "\t" + react_target + '\t' + react_target_type + '\t' + react_target_dye
+                col7 = ""
+                if dMode == "amp":
+                    col7 = _get_first_child_text(react_data, "cq")
+                else:
+                    col7 = _get_first_child_text(react_data, "meltTemp")
+                dataLine += '\t' + col7
                 fluorList = []
                 if dMode == "amp":
                     adps = _get_all_children(react_data, "adp")
@@ -10569,6 +10579,7 @@ class Run:
             A string with the modifications made.
         """
 
+        dataVersion = rootEl._node.attrib['version'] # _get_first_child_text(rootEl, "version")
         ret = ""
         with open(filename, "r") as tfile:
             fileContent = tfile.read()
@@ -10694,14 +10705,34 @@ class Run:
                                      9999999)
                 data.insert(place, new_node)
 
+            keyFor7 = "cq"
+            if dMode == "melt":
+                keyFor7 = "meltTemp"
+            present7 = _get_first_child(data, keyFor7)
+            cont7 = re.sub(r'[^0-9.;\-]', '', sLin[6])
+            if cont7 == "" or (cont7 is None):
+                if present7 is not None:
+                    data.remove(present7)
+            else:
+                if (dMode == "melt" and dataVersion == "1.3") or dMode == "amp":
+                    if present7 is None:
+                        new_node = et.Element(keyFor7)
+                        new_node.text = cont7
+                        place = _get_tag_pos(data, keyFor7,
+                                            _getXMLDataType(),
+                                            9999999)
+                        data.insert(place, new_node)
+                    else:
+                        present7.text = cont7
+
             if dMode == "amp":
                 presentAmp = _get_first_child(data, "adp")
                 if presentAmp is not None:
                     ret += "Well " + wellPos + " (" + sLin[0] + ") with sample \"" + sLin[1] + " and target \"" + \
                            sLin[3] + "\" has already amplification data, no data were added.\n"
                 else:
-                    colCount = 6
-                    for col in sLin[6:]:
+                    colCount = 7
+                    for col in sLin[7:]:
                         new_node = et.Element("adp")
                         place = _get_tag_pos(data, "adp",
                                              _getXMLDataType(),
@@ -10722,8 +10753,8 @@ class Run:
                     ret += "Well " + wellPos + " (" + sLin[0] + ")  with sample \"" + sLin[1] + " and target \"" + \
                            sLin[3] + "\" has already melting data, no data were added.\n"
                 else:
-                    colCount = 6
-                    for col in sLin[6:]:
+                    colCount = 7
+                    for col in sLin[7:]:
                         new_node = et.Element("mdp")
                         place = _get_tag_pos(data, "mdp",
                                              _getXMLDataType(),
