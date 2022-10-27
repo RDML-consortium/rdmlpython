@@ -10477,9 +10477,9 @@ class Run:
         # Now create the header line
         data += "Well\tSample\tSample Type\tTarget\tTarget Type\tDye\t"
         if dMode == "amp":
-            data += "Cq\t"
+            data += "Cq"
         else:
-            data += "Tm\t"
+            data += "Tm"
         reacts = _get_all_children(self._node, "react")
         if len(reacts) < 1:
             return ""
@@ -10498,7 +10498,7 @@ class Run:
                 headArr.append(_get_first_child_text(mdp, "tmp"))
             headArr = sorted(headArr, key=float)
         for hElem in headArr:
-            data += hElem + "\t"
+            data += "\t" + hElem
         data += '\n'
 
         # Now create the data lines
@@ -10709,7 +10709,7 @@ class Run:
             if dMode == "melt":
                 keyFor7 = "meltTemp"
             present7 = _get_first_child(data, keyFor7)
-            cont7 = re.sub(r'[^0-9.;\-]', '', sLin[6])
+            cont7 = re.sub(r'[^0-9\.;\-]', '', sLin[6])
             if cont7 == "" or (cont7 is None):
                 if present7 is not None:
                     data.remove(present7)
