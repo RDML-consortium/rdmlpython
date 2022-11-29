@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.6.0"
+    return "1.6.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1877,6 +1877,52 @@ def _getXMLDataType():
 def _getXMLPartitionDataType():
     return ["tar", "excluded", "note", "pos", "neg", "undef", "excl", "conc"]
 
+def runStatistics(statTarGroup, parametric):
+    ret = {}
+    print(statTarGroup)
+    if _string_to_bool(parametric, triple=False):
+        if len(statTarGroup) == 2:
+            ret["test name"] = "T-test"
+            ret["stat name"] = "t-statistic"
+            ret["stat val"], ret["p val"] = scp.ttest_ind(statTarGroup[0], statTarGroup[1])
+        else:
+            ret["test name"] = "One-way ANOVA"
+            ret["stat name"] = "F statistic"
+            ret["stat val"], ret["p val"] = scp.f_oneway(*statTarGroup)
+    else:
+        if len(statTarGroup) == 2:
+            ret["test name"] = "Mann-Whitney U rank test"
+            ret["stat name"] = "U statistic"
+            ret["stat val"], ret["p val"] = scp.mannwhitneyu(statTarGroup[0], statTarGroup[1], alternative='two-sided', use_continuity=False, method='asymptotic')
+        else:
+            ret["test name"] = "Kruskal-Wallis H-test"
+            ret["stat name"] = "H statistic"
+            ret["stat val"], ret["p val"] = scp.kruskal(*statTarGroup)
+    return ret
+
+def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=True):
+    replaceComma = _string_to_bool(replaceComma, triple=False)
+    goodData = []
+    foundGrp = {}
+    posGrp = 0
+
+    dff = io.StringIO(data)
+    rawData = list(csv.reader(dff, delimiter=seperator))
+    for row in range(0, len(rawData)):
+        if len(rawData[row]) < 2:
+            continue
+        if rawData[row][0] not in foundGrp:
+            foundGrp[rawData[row][0]] = posGrp
+            goodData.append([])
+            posGrp += 1
+        for col in range(1, len(rawData[row])):
+            cell = rawData[row][col]
+            if replaceComma:
+                cell = re.sub(r"\.", "", cell)
+                cell = re.sub(r",", "\.", cell)
+            goodData[foundGrp[rawData[row][0]]].append(float(cell))
+
+    return runStatistics(goodData, parametric)
 
 class Rdml:
     """RDML-Python library
@@ -9798,13 +9844,14 @@ class Experiment:
 
         return res
 
-    def relative(self, overlapType="samples", selAnnotation="", inclAnnotation= False, selReferences=[], saveResultsCSV=False):
+    def relative(self, overlapType="samples", selAnnotation="", statsParametric=False, inclAnnotation= False, selReferences=[], saveResultsCSV=False):
         """Calulates relative expression and returns a json with additional data.
 
         Args:
             self: The class self parameter.
             overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
+            statsParametric: True uses parametric tests, False non-parametric tests for statistics
             inclAnnotation: If true, all annotations are included in csv output
             selReferences: The list of reference genes to correct for.
             saveResultsCSV: Save the results as tsv file.
@@ -9984,6 +10031,7 @@ class Experiment:
 
         if overlapType == "annotation":
             res["anno_data"] = {}
+            res["anno_stats"] = {}
             res["anno_key"] = selAnnotation
             for sample in res["rel_data"]:
                 for target in res["rel_data"][sample]:
@@ -9997,8 +10045,10 @@ class Experiment:
                                 res["anno_data"][target][samSelAnno[sample]]["raw_vals"] = []
                             res["anno_data"][target][samSelAnno[sample]]["raw_vals"].append(res["rel_data"][sample][target]["rel_expression"])
             for target in res["anno_data"]:
+                statTarGroup = []
                 for annoVal in res["anno_data"][target]:
                     annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
+                    statTarGroup.append(annoCollVals)
                     if len(annoCollVals) == 0:
                         res["anno_data"][target][annoVal]["mean"] = -1.0
                         res["anno_data"][target][annoVal]["sem"] = -1.0
@@ -10008,6 +10058,7 @@ class Experiment:
                             res["anno_data"][target][annoVal]["sem"] = 0.0
                         else:
                             res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
+                res["anno_stats"][target] = runStatistics(statTarGroup, statsParametric)
 
         if saveResultsCSV:
             res["tsv"]["technical_data"] = "Sample\tSample Type\t"
@@ -10128,6 +10179,21 @@ class Experiment:
                         for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
                             res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
                         res["tsv"]["annotation_data"] += "\n"
+
+                res["tsv"]["statistics_data"] = "Target\tStat. Test\tTest Output\tTest Output\tP Value\tP Value\n"
+                for target in sortTar:
+                    res["tsv"]["statistics_data"] += target + "\t"
+                    res["tsv"]["statistics_data"] += res["anno_stats"][target]["test name"] + "\t"
+                    res["tsv"]["statistics_data"] += res["anno_stats"][target]["stat name"] + "\t"
+                    if abs(res["anno_stats"][target]["stat val"]) < 0.0001:
+                        res["tsv"]["statistics_data"] += "{:.6e}".format(res["anno_stats"][target]["stat val"]) + "\t"
+                    else:
+                        res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["stat val"]) + "\t"
+                    res["tsv"]["statistics_data"] += "p-value\t"
+                    if abs(res["anno_stats"][target]["p val"]) < 0.0001:
+                        res["tsv"]["statistics_data"] += "{:.6e}".format(res["anno_stats"][target]["p val"]) + "\n"
+                    else:
+                        res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
         return res
 
 
@@ -14376,6 +14442,12 @@ class Run:
         #########################
         # Get the data in shape #
         #########################
+
+        # There should be no negative values in uncorrected raw data
+        absMinFluor = np.nanmin(rawFluor)
+        if absMinFluor < 0.0:
+            finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
+            finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong melting curves!"
 
         # Initial smooth of raw data
         smoothFluor = _mca_smooth(tempList, rawFluor)
