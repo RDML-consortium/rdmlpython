@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.6.1"
+    return "1.6.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -9444,7 +9444,7 @@ class Experiment:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["technical_data"] += currAnno + "\t"
             res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
-            res["tsv"]["technical_data"] += "n Tec. Rep.\tUnit\tMean\tSD\tCV\tRaw Values\n"
+            res["tsv"]["technical_data"] += "n Tec. Rep.\tUnit\tMean\tSD\tCV\tIndividual Values\n"
             sortSam = sorted(res["tec_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["tec_data"][sample].keys())
@@ -9496,7 +9496,7 @@ class Experiment:
                         if overSelAnno[currAnno]["conf"]:
                             continue
                         res["tsv"]["annotation_data"] += currAnno + "\t"
-                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tRaw Values\n"
+                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tIndividual Values\n"
                 sortTar = sorted(res["anno_data"].keys())
                 for target in sortTar:
                     sortAnno = sorted(res["anno_data"][target].keys())
@@ -9615,6 +9615,8 @@ class Experiment:
                     if tarType[target] == "ref":
                         usedTar[target] = 1
                         if selSamples == "annotation":
+                            if sample not in samSel:
+                                continue
                             if samSel[sample] == selAnnoValue:
                                 usedCond[sample] = 1
                         else:
@@ -10066,7 +10068,7 @@ class Experiment:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["technical_data"] += currAnno + "\t"
             res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
-            res["tsv"]["technical_data"] += "n Tec. Rep.\tMean N0\tSD N0\tCV N0\tRaw Values\n"
+            res["tsv"]["technical_data"] += "n Tec. Rep.\tMean N0\tSD N0\tCV N0\tIndividual Values\n"
             sortSam = sorted(res["tec_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["tec_data"][sample].keys())
@@ -10096,7 +10098,7 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["reference_data"] += currAnno + "\t"
-            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\tRaw Values\n"
+            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\tIndividual Values\n"
             sortSam = sorted(res["ref_data"].keys())
             for sample in sortSam:
                 res["tsv"]["reference_data"] += sample + "\t"
@@ -10120,7 +10122,7 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["relative_data"] += currAnno + "\t"
-            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\tRaw Values\n"
+            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\tIndividual Values\n"
             sortSam = sorted(res["rel_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["rel_data"][sample].keys())
@@ -10154,7 +10156,7 @@ class Experiment:
                         if overSelAnno[currAnno]["conf"]:
                             continue
                         res["tsv"]["annotation_data"] += currAnno + "\t"
-                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tRaw Values\n"
+                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tIndividual Values\n"
                 sortTar = sorted(res["anno_data"].keys())
                 for target in sortTar:
                     sortAnno = sorted(res["anno_data"][target].keys())
@@ -10185,15 +10187,9 @@ class Experiment:
                     res["tsv"]["statistics_data"] += target + "\t"
                     res["tsv"]["statistics_data"] += res["anno_stats"][target]["test name"] + "\t"
                     res["tsv"]["statistics_data"] += res["anno_stats"][target]["stat name"] + "\t"
-                    if abs(res["anno_stats"][target]["stat val"]) < 0.0001:
-                        res["tsv"]["statistics_data"] += "{:.6e}".format(res["anno_stats"][target]["stat val"]) + "\t"
-                    else:
-                        res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["stat val"]) + "\t"
+                    res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["stat val"]) + "\t"
                     res["tsv"]["statistics_data"] += "p-value\t"
-                    if abs(res["anno_stats"][target]["p val"]) < 0.0001:
-                        res["tsv"]["statistics_data"] += "{:.6e}".format(res["anno_stats"][target]["p val"]) + "\n"
-                    else:
-                        res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
+                    res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
         return res
 
 
@@ -10799,19 +10795,26 @@ class Run:
                 else:
                     colCount = 7
                     for col in sLin[7:]:
-                        new_node = et.Element("adp")
-                        place = _get_tag_pos(data, "adp",
-                                             _getXMLDataType(),
-                                             9999999)
-                        data.insert(place, new_node)
-                        new_sub = et.Element("cyc")
-                        new_sub.text = head[colCount]
-                        place = _get_tag_pos(new_node, "cyc", ["cyc", "tmp", "fluor"], 9999999)
-                        new_node.insert(place, new_sub)
-                        new_sub = et.Element("fluor")
-                        new_sub.text = col
-                        place = _get_tag_pos(new_node, "fluor", ["cyc", "tmp", "fluor"], 9999999)
-                        new_node.insert(place, new_sub)
+                        try:
+                            colToFloat = float(col)
+                        except ValueError:
+                            pass
+                        else:
+                            if math.isfinite(colToFloat):
+                                print(str(colCount) + " - " + str(head[colCount]) + ": " + str(col))
+                                new_node = et.Element("adp")
+                                place = _get_tag_pos(data, "adp",
+                                                    _getXMLDataType(),
+                                                    9999999)
+                                data.insert(place, new_node)
+                                new_sub = et.Element("cyc")
+                                new_sub.text = head[colCount]
+                                place = _get_tag_pos(new_node, "cyc", ["cyc", "tmp", "fluor"], 9999999)
+                                new_node.insert(place, new_sub)
+                                new_sub = et.Element("fluor")
+                                new_sub.text = col
+                                place = _get_tag_pos(new_node, "fluor", ["cyc", "tmp", "fluor"], 9999999)
+                                new_node.insert(place, new_sub)
                         colCount += 1
             if dMode == "melt":
                 presentAmp = _get_first_child(data, "mdp")
@@ -10821,19 +10824,25 @@ class Run:
                 else:
                     colCount = 7
                     for col in sLin[7:]:
-                        new_node = et.Element("mdp")
-                        place = _get_tag_pos(data, "mdp",
-                                             _getXMLDataType(),
-                                             9999999)
-                        data.insert(place, new_node)
-                        new_sub = et.Element("tmp")
-                        new_sub.text = head[colCount]
-                        place = _get_tag_pos(new_node, "tmp", ["tmp", "fluor"], 9999999)
-                        new_node.insert(place, new_sub)
-                        new_sub = et.Element("fluor")
-                        new_sub.text = col
-                        place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
-                        new_node.insert(place, new_sub)
+                        try:
+                            colToFloat = float(col)
+                        except ValueError:
+                            pass
+                        else:
+                            if math.isfinite(colToFloat):
+                                new_node = et.Element("mdp")
+                                place = _get_tag_pos(data, "mdp",
+                                                    _getXMLDataType(),
+                                                    9999999)
+                                data.insert(place, new_node)
+                                new_sub = et.Element("tmp")
+                                new_sub.text = head[colCount]
+                                place = _get_tag_pos(new_node, "tmp", ["tmp", "fluor"], 9999999)
+                                new_node.insert(place, new_sub)
+                                new_sub = et.Element("fluor")
+                                new_sub.text = col
+                                place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
+                                new_node.insert(place, new_sub)
                         colCount += 1
         return ret
 
