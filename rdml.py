@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.6.2"
+    return "1.6.3"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1879,7 +1879,6 @@ def _getXMLPartitionDataType():
 
 def runStatistics(statTarGroup, parametric):
     ret = {}
-    print(statTarGroup)
     if _string_to_bool(parametric, triple=False):
         if len(statTarGroup) == 2:
             ret["test name"] = "T-test"
@@ -9496,7 +9495,7 @@ class Experiment:
                         if overSelAnno[currAnno]["conf"]:
                             continue
                         res["tsv"]["annotation_data"] += currAnno + "\t"
-                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tIndividual Values\n"
+                res["tsv"]["annotation_data"] += "Target\tAbs. Expression\tSEM\tIndividual Values\n"
                 sortTar = sorted(res["anno_data"].keys())
                 for target in sortTar:
                     sortAnno = sorted(res["anno_data"][target].keys())
@@ -9738,7 +9737,7 @@ class Experiment:
                 n0_num = np.delete(n0_num, row, axis=0)
                 n0_geo = np.delete(n0_geo, row, axis=0)
 
-        print(np.shape(n0_geo)[1])
+        # print(np.shape(n0_geo)[1])
         if np.shape(n0_geo)[1] < 2:
             raise RdmlError('Error: geNorm requires at least two reference genes.')
         if np.shape(n0_geo)[0] < 2:
@@ -9973,6 +9972,12 @@ class Experiment:
 
         # Geomean the reference genes
         for sample in n0data["N0"]:
+            keepSample = False
+            for target in selReferences:
+                if transSamTar[sample][target] not in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                    keepSample = True
+            if not keepSample:
+                continue
             res["ref_data"][sample] = {}
             res["ref_data"][sample]["N0_sum"] = 0.0
             res["ref_data"][sample]["N0_num"] = 0
@@ -10020,16 +10025,22 @@ class Experiment:
                 if not res["rel_data"][sample][target]["ref_missing"]:
                     if sample not in res["ref_data"]:
                         continue
-                    relEx = res["tec_data"][sample][target]["N0_mean"] / res["ref_data"][sample]["N0_gem"]
+                    relEx = -1.0
+                    if res["tec_data"][sample][target]["N0_mean"] > 0.0:
+                        if res["ref_data"][sample]["N0_gem"] > 0.0:
+                            relEx = res["tec_data"][sample][target]["N0_mean"] / res["ref_data"][sample]["N0_gem"]
                     res["rel_data"][sample][target]["rel_expression"] = relEx
-                    minRel = min(minRel, relEx)
+                    if relEx > 0.0:
+                        minRel = min(minRel, relEx)
+
         for sample in res["rel_data"]:
             for target in res["rel_data"][sample]:
                 res["rel_data"][sample][target]["raw_vals"] = []
                 if res["rel_data"][sample][target]["rel_expression"] > 0.0:
-                    res["rel_data"][sample][target]["rel_expression"] /= minRel
-                    for indivVal in n0data["N0"][sample][target]:
-                        res["rel_data"][sample][target]["raw_vals"].append((indivVal / res["ref_data"][sample]["N0_gem"]) / minRel)
+                    if math.isfinite(minRel):
+                        res["rel_data"][sample][target]["rel_expression"] /= minRel
+                        for indivVal in n0data["N0"][sample][target]:
+                            res["rel_data"][sample][target]["raw_vals"].append((indivVal / res["ref_data"][sample]["N0_gem"]) / minRel)
 
         if overlapType == "annotation":
             res["anno_data"] = {}
@@ -10801,7 +10812,6 @@ class Run:
                             pass
                         else:
                             if math.isfinite(colToFloat):
-                                print(str(colCount) + " - " + str(head[colCount]) + ": " + str(col))
                                 new_node = et.Element("adp")
                                 place = _get_tag_pos(data, "adp",
                                                     _getXMLDataType(),
