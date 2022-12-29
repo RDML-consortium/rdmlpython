@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.6.3"
+    return "1.6.4"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -2615,19 +2615,21 @@ class Rdml:
         hint4 = ""
         for node1 in exp1:
             exp2 = _get_all_children(node1, "type")
-            if "targetId" in exp2[0].attrib:
-                del exp2[0].attrib["targetId"]
-                hint = "Migration to v1.2 deleted sample type \"targetId\" attribute."
-            for elCount in range(1, len(exp2)):
-                node1.remove(exp2[elCount])
-                hint2 = "Migration to v1.2 deleted sample \"type\" elements."
+            if len(exp2) > 0:
+                if "targetId" in exp2[0].attrib:
+                    del exp2[0].attrib["targetId"]
+                    hint = "Migration to v1.2 deleted sample type \"targetId\" attribute."
+                for elCount in range(1, len(exp2)):
+                    node1.remove(exp2[elCount])
+                    hint2 = "Migration to v1.2 deleted sample \"type\" elements."
             exp2q = _get_all_children(node1, "quantity")
-            if "targetId" in exp2q[0].attrib:
-                del exp2q[0].attrib["targetId"]
-                hint3 = "Migration to v1.2 deleted sample quantity \"targetId\" attribute."
-            for elCount in range(1, len(exp2q)):
-                node1.remove(exp2q[elCount])
-                hint4 = "Migration to v1.2 deleted sample \"quantity\" elements."
+            if len(exp2q) > 0:
+                if "targetId" in exp2q[0].attrib:
+                    del exp2q[0].attrib["targetId"]
+                    hint3 = "Migration to v1.2 deleted sample quantity \"targetId\" attribute."
+                for elCount in range(1, len(exp2q)):
+                    node1.remove(exp2q[elCount])
+                    hint4 = "Migration to v1.2 deleted sample \"quantity\" elements."
         if hint != "":
             ret.append(hint)
         if hint2 != "":
