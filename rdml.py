@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.6.4"
+    return "1.7.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -10003,7 +10003,6 @@ class Experiment:
                 res["ref_data"][sample]["N0_gem"] = geoMean
 
         # Calculate relative gene expression
-        minRel = float("inf")
         for sample in n0data["N0"]:
             res["rel_data"][sample] = {}
             for target in n0data["N0"][sample]:
@@ -10032,17 +10031,13 @@ class Experiment:
                         if res["ref_data"][sample]["N0_gem"] > 0.0:
                             relEx = res["tec_data"][sample][target]["N0_mean"] / res["ref_data"][sample]["N0_gem"]
                     res["rel_data"][sample][target]["rel_expression"] = relEx
-                    if relEx > 0.0:
-                        minRel = min(minRel, relEx)
 
         for sample in res["rel_data"]:
             for target in res["rel_data"][sample]:
                 res["rel_data"][sample][target]["raw_vals"] = []
                 if res["rel_data"][sample][target]["rel_expression"] > 0.0:
-                    if math.isfinite(minRel):
-                        res["rel_data"][sample][target]["rel_expression"] /= minRel
-                        for indivVal in n0data["N0"][sample][target]:
-                            res["rel_data"][sample][target]["raw_vals"].append((indivVal / res["ref_data"][sample]["N0_gem"]) / minRel)
+                    for indivVal in n0data["N0"][sample][target]:
+                        res["rel_data"][sample][target]["raw_vals"].append((indivVal / res["ref_data"][sample]["N0_gem"]))
 
         if overlapType == "annotation":
             res["anno_data"] = {}
@@ -10111,7 +10106,7 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["reference_data"] += currAnno + "\t"
-            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\tIndividual Values\n"
+            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\n"
             sortSam = sorted(res["ref_data"].keys())
             for sample in sortSam:
                 res["tsv"]["reference_data"] += sample + "\t"
@@ -10127,15 +10122,15 @@ class Experiment:
                 res["tsv"]["reference_data"] += "\t"
                 res["tsv"]["reference_data"] += str(res["ref_data"][sample]["N0_num"]) + "\t"
                 res["tsv"]["reference_data"] += "{:.6e}".format(res["ref_data"][sample]["N0_gem"]) + "\t"
-                for indivVal in res["ref_data"][sample]["raw_vals"]:
-                    res["tsv"]["reference_data"] += "{:.4e}".format(indivVal) + ";"
+                # for indivVal in res["ref_data"][sample]["raw_vals"]:
+                #     res["tsv"]["reference_data"] += "{:.4e}".format(indivVal) + ";"
                 res["tsv"]["reference_data"] += "\n"
 
             res["tsv"]["relative_data"] = "Sample\tSample Type\t"
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["relative_data"] += currAnno + "\t"
-            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\tIndividual Values\n"
+            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\n"
             sortSam = sorted(res["rel_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["rel_data"][sample].keys())
@@ -10153,9 +10148,9 @@ class Experiment:
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
                     if res["rel_data"][sample][target]["ref_missing"]:
                         res["tsv"]["relative_data"] += "Reference Genes without N0"
-                    res["tsv"]["relative_data"] += "{:.4f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
-                    for indivVal in res["rel_data"][sample][target]["raw_vals"]:
-                        res["tsv"]["relative_data"] += "{:.6f}".format(indivVal) + ";"
+                    res["tsv"]["relative_data"] += "{:.6f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
+                    # for indivVal in res["rel_data"][sample][target]["raw_vals"]:
+                    #     res["tsv"]["relative_data"] += "{:.6f}".format(indivVal) + ";"
                     res["tsv"]["relative_data"] += "\n"
 
             if overlapType == "annotation":
@@ -10189,10 +10184,10 @@ class Experiment:
                                         annoData = overSelAnno[currAnno]["data"][annoVal]
                                 res["tsv"]["annotation_data"] += annoData + "\t"
                         res["tsv"]["annotation_data"] += target + "\t"
-                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
-                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
+                        res["tsv"]["annotation_data"] += "{:.6f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
+                        res["tsv"]["annotation_data"] += "{:.6f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
                         for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
-                            res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
+                            res["tsv"]["annotation_data"] += "{:.6f}".format(indivVal) + ";"
                         res["tsv"]["annotation_data"] += "\n"
 
                 res["tsv"]["statistics_data"] = "Target\tStat. Test\tTest Output\tTest Output\tP Value\tP Value\n"
@@ -12920,6 +12915,7 @@ class Run:
         rdmlElemData = []
 
         # Now process the data for numpy and create results array
+        anyRawData = False
         rowCount = 0
         for react in reacts:
             posId = react.get('id')
@@ -12965,7 +12961,10 @@ class Run:
                         noDot = fluor.replace(".", "")
                         fluor = noDot.replace(",", ".")
                     rawFluor[rowCount, cyc] = float(fluor)
+                    anyRawData = True
                 rowCount += 1
+        if anyRawData == False:
+            raise RdmlError('LinRegPCR requires raw data. No raw data were found in this run.')
 
         # Look up sample and target information
         parExp = self._node.getparent()
@@ -14353,6 +14352,7 @@ class Run:
         rdmlElemData = []
 
         # Now process the data for numpy and create results array
+        anyRawData = False
         rowCount = 0
         for react in reacts:
             posId = react.get('id')
@@ -14383,7 +14383,10 @@ class Run:
                     cFluor = _get_first_child_text(mdp, "fluor")
                     if cTemp != "" and cFluor != "" and cTemp in lookUpTemp:
                         rawFluor[rowCount, lookUpTemp[cTemp]] = float(cFluor)
+                        anyRawData = True
                 rowCount += 1
+        if anyRawData == False:
+            raise RdmlError('Melting Curve Analysis requires raw data. No raw data were found in this run.')
 
         # Look up sample and target information
         parExp = self._node.getparent()
