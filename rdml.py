@@ -10810,26 +10810,29 @@ class Run:
                            sLin[3] + "\" has already amplification data, no data were added.\n"
                 else:
                     colCount = 7
+                    uniqueCheck = []
                     for col in sLin[7:]:
-                        try:
-                            colToFloat = float(col)
-                        except ValueError:
-                            pass
-                        else:
-                            if math.isfinite(colToFloat):
-                                new_node = et.Element("adp")
-                                place = _get_tag_pos(data, "adp",
-                                                    _getXMLDataType(),
-                                                    9999999)
-                                data.insert(place, new_node)
-                                new_sub = et.Element("cyc")
-                                new_sub.text = head[colCount]
-                                place = _get_tag_pos(new_node, "cyc", ["cyc", "tmp", "fluor"], 9999999)
-                                new_node.insert(place, new_sub)
-                                new_sub = et.Element("fluor")
-                                new_sub.text = col
-                                place = _get_tag_pos(new_node, "fluor", ["cyc", "tmp", "fluor"], 9999999)
-                                new_node.insert(place, new_sub)
+                        if head[colCount] not in uniqueCheck:
+                            uniqueCheck.append(head[colCount])
+                            try:
+                                colToFloat = float(col)
+                            except ValueError:
+                                pass
+                            else:
+                                if math.isfinite(colToFloat):
+                                    new_node = et.Element("adp")
+                                    place = _get_tag_pos(data, "adp",
+                                                        _getXMLDataType(),
+                                                        9999999)
+                                    data.insert(place, new_node)
+                                    new_sub = et.Element("cyc")
+                                    new_sub.text = head[colCount]
+                                    place = _get_tag_pos(new_node, "cyc", ["cyc", "tmp", "fluor"], 9999999)
+                                    new_node.insert(place, new_sub)
+                                    new_sub = et.Element("fluor")
+                                    new_sub.text = col
+                                    place = _get_tag_pos(new_node, "fluor", ["cyc", "tmp", "fluor"], 9999999)
+                                    new_node.insert(place, new_sub)
                         colCount += 1
             if dMode == "melt":
                 presentAmp = _get_first_child(data, "mdp")
@@ -10838,26 +10841,29 @@ class Run:
                            sLin[3] + "\" has already melting data, no data were added.\n"
                 else:
                     colCount = 7
+                    uniqueCheck = []
                     for col in sLin[7:]:
-                        try:
-                            colToFloat = float(col)
-                        except ValueError:
-                            pass
-                        else:
-                            if math.isfinite(colToFloat):
-                                new_node = et.Element("mdp")
-                                place = _get_tag_pos(data, "mdp",
-                                                    _getXMLDataType(),
-                                                    9999999)
-                                data.insert(place, new_node)
-                                new_sub = et.Element("tmp")
-                                new_sub.text = head[colCount]
-                                place = _get_tag_pos(new_node, "tmp", ["tmp", "fluor"], 9999999)
-                                new_node.insert(place, new_sub)
-                                new_sub = et.Element("fluor")
-                                new_sub.text = col
-                                place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
-                                new_node.insert(place, new_sub)
+                        if head[colCount] not in uniqueCheck:
+                            uniqueCheck.append(head[colCount])
+                            try:
+                                colToFloat = float(col)
+                            except ValueError:
+                                pass
+                            else:
+                                if math.isfinite(colToFloat):
+                                    new_node = et.Element("mdp")
+                                    place = _get_tag_pos(data, "mdp",
+                                                        _getXMLDataType(),
+                                                        9999999)
+                                    data.insert(place, new_node)
+                                    new_sub = et.Element("tmp")
+                                    new_sub.text = head[colCount]
+                                    place = _get_tag_pos(new_node, "tmp", ["tmp", "fluor"], 9999999)
+                                    new_node.insert(place, new_sub)
+                                    new_sub = et.Element("fluor")
+                                    new_sub.text = col
+                                    place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
+                                    new_node.insert(place, new_sub)
                         colCount += 1
         return ret
 
