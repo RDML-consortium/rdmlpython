@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.7.0"
+    return "1.7.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1887,7 +1887,11 @@ def runStatistics(statTarGroup, parametric):
         else:
             ret["test name"] = "One-way ANOVA"
             ret["stat name"] = "F statistic"
-            ret["stat val"], ret["p val"] = scp.f_oneway(*statTarGroup)
+            if len(statTarGroup) > 2:
+                ret["stat val"], ret["p val"] = scp.f_oneway(*statTarGroup)
+            else:
+                ret["stat val"] = -1.0
+                ret["p val"] = -1.0
     else:
         if len(statTarGroup) == 2:
             ret["test name"] = "Mann-Whitney U rank test"
@@ -1896,7 +1900,11 @@ def runStatistics(statTarGroup, parametric):
         else:
             ret["test name"] = "Kruskal-Wallis H-test"
             ret["stat name"] = "H statistic"
-            ret["stat val"], ret["p val"] = scp.kruskal(*statTarGroup)
+            if len(statTarGroup) > 2:
+                ret["stat val"], ret["p val"] = scp.kruskal(*statTarGroup)
+            else:
+                ret["stat val"] = -1.0
+                ret["p val"] = -1.0
     return ret
 
 def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=True):
