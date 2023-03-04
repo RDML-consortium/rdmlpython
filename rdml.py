@@ -10666,8 +10666,8 @@ class Run:
         tabLines = newlineFix.split("\n")
 
         head = tabLines[0].split("\t")
-        if (head[0] != "Well" or head[1] != "Sample" or head[2] != "Sample Type" or
-                head[3] != "Target" or head[4] != "Target Type" or head[5] != "Dye"):
+        if (head[0].lower() != "well" or head[1].lower() != "sample" or head[2].lower() != "sample type" or
+                head[3].lower() != "target" or head[4].lower() != "target type" or head[5].lower() != "dye"):
             raise RdmlError('The tab-format is not valid, essential columns are missing.')
 
         # Get the information for the lookup dictionaries
