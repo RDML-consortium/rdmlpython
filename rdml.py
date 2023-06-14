@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.7.2"
+    return "1.8.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1877,8 +1877,9 @@ def _getXMLDataType():
 def _getXMLPartitionDataType():
     return ["tar", "excluded", "note", "pos", "neg", "undef", "excl", "conc"]
 
-def runStatistics(statTarGroup, parametric):
+def runStatistics(statTarGroup, parametric, translateGrp):
     ret = {}
+    ret["multi comparison"] = ""
     if len(statTarGroup) < 2:
         ret["test name"] = "no test possible"
         ret["stat name"] = "only 1 group"
@@ -1895,6 +1896,163 @@ def runStatistics(statTarGroup, parametric):
             ret["test name"] = "One-way ANOVA"
             ret["stat name"] = "F statistic"
             ret["stat val"], ret["p val"] = scp.f_oneway(*statTarGroup)
+
+            print(ret["p val"])
+            if ret["p val"] > 0.05:
+                return ret
+
+            gridGroup = []
+            gridValue = []
+            grid_Y2 = []
+            gridGroup = []
+            groupRes = []
+            groupIncreasMean = []
+            grpGridRanksum = []
+            statres_total_n = 0
+            grpGridObsDiff = []
+            grpGridGrpRange = []
+            grpGridCriticQ = []
+            grpGridCriticDiff = []
+            grpGridMultiComp = []
+
+            # Prepare Data
+            for row in range(0, len(statTarGroup)):
+                groupRes.append({})
+                groupRes[row]["n"] = 0
+                groupRes[row]["median"] = np.median(statTarGroup[row])
+                groupRes[row]["sumY"] = 0.0
+                groupRes[row]["sumY2"] = 0.0
+                groupRes[row]["mean"] = 0.0
+                groupRes[row]["usedMean"] = False
+                groupRes[row]["var"] = 0.0
+                groupRes[row]["SD"] = 0.0
+                for col in range(0, len(statTarGroup[row])):
+                    gridGroup.append(row)
+                    gridValue.append(statTarGroup[row][col])
+                    grid_Y2.append(statTarGroup[row][col] * statTarGroup[row][col])
+                    groupRes[row]["n"] += 1
+                    groupRes[row]["sumY"] += statTarGroup[row][col]
+                    groupRes[row]["sumY2"] += statTarGroup[row][col] * statTarGroup[row][col]
+            statres_total_n = len(gridValue)
+            # Calculate the group results
+            stat_quant1 = 0.0
+            stat_quant2 = 0.0
+            stat_quant3 = 0.0
+            stat_quant4 = 0.0
+            for row in range(0, len(groupRes)):
+                groupRes[row]["sumY2_n"] = groupRes[row]["sumY"] * groupRes[row]["sumY"] / groupRes[row]["n"]
+                stat_quant1 += groupRes[row]["sumY"]
+                stat_quant2 += groupRes[row]["sumY2"]
+                stat_quant3 += groupRes[row]["sumY2_n"]
+                groupRes[row]["mean"] = groupRes[row]["sumY"] / groupRes[row]["n"]
+                groupRes[row]["var"] = (groupRes[row]["sumY2"] - groupRes[row]["sumY2_n"]) / (groupRes[row]["n"] - 1)
+                groupRes[row]["SD"] = np.sqrt(groupRes[row]["var"])
+                groupRes[row]["SEM"] = np.sqrt(groupRes[row]["var"]) / np.sqrt(groupRes[row]["n"])
+            stat_quant4 = stat_quant1 * stat_quant1 / statres_total_n
+            stat_SStotal = stat_quant2 - stat_quant4
+            stat_SSgroups = stat_quant3 - stat_quant4
+            stat_SSwithin = stat_SStotal - stat_SSgroups
+
+            stat_df_total = statres_total_n - 1
+            stat_df_groups = len(statTarGroup) - 1
+            stat_df_within = statres_total_n - len(statTarGroup)
+
+            stat_ms_groups = stat_SSgroups / stat_df_groups
+            stat_ms_within = stat_SSwithin / stat_df_within
+
+            stat_F = stat_ms_groups / stat_ms_within
+            stat_P = 1 - scp.f.cdf(stat_F, stat_df_groups, stat_df_within)
+            stat_grp_range = scp.t.ppf(1 - 0.05 / 2.0, stat_df_within)
+
+            # Student-Newman-Keuls multiple comparison of groups
+            # Sort by increasing mean
+            sortCurrNr = -1
+            sortMinVal = 999999999999999
+            sortOn = True
+            while sortOn:
+                for row in range(0, len(groupRes)):
+                    if not groupRes[row]["usedMean"]:
+                        if groupRes[row]["mean"] < sortMinVal:
+                            sortCurrNr = row
+                            sortMinVal = groupRes[row]["mean"]
+                if sortMinVal != 999999999999999:
+                    groupIncreasMean.append(sortCurrNr)
+                    groupRes[sortCurrNr]["usedMean"] = True
+                    sortMinVal = 999999999999999
+                else:
+                    sortOn = False
+            # Calculate observed difference
+            for row in range(0, len(groupIncreasMean)):
+                grpGridObsDiff.append([])
+                grpGridGrpRange.append([])
+                for col in range(0, len(groupIncreasMean)):
+                    grpGridObsDiff[row].append(np.abs(groupRes[groupIncreasMean[row]]["mean"] - groupRes[groupIncreasMean[col]]["mean"]))
+                    grpGridGrpRange[row].append(np.abs(row - col) + 1)
+            # Calculate critical Q from studentized range distribution
+            for row in range(0, len(groupIncreasMean)):
+                grpGridCriticQ.append([])
+                for col in range(0, len(groupIncreasMean)):
+                    if grpGridGrpRange[row][col] == 1:
+                        grpGridCriticQ[row].append("")
+                    elif grpGridGrpRange[row][col] > stat_df_within:
+                        grpGridCriticQ[row].append("")
+                    else:
+                        grpGridCriticQ[row].append((stat_grp_range * (np.log(grpGridGrpRange[row][col] - 1) *
+                                                                      (0.8843 - 0.2368 * stat_grp_range -
+                                                                       1.214 / stat_df_within +
+                                                                       1.208 * stat_grp_range / stat_df_within) +
+                                                                       np.sqrt(2))))
+            # Calculate critical difference
+            for row in range(0, len(statTarGroup)):
+                grpGridCriticDiff.append([])
+                for col in range(0, len(statTarGroup)):
+                    if grpGridCriticQ[row][col] == "":
+                        grpGridCriticDiff[row].append("")
+                    else:
+                        grpGridCriticDiff[row].append(grpGridCriticQ[row][col] *
+                                                      np.sqrt(stat_ms_within) *
+                                                      np.sqrt((groupRes[groupIncreasMean[row]]["n"] + groupRes[groupIncreasMean[col]]["n"]) /
+                                                                (2.0 * groupRes[groupIncreasMean[row]]["n"] * groupRes[groupIncreasMean[col]]["n"])))
+            # Calculate multiple comparison result
+            grpGridMultiComp.append(["group", ""])
+            for row in range(0, len(statTarGroup)):
+                grpGridMultiComp[0].append(translateGrp[groupIncreasMean[row]])
+            grpGridMultiComp.append(["", "mean"])
+            for row in range(0, len(statTarGroup)):
+                grpGridMultiComp[1].append(groupRes[groupIncreasMean[row]]["mean"])
+
+            for row in range(0, len(statTarGroup)):
+                grpGridMultiComp.append([translateGrp[groupIncreasMean[row]], groupRes[groupIncreasMean[row]]["mean"]])
+                for col in range(0, len(statTarGroup)):
+                    if grpGridCriticDiff[row][col] == "":
+                        grpGridMultiComp[row + 2].append("-")
+                    elif grpGridObsDiff[row][col] > grpGridCriticDiff[row][col]:
+                        grpGridMultiComp[row + 2].append("*")
+                    else:
+                        grpGridMultiComp[row + 2].append("ns")
+
+            ret["multi comparison"] = grpGridMultiComp
+
+
+            print(grpGridCriticDiff)
+
+
+
+            print(stat_quant1)
+            print(stat_quant2)
+            print(stat_quant3)
+            print(stat_quant4)
+            print(stat_SStotal)
+            print(stat_SSgroups)
+            print(stat_SSwithin)
+            print(stat_df_total)
+            print(stat_df_groups)
+            print(stat_df_within)
+            print(stat_ms_groups)
+            print(stat_ms_within)
+            print(stat_F)
+            print(stat_P)
+            print(groupRes)
     else:
         if len(statTarGroup) == 2:
             ret["test name"] = "Mann-Whitney U rank test"
@@ -1904,12 +2062,111 @@ def runStatistics(statTarGroup, parametric):
             ret["test name"] = "Kruskal-Wallis H-test"
             ret["stat name"] = "H statistic"
             ret["stat val"], ret["p val"] = scp.kruskal(*statTarGroup)
+
+            print(ret["p val"])
+            if ret["p val"] > 0.05:
+                return ret
+
+            gridGroup = []
+            gridValue = []
+            scoreGrid = []
+            scoreRank = []
+            groupRes = []
+            grpGridRanksum = []
+            grpGridCriticDiff = []
+            grpGridMultiComp = []
+            statres_total_n = 0
+            statres_s1 = 0.0
+            statres_sqrsum = 0.0
+
+            # Prepare Data
+            for row in range(0, len(statTarGroup)):
+                groupRes.append({})
+                groupRes[row]["n"] = 0
+                groupRes[row]["median"] = np.median(statTarGroup[row])
+                groupRes[row]["rsum"] = 0.0
+                groupRes[row]["rsum2_n"] = 0.0
+                for col in range(0, len(statTarGroup[row])):
+                    gridGroup.append(row)
+                    gridValue.append(statTarGroup[row][col])
+            statres_total_n = len(gridValue)
+            # Create the score grid filled
+            for row in range(0, len(gridValue)):
+                scoreGrid.append([])
+                for col in range(0, len(gridValue)):
+                    if gridValue[row] == gridValue[col]:
+                        scoreGrid[row].append(0.5)
+                    elif gridValue[row] < gridValue[col]:
+                        scoreGrid[row].append(0.0)
+                    elif gridValue[row] > gridValue[col]:
+                        scoreGrid[row].append(1.0)
+            # Calculate the sums
+            for row in range(0, len(scoreGrid)):
+                sumUp = 0.5
+                for col in range(0, len(scoreGrid[row])):
+                    sumUp += scoreGrid[row][col]
+                scoreRank.append(sumUp)
+                groupRes[gridGroup[row]]["n"] += 1
+                groupRes[gridGroup[row]]["rsum"] += sumUp
+                statres_sqrsum += sumUp * sumUp
+            # Calculate the group results
+            for row in range(0, len(groupRes)):
+                groupRes[row]["rsum2_n"] = groupRes[row]["rsum"] * groupRes[row]["rsum"] / groupRes[row]["n"]
+                statres_s1 += groupRes[row]["rsum2_n"]
+            # Final calculations
+            statres_n3 = statres_total_n * (statres_total_n + 1) * (statres_total_n + 1) / 4
+            statres_s2 = (1 / (statres_total_n - 1 )) * (statres_sqrsum - statres_n3)
+            statres_tt = (1 / statres_s2) * (statres_s1 - statres_n3)
+            statres_df = len(statTarGroup) - 1
+            statres_prob = 1 - scp.chi2.cdf(statres_tt, df=statres_df)
+            statres_t = scp.t.ppf(1 - 0.05 / 2.0, statres_total_n - len(statTarGroup))
+            statres_SD = statres_t * np.sqrt(( statres_s2 * (( statres_total_n - 1 - statres_tt) / (statres_total_n - len(statTarGroup)))))
+
+            # Calculate mean ranksum difference
+            for row in range(0, len(statTarGroup)):
+                grpGridRanksum.append([])
+                for col in range(0, len(statTarGroup)):
+                    grpGridRanksum[row].append(np.abs(groupRes[row]["rsum"] / groupRes[row]["n"] - groupRes[col]["rsum"] / groupRes[col]["n"]))
+            # Calculate critical difference
+            for row in range(0, len(statTarGroup)):
+                grpGridCriticDiff.append([])
+                for col in range(0, len(statTarGroup)):
+                    if grpGridRanksum[row][col] <= 0.0:
+                        grpGridCriticDiff[row].append("")
+                    else:
+                        grpGridCriticDiff[row].append(statres_SD * np.sqrt(1 / groupRes[row]["n"] + 1 / groupRes[col]["n"]))
+            # Calculate multiple comparison result
+            grpGridMultiComp.append(["group", ""])
+            for row in range(0, len(statTarGroup)):
+                grpGridMultiComp[0].append(translateGrp[row])
+            grpGridMultiComp.append(["", "median"])
+            for row in range(0, len(statTarGroup)):
+                grpGridMultiComp[1].append(groupRes[row]["median"])
+
+            for row in range(0, len(statTarGroup)):
+                grpGridMultiComp.append([translateGrp[row], groupRes[row]["median"]])
+                for col in range(0, len(statTarGroup)):
+                    if grpGridCriticDiff[row][col] == "":
+                        grpGridMultiComp[row + 2].append("-")
+                    elif grpGridRanksum[row][col] > grpGridCriticDiff[row][col]:
+                        grpGridMultiComp[row + 2].append("*")
+                    else:
+                        grpGridMultiComp[row + 2].append("ns")
+
+
+            print (statres_t)
+            print (statres_SD)
+            print(statres_prob)
+
+            ret["multi comparison"] = grpGridMultiComp
+
     return ret
 
 def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=True):
     replaceComma = _string_to_bool(replaceComma, triple=False)
     goodData = []
     foundGrp = {}
+    translateGrp = {}
     posGrp = 0
 
     dff = io.StringIO(data)
@@ -1919,6 +2176,7 @@ def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=Tru
             continue
         if rawData[row][0] not in foundGrp:
             foundGrp[rawData[row][0]] = posGrp
+            translateGrp[posGrp] = rawData[row][0]
             goodData.append([])
             posGrp += 1
         for col in range(1, len(rawData[row])):
@@ -1928,7 +2186,7 @@ def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=Tru
                 cell = re.sub(r",", "\.", cell)
             goodData[foundGrp[rawData[row][0]]].append(float(cell))
 
-    return runStatistics(goodData, parametric)
+    return runStatistics(goodData, parametric, translateGrp)
 
 class Rdml:
     """RDML-Python library
@@ -10063,9 +10321,13 @@ class Experiment:
                             res["anno_data"][target][samSelAnno[sample]]["raw_vals"].append(res["rel_data"][sample][target]["rel_expression"])
             for target in res["anno_data"]:
                 statTarGroup = []
+                translateGrp = {}
+                tarCountUp = 0
                 for annoVal in res["anno_data"][target]:
                     annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
                     statTarGroup.append(annoCollVals)
+                    translateGrp[tarCountUp] = annoVal
+                    tarCountUp += 1
                     if len(annoCollVals) == 0:
                         res["anno_data"][target][annoVal]["mean"] = -1.0
                         res["anno_data"][target][annoVal]["sem"] = -1.0
@@ -10075,7 +10337,7 @@ class Experiment:
                             res["anno_data"][target][annoVal]["sem"] = 0.0
                         else:
                             res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
-                res["anno_stats"][target] = runStatistics(statTarGroup, statsParametric)
+                res["anno_stats"][target] = runStatistics(statTarGroup, statsParametric, translateGrp)
 
         if saveResultsCSV:
             res["tsv"]["technical_data"] = "Sample\tSample Type\t"
@@ -10205,6 +10467,15 @@ class Experiment:
                     res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["stat val"]) + "\t"
                     res["tsv"]["statistics_data"] += "p-value\t"
                     res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
+
+                for target in sortTar:
+                    if res["anno_stats"][target]["multi comparison"]  != "":
+                        res["tsv"]["statistics_multi_comp"] += "\n" + target + "\n"
+                        for row in range(0, len(res["anno_stats"][target]["multi comparison"])):
+                            for col in range(0, len(res["anno_stats"][target]["multi comparison"][row])):
+                                res["tsv"]["statistics_multi_comp"] += res["anno_stats"][target]["multi comparison"][row][col] + "\t"
+                            res["tsv"]["statistics_multi_comp"] = re.sub(r"\t$", "\n", res["tsv"]["statistics_multi_comp"])
+
         return res
 
 
