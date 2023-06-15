@@ -1897,10 +1897,8 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             ret["stat name"] = "F statistic"
             ret["stat val"], ret["p val"] = scp.f_oneway(*statTarGroup)
 
-            print(ret["p val"])
             if ret["p val"] > 0.05:
                 return ret
-
             gridGroup = []
             gridValue = []
             grid_Y2 = []
@@ -1914,7 +1912,6 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             grpGridCriticQ = []
             grpGridCriticDiff = []
             grpGridMultiComp = []
-
             # Prepare Data
             for row in range(0, len(statTarGroup)):
                 groupRes.append({})
@@ -2020,7 +2017,6 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             grpGridMultiComp.append(["", "mean"])
             for row in range(0, len(statTarGroup)):
                 grpGridMultiComp[1].append(groupRes[groupIncreasMean[row]]["mean"])
-
             for row in range(0, len(statTarGroup)):
                 grpGridMultiComp.append([translateGrp[groupIncreasMean[row]], groupRes[groupIncreasMean[row]]["mean"]])
                 for col in range(0, len(statTarGroup)):
@@ -2030,29 +2026,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                         grpGridMultiComp[row + 2].append("*")
                     else:
                         grpGridMultiComp[row + 2].append("ns")
-
             ret["multi comparison"] = grpGridMultiComp
-
-
-            print(grpGridCriticDiff)
-
-
-
-            print(stat_quant1)
-            print(stat_quant2)
-            print(stat_quant3)
-            print(stat_quant4)
-            print(stat_SStotal)
-            print(stat_SSgroups)
-            print(stat_SSwithin)
-            print(stat_df_total)
-            print(stat_df_groups)
-            print(stat_df_within)
-            print(stat_ms_groups)
-            print(stat_ms_within)
-            print(stat_F)
-            print(stat_P)
-            print(groupRes)
     else:
         if len(statTarGroup) == 2:
             ret["test name"] = "Mann-Whitney U rank test"
@@ -2063,10 +2037,8 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             ret["stat name"] = "H statistic"
             ret["stat val"], ret["p val"] = scp.kruskal(*statTarGroup)
 
-            print(ret["p val"])
             if ret["p val"] > 0.05:
                 return ret
-
             gridGroup = []
             gridValue = []
             scoreGrid = []
@@ -2078,7 +2050,6 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             statres_total_n = 0
             statres_s1 = 0.0
             statres_sqrsum = 0.0
-
             # Prepare Data
             for row in range(0, len(statTarGroup)):
                 groupRes.append({})
@@ -2121,7 +2092,6 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             statres_prob = 1 - scp.chi2.cdf(statres_tt, df=statres_df)
             statres_t = scp.t.ppf(1 - 0.05 / 2.0, statres_total_n - len(statTarGroup))
             statres_SD = statres_t * np.sqrt(( statres_s2 * (( statres_total_n - 1 - statres_tt) / (statres_total_n - len(statTarGroup)))))
-
             # Calculate mean ranksum difference
             for row in range(0, len(statTarGroup)):
                 grpGridRanksum.append([])
@@ -2142,7 +2112,6 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             grpGridMultiComp.append(["", "median"])
             for row in range(0, len(statTarGroup)):
                 grpGridMultiComp[1].append(groupRes[row]["median"])
-
             for row in range(0, len(statTarGroup)):
                 grpGridMultiComp.append([translateGrp[row], groupRes[row]["median"]])
                 for col in range(0, len(statTarGroup)):
@@ -2152,14 +2121,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                         grpGridMultiComp[row + 2].append("*")
                     else:
                         grpGridMultiComp[row + 2].append("ns")
-
-
-            print (statres_t)
-            print (statres_SD)
-            print(statres_prob)
-
             ret["multi comparison"] = grpGridMultiComp
-
     return ret
 
 def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=True):
@@ -9183,6 +9145,8 @@ class Experiment:
                         overSelAnno[selAnno]["data"] = {}
                         overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][selAnno]
                     else:
+                        if currSelVal not in overSelAnno[selAnno]["data"]:
+                            overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][selAnno]
                         if overSelAnno[selAnno]["data"][currSelVal] != samAllAnnos[samId][selAnno]:
                             overSelAnno[selAnno]["conf"] = True
 
@@ -10192,6 +10156,8 @@ class Experiment:
                         overSelAnno[selAnno]["data"] = {}
                         overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][selAnno]
                     else:
+                        if currSelVal not in overSelAnno[selAnno]["data"]:
+                            overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][selAnno]
                         if overSelAnno[selAnno]["data"][currSelVal] != samAllAnnos[samId][selAnno]:
                             overSelAnno[selAnno]["conf"] = True
 
@@ -10468,13 +10434,15 @@ class Experiment:
                     res["tsv"]["statistics_data"] += "p-value\t"
                     res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
 
+                res["tsv"]["statistics_multi_comp"] = ""
                 for target in sortTar:
                     if res["anno_stats"][target]["multi comparison"]  != "":
-                        res["tsv"]["statistics_multi_comp"] += "\n" + target + "\n"
+                        res["tsv"]["statistics_multi_comp"] += target + "\n"
                         for row in range(0, len(res["anno_stats"][target]["multi comparison"])):
                             for col in range(0, len(res["anno_stats"][target]["multi comparison"][row])):
-                                res["tsv"]["statistics_multi_comp"] += res["anno_stats"][target]["multi comparison"][row][col] + "\t"
+                                res["tsv"]["statistics_multi_comp"] += str(res["anno_stats"][target]["multi comparison"][row][col]) + "\t"
                             res["tsv"]["statistics_multi_comp"] = re.sub(r"\t$", "\n", res["tsv"]["statistics_multi_comp"])
+                        res["tsv"]["statistics_multi_comp"] += "\n\n"
 
         return res
 
