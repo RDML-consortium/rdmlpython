@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.8.0"
+    return "1.8.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -5771,7 +5771,7 @@ class Dye:
             if value not in ["non-saturating DNA binding dye", "saturating DNA binding dye", "hybridization probe",
                              "hydrolysis probe", "labelled forward primer", "labelled reverse primer",
                              "DNA-zyme probe"]:
-                raise RdmlError('Unknown or unsupported sample type value "' + value + '".')
+                raise RdmlError('Unknown or unsupported dye chemistry value "' + value + '".')
 
         if key == "id":
             self.change_id(value, merge_with_id=False)
@@ -9754,7 +9754,7 @@ class Experiment:
 
         return res
 
-    def genorm(self, selSamples="samples", selAnnotation="", selAnnoValue="", saveResultsCSV=False, saveResultsSVG=False):
+    def genorm(self, selSamples="samples", selAnnotation="", selAnnoValue="", saveResultsCSV=False, saveResultsSVG=False, maxRef=-1):
         """Finds most stable reference genes. Returns a json with additional data.
 
         Args:
@@ -9764,6 +9764,7 @@ class Experiment:
             selAnnoValue: The value of the annotation to use if overlapType == "annotation", else ignored.
             saveResultsCSV: Save the results as tsv file
             saveResultsSVG: Save results as svg, this sets saveResultsCSV=True
+            maxRef: Maximum number of reference genes allowed
 
         Returns:
             A dictionary with the resulting data, presence and format depending on input.
@@ -9863,6 +9864,10 @@ class Experiment:
             lookupCond[cCon] = num
             num += 1
 
+        if maxRef > 0:
+            if len(res["reference"]) > maxRef:
+                raise RdmlError('Server Error: geNorm can handle up to ' + str(maxRef) + ' reference genes.' + 
+                                str(len(res["reference"])) + ' reference genes were given.')
         if len(res["reference"]) < 2:
             raise RdmlError('Error: geNorm requires at least two reference genes.')
         if len(res["conditions"]) < 2:
@@ -10908,6 +10913,13 @@ class Run:
                 head[3].lower() != "target" or head[4].lower() != "target type" or head[5].lower() != "dye"):
             raise RdmlError('The tab-format is not valid, essential columns are missing.')
 
+        if head[6].lower() in ["cq", "n0"]:
+            if dMode == "melt":
+                raise RdmlError('Import Format Error: Amplification data immported as melting data.')
+        if head[6].lower() == "tm":
+            if dMode != "melt":
+                raise RdmlError('Import Format Error: Melting data immported as amplification data.')
+
         # Get the information for the lookup dictionaries
         samTypeLookup = {}
         tarTypeLookup = {}
@@ -10937,10 +10949,16 @@ class Run:
         for tabLine in tabLines[1:]:
             sLin = tabLine.split("\t")
             if (len(sLin) < 7 or sLin[0] == "" or sLin[1] == ""
-                              or sLin[2] == "" or sLin[3] == ""
-                              or sLin[4] == "" or sLin[5] == ""):
+                              or sLin[3] == "" or sLin[5] == ""):
                 ret += "Skipped reaction \"" + sLin[0] + "\"\n"
                 continue
+
+            # Undefined are set to "unkn" and "toi"
+            if sLin[2] not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
+                sLin[2] = "unkn"
+            if sLin[4] not in ["ref", "toi"]:
+                sLin[4] = "toi"
+
             if sLin[1] not in samTypeLookup:
                 rootEl.new_sample(sLin[1])
                 samEl = rootEl.get_sample(byid=sLin[1])
@@ -11024,13 +11042,18 @@ class Run:
             keyFor7 = "cq"
             if dMode == "melt":
                 keyFor7 = "meltTemp"
+            if head[6].lower() == "n0":
+                keyFor7 = "N0"
+
             present7 = _get_first_child(data, keyFor7)
-            cont7 = re.sub(r'[^0-9\.;\-]', '', sLin[6])
+            cont7 = re.sub(r'[^eE0-9\.;\-]', '', sLin[6])
             if cont7 == "" or (cont7 is None):
                 if present7 is not None:
                     data.remove(present7)
             else:
-                if (dMode == "melt" and dataVersion == "1.3") or dMode == "amp":
+                if ((dMode == "melt" and dataVersion == "1.3") or 
+                    (dMode == "amp" and dataVersion == "1.3" and keyFor7 == "N0") or
+                    (dMode == "amp" and keyFor7 == "cq")):
                     if present7 is None:
                         new_node = et.Element(keyFor7)
                         new_node.text = cont7
