@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.8.1"
+    return "1.8.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -8931,6 +8931,8 @@ class Experiment:
         if thres_Num > 0:
             res["threshold"] = math.exp(thres_Sum / thres_Num)
             for pRunA in range(0, len(allRuns)):
+                if res["plate"]["Thres_Num"][pRunA] == 0:
+                    raise RdmlError('Run "' + res["runs"][pRunA] + '" does not have any reactions with amplification. Correction is not possible.')
                 res["plate"]["threshold"][pRunA] = math.exp(res["plate"]["Thres_Sum"][pRunA] / res["plate"]["Thres_Num"][pRunA])
         else:
             res["threshold"] = -1.0
