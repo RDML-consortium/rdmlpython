@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "1.8.2"
+    return "2.0.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -13054,47 +13054,54 @@ class Run:
                    "log lin fluorescence",  # 18
                    "indiv PCR eff",   # 19
                    "R2",   # 20
-                   "N0 (indiv eff - for debug use)",   # 21
-                   "Cq (indiv eff - for debug use)",  # 22
-                   "Cq with group threshold (indiv eff - for debug use)",  # 23
-                   "mean PCR eff",   # 24
-                   "standard error of the mean PCR eff",   # 25
-                   "N0 (mean eff)",   # 26
-                   "Cq (mean eff)",   # 27
-                   "mean PCR eff - no plateau",   # 28
-                   "standard error of the mean PCR eff - no plateau",   # 29
-                   "N0 (mean eff) - no plateau",   # 30
-                   "Cq (mean eff) - no plateau",   # 31
-                   "mean PCR eff - mean efficiency",   # 32
-                   "standard error of the mean PCR eff - mean efficiency",   # 33
-                   "N0 (mean eff) - mean efficiency",   # 34
-                   "Cq (mean eff) - mean efficiency",   # 35
-                   "mean PCR eff - no plateau - mean efficiency",   # 36
-                   "standard error of the mean PCR eff - no plateau - mean efficiency",   # 37
-                   "N0 (mean eff) - no plateau - mean efficiency",   # 38
-                   "Cq (mean eff) - no plateau - mean efficiency",   # 39
-                   "mean PCR eff - stat efficiency",   # 40
-                   "standard error of the mean PCR eff - stat efficiency",   # 41
-                   "N0 (mean eff) - stat efficiency",   # 42
-                   "Cq (mean eff) - stat efficiency",   # 43
-                   "mean PCR eff - no plateau - stat efficiency",   # 44
-                   "standard error of the stat PCR eff - no plateau - stat efficiency",   # 45
-                   "N0 (mean eff) - no plateau - stat efficiency",   # 46
-                   "Cq (mean eff) - no plateau - stat efficiency",   # 47
-                   "amplification",   # 48
-                   "baseline error",   # 49
-                   "instable baseline",   # 50
-                   "plateau",   # 51
-                   "noisy sample",   # 52
-                   "PCR efficiency outside mean rage",   # 53
-                   "PCR efficiency outside mean rage - no plateau",   # 54
-                   "PCR efficiency outlier",   # 55
-                   "PCR efficiency outlier - no plateau",   # 56
-                   "short log lin phase",   # 57
-                   "Cq is shifting",   # 58
-                   "too low Cq eff",   # 59
-                   "too low Cq N0",   # 60
-                   "used for W-o-L setting"]]   # 61
+                   "Ncopy (indiv eff - for debug use)",   # 21
+                   "N0 (indiv eff - for debug use)",   # 22
+                   "Cq (indiv eff - for debug use)",  # 23
+                   "Cq with group threshold (indiv eff - for debug use)",  # 24
+                   "mean PCR eff",   # 25
+                   "standard error of the mean PCR eff",   # 26
+                   "Ncopy (mean eff)",   # 27
+                   "N0 (mean eff)",   # 28
+                   "Cq (mean eff)",   # 29
+                   "mean PCR eff - no plateau",   # 30
+                   "standard error of the mean PCR eff - no plateau",   # 31
+                   "Ncopy (mean eff) - no plateau",   # 32
+                   "N0 (mean eff) - no plateau",   # 33
+                   "Cq (mean eff) - no plateau",   # 34
+                   "mean PCR eff - mean efficiency",   # 35
+                   "standard error of the mean PCR eff - mean efficiency",   # 36
+                   "Ncopy (mean eff) - mean efficiency",   # 37
+                   "N0 (mean eff) - mean efficiency",   # 38
+                   "Cq (mean eff) - mean efficiency",   # 39
+                   "mean PCR eff - no plateau - mean efficiency",   # 40
+                   "standard error of the mean PCR eff - no plateau - mean efficiency",   # 41
+                   "Ncopy (mean eff) - no plateau - mean efficiency",   # 42
+                   "N0 (mean eff) - no plateau - mean efficiency",   # 43
+                   "Cq (mean eff) - no plateau - mean efficiency",   # 44
+                   "mean PCR eff - stat efficiency",   # 45
+                   "standard error of the mean PCR eff - stat efficiency",   # 46
+                   "Ncopy (mean eff) - stat efficiency",   # 47
+                   "N0 (mean eff) - stat efficiency",   # 48
+                   "Cq (mean eff) - stat efficiency",   # 49
+                   "mean PCR eff - no plateau - stat efficiency",   # 50
+                   "standard error of the stat PCR eff - no plateau - stat efficiency",   # 51
+                   "Ncopy (mean eff) - no plateau - stat efficiency",   # 52
+                   "N0 (mean eff) - no plateau - stat efficiency",   # 53
+                   "Cq (mean eff) - no plateau - stat efficiency",   # 54
+                   "amplification",   # 55
+                   "baseline error",   # 56
+                   "instable baseline",   # 57
+                   "plateau",   # 58
+                   "noisy sample",   # 59
+                   "PCR efficiency outside mean rage",   # 60
+                   "PCR efficiency outside mean rage - no plateau",   # 61
+                   "PCR efficiency outlier",   # 62
+                   "PCR efficiency outlier - no plateau",   # 63
+                   "short log lin phase",   # 64
+                   "Cq is shifting",   # 65
+                   "too low Cq eff",   # 66
+                   "too low Cq N0",   # 67
+                   "used for W-o-L setting"]]   # 68
         rar_id = 0
         rar_well = 1
         rar_sample = 2
@@ -13116,47 +13123,56 @@ class Run:
         rar_log_lin_fluorescence = 18
         rar_indiv_PCR_eff = 19
         rar_R2 = 20
-        rar_N0_indiv_eff = 21
-        rar_Cq_common = 22
-        rar_Cq_grp = 23
-        rar_meanEff_Skip = 24
-        rar_stdEff_Skip = 25
-        rar_meanN0_Skip = 26
-        rar_Cq_Skip = 27
-        rar_meanEff_Skip_Plat = 28
-        rar_stdEff_Skip_Plat = 29
-        rar_meanN0_Skip_Plat = 30
-        rar_Cq_Skip_Plat = 31
-        rar_meanEff_Skip_Mean = 32
-        rar_stdEff_Skip_Mean = 33
-        rar_meanN0_Skip_Mean = 34
-        rar_Cq_Skip_Mean = 35
-        rar_meanEff_Skip_Plat_Mean = 36
-        rar_stdEff_Skip_Plat_Mean = 37
-        rar_meanN0_Skip_Plat_Mean = 38
-        rar_Cq_Skip_Plat_Mean = 39
-        rar_meanEff_Skip_Out = 40
-        rar_stdEff_Skip_Out = 41
-        rar_meanN0_Skip_Out = 42
-        rar_Cq_Skip_Out = 43
-        rar_meanEff_Skip_Plat_Out = 44
-        rar_stdEff_Skip_Plat_Out = 45
-        rar_meanN0_Skip_Plat_Out = 46
-        rar_Cq_Skip_Plat_Out = 47
-        rar_amplification = 48
-        rar_baseline_error = 49
-        rar_instable_baseline = 50
-        rar_plateau = 51
-        rar_noisy_sample = 52
-        rar_effOutlier_Skip_Mean = 53
-        rar_effOutlier_Skip_Plat_Mean = 54
-        rar_effOutlier_Skip_Out = 55
-        rar_effOutlier_Skip_Plat_Out = 56
-        rar_shortLogLinPhase = 57
-        rar_CqIsShifting = 58
-        rar_tooLowCqEff = 59
-        rar_tooLowCqN0 = 60
-        rar_isUsedInWoL = 61
+        rar_Ncopy_indiv_eff = 21
+        rar_N0_indiv_eff = 22
+        rar_Cq_common = 23
+        rar_Cq_grp = 24
+        rar_meanEff_Skip = 25
+        rar_stdEff_Skip = 26
+        rar_meanNcopy_Skip = 27
+        rar_meanN0_Skip = 28
+        rar_Cq_Skip = 29
+        rar_meanEff_Skip_Plat = 30
+        rar_stdEff_Skip_Plat = 31
+        rar_meanNcopy_Skip_Plat = 32
+        rar_meanN0_Skip_Plat = 33
+        rar_Cq_Skip_Plat = 34
+        rar_meanEff_Skip_Mean = 35
+        rar_stdEff_Skip_Mean = 36
+        rar_meanNcopy_Skip_Mean = 37
+        rar_meanN0_Skip_Mean = 38
+        rar_Cq_Skip_Mean = 39
+        rar_meanEff_Skip_Plat_Mean = 40
+        rar_stdEff_Skip_Plat_Mean = 41
+        rar_meanNcopy_Skip_Plat_Mean = 42
+        rar_meanN0_Skip_Plat_Mean = 43
+        rar_Cq_Skip_Plat_Mean = 44
+        rar_meanEff_Skip_Out = 45
+        rar_stdEff_Skip_Out = 46
+        rar_meanNcopy_Skip_Out = 47
+        rar_meanN0_Skip_Out = 48
+        rar_Cq_Skip_Out = 49
+        rar_meanEff_Skip_Plat_Out = 50
+        rar_stdEff_Skip_Plat_Out = 51
+        rar_meanNcopy_Skip_Plat_Out = 52
+        rar_meanN0_Skip_Plat_Out = 53
+        rar_Cq_Skip_Plat_Out = 54
+        rar_amplification = 55
+        rar_baseline_error = 56
+        rar_instable_baseline = 57
+        rar_plateau = 58
+        rar_noisy_sample = 59
+        rar_effOutlier_Skip_Mean = 60
+        rar_effOutlier_Skip_Plat_Mean = 61
+        rar_effOutlier_Skip_Out = 62
+        rar_effOutlier_Skip_Plat_Out = 63
+        rar_shortLogLinPhase = 64
+        rar_CqIsShifting = 65
+        rar_tooLowCqEff = 66
+        rar_tooLowCqN0 = 67
+        rar_isUsedInWoL = 68
+
+        copyConst = 10 * pow(1.9, 35.0)
 
         res = []
         finalData = {}
@@ -13229,7 +13245,7 @@ class Run:
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", ""])  # Must match header length
+                            "", "", "", "", "",  "", "", "", ""])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -14072,6 +14088,29 @@ class Run:
             res[rRow][rar_meanN0_Skip_Plat_Out] = meanNnull_Skip_Plat_Out[rRow]
             res[rRow][rar_Cq_Skip_Plat_Out] = meanCq_Skip_Plat_Out[rRow]
 
+            res[rRow][rar_Ncopy_indiv_eff] = -1.0
+            res[rRow][rar_meanNcopy_Skip] = -1.0
+            res[rRow][rar_meanNcopy_Skip_Plat] = -1.0
+            res[rRow][rar_meanNcopy_Skip_Mean] = -1.0
+            res[rRow][rar_meanNcopy_Skip_Plat_Mean] = -1.0
+            res[rRow][rar_meanNcopy_Skip_Out] = -1.0
+            res[rRow][rar_meanNcopy_Skip_Plat_Out] = -1.0
+            if threshold[0] > 0.0:
+                if nNulls[rRow] > 0.0:
+                    res[rRow][rar_Ncopy_indiv_eff] = copyConst * nNulls[rRow] / threshold[0]
+                if meanNnull_Skip[rRow] > 0.0:
+                    res[rRow][rar_meanNcopy_Skip] = copyConst * meanNnull_Skip[rRow] / threshold[0]
+                if meanNnull_Skip_Plat[rRow] > 0.0:
+                    res[rRow][rar_meanNcopy_Skip_Plat] = copyConst * meanNnull_Skip_Plat[rRow] / threshold[0]
+                if meanNnull_Skip_Mean[rRow] > 0.0:
+                    res[rRow][rar_meanNcopy_Skip_Mean] = copyConst * meanNnull_Skip_Mean[rRow] / threshold[0]
+                if meanNnull_Skip_Plat_Mean[rRow] > 0.0:
+                    res[rRow][rar_meanNcopy_Skip_Plat_Mean] = copyConst * meanNnull_Skip_Plat_Mean[rRow] / threshold[0]
+                if meanNnull_Skip_Out[rRow] > 0.0:
+                    res[rRow][rar_meanNcopy_Skip_Out] = copyConst * meanNnull_Skip_Out[rRow] / threshold[0]
+                if meanNnull_Skip_Plat_Out[rRow] > 0.0:
+                    res[rRow][rar_meanNcopy_Skip_Plat_Out] = copyConst * meanNnull_Skip_Plat_Out[rRow] / threshold[0]
+ 
             res[rRow][rar_amplification] = not vecNoAmplification[rRow]
             res[rRow][rar_baseline_error] = vecBaselineError[rRow]
             res[rRow][rar_instable_baseline] = vecInstableBaseline[rRow]
@@ -14338,7 +14377,10 @@ class Run:
                         retCSV += "{0:0.6f}".format(float(res[rRow][rCol])) + "\t"
                     elif rCol in [rar_Cq_common, rar_Cq_grp, rar_Cq_Skip, rar_Cq_Skip_Plat,
                                   rar_Cq_Skip_Mean, rar_Cq_Skip_Plat_Mean, rar_Cq_Skip_Out,
-                                  rar_Cq_Skip_Plat_Out]:
+                                  rar_Cq_Skip_Plat_Out, rar_Ncopy_indiv_eff, rar_meanNcopy_Skip, 
+                                  rar_meanNcopy_Skip_Plat, rar_meanNcopy_Skip_Mean, 
+                                  rar_meanNcopy_Skip_Plat_Mean, rar_meanNcopy_Skip_Out, 
+                                  rar_meanNcopy_Skip_Plat_Out]:
                         retCSV += "{0:0.4f}".format(float(res[rRow][rCol])) + "\t"
                     elif rCol in [rar_N0_indiv_eff, rar_meanN0_Skip, rar_meanN0_Skip_Plat,
                                   rar_meanN0_Skip_Mean, rar_meanN0_Skip_Plat_Mean,
