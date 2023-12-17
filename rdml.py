@@ -1840,9 +1840,9 @@ def _cleanErrorString(inStr, cleanStyle):
                      "no amplification in positive control", "baseline error in positive control",
                      "instable baseline", "instable baseline in positive control",
                      "no plateau in positive control", "noisy sample in positive control",
-                     "Cq < 10, N0 unreliable", "Cq > 34", "no indiv PCR eff can be calculated",
+                     "Ncopy > 100 Mio", "Ncopy < 10", "no indiv PCR eff can be calculated",
                      "PCR efficiency outlier", "no amplification", "baseline error", "no plateau",
-                     "noisy sample", "Cq too high", "N0 unreliable"]
+                     "noisy sample"]
         for ele in strList:
             if ele in knownWarn:
                 continue
@@ -14133,36 +14133,41 @@ class Run:
             exclVal = _cleanErrorString(res[rRow][rar_excl], "amp")
             noteVal = _cleanErrorString(res[rRow][rar_note], "amp")
 
-            cqVal = np.NaN
+            ncopy = -1.0
+            N0Val = np.NaN
             meanEffVal = np.NaN
             diffMeanEff = False
             if excludeNoPlateau is False and excludeEfficiency == "include":
-                cqVal = meanCq_Skip[rRow]
+                N0Val = meanNnull_Skip[rRow]
                 meanEffVal = meanEff_Skip[rRow]
                 diffMeanEff = res[rRow][rar_effOutlier_Skip_Mean]
             if excludeNoPlateau is True and excludeEfficiency == "include":
-                cqVal = meanCq_Skip_Plat[rRow]
+                N0Val = meanNnull_Skip_Plat[rRow]
                 meanEffVal = meanEff_Skip_Plat[rRow]
                 diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat_Mean]
             if excludeNoPlateau is False and excludeEfficiency == "mean":
-                cqVal = meanCq_Skip_Mean[rRow]
+                N0Val = meanNnull_Skip_Mean[rRow]
                 meanEffVal = meanEff_Skip_Mean[rRow]
                 diffMeanEff = res[rRow][rar_effOutlier_Skip_Mean]
             if excludeNoPlateau is True and excludeEfficiency == "mean":
-                cqVal = meanCq_Skip_Plat_Mean[rRow]
+                N0Val = meanNnull_Skip_Plat_Mean[rRow]
                 meanEffVal = meanEff_Skip_Plat_Mean[rRow]
                 diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat_Mean]
             if excludeNoPlateau is False and excludeEfficiency == "outlier":
-                cqVal = meanCq_Skip_Out[rRow]
+                N0Val = meanNnull_Skip_Out[rRow]
                 meanEffVal = meanEff_Skip_Out[rRow]
                 diffMeanEff = res[rRow][rar_effOutlier_Skip_Out]
             if excludeNoPlateau is True and excludeEfficiency == "outlier":
-                cqVal = meanCq_Skip_Plat_Out[rRow]
+                N0Val = meanNnull_Skip_Plat_Out[rRow]
                 meanEffVal = meanEff_Skip_Plat_Out[rRow]
                 diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat_Out]
+        
+            if threshold[0] > 0.0:
+                if N0Val > 0.0:
+                    ncopy = copyConst * N0Val / threshold[0]
 
             if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
-                if cqVal > 0.0:
+                if ncopy > 0.0:
                     exclVal += "amplification in negative control;"
                     if res[rRow][rar_baseline_error]:
                         exclVal += "baseline error;"
@@ -14175,7 +14180,7 @@ class Run:
                     noteVal += "plateau in negative control;"
 
             if res[rRow][rar_sample_type] in ["std", "pos"]:
-                if not (cqVal > 0.0):
+                if not (ncopy > 0.0):
                     exclVal += "no amplification in positive control;"
                 else:
                     if not res[rRow][rar_amplification]:
@@ -14189,10 +14194,10 @@ class Run:
                 if res[rRow][rar_noisy_sample]:
                     noteVal += "noisy sample in positive control;"
 
-                if -0.0001 < cqVal < 10.0:
-                    noteVal += "Cq < 10;N0 unreliable;"
-                if cqVal > 34.0:
-                    noteVal += "Cq > 34;N0 unreliable;"
+                if ncopy > 100000000.0:
+                    noteVal += "Ncopy > 100 Mio;"
+                if ncopy < 10.0:
+                    noteVal += "Ncopy < 10;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
@@ -14223,12 +14228,10 @@ class Run:
                 if res[rRow][rar_noisy_sample]:
                     noteVal += "noisy sample;"
 
-                if -0.0001 < cqVal < 10.0:
-                    noteVal += "Cq < 10;N0 unreliable;"
-                if cqVal > 34.0:
-                    noteVal += "Cq > 34;N0 unreliable;"
-                if cqVal > 35.0 and not res[rRow][rar_plateau]:
-                    noteVal += "Cq too high;"
+                if ncopy > 100000000.0:
+                    noteVal += "Ncopy > 100 Mio;"
+                if 0.0 < ncopy < 10.0:
+                    noteVal += "Ncopy < 10;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:

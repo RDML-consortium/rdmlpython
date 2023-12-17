@@ -5,11 +5,11 @@ import sys
 
 if len(sys.argv) != 3:
     print("compare_extra_columns.py requires two files to compare. Example use: ")
-    print("   python3 compare_extra_columns.py test_5_out_results.tsv temp_5_out_results.tsv")
+    print("   python3 compare_extra_columns.py temp_5_out_results.tsv test_5_out_results.tsv")
     sys.exit()
 
-org_file = sys.argv[1]
-tmp_file = sys.argv[2]
+org_file = sys.argv[2]
+tmp_file = sys.argv[1]
 print("Comparing: " + org_file + " with " + tmp_file)
 print("")
 
@@ -69,7 +69,10 @@ found = False
 for row in range(1, len(orgCSV)):
     for cellName in commonHeaders:
         if orgCSV[row][lookupOrg[cellName]] != tmpCSV[row][lookupTmp[cellName]]:
-            print ("Difference in row " + str(row + 1) + " in column " + cellName + ":")
+            wellName = ":"
+            if "well" in commonHeaders:
+                wellName = " in well: " + orgCSV[row][lookupOrg["well"]]
+            print ("Difference in row " + str(row + 1) + " in column " + cellName + wellName)
             print ("   File " + org_file + ": " + orgCSV[row][lookupOrg[cellName]])
             print ("   File " + tmp_file + ": " + tmpCSV[row][lookupTmp[cellName]])
             found = True
