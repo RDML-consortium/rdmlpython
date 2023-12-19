@@ -12394,6 +12394,9 @@ class Run:
         max_data = 0
         max_partition_data = 0
         anyCorrections = 0
+
+        copyConst = 10 * pow(1.9, 35.0)
+
         for react in reacts:
             react_json = {
                 "id": react.get('id'),
@@ -12419,6 +12422,7 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "corrF")
                 _add_first_child_to_dic(react_data, in_react, True, "corrP")
                 _add_first_child_to_dic(react_data, in_react, True, "corrCq")
+                _add_first_child_to_dic(react_data, in_react, True, "bgFluor")
                 # Calculate the correction factors
                 givenCq = _get_first_child_text(react_data, "corrCq")
                 corrFac = _get_first_child_text(react_data, "corrF")
@@ -12446,16 +12450,33 @@ class Run:
                     calcCorr = calcCorr / calcPlate
                 calcN0 = _get_first_child_text(react_data, "N0")
                 in_react["corrN0"] = calcN0
-                if calcCorr > 0.0001:
-                    if not calcN0 == "":
-                        try:
-                            calcN0 = float(calcN0)
-                        except ValueError:
-                            pass
-                        else:
-                            if math.isfinite(calcN0):
+                if not calcN0 == "":
+                    try:
+                        calcN0 = float(calcN0)
+                    except ValueError:
+                        pass
+                    else:
+                        if math.isfinite(calcN0):
+                            bgFluor = _get_first_child_text(react_data, "bgFluor")
+                            if not bgFluor == "":
+                                try:
+                                    bgFluor = float(bgFluor)
+                                except ValueError:
+                                    bgFluor = -1.0
+                                else:
+                                    if bgFluor > 0.0:
+                                        if calcN0 > 0.0:
+                                            ncopy = copyConst * calcN0 / bgFluor
+                                            in_react["Ncopy"] = "{:.2f}".format(ncopy)
+                            else:
+                                bgFluor = -1.0
+                            if calcCorr > 0.0001:
                                 finalN0 = calcCorr * calcN0
                                 in_react["corrN0"] = "{:.2e}".format(finalN0)
+                                if bgFluor > 0.0:
+                                    if finalN0 > 0.0:
+                                        finalNcopy = copyConst * finalN0 / bgFluor
+                                        in_react["corrNcopy"] = "{:.2f}".format(finalNcopy)
                                 if not corrFac == "":
                                     anyCorrections = 1
                                 if not plateFac == "":
@@ -12482,17 +12503,20 @@ class Run:
                                                             if calcCq > 0.0:
                                                                 finalCq = calcCq - math.log10(calcCorr) / math.log10(calcEff)
                                                                 in_react["corrCq"] = "{:.3f}".format(finalCq)
-                else:
+                if calcCorr <= 0.0001:
                     if calcCorr < 0.0:
                         in_react["corrN0"] = "-1.0"
+                        in_react["corrNcopy"] = "-1.0"
                         if givenCq == "":
                             in_react["corrCq"] = -1.0
                     else:
                         in_react["corrN0"] = "0.0"
+                        in_react["corrNcopy"] = "0.0"
                         if givenCq == "":
                             in_react["corrCq"] = -1.0
                 if calcPlate < 0.0:
                     in_react["corrN0"] = "-1.0"
+                    in_react["corrNcopy"] = "-1.0"
                     if givenCq == "":
                         in_react["corrCq"] = -1.0
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")

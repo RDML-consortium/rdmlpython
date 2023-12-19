@@ -2,6 +2,7 @@ Version 2.0.0  -  XX.12.2023
 ----------------------------
 
 - Introduction of Ncopy.
+- Replace Cq tests by Ncopy tests
 
 
 Version 1.6.0  -  XX.10.2022
