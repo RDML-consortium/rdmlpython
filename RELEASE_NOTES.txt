@@ -1,8 +1,10 @@
-Version 2.0.0  -  XX.12.2023
+Version 2.0.0  -  XX.01.2024
 ----------------------------
 
 - Introduction of Ncopy.
 - Replace Cq tests by Ncopy tests
+- Change RDML by default yes
+- Absolute quantification in copies per reaction
 
 
 Version 1.6.0  -  XX.10.2022

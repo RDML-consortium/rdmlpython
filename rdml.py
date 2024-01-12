@@ -10138,6 +10138,8 @@ class Experiment:
             if selAnnotation == "":
                 raise RdmlError('Error: Selection of annotation required.')
 
+        copyConst = 10 * pow(1.9, 35.0)
+
         res["tec_data"] = {}
         res["ref_data"] = {}
         res["rel_data"] = {}
@@ -10147,6 +10149,10 @@ class Experiment:
         n0data = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
+
+        # Get the merged data from inter run correction
+        interRun = self.interRunCorr(overlapType="samples", selAnnotation="", updateRDML=False, calcCorrection=False)
+        res["threshold"] = interRun["threshold"]
 
         # Find the sample annotoation
         samples = _get_all_children(pRoot, "sample")
@@ -10235,6 +10241,8 @@ class Experiment:
                             res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
 
         # Geomean the reference genes
+        refGeoSum = 0.0
+        refGeoNum = 0 
         for sample in n0data["N0"]:
             keepSample = False
             for target in selReferences:
@@ -10259,10 +10267,16 @@ class Experiment:
                     continue
                 res["ref_data"][sample]["raw_vals"].append(res["tec_data"][sample][target]["N0_mean"])
                 res["ref_data"][sample]["N0_sum"] += math.log(res["tec_data"][sample][target]["N0_mean"])
+                refGeoSum += math.log(res["tec_data"][sample][target]["N0_mean"])
                 res["ref_data"][sample]["N0_num"] += 1
+                refGeoNum += 1
             if res["ref_data"][sample]["N0_num"] > 0:
                 geoMean = math.exp(res["ref_data"][sample]["N0_sum"] / res["ref_data"][sample]["N0_num"])
                 res["ref_data"][sample]["N0_gem"] = geoMean
+        res["ref_geoAll"] = 1.0
+        if refGeoNum > 0:
+            refGeoAll = math.exp(refGeoSum / refGeoNum)
+            res["ref_geoAllref_geoAll"] = refGeoAll
 
         # Calculate relative gene expression
         for sample in n0data["N0"]:
@@ -10291,7 +10305,7 @@ class Experiment:
                     relEx = -1.0
                     if res["tec_data"][sample][target]["N0_mean"] > 0.0:
                         if res["ref_data"][sample]["N0_gem"] > 0.0:
-                            relEx = res["tec_data"][sample][target]["N0_mean"] / res["ref_data"][sample]["N0_gem"]
+                            relEx = res["tec_data"][sample][target]["N0_mean"] / (res["ref_data"][sample]["N0_gem"] / res["ref_geoAllref_geoAll"])
                     res["rel_data"][sample][target]["rel_expression"] = relEx
 
         for sample in res["rel_data"]:
@@ -10372,7 +10386,7 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["reference_data"] += currAnno + "\t"
-            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\n"
+            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\tRelative Expresssion\n"
             sortSam = sorted(res["ref_data"].keys())
             for sample in sortSam:
                 res["tsv"]["reference_data"] += sample + "\t"
@@ -10388,9 +10402,11 @@ class Experiment:
                 res["tsv"]["reference_data"] += "\t"
                 res["tsv"]["reference_data"] += str(res["ref_data"][sample]["N0_num"]) + "\t"
                 res["tsv"]["reference_data"] += "{:.6e}".format(res["ref_data"][sample]["N0_gem"]) + "\t"
+                res["tsv"]["reference_data"] += "{:.4f}".format(res["ref_data"][sample]["N0_gem"] / res["ref_geoAllref_geoAll"]) + "\t"
                 # for indivVal in res["ref_data"][sample]["raw_vals"]:
                 #     res["tsv"]["reference_data"] += "{:.4e}".format(indivVal) + ";"
                 res["tsv"]["reference_data"] += "\n"
+            res["tsv"]["reference_data"] += "Geometric Mean\t\t\t\t" + "{:.6e}".format(res["ref_geoAllref_geoAll"]) + "\t1.0000\n"
 
             res["tsv"]["relative_data"] = "Sample\tSample Type\t"
             if inclAnnotation:
@@ -10414,7 +10430,7 @@ class Experiment:
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
                     if res["rel_data"][sample][target]["ref_missing"]:
                         res["tsv"]["relative_data"] += "Reference Genes without N0"
-                    res["tsv"]["relative_data"] += "{:.6f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
+                    res["tsv"]["relative_data"] += "{:.6e}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
                     # for indivVal in res["rel_data"][sample][target]["raw_vals"]:
                     #     res["tsv"]["relative_data"] += "{:.6f}".format(indivVal) + ";"
                     res["tsv"]["relative_data"] += "\n"
