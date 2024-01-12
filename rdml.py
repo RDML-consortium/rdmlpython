@@ -630,6 +630,22 @@ def _niceQuantityType(txt):
     return txt
 
 
+def _niceQuantityTypeReact(txt):
+    if txt == "cop":
+        return "copies per reaction"
+    if txt == "fold":
+        return "fold change"
+    if txt == "dil":
+        return "dilution"
+    if txt == "nMol":
+        return "nanomol per reaction"
+    if txt == "ng":
+        return "nanogram per reaction"
+    if txt == "other":
+        return "other unit"
+    return txt
+
+
 def _wellRangeToList(wells, columns):
     """Translates a range like "B2-C3" to list ["B2","B3","C2","C3"].
 
@@ -9061,7 +9077,7 @@ class Experiment:
 
         return res
 
-    def absoluteQuantification(self, method="reference", quantUnit="cop", estimate=True, overlapType="samples", selAnnotation="", inclAnnotation=False):
+    def absoluteQuantification(self, method="reference", quantUnit="cop", estimate=True, reactionVolume=20.0, overlapType="samples", selAnnotation="", inclAnnotation=False):
         """Perform absolute quantification on the experiment.
 
         Args:
@@ -9069,6 +9085,7 @@ class Experiment:
             method: Base the overlap on "reference", "cq-guess" or "optical".
             quantUnit: The unit used for quantification "cop", "fold", "dil", "nMol", "ng" or "other"
             estimate: If true, missing targets are estimated.
+            reactionVolume: The volume in microliter of a reation.
             overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
             inclAnnotation: If true, all annotations are included in csv output
@@ -9086,7 +9103,14 @@ class Experiment:
         if overlapType == "annotation":
             if selAnnotation == "":
                 raise RdmlError('Error: Selection of annotation required.')
+        try:
+            reactionVolume = float(reactionVolume)
+        except ValueError:
+            raise RdmlError('Error: Reaction volume must be a number.')
+        if reactionVolume <= 0.0:
+            raise RdmlError('Error: Reaction volume must be > 0.0.')
 
+        copyConst = 10 * pow(1.9, 35.0)
         mol = 6.02214076e23  # copies / Mole
         baseWeight = 660  # g / mol per base
         neg_sum = 0.0
@@ -9383,7 +9407,7 @@ class Experiment:
                             if qValue == sortValues[0]:
                                 if geo_num > 0:
                                     geoN0 = math.exp(geo_sum / geo_num)
-                                    res["fluorN0Fact"][qTar] = geoN0 / sortValues[0]
+                                    res["fluorN0Fact"][qTar] = (geoN0 / sortValues[0]) / reactionVolume
 
                 stdCurvesCsv = ""
                 for tar in stdCurves:
@@ -9457,7 +9481,7 @@ class Experiment:
 
             if method == "cq-guess":
                 res["absUnit"] = "cop"
-                fluorN0Fact = float((res["threshold"] / np.power(1.9, 35.0)) / (10 / 20))  # 20 ul, 10 copies
+                fluorN0Fact = float((res["threshold"] * 20.0 / reactionVolume)/ copyConst)  # 20 ul, 10 copies
                 for tar in interRun["target"]:
                     res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
 
@@ -9496,11 +9520,11 @@ class Experiment:
                 if thresCopies > 0.0:
                     fluorN0Fact = float(res["threshold"]) / thresCopies
                     for tar in interRun["target"]:
-                        res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
+                        res["fluorN0Fact"][tar] = (fluorN0Fact * res["target"][tar]["ampliconLen"] / reactionVolume) / 100
 
             res["tsv"]["fluorN0Fact"] = 'Target\tQuant. Fact.\tAmplicon Length\tPCR Efficiency\tTreshold\t'
-            res["tsv"]["fluorN0Fact"] += _niceQuantityType("cop") + ' at Threshold\t'
-            res["tsv"]["fluorN0Fact"] += _niceQuantityType("ng") + ' at Threshold\n'
+            res["tsv"]["fluorN0Fact"] += _niceQuantityTypeReact("cop") + ' at Threshold\t'
+            res["tsv"]["fluorN0Fact"] += _niceQuantityTypeReact("ng") + ' at Threshold\n'
             for tar in sortTargets:
                 res["tsv"]["fluorN0Fact"] += tar + '\t'
                 res["tsv"]["fluorN0Fact"] += "{:.4e}".format(res["fluorN0Fact"][tar]) + '\t'
@@ -9520,15 +9544,15 @@ class Experiment:
             if method == "optical":
                 csvStandard = ""
                 if neg_num > 0:
-                    csvStandard += 'Threshold\t' + _niceQuantityType("ng") + '\t'
+                    csvStandard += 'Threshold\t' + _niceQuantityTypeReact("ng") + '\t'
                     csvStandard += "{:.2f}".format(float(res["threshold"])) + '\t\n'
 
-                csvStandard += 'No DNA\t' + _niceQuantityType("ng") + '\t'
+                csvStandard += 'No DNA\t' + _niceQuantityTypeReact("ng") + '\t'
                 csvStandard += "{:.2f}".format(negFluor) + '\t\n'
 
                 sortedConc = sorted(list(concFluor.keys()))
                 for currConc in sortedConc:
-                    csvStandard += "{:.2f}".format(currConc) + '\t' + _niceQuantityType("ng")
+                    csvStandard += "{:.2f}".format(currConc) + '\t' + _niceQuantityTypeReact("ng")
                     resFluor = concFluor[currConc] - negFluor
                     csvStandard += '\t' + "{:.2f}".format(resFluor)
                     calcFluor = finalFluor * currConc / finalConc
@@ -9559,9 +9583,9 @@ class Experiment:
                                             csvStandard += '\t' + oSample
                                             csvStandard += '\t' + oTar
                                             if oUnit == "cop":
-                                                csvStandard += '\t' + "{:.2f}".format(oValue) + '\t'
+                                                csvStandard += '\t' + "{:.2f}".format(oValue * reactionVolume) + '\t'
                                             else:
-                                                csvStandard += '\t' + "{:.4e}".format(oValue) + '\t'
+                                                csvStandard += '\t' + "{:.4e}".format(oValue * reactionVolume) + '\t'
                                             corrFac = _get_first_child_text(react_data, "corrF")
                                             calcCorr = 1.0
                                             if not corrFac == "":
@@ -9601,7 +9625,7 @@ class Experiment:
                                                                     csvStandard += "{:.2f}".format(calcQuant)
                                                                 else:
                                                                     csvStandard += "{:.4e}".format(calcQuant)
-                                            csvStandard += '\t' + _niceQuantityType(oUnit) + '\n'
+                                            csvStandard += '\t' + _niceQuantityTypeReact(oUnit) + '\n'
                 if csvStandard != "":
                     res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
                     res["tsv"]["standard"] += csvStandard
