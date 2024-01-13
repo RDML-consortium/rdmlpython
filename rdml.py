@@ -1885,7 +1885,7 @@ def _numpyTwoAxisSave(var, fileName):
 
 
 def _getXMLDataType():
-    return ["tar", "cq", "N0", "ampEffMet", "ampEff", "ampEffSE", "corrF",
+    return ["tar", "cq", "N0", "Ncopy", "ampEffMet", "ampEff", "ampEffSE", "corrF",
             "corrP", "corrCq", "meltTemp", "excl", "note", "adp", "mdp", "endPt",
             "bgFluor", "quantFluor"]
 
@@ -2246,7 +2246,7 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
 
-        data = "<rdml version='1.3' xmlns:rdml='http://www.rdml.org' xmlns='http://www.rdml.org'>\n<dateMade>"
+        data = "<rdml version='1.4' xmlns:rdml='http://www.rdml.org' xmlns='http://www.rdml.org'>\n<dateMade>"
         data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         data += "</dateMade>\n<dateUpdated>"
         data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -2360,7 +2360,7 @@ class Rdml:
             raise RdmlError('Root element is not \'rdml\', not a valid RDML or XML file.')
         rdml_version = self._node.get('version')
         # Remainder: Update version in new() and validate()
-        if rdml_version not in ['1.0', '1.1', '1.2', '1.3']:
+        if rdml_version not in ['1.0', '1.1', '1.2', '1.3', '1.4']:
             raise RdmlError('Unknown or unsupported RDML file version.')
 
     def validate(self, filename=None):
@@ -2394,6 +2394,8 @@ class Rdml:
             xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
             xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_REC.xsd'))
+        elif version == '1.4':
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_4_CR.xsd'))
         else:
             notes += 'RDML version:\tFalse\tUnknown schema version' + version + '\n'
             return notes
@@ -2439,6 +2441,8 @@ class Rdml:
             xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_2_REC.xsd'))
         elif version == '1.3':
             xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_3_REC.xsd'))
+        elif version == '1.4':
+            xmlschema_doc = et.parse(os.path.join(rdmlws, 'schema', 'RDML_v1_4_CR.xsd'))
         else:
             return False
         xmlschema = et.XMLSchema(xmlschema_doc)
@@ -2903,6 +2907,66 @@ class Rdml:
             ret.append(hint)
 
         self._node.attrib['version'] = "1.2"
+        return ret
+
+    def migrate_version_1_3_to_1_4(self):
+        """Migrates the rdml version from v1.3 to v1.4.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of strings with the modifications made.
+        """
+
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.3':
+            raise RdmlError('RDML version for migration has to be v1.3.')
+
+        self._node.attrib['version'] = "1.4"
+        return ret
+
+    def migrate_version_1_4_to_1_3(self):
+        """Migrates the rdml version from v1.4 to v1.3.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A list of strings with the modifications made.
+        """
+
+        ret = []
+        rdml_version = self._node.get('version')
+        if rdml_version != '1.4':
+            raise RdmlError('RDML version for migration has to be v1.4.')
+
+        hint = ""
+        hint2 = ""
+        exp1 = _get_all_children(self._node, "experiment")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "run")
+            for node2 in exp2:
+                exp3 = _get_all_children(node2, "react")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "vol")
+                    for node4 in exp4:
+                        hint = "Migration to v1.3 deleted react \"vol\" elements."
+                        node3.remove(node4)
+
+                    exp4b = _get_all_children(node3, "data")
+                    for node4 in exp4b:
+                        exp5 = _get_all_children(node4, "Ncopy")
+                        for node5 in exp5:
+                            hint2 = "Migration to v1.3 deleted react data \"Ncopy\" elements."
+                            node4.remove(node5)
+        if hint != "":
+            ret.append(hint)
+        if hint2 != "":
+            ret.append(hint2)
+
+        self._node.attrib['version'] = "1.3"
         return ret
 
     def recreate_lost_ids(self):
@@ -5796,7 +5860,7 @@ class Dye:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         par = self._node.getparent()
         ver = par.get('version')
-        if ver == "1.3":
+        if ver in ["1.3", "1.4"]:
             if key == "dyeChemistry":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
@@ -5954,7 +6018,7 @@ class Sample:
                     return vdic
                 else:
                     return None
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             if key == "templateQuantity":
                 ele = _get_first_child(self._node, key)
                 vdic = {}
@@ -6041,7 +6105,7 @@ class Sample:
                     _change_subelement(ele, "unit", ["value", "unit"], "", True, "string")
                 _remove_irrelevant_subelement(self._node, key)
                 return
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             if key == "templateQuantity":
                 if value is None:
                     return
@@ -6174,7 +6238,7 @@ class Sample:
         new_node.text = type
         par = self._node.getparent()
         ver = par.get('version')
-        if ver == "1.3":
+        if ver in ["1.3", "1.4"]:
             if targetId is not None:
                 if not targetId == "":
                     new_node.attrib["targetId"] = targetId
@@ -6207,7 +6271,7 @@ class Sample:
         ver = par.get('version')
         if "targetId" in ele.attrib:
             del ele.attrib["targetId"]
-        if ver == "1.3":
+        if ver in ["1.3", "1.4"]:
             if targetId is not None:
                 if not targetId == "":
                     ele.attrib["targetId"] = targetId
@@ -6242,7 +6306,7 @@ class Sample:
 
         par = self._node.getparent()
         ver = par.get('version')
-        if ver != "1.3":
+        if ver in ["1.1", "1.2"]:
             ls = self.types()
             if len(ls) < 2:
                 return
@@ -6294,14 +6358,14 @@ class Sample:
 
         par = self._node.getparent()
         ver = par.get('version')
-        if ver != "1.3":
+        if ver in ["1.1", "1.2"]:
             ls = self.quantitys()
             if len(ls) != 0:
                 return
         new_node = et.Element("quantity")
         _change_subelement(new_node, "value", ["value", "unit"], value, True, "float")
         _change_subelement(new_node, "unit", ["value", "unit"], unit, True, "string")
-        if ver == "1.3":
+        if ver in ["1.3", "1.4"]:
             if targetId is not None:
                 if not targetId == "":
                     new_node.attrib["targetId"] = targetId
@@ -6338,7 +6402,7 @@ class Sample:
         ver = par.get('version')
         if "targetId" in ele.attrib:
             del ele.attrib["targetId"]
-        if ver == "1.3":
+        if ver in ["1.3", "1.4"]:
             if targetId is not None:
                 if not targetId == "":
                     ele.attrib["targetId"] = targetId
@@ -6704,7 +6768,7 @@ class Sample:
         _add_first_child_to_dic(self._node, data, True, "description")
         data["documentations"] = self.documentation_ids()
         data["xRefs"] = self.xrefs()
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             data["annotations"] = self.annotations()
         data["types"] = self.types()
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
@@ -6747,7 +6811,7 @@ class Sample:
                 _add_first_child_to_dic(elem, qdic, False, "method")
                 _add_first_child_to_dic(elem, qdic, False, "result")
                 data["templateDNAQuality"] = qdic
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             elem = _get_first_child(self._node, "templateQuantity")
             if elem is not None:
                 qdic = {}
@@ -6860,7 +6924,7 @@ class Target:
                 return _get_first_child_text(prim, "orderNumber")
         par = self._node.getparent()
         ver = par.get('version')
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             if key == "amplificationEfficiencySE":
                 var = _get_first_child_text(self._node, key)
                 if var == "":
@@ -6895,10 +6959,10 @@ class Target:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if key in ["amplificationEfficiency", "detectionLimit"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             if key == "amplificationEfficiencySE":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
-        if ver == "1.3":
+        if ver in ["1.3", "1.4"]:
             if key == "meltingTemperature":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         if key == "dyeId":
@@ -6979,7 +7043,7 @@ class Target:
             return
         par = self._node.getparent()
         ver = par.get('version')
-        if ver == "1.2" or ver == "1.3":
+        if ver in ["1.2", "1.3", "1.4"]:
             if key == "amplificationEfficiencySE":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "float")
         raise KeyError
@@ -10138,8 +10202,6 @@ class Experiment:
             if selAnnotation == "":
                 raise RdmlError('Error: Selection of annotation required.')
 
-        copyConst = 10 * pow(1.9, 35.0)
-
         res["tec_data"] = {}
         res["ref_data"] = {}
         res["rel_data"] = {}
@@ -10149,10 +10211,6 @@ class Experiment:
         n0data = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
-
-        # Get the merged data from inter run correction
-        interRun = self.interRunCorr(overlapType="samples", selAnnotation="", updateRDML=False, calcCorrection=False)
-        res["threshold"] = interRun["threshold"]
 
         # Find the sample annotoation
         samples = _get_all_children(pRoot, "sample")
@@ -11093,8 +11151,8 @@ class Run:
                 if present7 is not None:
                     data.remove(present7)
             else:
-                if ((dMode == "melt" and dataVersion == "1.3") or 
-                    (dMode == "amp" and dataVersion == "1.3" and keyFor7 == "N0") or
+                if ((dMode == "melt" and dataVersion in ["1.3", "1.4"]) or 
+                    (dMode == "amp" and dataVersion in ["1.3", "1.4"] and keyFor7 == "N0") or
                     (dMode == "amp" and keyFor7 == "cq")):
                     if present7 is None:
                         new_node = et.Element(keyFor7)
@@ -12435,8 +12493,6 @@ class Run:
         max_partition_data = 0
         anyCorrections = 0
 
-        copyConst = 10 * pow(1.9, 35.0)
-
         for react in reacts:
             react_json = {
                 "id": react.get('id'),
@@ -12445,6 +12501,7 @@ class Run:
             if forId is not None:
                 if forId.attrib['id'] != "":
                     react_json["sample"] = forId.attrib['id']
+            react_json["vol"] = _get_first_child_text(react, "vol")
             react_datas = _get_all_children(react, "data")
             max_data = max(max_data, len(react_datas))
             react_datas_json = []
@@ -12456,6 +12513,7 @@ class Run:
                         in_react["tar"] = forId.attrib['id']
                 _add_first_child_to_dic(react_data, in_react, True, "cq")
                 _add_first_child_to_dic(react_data, in_react, True, "N0")
+                _add_first_child_to_dic(react_data, in_react, True, "Ncopy")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffMet")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEff")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
@@ -12497,26 +12555,9 @@ class Run:
                         pass
                     else:
                         if math.isfinite(calcN0):
-                            bgFluor = _get_first_child_text(react_data, "bgFluor")
-                            if not bgFluor == "":
-                                try:
-                                    bgFluor = float(bgFluor)
-                                except ValueError:
-                                    bgFluor = -1.0
-                                else:
-                                    if bgFluor > 0.0:
-                                        if calcN0 > 0.0:
-                                            ncopy = copyConst * calcN0 / bgFluor
-                                            in_react["Ncopy"] = "{:.2f}".format(ncopy)
-                            else:
-                                bgFluor = -1.0
                             if calcCorr > 0.0001:
                                 finalN0 = calcCorr * calcN0
                                 in_react["corrN0"] = "{:.2e}".format(finalN0)
-                                if bgFluor > 0.0:
-                                    if finalN0 > 0.0:
-                                        finalNcopy = copyConst * finalN0 / bgFluor
-                                        in_react["corrNcopy"] = "{:.2f}".format(finalNcopy)
                                 if not corrFac == "":
                                     anyCorrections = 1
                                 if not plateFac == "":
@@ -12543,6 +12584,22 @@ class Run:
                                                             if calcCq > 0.0:
                                                                 finalCq = calcCq - math.log10(calcCorr) / math.log10(calcEff)
                                                                 in_react["corrCq"] = "{:.3f}".format(finalCq)
+                calcNcopy = _get_first_child_text(react_data, "Ncopy")
+                in_react["corrNcopy"] = calcNcopy
+                if not calcNcopy == "":
+                    try:
+                        calcNcopy = float(calcNcopy)
+                    except ValueError:
+                        pass
+                    else:
+                        if math.isfinite(calcNcopy):
+                            if calcCorr > 0.0001:
+                                finalNcopy = calcCorr * calcNcopy
+                                in_react["corrNcopy"] = "{:.4f}".format(finalNcopy)
+                                if not corrFac == "":
+                                    anyCorrections = 1
+                                if not plateFac == "":
+                                    anyCorrections = 1
                 if calcCorr <= 0.0001:
                     if calcCorr < 0.0:
                         in_react["corrN0"] = "-1.0"
@@ -12630,6 +12687,43 @@ class Run:
         all_data["max_data_len"] = max_data
         all_data["max_partition_data_len"] = max_partition_data
         return all_data
+
+    def setVolume(self, vReact, vol):
+        """Adds a volume to the reaction from the RDML data.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vol: The volume in microliters.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                #self._node.remove(react)
+                _change_subelement(react, "vol", ["sample", "vol", "data", "partitions"], vol, True, "float")
+                break
+        return
+
+    def setVolumeGrp(self, vWells, vol):
+        """Adds a volume to several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vol: The volume in microliters.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setVolume(well, vol)
+        return
 
     def removeReact(self, vReact):
         """Removes the reaction from the RDML data.
@@ -12896,7 +12990,7 @@ class Run:
                     forId = _get_first_child(react_data, "tar")
                     if forId is not None:
                         if forId.attrib['id'] == vTar:
-                            if ver == "1.3":
+                            if ver in ["1.3", "1.4"]:
                                 oldData = ""
                                 if vAppend:
                                     oldData = _get_first_child_text(react_data, "note")
@@ -14372,12 +14466,18 @@ class Run:
                         goodVal = "{:.3f}".format(cqVal)
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
-                    if dataVersion == "1.3":
-                        if not np.isfinite(N0Val):
-                            goodVal = "-1.0"
-                        else:
+                    if dataVersion in ["1.3", "1.4"]:
+                        goodVal = "-1.0"
+                        if np.isfinite(N0Val):
                             goodVal = "{:.2e}".format(N0Val)
                         _change_subelement(rdmlElemData[rRow], "N0", dataXMLelements, goodVal, True, "string")
+                        if dataVersion in ["1.4"]:
+                            goodVal = "-1.0"
+                            if np.isfinite(N0Val):
+                                if threshold[0] > 0.0:
+                                    if N0Val > 0.0:
+                                        goodVal = "{:.4f}".format(copyConst * N0Val / threshold[0])
+                            _change_subelement(rdmlElemData[rRow], "Ncopy", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
                         if not np.isfinite(meanEffVal):
                             goodVal = "-1.0"
@@ -15701,7 +15801,7 @@ class Run:
                 for rRow in range(0, len(res)):
                     if rdmlElemData[rRow] is not None:
                         _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
-                        if dataVersion == "1.3":
+                        if dataVersion in ["1.3", "1.4"]:
                             _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                             lCol = truePeakFinPos[rRow]
                             if lCol >= 0:
