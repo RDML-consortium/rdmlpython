@@ -1858,7 +1858,7 @@ def _cleanErrorString(inStr, cleanStyle):
                      "no plateau in positive control", "noisy sample in positive control",
                      "Ncopy > 100 Mio", "Ncopy < 10", "no indiv PCR eff can be calculated",
                      "PCR efficiency outlier", "no amplification", "baseline error", "no plateau",
-                     "noisy sample"]
+                     "noisy sample", "Cq < 10", "N0 unreliable", "Cq > 34", "Cq too high"]
         for ele in strList:
             if ele in knownWarn:
                 continue
@@ -8528,6 +8528,7 @@ class Experiment:
         res = {}
         res["reference"] = {}
         res["N0"] = {}
+        res["Ncopy"] = {}
         tarType = {}
         refTar = {}
 
@@ -8562,8 +8563,12 @@ class Experiment:
                     target = tarId.attrib['id']
                     if sample not in res["N0"]:
                         res["N0"][sample] = {}
+                    if sample not in res["Ncopy"]:
+                        res["Ncopy"][sample] = {}
                     if target not in res["N0"][sample]:
                         res["N0"][sample][target] = []
+                    if target not in res["Ncopy"][sample]:
+                        res["Ncopy"][sample][target] = []
                     excluded = _get_first_child_text(react_data, "excl")
                     if excluded != "":
                         continue
@@ -8584,6 +8589,17 @@ class Experiment:
                         continue
                     if n0Val <= 0.0:
                         continue
+                    nCopyVal = _get_first_child_text(react_data, "Ncopy")
+                    if nCopyVal == "":
+                        continue
+                    try:
+                        nCopyVal = float(nCopyVal)
+                    except ValueError:
+                        continue
+                    if not math.isfinite(nCopyVal):
+                        continue
+                    if nCopyVal <= 0.0:
+                        continue
                     corrFVal = _get_first_child_text(react_data, "corrF")
                     if corrFVal != "":
                         try:
@@ -8601,10 +8617,14 @@ class Experiment:
                         if math.isfinite(corrPVal):
                             if corrPVal != 0.0:
                                 n0Val /= corrPVal
+                                nCopyVal /= corrPVal
 
                     if math.isfinite(n0Val):
                         if n0Val > 0.0:
                             res["N0"][sample][target].append(n0Val)
+                    if math.isfinite(nCopyVal):
+                        if nCopyVal > 0.0:
+                            res["Ncopy"][sample][target].append(nCopyVal)
 
         res["reference"] = sorted(refTar, key=lambda key: refTar[key])
         return res
@@ -8651,7 +8671,9 @@ class Experiment:
 
         # Get the sample infos
         pRoot = self._node.getparent()
+        # Get Dic to look up sample type
         transSamTar = _sampleTypeToDics(pRoot)
+        # Get Dic to look up annotation value by sample id
         if overlapType == "annotation":
             if selAnnotation != "":
                 samples = _get_all_children(pRoot, "sample")
@@ -10208,7 +10230,7 @@ class Experiment:
         res["tsv"] = {}
         err = ""
 
-        n0data = self.getExperimentData()
+        nCopyData = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
 
@@ -10264,9 +10286,9 @@ class Experiment:
                 tarType[tarId] = _get_first_child_text(target, "type")
 
         # Mean the technical replicates
-        for sample in n0data["N0"]:
+        for sample in nCopyData["Ncopy"]:
             res["tec_data"][sample] = {}
-            for target in n0data["N0"][sample]:
+            for target in nCopyData["Ncopy"][sample]:
                 if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
                     continue
                 res["tec_data"][sample][target] = {}
@@ -10279,29 +10301,29 @@ class Experiment:
                 res["tec_data"][sample][target]["target_type"] = ""
                 if target in tarType:
                     res["tec_data"][sample][target]["target_type"] = tarType[target]
-                res["tec_data"][sample][target]["n_tec_rep"] = len(n0data["N0"][sample][target])
-                res["tec_data"][sample][target]["raw_vals"] = n0data["N0"][sample][target]
-                if len(n0data["N0"][sample][target]) == 0:
-                    res["tec_data"][sample][target]["error"] += "No N0 values;"
-                    res["tec_data"][sample][target]["N0_mean"] = -1.0
-                    res["tec_data"][sample][target]["N0_sd"] = -1.0
-                    res["tec_data"][sample][target]["N0_cv"] = -1.0
+                res["tec_data"][sample][target]["n_tec_rep"] = len(nCopyData["Ncopy"][sample][target])
+                res["tec_data"][sample][target]["raw_vals"] = nCopyData["Ncopy"][sample][target]
+                if len(nCopyData["Ncopy"][sample][target]) == 0:
+                    res["tec_data"][sample][target]["error"] += "No Ncopy values;"
+                    res["tec_data"][sample][target]["Ncopy_mean"] = -1.0
+                    res["tec_data"][sample][target]["Ncopy_sd"] = -1.0
+                    res["tec_data"][sample][target]["Ncopy_cv"] = -1.0
                 else:
-                    res["tec_data"][sample][target]["N0_mean"] = float(np.mean(n0data["N0"][sample][target]))
-                    if len(n0data["N0"][sample][target]) == 1:
-                        res["tec_data"][sample][target]["N0_sd"] = 0.0
-                        res["tec_data"][sample][target]["N0_cv"] = 0.0
+                    res["tec_data"][sample][target]["Ncopy_mean"] = float(np.mean(nCopyData["Ncopy"][sample][target]))
+                    if len(nCopyData["Ncopy"][sample][target]) == 1:
+                        res["tec_data"][sample][target]["Ncopy_sd"] = 0.0
+                        res["tec_data"][sample][target]["Ncopy_cv"] = 0.0
                     else:
-                        res["tec_data"][sample][target]["N0_sd"] = float(np.std(n0data["N0"][sample][target], ddof=1))
-                        calcCV = res["tec_data"][sample][target]["N0_sd"] / res["tec_data"][sample][target]["N0_mean"]
-                        res["tec_data"][sample][target]["N0_cv"] = calcCV
+                        res["tec_data"][sample][target]["Ncopy_sd"] = float(np.std(nCopyData["Ncopy"][sample][target], ddof=1))
+                        calcCV = res["tec_data"][sample][target]["Ncopy_sd"] / res["tec_data"][sample][target]["Ncopy_mean"]
+                        res["tec_data"][sample][target]["Ncopy_cv"] = calcCV
                         if calcCV > 0.3:
                             res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
 
         # Geomean the reference genes
         refGeoSum = 0.0
         refGeoNum = 0 
-        for sample in n0data["N0"]:
+        for sample in nCopyData["Ncopy"]:
             keepSample = False
             for target in selReferences:
                 if transSamTar[sample][target] not in ["ntc", "nac", "ntp", "nrt", "opt"]:
@@ -10309,9 +10331,9 @@ class Experiment:
             if not keepSample:
                 continue
             res["ref_data"][sample] = {}
-            res["ref_data"][sample]["N0_sum"] = 0.0
-            res["ref_data"][sample]["N0_num"] = 0
-            res["ref_data"][sample]["N0_gem"] = -1.0
+            res["ref_data"][sample]["Ncopy_sum"] = 0.0
+            res["ref_data"][sample]["Ncopy_num"] = 0
+            res["ref_data"][sample]["Ncopy_gem"] = -1.0
             res["ref_data"][sample]["ref_missing"] = False
             res["ref_data"][sample]["raw_vals"] = []
             for target in selReferences:
@@ -10323,23 +10345,23 @@ class Experiment:
                 if res["tec_data"][sample][target]["n_tec_rep"] == 0:
                     res["ref_data"][sample]["ref_missing"] = True
                     continue
-                res["ref_data"][sample]["raw_vals"].append(res["tec_data"][sample][target]["N0_mean"])
-                res["ref_data"][sample]["N0_sum"] += math.log(res["tec_data"][sample][target]["N0_mean"])
-                refGeoSum += math.log(res["tec_data"][sample][target]["N0_mean"])
-                res["ref_data"][sample]["N0_num"] += 1
+                res["ref_data"][sample]["raw_vals"].append(res["tec_data"][sample][target]["Ncopy_mean"])
+                res["ref_data"][sample]["Ncopy_sum"] += math.log(res["tec_data"][sample][target]["Ncopy_mean"])
+                refGeoSum += math.log(res["tec_data"][sample][target]["Ncopy_mean"])
+                res["ref_data"][sample]["Ncopy_num"] += 1
                 refGeoNum += 1
-            if res["ref_data"][sample]["N0_num"] > 0:
-                geoMean = math.exp(res["ref_data"][sample]["N0_sum"] / res["ref_data"][sample]["N0_num"])
-                res["ref_data"][sample]["N0_gem"] = geoMean
+            if res["ref_data"][sample]["Ncopy_num"] > 0:
+                geoMean = math.exp(res["ref_data"][sample]["Ncopy_sum"] / res["ref_data"][sample]["Ncopy_num"])
+                res["ref_data"][sample]["Ncopy_gem"] = geoMean
         res["ref_geoAll"] = 1.0
         if refGeoNum > 0:
             refGeoAll = math.exp(refGeoSum / refGeoNum)
-            res["ref_geoAllref_geoAll"] = refGeoAll
+            res["ref_geoAll"] = refGeoAll
 
         # Calculate relative gene expression
-        for sample in n0data["N0"]:
+        for sample in nCopyData["Ncopy"]:
             res["rel_data"][sample] = {}
-            for target in n0data["N0"][sample]:
+            for target in nCopyData["Ncopy"][sample]:
                 if sample not in transSamTar:
                     continue
                 if target not in transSamTar[sample]:
@@ -10361,17 +10383,17 @@ class Experiment:
                     if sample not in res["ref_data"]:
                         continue
                     relEx = -1.0
-                    if res["tec_data"][sample][target]["N0_mean"] > 0.0:
-                        if res["ref_data"][sample]["N0_gem"] > 0.0:
-                            relEx = res["tec_data"][sample][target]["N0_mean"] / (res["ref_data"][sample]["N0_gem"] / res["ref_geoAllref_geoAll"])
+                    if res["tec_data"][sample][target]["Ncopy_mean"] > 0.0:
+                        if res["ref_data"][sample]["Ncopy_gem"] > 0.0:
+                            relEx = res["tec_data"][sample][target]["Ncopy_mean"] / (res["ref_data"][sample]["Ncopy_gem"] / res["ref_geoAll"])
                     res["rel_data"][sample][target]["rel_expression"] = relEx
 
         for sample in res["rel_data"]:
             for target in res["rel_data"][sample]:
                 res["rel_data"][sample][target]["raw_vals"] = []
                 if res["rel_data"][sample][target]["rel_expression"] > 0.0:
-                    for indivVal in n0data["N0"][sample][target]:
-                        res["rel_data"][sample][target]["raw_vals"].append((indivVal / res["ref_data"][sample]["N0_gem"]))
+                    for indivVal in nCopyData["Ncopy"][sample][target]:
+                        res["rel_data"][sample][target]["raw_vals"].append((indivVal / res["ref_data"][sample]["Ncopy_gem"]))
 
         if overlapType == "annotation":
             res["anno_data"] = {}
@@ -10414,7 +10436,7 @@ class Experiment:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["technical_data"] += currAnno + "\t"
             res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
-            res["tsv"]["technical_data"] += "n Tec. Rep.\tMean N0\tSD N0\tCV N0\tIndividual Values\n"
+            res["tsv"]["technical_data"] += "n Tec. Rep.\tMean Ncopy\tSD Ncopy\tCV Ncopy\tIndividual Values\n"
             sortSam = sorted(res["tec_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["tec_data"][sample].keys())
@@ -10433,18 +10455,18 @@ class Experiment:
                     res["tsv"]["technical_data"] += res["tec_data"][sample][target]["error"] + "\t"
                     res["tsv"]["technical_data"] += res["tec_data"][sample][target]["note"] + "\t"
                     res["tsv"]["technical_data"] += str(res["tec_data"][sample][target]["n_tec_rep"]) + "\t"
-                    res["tsv"]["technical_data"] += "{:.6e}".format(res["tec_data"][sample][target]["N0_mean"]) + "\t"
-                    res["tsv"]["technical_data"] += "{:.6e}".format(res["tec_data"][sample][target]["N0_sd"]) + "\t"
-                    res["tsv"]["technical_data"] += "{:.6f}".format(res["tec_data"][sample][target]["N0_cv"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.4f}".format(res["tec_data"][sample][target]["Ncopy_mean"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.4f}".format(res["tec_data"][sample][target]["Ncopy_sd"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.6f}".format(res["tec_data"][sample][target]["Ncopy_cv"]) + "\t"
                     for indivVal in res["tec_data"][sample][target]["raw_vals"]:
-                        res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
+                        res["tsv"]["technical_data"] += "{:.4f}".format(indivVal) + ";"
                     res["tsv"]["technical_data"] += "\n"
 
             res["tsv"]["reference_data"] = "Sample\t"
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["reference_data"] += currAnno + "\t"
-            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\tRelative Expresssion\n"
+            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean Ncopy\tRelative Expresssion\n"
             sortSam = sorted(res["ref_data"].keys())
             for sample in sortSam:
                 res["tsv"]["reference_data"] += sample + "\t"
@@ -10456,15 +10478,15 @@ class Experiment:
                                 annoVal = samAllAnnos[sample][currAnno]
                         res["tsv"]["reference_data"] += annoVal + "\t"
                 if res["ref_data"][sample]["ref_missing"]:
-                    res["tsv"]["reference_data"] += "Reference Genes without N0"
+                    res["tsv"]["reference_data"] += "Reference Genes without Ncopy"
                 res["tsv"]["reference_data"] += "\t"
-                res["tsv"]["reference_data"] += str(res["ref_data"][sample]["N0_num"]) + "\t"
-                res["tsv"]["reference_data"] += "{:.6e}".format(res["ref_data"][sample]["N0_gem"]) + "\t"
-                res["tsv"]["reference_data"] += "{:.4f}".format(res["ref_data"][sample]["N0_gem"] / res["ref_geoAllref_geoAll"]) + "\t"
+                res["tsv"]["reference_data"] += str(res["ref_data"][sample]["Ncopy_num"]) + "\t"
+                res["tsv"]["reference_data"] += "{:.4f}".format(res["ref_data"][sample]["Ncopy_gem"]) + "\t"
+                res["tsv"]["reference_data"] += "{:.4f}".format(res["ref_data"][sample]["Ncopy_gem"] / res["ref_geoAll"]) + "\t"
                 # for indivVal in res["ref_data"][sample]["raw_vals"]:
                 #     res["tsv"]["reference_data"] += "{:.4e}".format(indivVal) + ";"
                 res["tsv"]["reference_data"] += "\n"
-            res["tsv"]["reference_data"] += "Geometric Mean\t\t\t\t" + "{:.6e}".format(res["ref_geoAllref_geoAll"]) + "\t1.0000\n"
+            res["tsv"]["reference_data"] += "Geometric Mean\t\t\t\t" + "{:.4f}".format(res["ref_geoAll"]) + "\t1.0000\n"
 
             res["tsv"]["relative_data"] = "Sample\tSample Type\t"
             if inclAnnotation:
@@ -10487,8 +10509,8 @@ class Experiment:
                     res["tsv"]["relative_data"] += target + "\t"
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
                     if res["rel_data"][sample][target]["ref_missing"]:
-                        res["tsv"]["relative_data"] += "Reference Genes without N0"
-                    res["tsv"]["relative_data"] += "{:.6e}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
+                        res["tsv"]["relative_data"] += "Reference Genes without Ncopy"
+                    res["tsv"]["relative_data"] += "{:.4f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
                     # for indivVal in res["rel_data"][sample][target]["raw_vals"]:
                     #     res["tsv"]["relative_data"] += "{:.6f}".format(indivVal) + ";"
                     res["tsv"]["relative_data"] += "\n"
@@ -10524,10 +10546,10 @@ class Experiment:
                                         annoData = overSelAnno[currAnno]["data"][annoVal]
                                 res["tsv"]["annotation_data"] += annoData + "\t"
                         res["tsv"]["annotation_data"] += target + "\t"
-                        res["tsv"]["annotation_data"] += "{:.6f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
-                        res["tsv"]["annotation_data"] += "{:.6f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
                         for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
-                            res["tsv"]["annotation_data"] += "{:.6f}".format(indivVal) + ";"
+                            res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
                         res["tsv"]["annotation_data"] += "\n"
 
                 res["tsv"]["statistics_data"] = "Target\tStat. Test\tTest Output\tTest Output\tP Value\tP Value\n"
@@ -10535,9 +10557,9 @@ class Experiment:
                     res["tsv"]["statistics_data"] += target + "\t"
                     res["tsv"]["statistics_data"] += res["anno_stats"][target]["test name"] + "\t"
                     res["tsv"]["statistics_data"] += res["anno_stats"][target]["stat name"] + "\t"
-                    res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["stat val"]) + "\t"
+                    res["tsv"]["statistics_data"] += "{:.4f}".format(res["anno_stats"][target]["stat val"]) + "\t"
                     res["tsv"]["statistics_data"] += "p-value\t"
-                    res["tsv"]["statistics_data"] += "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
+                    res["tsv"]["statistics_data"] += "{:.4f}".format(res["anno_stats"][target]["p val"]) + "\n"
 
                 res["tsv"]["statistics_multi_comp"] = ""
                 for target in sortTar:
@@ -12703,7 +12725,6 @@ class Run:
         reacts = _get_all_children(self._node, "react")
         for react in reacts:
             if int(react.get('id')) == int(vReact):
-                #self._node.remove(react)
                 _change_subelement(react, "vol", ["sample", "vol", "data", "partitions"], vol, True, "float")
                 break
         return
