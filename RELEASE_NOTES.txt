@@ -2,9 +2,17 @@ Version 2.0.0  -  XX.01.2024
 ----------------------------
 
 - Introduction of Ncopy.
+
+- Introduce RDML v1.4
+
 - Replace Cq tests by Ncopy tests
+
 - Change RDML by default yes
-- Absolute quantification in copies per reaction
+
+- Absolute quantification only uses Ncopy
+
+- corrCq is calculated based on Ncopy with PCR eff 2.0
+    corrCq = log2(copyThreshold / corrNcopy)
 
 
 Version 1.6.0  -  XX.10.2022

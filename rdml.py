@@ -60,6 +60,17 @@ class secondError(RdmlError):
     pass
 
 
+def _get_copies_threshold():
+    """Get the number of copies at threshold (rule of thumb).
+
+    Returns:
+        The number of copies at threshold as float.
+    """
+
+    copies = 10 * pow(1.9, 35.0)
+    return copies
+
+
 def _get_first_child(base, tag):
     """Get a child element of the base node with a given tag.
 
@@ -8658,14 +8669,8 @@ class Experiment:
         res["tsv"] = {}
         res["plate"]["corrP"] = []
         res["plate"]["matrix"] = []
-        res["plate"]["threshold"] = []
-        res["plate"]["Thres_Sum"] = []
-        res["plate"]["Thres_Num"] = []
         err = ""
-        res["threshold"] = -1.0
         tarPara = {}
-        thres_Sum = 0.0
-        thres_Num = 0
         samSel = {}
         allRuns = self.runs()
 
@@ -8703,21 +8708,12 @@ class Experiment:
                     res["target"][tar] = {}
                     res["target"][tar]["present"] = {}
                     res["target"][tar]["overlap"] = []
-                    res["target"][tar]["ampEff"] = -1.0
-                    res["target"][tar]["ampEffSE"] = -1.0
-                    res["target"][tar]["runAmpEff"] = []
-                    res["target"][tar]["runAmpEffSE"] = []
-                    res["target"][tar]["runAmpEffNum"] = []
-                    res["target"][tar]["runAmpEffSENum"] = []
 
         sortTargets = sorted(list(res["target"].keys()))
 
         # Create Plate Matrix
         for row in range(0, len(allRuns)):
             res["plate"]["matrix"].append([])
-            res["plate"]["threshold"].append(-1.0)
-            res["plate"]["Thres_Sum"].append(0.0)
-            res["plate"]["Thres_Num"].append(0)
             for col in range(0, len(allRuns)):
                 res["plate"]["matrix"][row].append(-1.0)
                 if row == col:
@@ -8725,22 +8721,8 @@ class Experiment:
         res["plate"]["matrix"][0][0] = -2.0
         for tar in res["target"]:
             tarPara[tar] = {}
-            tarPara[tar]["Eff_Sum"] = 0.0
-            tarPara[tar]["Eff_Num"] = 0
-            tarPara[tar]["Run_Eff_Sum"] = []
-            tarPara[tar]["Run_Eff_Num"] = []
-            tarPara[tar]["Err_Sum"] = []
-            tarPara[tar]["Err_Num"] = []
             for row in range(0, len(allRuns)):
                 res["target"][tar]["overlap"].append([])
-                res["target"][tar]["runAmpEff"].append(-1.0)
-                res["target"][tar]["runAmpEffSE"].append(-1.0)
-                res["target"][tar]["runAmpEffNum"].append(0)
-                res["target"][tar]["runAmpEffSENum"].append(0)
-                tarPara[tar]["Run_Eff_Sum"].append(0.0)
-                tarPara[tar]["Run_Eff_Num"].append(0)
-                tarPara[tar]["Err_Sum"].append(0.0)
-                tarPara[tar]["Err_Num"].append(0)
                 for col in range(0, len(allRuns)):
                     res["target"][tar]["overlap"][row].append(0)
                     if row == col:
@@ -8764,38 +8746,7 @@ class Experiment:
                     if excluded != "":
                         continue
                     res["target"][tar]["present"][pRunA] = True
-                    ampEff = _get_first_child_text(react_data, "ampEff")
-                    if ampEff != "":
-                        try:
-                            ampEff = float(ampEff)
-                        except ValueError:
-                            pass
-                        else:
-                            tarPara[tar]["Eff_Sum"] += ampEff
-                            tarPara[tar]["Eff_Num"] += 1
-                            tarPara[tar]["Run_Eff_Sum"][pRunA] += ampEff
-                            tarPara[tar]["Run_Eff_Num"][pRunA] += 1
-                    effErr = _get_first_child_text(react_data, "ampEffSE")
-                    if effErr != "":
-                        try:
-                            effErr = float(effErr)
-                        except ValueError:
-                            pass
-                        else:
-                            tarPara[tar]["Err_Sum"][pRunA] += effErr
-                            tarPara[tar]["Err_Num"][pRunA] += 1
-                    thres = _get_first_child_text(react_data, "quantFluor")
-                    if thres != "":
-                        try:
-                            thres = float(thres)
-                        except ValueError:
-                            pass
-                        else:
-                            res["plate"]["Thres_Sum"][pRunA] += math.log(thres)
-                            res["plate"]["Thres_Num"][pRunA] += 1
-                            thres_Sum += math.log(thres)
-                            thres_Num += 1
-
+ 
         # Analyze the runs pair by pair
         if calcCorrection:
             for cRunA in range(0, len(allRuns)):
@@ -8825,16 +8776,16 @@ class Experiment:
                         excluded = _get_first_child_text(react_data, "excl")
                         if excluded != "":
                             continue
-                        n0Val = _get_first_child_text(react_data, "N0")
-                        if n0Val == "":
+                        nCopyVal = _get_first_child_text(react_data, "Ncopy")
+                        if nCopyVal == "":
                             continue
                         try:
-                            n0Val = float(n0Val)
+                            nCopyVal = float(nCopyVal)
                         except ValueError:
                             continue
-                        if not math.isfinite(n0Val):
+                        if not math.isfinite(nCopyVal):
                             continue
-                        if n0Val <= 0.0:
+                        if nCopyVal <= 0.0:
                             continue
                         corrFVal = _get_first_child_text(react_data, "corrF")
                         if corrFVal != "":
@@ -8843,7 +8794,7 @@ class Experiment:
                             except ValueError:
                                 pass
                             if math.isfinite(corrFVal):
-                                n0Val *= corrFVal
+                                nCopyVal *= corrFVal
 
                         if target not in possible:
                             possible[target] = {}
@@ -8855,11 +8806,11 @@ class Experiment:
                             translSamp = samSel[sample]
                             if translSamp not in possible[target]:
                                 possible[target][translSamp] = []
-                            possible[target][translSamp].append(n0Val)
+                            possible[target][translSamp].append(nCopyVal)
                         else:
                             if sample not in possible[target]:
                                 possible[target][sample] = []
-                            possible[target][sample].append(n0Val)
+                            possible[target][sample].append(nCopyVal)
                         condCount[target] += 1
 
                 for cRunB in range(0, len(allRuns)):
@@ -8904,16 +8855,16 @@ class Experiment:
                             excluded = _get_first_child_text(react_data, "excl")
                             if excluded != "":
                                 continue
-                            n0Val = _get_first_child_text(react_data, "N0")
-                            if n0Val == "":
+                            nCopyVal = _get_first_child_text(react_data, "Ncopy")
+                            if nCopyVal == "":
                                 continue
                             try:
-                                n0Val = float(n0Val)
+                                nCopyVal = float(nCopyVal)
                             except ValueError:
                                 continue
-                            if not math.isfinite(n0Val):
+                            if not math.isfinite(nCopyVal):
                                 continue
-                            if n0Val <= 0.0:
+                            if nCopyVal <= 0.0:
                                 continue
                             corrFVal = _get_first_child_text(react_data, "corrF")
                             if corrFVal != "":
@@ -8922,7 +8873,7 @@ class Experiment:
                                 except ValueError:
                                     pass
                                 if math.isfinite(corrFVal):
-                                    n0Val *= corrFVal
+                                    nCopyVal *= corrFVal
 
                             if target not in bOverlap:
                                 bOverlap[target] = {}
@@ -8934,13 +8885,13 @@ class Experiment:
                                 translSamp = samSel[sample]
                                 if translSamp not in bOverlap[target]:
                                     bOverlap[target][translSamp] = []
-                                bOverlap[target][translSamp].append(n0Val)
+                                bOverlap[target][translSamp].append(nCopyVal)
                                 res["target"][target]["overlap"][cRunA][cRunB] += 1
                                 res["target"][target]["overlap"][cRunB][cRunA] += 1
                             else:
                                 if sample not in bOverlap[target]:
                                     bOverlap[target][sample] = []
-                                bOverlap[target][sample].append(n0Val)
+                                bOverlap[target][sample].append(nCopyVal)
                                 res["target"][target]["overlap"][cRunA][cRunB] += 1
                                 res["target"][target]["overlap"][cRunB][cRunA] += 1
 
@@ -9012,33 +8963,6 @@ class Experiment:
                 else:
                     res["plate"]["corrP"].append(-10.0)
 
-        for tar in sortTargets:
-            if tarPara[tar]["Eff_Num"] > 0:
-                res["target"][tar]["ampEff"] = tarPara[tar]["Eff_Sum"] / tarPara[tar]["Eff_Num"]
-            errSumTr = 0.0
-            errNum = 0
-            for pRunA in range(0, len(allRuns)):
-                res["target"][tar]["runAmpEffSENum"][pRunA] = tarPara[tar]["Err_Num"][pRunA]
-                if tarPara[tar]["Err_Num"][pRunA] > 0:
-                    plateSE = tarPara[tar]["Err_Sum"][pRunA] / tarPara[tar]["Err_Num"][pRunA]
-                    res["target"][tar]["runAmpEffSE"][pRunA] = plateSE
-                    errSumTr += (plateSE * math.sqrt(tarPara[tar]["Err_Num"][pRunA])) ** 2
-                    errNum += tarPara[tar]["Err_Num"][pRunA]
-                res["target"][tar]["runAmpEffNum"][pRunA] = tarPara[tar]["Run_Eff_Num"][pRunA]
-                if tarPara[tar]["Run_Eff_Num"][pRunA] > 0:
-                    res["target"][tar]["runAmpEff"][pRunA] = tarPara[tar]["Run_Eff_Sum"][pRunA] / tarPara[tar]["Run_Eff_Num"][pRunA]
-            if errNum > 0:
-                res["target"][tar]["ampEffSE"] = math.sqrt(errSumTr) / math.sqrt(errNum)
-
-        if thres_Num > 0:
-            res["threshold"] = math.exp(thres_Sum / thres_Num)
-            for pRunA in range(0, len(allRuns)):
-                if res["plate"]["Thres_Num"][pRunA] == 0:
-                    raise RdmlError('Run "' + res["runs"][pRunA] + '" does not have any reactions with amplification. Correction is not possible.')
-                res["plate"]["threshold"][pRunA] = math.exp(res["plate"]["Thres_Sum"][pRunA] / res["plate"]["Thres_Num"][pRunA])
-        else:
-            res["threshold"] = -1.0
-
         if err != "":
             res["error"] = err
 
@@ -9055,42 +8979,6 @@ class Experiment:
             else:
                 res["tsv"]["run_correction_factors"] += "\tNot available"
         res["tsv"]["run_correction_factors"] += "\n"
-
-        res["tsv"]["pcr_efficiency"] = "Target\tCombined\tSE Combined" + runLine
-        res["tsv"]["pcr_efficiency"] += "\n"
-        for tar in sortTargets:
-            res["tsv"]["pcr_efficiency"] += tar
-            tCorr = res["target"][tar]["ampEff"]
-            if tCorr > 0.0:
-                res["tsv"]["pcr_efficiency"] += '\t' + "{:.4f}".format(tCorr)
-            else:
-                res["tsv"]["pcr_efficiency"] += "\tNot available"
-            tCorr = res["target"][tar]["ampEffSE"]
-            if tCorr > 0.0:
-                res["tsv"]["pcr_efficiency"] += '\t' + "{:.4f}".format(tCorr)
-            else:
-                res["tsv"]["pcr_efficiency"] += "\tNot available"
-            for pRunA in range(0, len(allRuns)):
-                tCorr = res["target"][tar]["runAmpEff"][pRunA]
-                if tCorr > 0.0:
-                    res["tsv"]["pcr_efficiency"] += '\t' + "{:.4f}".format(tCorr)
-                else:
-                    res["tsv"]["pcr_efficiency"] += "\tNot available"
-            res["tsv"]["pcr_efficiency"] += '\n'
-
-        res["tsv"]["threshold"] = "\tCombined" + runLine
-        res["tsv"]["threshold"] += "\nThreshold"
-        tCorr = res["threshold"]
-        if tCorr > 0.0:
-            res["tsv"]["threshold"] += '\t' + "{:.4f}".format(tCorr)
-        else:
-            res["tsv"]["threshold"] += "\tNot available"
-        for tCorr in res["plate"]["threshold"]:
-            if tCorr > 0.0:
-                res["tsv"]["threshold"] += "\t" + "{:.4f}".format(tCorr)
-            else:
-                res["tsv"]["threshold"] += "\tNot available"
-        res["tsv"]["threshold"] += "\n"
 
         res["tsv"]["overlapping_conditions"] = ""
         for tar in sortTargets:
@@ -9123,7 +9011,7 @@ class Experiment:
                     for react_data in react_datas:
                         tarId = _get_first_child(react_data, "tar")
                         _change_subelement(react_data, "corrP", dataXMLelements, "-1.0", True, "string")
-                        _change_subelement(react_data, "corrCq", dataXMLelements, "-1.0", True, "string")
+                        _change_subelement(react_data, "corrCq", dataXMLelements, "", True, "string")
                         corrPlate = -1.0
                         if tarId is None:
                             continue
@@ -9133,34 +9021,6 @@ class Experiment:
                         corrPlate = res["plate"]["corrP"][pRunA]
                         goodVal = "{:.4f}".format(corrPlate)
                         _change_subelement(react_data, "corrP", dataXMLelements, goodVal, True, "string")
-                        n0Val = _get_first_child_text(react_data, "N0")
-                        if n0Val == "":
-                            continue
-                        try:
-                            n0Val = float(n0Val)
-                        except ValueError:
-                            continue
-                        if n0Val <= 0.0:
-                            continue
-                        corrFac = _get_first_child_text(react_data, "corrF")
-                        if corrFac == "":
-                            corrFac = "1.0"
-                        try:
-                            corrFac = float(corrFac)
-                        except ValueError:
-                            corrFac = 1.0
-                        if corrFac < 0.0:
-                            continue
-                        if corrPlate < 0.0:
-                            continue
-                        if res["threshold"] <= 0.0:
-                            continue
-                        if res["target"][tar]["ampEff"] <= 0.0:
-                            continue
-                        Cq_corr = (math.log10(res["threshold"]) - math.log10((n0Val * corrFac) / corrPlate)) / math.log10(res["target"][tar]["ampEff"])
-                        goodVal = "{:.4f}".format(Cq_corr)
-                        _change_subelement(react_data, "corrCq", dataXMLelements, goodVal, True, "string")
-
         return res
 
     def absoluteQuantification(self, method="reference", quantUnit="cop", estimate=True, reactionVolume=20.0, overlapType="samples", selAnnotation="", inclAnnotation=False):
@@ -9196,7 +9056,7 @@ class Experiment:
         if reactionVolume <= 0.0:
             raise RdmlError('Error: Reaction volume must be > 0.0.')
 
-        copyConst = 10 * pow(1.9, 35.0)
+        copyThreshold = _get_copies_threshold()
         mol = 6.02214076e23  # copies / Mole
         baseWeight = 660  # g / mol per base
         neg_sum = 0.0
@@ -9567,7 +9427,7 @@ class Experiment:
 
             if method == "cq-guess":
                 res["absUnit"] = "cop"
-                fluorN0Fact = float((res["threshold"] * 20.0 / reactionVolume)/ copyConst)  # 20 ul, 10 copies
+                fluorN0Fact = float((res["threshold"] * 20.0 / reactionVolume)/ copyThreshold)  # 20 ul, 10 copies
                 for tar in interRun["target"]:
                     res["fluorN0Fact"][tar] = fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
 
@@ -9987,9 +9847,9 @@ class Experiment:
 
         # Span the matrix
         gridSize = (len(res["conditions"]), len(res["reference"]))
-        n0_sum = np.zeros(gridSize, dtype=np.float64)
-        n0_num = np.zeros(gridSize, dtype=np.int64)
-        n0_geo = np.zeros(gridSize, dtype=np.float64)
+        nCopy_sum = np.zeros(gridSize, dtype=np.float64)
+        nCopy_num = np.zeros(gridSize, dtype=np.int64)
+        nCopy_geo = np.zeros(gridSize, dtype=np.float64)
 
         # Fill the matrix
         for tRunA in range(0, len(allRuns)):
@@ -10014,16 +9874,16 @@ class Experiment:
                         continue
                     if sample not in res["conditions"]:
                         continue
-                    n0Val = _get_first_child_text(react_data, "N0")
-                    if n0Val == "":
+                    nCopyVal = _get_first_child_text(react_data, "Ncopy")
+                    if nCopyVal == "":
                         continue
                     try:
-                        n0Val = float(n0Val)
+                        nCopyVal = float(nCopyVal)
                     except ValueError:
                         continue
-                    if not math.isfinite(n0Val):
+                    if not math.isfinite(nCopyVal):
                         continue
-                    if n0Val <= 0.0:
+                    if nCopyVal <= 0.0:
                         continue
                     corrFVal = _get_first_child_text(react_data, "corrF")
                     if corrFVal != "":
@@ -10032,7 +9892,7 @@ class Experiment:
                         except ValueError:
                             pass
                         if math.isfinite(corrFVal):
-                            n0Val *= corrFVal
+                            nCopyVal *= corrFVal
                     corrPVal = _get_first_child_text(react_data, "corrP")
                     if corrPVal != "":
                         try:
@@ -10041,60 +9901,60 @@ class Experiment:
                             pass
                         if math.isfinite(corrPVal):
                             if corrPVal != 0.0:
-                                n0Val /= corrPVal
-                    n0_sum[lookupCond[sample], lookupTar[target]] += np.log(n0Val)
-                    n0_num[lookupCond[sample], lookupTar[target]] += 1
+                                nCopyVal /= corrPVal
+                    nCopy_sum[lookupCond[sample], lookupTar[target]] += np.log(nCopyVal)
+                    nCopy_num[lookupCond[sample], lookupTar[target]] += 1
         with np.errstate(divide='ignore', invalid='ignore'):
-            n0_geo = np.exp(n0_sum / n0_num)
+            nCopy_geo = np.exp(nCopy_sum / nCopy_num)
 
         # Save the raw data
         res["reference"] = sorted(usedTar, key=lambda key: usedTar[key])
         if saveResultsCSV:
-            res["tsv"]["n0_count"] = "\t"
-            res["tsv"]["n0_values"] = "\t"
+            res["tsv"]["nCopy_count"] = "\t"
+            res["tsv"]["nCopy_values"] = "\t"
             for tar in res["reference"]:
-                res["tsv"]["n0_count"] += tar + "\t"
-                res["tsv"]["n0_values"] += tar + "\t"
-            res["tsv"]["n0_count"] = re.sub(r"\t$", "\n", res["tsv"]["n0_count"])
-            res["tsv"]["n0_values"] = re.sub(r"\t$", "\n", res["tsv"]["n0_values"])
+                res["tsv"]["nCopy_count"] += tar + "\t"
+                res["tsv"]["nCopy_values"] += tar + "\t"
+            res["tsv"]["nCopy_count"] = re.sub(r"\t$", "\n", res["tsv"]["nCopy_count"])
+            res["tsv"]["nCopy_values"] = re.sub(r"\t$", "\n", res["tsv"]["nCopy_values"])
             for row in range(0, len(res["conditions"])):
-                res["tsv"]["n0_count"] += res["conditions"][row] + "\t"
-                res["tsv"]["n0_values"] += res["conditions"][row] + "\t"
-                for col in range(0, len(n0_num[row])):
-                    res["tsv"]["n0_count"] += str(n0_num[row, col]) + "\t"
-                    res["tsv"]["n0_values"] += "{:.4e}".format(n0_geo[row, col]) + "\t"
-                res["tsv"]["n0_count"] = re.sub(r"\t$", "\n", res["tsv"]["n0_count"])
-                res["tsv"]["n0_values"] = re.sub(r"\t$", "\n", res["tsv"]["n0_values"])
+                res["tsv"]["nCopy_count"] += res["conditions"][row] + "\t"
+                res["tsv"]["nCopy_values"] += res["conditions"][row] + "\t"
+                for col in range(0, len(nCopy_num[row])):
+                    res["tsv"]["nCopy_count"] += str(nCopy_num[row, col]) + "\t"
+                    res["tsv"]["nCopy_values"] += "{:.4f}".format(nCopy_geo[row, col]) + "\t"
+                res["tsv"]["nCopy_count"] = re.sub(r"\t$", "\n", res["tsv"]["nCopy_count"])
+                res["tsv"]["nCopy_values"] = re.sub(r"\t$", "\n", res["tsv"]["nCopy_values"])
 
         # Remove empty columns and rows
-        if np.amax(n0_num) == 0:
+        if np.amax(nCopy_num) == 0:
             res["error"] = "Error: No data to run geNorm+ on."
             return res
-        columMax = np.amax(n0_num, axis=0)
+        columMax = np.amax(nCopy_num, axis=0)
         for col in range(len(columMax) -1, -1, -1):
             if columMax[col] == 0:
                 err += "Removed target: " + res["reference"][col] + ";"
                 del res["reference"][col]
-                n0_num = np.delete(n0_num, col, axis=1)
-                n0_geo = np.delete(n0_geo, col, axis=1)
-        rowMax = np.amax(n0_num, axis=1)
+                nCopy_num = np.delete(nCopy_num, col, axis=1)
+                nCopy_geo = np.delete(nCopy_geo, col, axis=1)
+        rowMax = np.amax(nCopy_num, axis=1)
         for row in range(len(rowMax) -1, -1, -1):
             if rowMax[row] == 0:
                 err += "Removed condition: " + res["conditions"][row] + ";"
                 del res["conditions"][row]
-                n0_num = np.delete(n0_num, row, axis=0)
-                n0_geo = np.delete(n0_geo, row, axis=0)
+                nCopy_num = np.delete(nCopy_num, row, axis=0)
+                nCopy_geo = np.delete(nCopy_geo, row, axis=0)
 
-        # print(np.shape(n0_geo)[1])
-        if np.shape(n0_geo)[1] < 2:
+        # print(np.shape(nCopy_geo)[1])
+        if np.shape(nCopy_geo)[1] < 2:
             raise RdmlError('Error: geNorm requires at least two reference genes.')
-        if np.shape(n0_geo)[0] < 2:
+        if np.shape(nCopy_geo)[0] < 2:
             raise RdmlError('Error: geNorm requires at least two conditions.')
 
         # Calculate M factor
-        mFactor = np.zeros(np.shape(n0_geo)[1], dtype=np.float64)
-        for col in range(0, np.shape(n0_geo)[1]):
-            logRes = np.log2(n0_geo[:, col][:, None] / np.delete(n0_geo, col, axis=1))
+        mFactor = np.zeros(np.shape(nCopy_geo)[1], dtype=np.float64)
+        for col in range(0, np.shape(nCopy_geo)[1]):
+            logRes = np.log2(nCopy_geo[:, col][:, None] / np.delete(nCopy_geo, col, axis=1))
             stdRes = np.nanstd(logRes, axis=0, ddof=1)
             mFactor[col] = np.nanmean(stdRes)
         #    print(res["reference"][col])
@@ -10102,15 +9962,15 @@ class Experiment:
         #    print(mFactor[col])
 
         # Calculate V factor
-        vFactor = np.zeros(np.shape(n0_geo)[1] - 2, dtype=np.float64)
+        vFactor = np.zeros(np.shape(nCopy_geo)[1] - 2, dtype=np.float64)
         mFactorInds = mFactor.argsort()
         sorted_mFactor = mFactor[mFactorInds[::1]]
-        sorted_n0_geo = n0_geo[:, mFactorInds[::1]]
+        sorted_nCopy_geo = nCopy_geo[:, mFactorInds[::1]]
         sorted_Refs = np.array(res["reference"])[mFactorInds[::1]]
 
         res["m_targets"] = []
         res["m_values"] = []
-        for col in range(np.shape(n0_geo)[1] - 1, -1, -1):
+        for col in range(np.shape(nCopy_geo)[1] - 1, -1, -1):
             res["m_targets"].append(str(sorted_Refs[col]))
             res["m_values"].append(float(sorted_mFactor[col]))
 
@@ -10119,20 +9979,20 @@ class Experiment:
             for tar in res["m_targets"]:
                 res["tsv"]["m_values"] += tar + "\t"
             res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
-            if np.shape(n0_geo)[1] > 2:
+            if np.shape(nCopy_geo)[1] > 2:
                 for mVal in res["m_values"]:
                     res["tsv"]["m_values"] += "{:.6f}".format(mVal) + "\t"
                 res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
 
-        if np.shape(n0_geo)[1] > 2:
+        if np.shape(nCopy_geo)[1] > 2:
             res["v_labels"] = []
             res["v_values"] = []
-            for col in range(1, np.shape(n0_geo)[1] - 1):
+            for col in range(1, np.shape(nCopy_geo)[1] - 1):
                 res["v_labels"].append("v" + str(col+1) + "/" + str(col+2))
-                sum_a = np.nansum(np.log(sorted_n0_geo[:, 0:col + 1]), axis=1)
-                sum_b = np.nansum(np.log(sorted_n0_geo[:, 0:col + 2]), axis=1)
-                num_a = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 1])), axis=1)
-                num_b = np.count_nonzero(~np.isnan(np.log(sorted_n0_geo[:, 0:col + 2])), axis=1)
+                sum_a = np.nansum(np.log(sorted_nCopy_geo[:, 0:col + 1]), axis=1)
+                sum_b = np.nansum(np.log(sorted_nCopy_geo[:, 0:col + 2]), axis=1)
+                num_a = np.count_nonzero(~np.isnan(np.log(sorted_nCopy_geo[:, 0:col + 1])), axis=1)
+                num_b = np.count_nonzero(~np.isnan(np.log(sorted_nCopy_geo[:, 0:col + 2])), axis=1)
                 with np.errstate(divide='ignore', invalid='ignore'):
                     geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
                     logDiff = np.log2(geoDiff)
@@ -10140,7 +10000,7 @@ class Experiment:
                     res["v_values"].append(float(np.nanstd(logDiff, axis=0, ddof=1)))
 
         if saveResultsCSV:
-            if np.shape(n0_geo)[1] > 2:
+            if np.shape(nCopy_geo)[1] > 2:
                 res["tsv"]["v_values"] = ""
                 for lab in res["v_labels"]:
                     res["tsv"]["v_values"] += lab + "\t"
@@ -10169,7 +10029,7 @@ class Experiment:
                 mFile.seek(0)
                 res["svg"]["m_values"] = mFile.read()
 
-            if np.shape(n0_geo)[1] > 2:
+            if np.shape(nCopy_geo)[1] > 2:
                 fig2 = plt_fig()
                 axis2 = fig2.add_subplot(1, 1, 1)
                 axis2.bar(res["v_labels"], res["v_values"])
@@ -11035,7 +10895,7 @@ class Run:
                 head[3].lower() != "target" or head[4].lower() != "target type" or head[5].lower() != "dye"):
             raise RdmlError('The tab-format is not valid, essential columns are missing.')
 
-        if head[6].lower() in ["cq", "n0"]:
+        if head[6].lower() in ["cq", "ncopy"]:
             if dMode == "melt":
                 raise RdmlError('Import Format Error: Amplification data immported as melting data.')
         if head[6].lower() == "tm":
@@ -11164,8 +11024,8 @@ class Run:
             keyFor7 = "cq"
             if dMode == "melt":
                 keyFor7 = "meltTemp"
-            if head[6].lower() == "n0":
-                keyFor7 = "N0"
+            if head[6].lower() == "ncopy":
+                keyFor7 = "Ncopy"
 
             present7 = _get_first_child(data, keyFor7)
             cont7 = re.sub(r'[^eE0-9\.;\-]', '', sLin[6])
@@ -11174,7 +11034,7 @@ class Run:
                     data.remove(present7)
             else:
                 if ((dMode == "melt" and dataVersion in ["1.3", "1.4"]) or 
-                    (dMode == "amp" and dataVersion in ["1.3", "1.4"] and keyFor7 == "N0") or
+                    (dMode == "amp" and dataVersion in ["1.3", "1.4"] and keyFor7 == "Ncopy") or
                     (dMode == "amp" and keyFor7 == "cq")):
                     if present7 is None:
                         new_node = et.Element(keyFor7)
@@ -12541,10 +12401,8 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
                 _add_first_child_to_dic(react_data, in_react, True, "corrF")
                 _add_first_child_to_dic(react_data, in_react, True, "corrP")
-                _add_first_child_to_dic(react_data, in_react, True, "corrCq")
                 _add_first_child_to_dic(react_data, in_react, True, "bgFluor")
                 # Calculate the correction factors
-                givenCq = _get_first_child_text(react_data, "corrCq")
                 corrFac = _get_first_child_text(react_data, "corrF")
                 calcCorr = 1.0
                 if not corrFac == "":
@@ -12584,28 +12442,6 @@ class Run:
                                     anyCorrections = 1
                                 if not plateFac == "":
                                     anyCorrections = 1
-                                if givenCq == "":
-                                    calcEff = _get_first_child_text(react_data, "ampEff")
-                                    if calcEff == "":
-                                        calcEff = 2.0
-                                    try:
-                                        calcEff = float(calcEff)
-                                    except ValueError:
-                                        pass
-                                    else:
-                                        if math.isfinite(calcEff):
-                                            if 0.0 < calcEff < 3.0:
-                                                calcCq = _get_first_child_text(react_data, "cq")
-                                                if not calcCq == "":
-                                                    try:
-                                                        calcCq = float(calcCq)
-                                                    except ValueError:
-                                                        pass
-                                                    else:
-                                                        if math.isfinite(calcCq):
-                                                            if calcCq > 0.0:
-                                                                finalCq = calcCq - math.log10(calcCorr) / math.log10(calcEff)
-                                                                in_react["corrCq"] = "{:.3f}".format(finalCq)
                 calcNcopy = _get_first_child_text(react_data, "Ncopy")
                 in_react["corrNcopy"] = calcNcopy
                 if not calcNcopy == "":
@@ -12626,18 +12462,13 @@ class Run:
                     if calcCorr < 0.0:
                         in_react["corrN0"] = "-1.0"
                         in_react["corrNcopy"] = "-1.0"
-                        if givenCq == "":
-                            in_react["corrCq"] = -1.0
                     else:
                         in_react["corrN0"] = "0.0"
                         in_react["corrNcopy"] = "0.0"
-                        if givenCq == "":
-                            in_react["corrCq"] = -1.0
                 if calcPlate < 0.0:
                     in_react["corrN0"] = "-1.0"
                     in_react["corrNcopy"] = "-1.0"
-                    if givenCq == "":
-                        in_react["corrCq"] = -1.0
+
                 _add_first_child_to_dic(react_data, in_react, True, "meltTemp")
                 _add_first_child_to_dic(react_data, in_react, True, "excl")
                 _add_first_child_to_dic(react_data, in_react, True, "note")
@@ -13351,7 +13182,7 @@ class Run:
         rar_tooLowCqN0 = 67
         rar_isUsedInWoL = 68
 
-        copyConst = 10 * pow(1.9, 35.0)
+        copyThreshold = _get_copies_threshold()
 
         res = []
         finalData = {}
@@ -14276,19 +14107,19 @@ class Run:
             res[rRow][rar_meanNcopy_Skip_Plat_Out] = -1.0
             if threshold[0] > 0.0:
                 if nNulls[rRow] > 0.0:
-                    res[rRow][rar_Ncopy_indiv_eff] = copyConst * nNulls[rRow] / threshold[0]
+                    res[rRow][rar_Ncopy_indiv_eff] = copyThreshold * nNulls[rRow] / threshold[0]
                 if meanNnull_Skip[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip] = copyConst * meanNnull_Skip[rRow] / threshold[0]
+                    res[rRow][rar_meanNcopy_Skip] = copyThreshold * meanNnull_Skip[rRow] / threshold[0]
                 if meanNnull_Skip_Plat[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Plat] = copyConst * meanNnull_Skip_Plat[rRow] / threshold[0]
+                    res[rRow][rar_meanNcopy_Skip_Plat] = copyThreshold * meanNnull_Skip_Plat[rRow] / threshold[0]
                 if meanNnull_Skip_Mean[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Mean] = copyConst * meanNnull_Skip_Mean[rRow] / threshold[0]
+                    res[rRow][rar_meanNcopy_Skip_Mean] = copyThreshold * meanNnull_Skip_Mean[rRow] / threshold[0]
                 if meanNnull_Skip_Plat_Mean[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Plat_Mean] = copyConst * meanNnull_Skip_Plat_Mean[rRow] / threshold[0]
+                    res[rRow][rar_meanNcopy_Skip_Plat_Mean] = copyThreshold * meanNnull_Skip_Plat_Mean[rRow] / threshold[0]
                 if meanNnull_Skip_Out[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Out] = copyConst * meanNnull_Skip_Out[rRow] / threshold[0]
+                    res[rRow][rar_meanNcopy_Skip_Out] = copyThreshold * meanNnull_Skip_Out[rRow] / threshold[0]
                 if meanNnull_Skip_Plat_Out[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Plat_Out] = copyConst * meanNnull_Skip_Plat_Out[rRow] / threshold[0]
+                    res[rRow][rar_meanNcopy_Skip_Plat_Out] = copyThreshold * meanNnull_Skip_Plat_Out[rRow] / threshold[0]
  
             res[rRow][rar_amplification] = not vecNoAmplification[rRow]
             res[rRow][rar_baseline_error] = vecBaselineError[rRow]
@@ -14343,7 +14174,7 @@ class Run:
         
             if threshold[0] > 0.0:
                 if N0Val > 0.0:
-                    ncopy = copyConst * N0Val / threshold[0]
+                    ncopy = copyThreshold * N0Val / threshold[0]
 
             if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                 if ncopy > 0.0:
@@ -14497,7 +14328,7 @@ class Run:
                             if np.isfinite(N0Val):
                                 if threshold[0] > 0.0:
                                     if N0Val > 0.0:
-                                        goodVal = "{:.4f}".format(copyConst * N0Val / threshold[0])
+                                        goodVal = "{:.4f}".format(copyThreshold * N0Val / threshold[0])
                             _change_subelement(rdmlElemData[rRow], "Ncopy", dataXMLelements, goodVal, True, "string")
                         _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
                         if not np.isfinite(meanEffVal):
@@ -15830,31 +15661,11 @@ class Run:
                                     finalFactor = peakResFluor[rRow][lCol] / peakResSumFuor[rRow]
                                     goodVal = "{:.3f}".format(finalFactor)
                                     _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
-                                    _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "-1.0", True, "string")
-                                    oldCq = _get_first_child_text(rdmlElemData[rRow], "cq")
-                                    if oldCq != "":
-                                        try:
-                                            oldCq = float(oldCq)
-                                        except ValueError:
-                                            pass
-                                        else:
-                                            ampEff = _get_first_child_text(rdmlElemData[rRow], "ampEff")
-                                            if ampEff != "":
-                                                try:
-                                                    ampEff = float(ampEff)
-                                                except ValueError:
-                                                    pass
-                                                else:
-                                                    if 0.01 < ampEff < 3.0:
-                                                        finalCq = oldCq - np.log10(finalFactor) / np.log10(ampEff)
-                                                        goodVal = "{:.3f}".format(finalCq)
-                                                        _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, goodVal, True, "string")
-                                goodVal = "{:.3f}".format(peakResTemp[rRow][lCol])
-                                _change_subelement(rdmlElemData[rRow], "meltTemp", dataXMLelements, goodVal, True, "string")
+                                    _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
                             else:
                                 if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
                                      _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, "0.0", True, "string")
-                                     _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "-1.0", True, "string")
+                                     _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
             finalData["resultsList"] = resTable
         return finalData
 
