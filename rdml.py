@@ -9275,462 +9275,460 @@ class Experiment:
                             if len(amplicon) > 20:
                                 res["target"][tarId]["ampliconLen"] = len(amplicon)
 
-        if 1 > 0:
-            if method == "reference":
-                stdCurves = {}
-                res["absUnit"] = quantUnit
-                for qTar in res["target"]:
-                    stdCurves[qTar] = {}
+        if method == "reference":
+            stdCurves = {}
+            res["absUnit"] = quantUnit
+            for qTar in res["target"]:
+                stdCurves[qTar] = {}
+                for pRunA in range(0, len(allRuns)):
+                    runA = allRuns[pRunA]
+                    stdCurves[qTar][runA['id']] = {}
+                    stdCurves[qTar][runA['id']]["x"] = []
+                    stdCurves[qTar][runA['id']]["Ncopy"] = []
+                if len(res["quantity"][quantUnit]["samples"][qTar]) > 0:
+                    sortValues = sorted(list(res["quantity"][quantUnit]["samples"][qTar].keys()), reverse=True)
+                    for qValue in res["quantity"][quantUnit]["samples"][qTar]:
+                        if qValue <= 0.0:
+                            continue
+                        geo_sum = 0.0
+                        geo_num = 0
+                        vol_sum = 0.0
+                        selSamples = list(res["quantity"][quantUnit]["samples"][qTar][qValue].keys())
+                        for qSamp in selSamples:
+                            for react_data in stdSamples[qTar][qSamp]:
+                                corrFac = _get_first_child_text(react_data, "corrF")
+                                calcCorr = 1.0
+                                if not corrFac == "":
+                                    try:
+                                        calcCorr = float(corrFac)
+                                    except ValueError:
+                                        calcCorr = 1.0
+                                    if not math.isfinite(calcCorr):
+                                        calcCorr = 1.0
+                                    if calcCorr > 1.0:
+                                        calcCorr = 1.0
+                                plateFac = _get_first_child_text(react_data, "corrP")
+                                calcPlate = 1.0
+                                if not plateFac == "":
+                                    try:
+                                        calcPlate = float(plateFac)
+                                    except ValueError:
+                                        calcPlate = 0.0
+                                    if not math.isfinite(calcPlate):
+                                        calcCorr = 0.0
+                                    if calcPlate == 0.0:
+                                        calcCorr = 0.0
+                                    calcCorr = calcCorr / calcPlate
+                                calcNcopy = _get_first_child_text(react_data, "Ncopy")
+                                if calcCorr > 0.0001:
+                                    if not calcNcopy == "":
+                                        try:
+                                            calcNcopy = float(calcNcopy)
+                                        except ValueError:
+                                            pass
+                                        else:
+                                            if math.isfinite(calcNcopy):
+                                                finalNcopy = calcCorr * calcNcopy
+                                                if finalNcopy > 0.0:
+                                                    geo_sum += math.log(finalNcopy)
+                                                    geo_num += 1
+                                                    volume = reactionVolume
+                                                    react = react_data.getparent()
+                                                    readVol = _get_first_child_text(react, "vol")
+                                                    if not readVol == "":
+                                                        try:
+                                                            volume = float(readVol)
+                                                        except ValueError:
+                                                            volume = reactionVolume
+                                                        if not math.isfinite(volume):
+                                                            volume = reactionVolume
+                                                        if volume <= 0.0:
+                                                            volume = reactionVolume
+                                                    vol_sum += math.log(volume)
+                                                    run = react.getparent()
+                                                    if 'id' in run.attrib:
+                                                        stdCurves[qTar][run.attrib['id']]["x"].append(math.log10(qValue * volume))
+                                                        stdCurves[qTar][run.attrib['id']]["Ncopy"].append(finalNcopy)
+                        if qValue == sortValues[0]:
+                            if geo_num > 0:
+                                geoNcopy = math.exp(geo_sum / geo_num)
+                                geoVol = math.exp(vol_sum / geo_num)
+                                res["corrNcopyFact"][qTar] = (sortValues[0] * geoVol) / geoNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
                     for pRunA in range(0, len(allRuns)):
-                        runA = allRuns[pRunA]
-                        stdCurves[qTar][runA['id']] = {}
-                        stdCurves[qTar][runA['id']]["x"] = []
-                        stdCurves[qTar][runA['id']]["Ncopy"] = []
-                    if len(res["quantity"][quantUnit]["samples"][qTar]) > 0:
-                        sortValues = sorted(list(res["quantity"][quantUnit]["samples"][qTar].keys()), reverse=True)
-                        for qValue in res["quantity"][quantUnit]["samples"][qTar]:
-                            if qValue <= 0.0:
-                                continue
-                            geo_sum = 0.0
-                            geo_num = 0
-                            vol_sum = 0.0
-                            selSamples = list(res["quantity"][quantUnit]["samples"][qTar][qValue].keys())
-                            for qSamp in selSamples:
-                                for react_data in stdSamples[qTar][qSamp]:
-                                    corrFac = _get_first_child_text(react_data, "corrF")
-                                    calcCorr = 1.0
-                                    if not corrFac == "":
-                                        try:
-                                            calcCorr = float(corrFac)
-                                        except ValueError:
-                                            calcCorr = 1.0
-                                        if not math.isfinite(calcCorr):
-                                            calcCorr = 1.0
-                                        if calcCorr > 1.0:
-                                            calcCorr = 1.0
-                                    plateFac = _get_first_child_text(react_data, "corrP")
-                                    calcPlate = 1.0
-                                    if not plateFac == "":
-                                        try:
-                                            calcPlate = float(plateFac)
-                                        except ValueError:
-                                            calcPlate = 0.0
-                                        if not math.isfinite(calcPlate):
-                                            calcCorr = 0.0
-                                        if calcPlate == 0.0:
-                                            calcCorr = 0.0
-                                        calcCorr = calcCorr / calcPlate
-                                    calcNcopy = _get_first_child_text(react_data, "Ncopy")
-                                    if calcCorr > 0.0001:
-                                        if not calcNcopy == "":
-                                            try:
-                                                calcNcopy = float(calcNcopy)
-                                            except ValueError:
-                                                pass
-                                            else:
-                                                if math.isfinite(calcNcopy):
-                                                    finalNcopy = calcCorr * calcNcopy
-                                                    if finalNcopy > 0.0:
-                                                        geo_sum += math.log(finalNcopy)
-                                                        geo_num += 1
-                                                        volume = reactionVolume
-                                                        react = react_data.getparent()
-                                                        readVol = _get_first_child_text(react, "vol")
-                                                        if not readVol == "":
-                                                            try:
-                                                                volume = float(readVol)
-                                                            except ValueError:
-                                                                volume = reactionVolume
-                                                            if not math.isfinite(volume):
-                                                                volume = reactionVolume
-                                                            if volume <= 0.0:
-                                                                volume = reactionVolume
-                                                        vol_sum += math.log(volume)
-                                                        run = react.getparent()
-                                                        if 'id' in run.attrib:
-                                                            stdCurves[qTar][run.attrib['id']]["x"].append(math.log10(qValue * volume))
-                                                            stdCurves[qTar][run.attrib['id']]["Ncopy"].append(finalNcopy)
-                            if qValue == sortValues[0]:
-                                if geo_num > 0:
-                                    geoNcopy = math.exp(geo_sum / geo_num)
-                                    geoVol = math.exp(vol_sum / geo_num)
-                                    res["corrNcopyFact"][qTar] = (sortValues[0] * geoVol) / geoNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
-                        for pRunA in range(0, len(allRuns)):
-                            for aPos  in range(0, len(stdCurves[qTar][run.attrib['id']]["Ncopy"])):
-                                stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] = math.log2(copyThreshold_rot / (stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] * res["corrNcopyFact"][qTar]))
+                        for aPos  in range(0, len(stdCurves[qTar][run.attrib['id']]["Ncopy"])):
+                            stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] = math.log2(copyThreshold_rot / (stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] * res["corrNcopyFact"][qTar]))
 
-                stdCurvesCsv = ""
-                for tar in stdCurves:
-                    for runPos in range(0, len(allRuns)):
-                        runEle = allRuns[runPos]
-                        runID = runEle['id']
-                        if runID in stdCurves[tar]:
-                            if len(stdCurves[tar][runID]["x"]) > 0:
-                                curveLinReg = scp.stats.linregress(x=stdCurves[tar][runID]["x"], y=stdCurves[tar][runID]["Ncopy"])
-                                dilPCREff = float(np.power(10.0, -1.0 / curveLinReg.slope))
-                                rSquared = float(curveLinReg.rvalue) ** 2
-                                dilFactor = 10 * float(np.power(2.0, -1.0 / np.log10(dilPCREff)))
-                                print(dilFactor)
-                                stdCurvesCsv += tar + '\t'
-                                stdCurvesCsv += runID + '\t'
-                                stdCurvesCsv += "{:.4f}".format(rSquared) + '\t'
-                                stdCurvesCsv += "{:.4f}".format(dilFactor) + '\n'
+            stdCurvesCsv = ""
+            for tar in stdCurves:
+                for runPos in range(0, len(allRuns)):
+                    runEle = allRuns[runPos]
+                    runID = runEle['id']
+                    if runID in stdCurves[tar]:
+                        if len(stdCurves[tar][runID]["x"]) > 0:
+                            curveLinReg = scp.stats.linregress(x=stdCurves[tar][runID]["x"], y=stdCurves[tar][runID]["Ncopy"])
+                            dilPCREff = float(np.power(10.0, -1.0 / curveLinReg.slope))
+                            rSquared = float(curveLinReg.rvalue) ** 2
+                            dilFactor = 10 * float(np.power(2.0, -1.0 / np.log10(dilPCREff)))
+                            print(dilFactor)
+                            stdCurvesCsv += tar + '\t'
+                            stdCurvesCsv += runID + '\t'
+                            stdCurvesCsv += "{:.4f}".format(rSquared) + '\t'
+                            stdCurvesCsv += "{:.4f}".format(dilFactor) + '\n'
 
-                if stdCurvesCsv != "":
-                    res["tsv"]["dilStandard"] = "Target\tRun\tDilution R^2\tDilution Factor\n"
-                    res["tsv"]["dilStandard"] += stdCurvesCsv
+            if stdCurvesCsv != "":
+                res["tsv"]["dilStandard"] = "Target\tRun\tDilution R^2\tDilution Factor\n"
+                res["tsv"]["dilStandard"] += stdCurvesCsv
 
-                if estimate is True:
-                    geoTar_sum = 0.0
-                    geoTar_num = 0
+            if estimate is True:
+                geoTar_sum = 0.0
+                geoTar_num = 0
+                for qTar in res["target"]:
+                    if res["corrNcopyFact"][qTar] > 0.0:
+                        geoTar_sum += math.log(res["corrNcopyFact"][qTar])
+                        geoTar_num += 1
+                if geoTar_num > 0:
+                    geoTar = math.exp(geoTar_sum / geoTar_num)
                     for qTar in res["target"]:
-                        if res["corrNcopyFact"][qTar] > 0.0:
-                            geoTar_sum += math.log(res["corrNcopyFact"][qTar])
-                            geoTar_num += 1
-                    if geoTar_num > 0:
-                        geoTar = math.exp(geoTar_sum / geoTar_num)
-                        for qTar in res["target"]:
-                            if res["corrNcopyFact"][qTar] <= 0.0:
-                                res["corrNcopyFact"][qTar] = geoTar
+                        if res["corrNcopyFact"][qTar] <= 0.0:
+                            res["corrNcopyFact"][qTar] = geoTar
 
-            if method == "cq-guess":
-                res["absUnit"] = "cop"
-                for tar in res["target"]:
-                    res["corrNcopyFact"][tar] = 1.0
-                    if res["target"][tar]["ampliconLen"] > 0.0:
-                        res["corrNcopyFact"][tar] = 100 / res["target"][tar]["ampliconLen"]
+        if method == "cq-guess":
+            res["absUnit"] = "cop"
+            for tar in res["target"]:
+                res["corrNcopyFact"][tar] = 1.0
+                if res["target"][tar]["ampliconLen"] > 0.0:
+                    res["corrNcopyFact"][tar] = 100 / res["target"][tar]["ampliconLen"]
 
-            if method == "optical":
-                res["absUnit"] = "cop"
-                concFluor = {}
-                neg_sum = 0.0
-                neg_num = 0
-                negFluor = 0.0
-                for currConc in optQuantity:
-                    fluor_sum = 0.0
-                    fluor_num = 0
-                    for currSamp in optQuantity[currConc]:
-                        for react_data in optSamples[currSamp]:
-                            threshold = _get_first_child_text(adp, "cyc")
-                            if not threshold == "":
+        if method == "optical":
+            res["absUnit"] = "cop"
+            concFluor = {}
+            neg_sum = 0.0
+            neg_num = 0
+            negFluor = 0.0
+            for currConc in optQuantity:
+                fluor_sum = 0.0
+                fluor_num = 0
+                for currSamp in optQuantity[currConc]:
+                    for react_data in optSamples[currSamp]:
+                        threshold = _get_first_child_text(adp, "cyc")
+                        if not threshold == "":
+                            try:
+                                threshold = float(threshold)
+                            except ValueError:
+                                continue
+                            if not math.isfinite(threshold):
+                                continue
+                            if threshold <= 0.0:
+                                continue
+                        adps = _get_all_children(react_data, "adp")
+                        for adp in adps:
+                            cyc = _get_first_child_text(adp, "cyc")
+                            if not cyc == "":
                                 try:
-                                    threshold = float(threshold)
+                                    cyc = int(float(cyc))
                                 except ValueError:
                                     continue
-                                if not math.isfinite(threshold):
+                                if cyc < 0:
                                     continue
-                                if threshold <= 0.0:
-                                    continue
-                            adps = _get_all_children(react_data, "adp")
-                            for adp in adps:
-                                cyc = _get_first_child_text(adp, "cyc")
-                                if not cyc == "":
+                            if cyc < 6:
+                                curFlour = _get_first_child_text(adp, "fluor")
+                                if not curFlour == "":
                                     try:
-                                        cyc = int(float(cyc))
+                                        curFlour = float(curFlour)
                                     except ValueError:
                                         continue
-                                    if cyc < 0:
+                                    if not math.isfinite(curFlour):
                                         continue
-                                if cyc < 6:
-                                    curFlour = _get_first_child_text(adp, "fluor")
-                                    if not curFlour == "":
-                                        try:
-                                            curFlour = float(curFlour)
-                                        except ValueError:
-                                            continue
-                                        if not math.isfinite(curFlour):
-                                            continue
-                                        if curFlour <= 0.0:
-                                            continue
-                                    corrFlour = curFlour / threshold
-                                    if currConc > 0.000001:
-                                        fluor_sum += math.log(corrFlour)
-                                        fluor_num += 1
-                                    else:
-                                        neg_sum += math.log(corrFlour)
-                                        neg_num += 1
-                    if fluor_num > 0:
-                        concFluor[currConc] = math.exp(fluor_sum / fluor_num)
-                if neg_num > 0:
-                    negFluor = math.exp(neg_sum / neg_num)
+                                    if curFlour <= 0.0:
+                                        continue
+                                corrFlour = curFlour / threshold
+                                if currConc > 0.000001:
+                                    fluor_sum += math.log(corrFlour)
+                                    fluor_num += 1
+                                else:
+                                    neg_sum += math.log(corrFlour)
+                                    neg_num += 1
+                if fluor_num > 0:
+                    concFluor[currConc] = math.exp(fluor_sum / fluor_num)
+            if neg_num > 0:
+                negFluor = math.exp(neg_sum / neg_num)
 
-                finalFluor = 1e12
-                finalConc = -1.0
-                ngTreshold_rot = copyThreshold_rot * 1e9 * ((100 * 615.96) + 36.04) / mol
-                for currConc in concFluor:
-                    currFluor = concFluor[currConc] - negFluor
-                    if 1.0 + negFluor < currFluor < finalFluor:
-                        finalFluor = currFluor
-                        finalConc = currConc
+            finalFluor = 1e12
+            finalConc = -1.0
+            ngTreshold_rot = copyThreshold_rot * 1e9 * ((100 * 615.96) + 36.04) / mol
+            for currConc in concFluor:
+                currFluor = concFluor[currConc] - negFluor
+                if 1.0 + negFluor < currFluor < finalFluor:
+                    finalFluor = currFluor
+                    finalConc = currConc
 
-                # corrNcopyFact = float(res["threshold"]) / thresCopies
-                for tar in res["target"]:
-                    res["corrNcopyFact"][tar] *= (finalConc / (finalFluor - negFluor)) * 100 / res["target"][tar]["ampliconLen"]
-                    # 1.0 / (float(res["threshold"]) / ((currConc * mol / (100 * baseWeight * 1e9)) / currFluor) * res["target"][tar]["ampliconLen"] / reactionVolume) / 100
+            # corrNcopyFact = float(res["threshold"]) / thresCopies
+            for tar in res["target"]:
+                res["corrNcopyFact"][tar] *= (finalConc / (finalFluor - negFluor)) * 100 / res["target"][tar]["ampliconLen"]
+                # 1.0 / (float(res["threshold"]) / ((currConc * mol / (100 * baseWeight * 1e9)) / currFluor) * res["target"][tar]["ampliconLen"] / reactionVolume) / 100
 
-            res["tsv"]["corrNcopyFact"] = 'Target\tQuant. Fact.\tAmplicon Length\t'
-            res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("cop") + ' at Threshold\t'
-            res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("ng") + ' at Threshold\n'
-            for tar in sortTargets:
-                res["tsv"]["corrNcopyFact"] += tar + '\t'
-                res["tsv"]["corrNcopyFact"] += "{:.6f}".format(res["corrNcopyFact"][tar]) + '\t'
-                res["tsv"]["corrNcopyFact"] += str(res["target"][tar]["ampliconLen"]) + '\t'
-                if res["corrNcopyFact"][tar] > 0.0:
-                    copiesCalc = copyThreshold_rot * res["corrNcopyFact"][tar]
-                    ngCalc = copiesCalc * 1e9 * ((res["target"][tar]["ampliconLen"] * 615.96) + 36.04) / mol
-                    res["tsv"]["corrNcopyFact"] += "{:.4e}".format(copiesCalc) + '\t'
-                    res["tsv"]["corrNcopyFact"] += "{:.4f}".format(ngCalc)
-                else:
-                    res["tsv"]["corrNcopyFact"] += '\tt'
-                res["tsv"]["corrNcopyFact"] += '\n'
-
-            if method == "optical":
-                csvStandard = ""
-                if neg_num > 0:
-                    csvStandard += 'Threshold\t' + _niceQuantityTypeReact("ng") + '\t'
-                    csvStandard += "{:.2f}".format(float(res["threshold"])) + '\t\n'
-
-                csvStandard += 'No DNA\t' + _niceQuantityTypeReact("ng") + '\t'
-                csvStandard += "{:.2f}".format(negFluor) + '\t\n'
-
-                sortedConc = sorted(list(concFluor.keys()))
-                for currConc in sortedConc:
-                    csvStandard += "{:.2f}".format(currConc) + '\t' + _niceQuantityTypeReact("ng")
-                    resFluor = concFluor[currConc] - negFluor
-                    csvStandard += '\t' + "{:.2f}".format(resFluor)
-                    calcFluor = finalFluor * currConc / finalConc
-                    csvStandard += '\t' + "{:.2f}".format(calcFluor) + '\n'
-
-                if csvStandard != "":
-                    res["tsv"]["standard"] = "Concentration\tUnit\tFluorescence\tCalculated\n"
-                    res["tsv"]["standard"] += csvStandard
+        res["tsv"]["corrNcopyFact"] = 'Target\tQuant. Fact.\tAmplicon Length\t'
+        res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("cop") + ' at Threshold\t'
+        res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("ng") + ' at Threshold\n'
+        for tar in sortTargets:
+            res["tsv"]["corrNcopyFact"] += tar + '\t'
+            res["tsv"]["corrNcopyFact"] += "{:.6f}".format(res["corrNcopyFact"][tar]) + '\t'
+            res["tsv"]["corrNcopyFact"] += str(res["target"][tar]["ampliconLen"]) + '\t'
+            if res["corrNcopyFact"][tar] > 0.0:
+                copiesCalc = copyThreshold_rot * res["corrNcopyFact"][tar]
+                ngCalc = copiesCalc * 1e9 * ((res["target"][tar]["ampliconLen"] * 615.96) + 36.04) / mol
+                res["tsv"]["corrNcopyFact"] += "{:.4e}".format(copiesCalc) + '\t'
+                res["tsv"]["corrNcopyFact"] += "{:.4f}".format(ngCalc)
             else:
-                csvStandard = ""
-                for oUnit in ["cop", "fold", "dil", "nMol", "ng", "other"]:
-                    if res["absUnit"] != oUnit:
-                        continue
-                    for oTar in res["quantity"][oUnit]["samples"]:
-                        sortStdValues = sorted(list(res["quantity"][oUnit]["samples"][oTar].keys()), reverse=True)
-                        for oValue in sortStdValues:
-                            for oSample in res["quantity"][oUnit]["samples"][oTar][oValue]:
-                                if oTar in stdSamples:
-                                    if oSample in stdSamples[oTar]:
-                                        for react_data in stdSamples[oTar][oSample]:
-                                            react = react_data.getparent()
-                                            volume = reactionVolume
-                                            readVol = _get_first_child_text(react, "vol")
-                                            if not readVol == "":
-                                                try:
-                                                    volume = float(readVol)
-                                                except ValueError:
-                                                    volume = reactionVolume
-                                                if not math.isfinite(volume):
-                                                    volume = reactionVolume
-                                                if volume <= 0.0:
-                                                    volume = reactionVolume
-                                            run = react.getparent()
-                                            if 'id' in run.attrib:
-                                                csvStandard += run.attrib['id']
-                                            csvStandard += '\t'
-                                            if 'id' in react.attrib:
-                                                csvStandard += react.attrib['id']
-                                            csvStandard += '\t' + oSample
-                                            csvStandard += '\t' + oTar
-                                            if oUnit == "cop":
-                                                csvStandard += '\t' + "{:.2f}".format(oValue * volume) + '\t'
-                                            else:
-                                                csvStandard += '\t' + "{:.4e}".format(oValue * volume) + '\t'
-                                            corrFac = _get_first_child_text(react_data, "corrF")
-                                            calcCorr = 1.0
-                                            if not corrFac == "":
-                                                try:
-                                                    calcCorr = float(corrFac)
-                                                except ValueError:
-                                                    calcCorr = 1.0
-                                                if not math.isfinite(calcCorr):
-                                                    calcCorr = 1.0
-                                                if calcCorr > 1.0:
-                                                    calcCorr = 1.0
-                                            plateFac = _get_first_child_text(react_data, "corrP")
-                                            calcPlate = 1.0
-                                            if not plateFac == "":
-                                                try:
-                                                    calcPlate = float(plateFac)
-                                                except ValueError:
-                                                    calcPlate = 0.0
-                                                if not math.isfinite(calcPlate):
-                                                    calcCorr = 0.0
-                                                if calcPlate == 0.0:
-                                                    calcCorr = 0.0
-                                                calcCorr = calcCorr / calcPlate
-                                            calcNcopy = _get_first_child_text(react_data, "Ncopy")
-                                            if calcCorr > 0.0001:
-                                                if not calcNcopy == "":
-                                                    try:
-                                                        calcNcopy = float(calcNcopy)
-                                                    except ValueError:
-                                                        pass
-                                                    else:
-                                                        if math.isfinite(calcNcopy):
-                                                            finalNcopy = calcCorr * calcNcopy
-                                                            calcQuant = finalNcopy * res["corrNcopyFact"][oTar]
-                                                            if oUnit == "cop":
-                                                                csvStandard += "{:.2f}".format(calcQuant)
-                                                            else:
-                                                                csvStandard += "{:.4e}".format(calcQuant)
-                                            csvStandard += '\t' + _niceQuantityTypeReact(oUnit) + '\n'
-                if csvStandard != "":
-                    res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
-                    res["tsv"]["standard"] += csvStandard
+                res["tsv"]["corrNcopyFact"] += '\tt'
+            res["tsv"]["corrNcopyFact"] += '\n'
 
-            # Mean the technical replicates
-            res["tec_data"] = {}
-            for sample in nCopyData["Ncopy"]:
-                res["tec_data"][sample] = {}
-                for target in nCopyData["Ncopy"][sample]:
-                    if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
-                        continue
-                    res["tec_data"][sample][target] = {}
-                    res["tec_data"][sample][target]["sample_type"] = ""
-                    res["tec_data"][sample][target]["error"] = ""
-                    res["tec_data"][sample][target]["note"] = ""
-                    if sample in transSamTar:
-                        if target in transSamTar[sample]:
-                            res["tec_data"][sample][target]["sample_type"] = transSamTar[sample][target]
-                    res["tec_data"][sample][target]["target_type"] = ""
-                    if target in tarType:
-                        res["tec_data"][sample][target]["target_type"] = tarType[target]
-                    res["tec_data"][sample][target]["n_tec_rep"] = len(nCopyData["Ncopy"][sample][target])
-                    res["tec_data"][sample][target]["raw_vals"] = []
-                    if len(nCopyData["Ncopy"][sample][target]) == 0:
-                        res["tec_data"][sample][target]["error"] += "No Ncopy values;"
-                        res["tec_data"][sample][target]["cop_mean"] = -1.0
-                        res["tec_data"][sample][target]["cop_sd"] = -1.0
-                        res["tec_data"][sample][target]["cop_cv"] = -1.0
+        if method == "optical":
+            csvStandard = ""
+            if neg_num > 0:
+                csvStandard += 'Threshold\t' + _niceQuantityTypeReact("ng") + '\t'
+                csvStandard += "{:.2f}".format(float(res["threshold"])) + '\t\n'
+
+            csvStandard += 'No DNA\t' + _niceQuantityTypeReact("ng") + '\t'
+            csvStandard += "{:.2f}".format(negFluor) + '\t\n'
+
+            sortedConc = sorted(list(concFluor.keys()))
+            for currConc in sortedConc:
+                csvStandard += "{:.2f}".format(currConc) + '\t' + _niceQuantityTypeReact("ng")
+                resFluor = concFluor[currConc] - negFluor
+                csvStandard += '\t' + "{:.2f}".format(resFluor)
+                calcFluor = finalFluor * currConc / finalConc
+                csvStandard += '\t' + "{:.2f}".format(calcFluor) + '\n'
+
+            if csvStandard != "":
+                res["tsv"]["standard"] = "Concentration\tUnit\tFluorescence\tCalculated\n"
+                res["tsv"]["standard"] += csvStandard
+        else:
+            csvStandard = ""
+            for oUnit in ["cop", "fold", "dil", "nMol", "ng", "other"]:
+                if res["absUnit"] != oUnit:
+                    continue
+                for oTar in res["quantity"][oUnit]["samples"]:
+                    sortStdValues = sorted(list(res["quantity"][oUnit]["samples"][oTar].keys()), reverse=True)
+                    for oValue in sortStdValues:
+                        for oSample in res["quantity"][oUnit]["samples"][oTar][oValue]:
+                            if oTar in stdSamples:
+                                if oSample in stdSamples[oTar]:
+                                    for react_data in stdSamples[oTar][oSample]:
+                                        react = react_data.getparent()
+                                        volume = reactionVolume
+                                        readVol = _get_first_child_text(react, "vol")
+                                        if not readVol == "":
+                                            try:
+                                                volume = float(readVol)
+                                            except ValueError:
+                                                volume = reactionVolume
+                                            if not math.isfinite(volume):
+                                                volume = reactionVolume
+                                            if volume <= 0.0:
+                                                volume = reactionVolume
+                                        run = react.getparent()
+                                        if 'id' in run.attrib:
+                                            csvStandard += run.attrib['id']
+                                        csvStandard += '\t'
+                                        if 'id' in react.attrib:
+                                            csvStandard += react.attrib['id']
+                                        csvStandard += '\t' + oSample
+                                        csvStandard += '\t' + oTar
+                                        if oUnit == "cop":
+                                            csvStandard += '\t' + "{:.2f}".format(oValue * volume) + '\t'
+                                        else:
+                                            csvStandard += '\t' + "{:.4e}".format(oValue * volume) + '\t'
+                                        corrFac = _get_first_child_text(react_data, "corrF")
+                                        calcCorr = 1.0
+                                        if not corrFac == "":
+                                            try:
+                                                calcCorr = float(corrFac)
+                                            except ValueError:
+                                                calcCorr = 1.0
+                                            if not math.isfinite(calcCorr):
+                                                calcCorr = 1.0
+                                            if calcCorr > 1.0:
+                                                calcCorr = 1.0
+                                        plateFac = _get_first_child_text(react_data, "corrP")
+                                        calcPlate = 1.0
+                                        if not plateFac == "":
+                                            try:
+                                                calcPlate = float(plateFac)
+                                            except ValueError:
+                                                calcPlate = 0.0
+                                            if not math.isfinite(calcPlate):
+                                                calcCorr = 0.0
+                                            if calcPlate == 0.0:
+                                                calcCorr = 0.0
+                                            calcCorr = calcCorr / calcPlate
+                                        calcNcopy = _get_first_child_text(react_data, "Ncopy")
+                                        if calcCorr > 0.0001:
+                                            if not calcNcopy == "":
+                                                try:
+                                                    calcNcopy = float(calcNcopy)
+                                                except ValueError:
+                                                    pass
+                                                else:
+                                                    if math.isfinite(calcNcopy):
+                                                        finalNcopy = calcCorr * calcNcopy
+                                                        calcQuant = finalNcopy * res["corrNcopyFact"][oTar]
+                                                        if oUnit == "cop":
+                                                            csvStandard += "{:.2f}".format(calcQuant)
+                                                        else:
+                                                            csvStandard += "{:.4e}".format(calcQuant)
+                                        csvStandard += '\t' + _niceQuantityTypeReact(oUnit) + '\n'
+            if csvStandard != "":
+                res["tsv"]["standard"] = "Run\tReact\tSample\tTarget\tExpected\tCalculated\tUnit\n"
+                res["tsv"]["standard"] += csvStandard
+
+        # Mean the technical replicates
+        res["tec_data"] = {}
+        for sample in nCopyData["Ncopy"]:
+            res["tec_data"][sample] = {}
+            for target in nCopyData["Ncopy"][sample]:
+                if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                    continue
+                res["tec_data"][sample][target] = {}
+                res["tec_data"][sample][target]["sample_type"] = ""
+                res["tec_data"][sample][target]["error"] = ""
+                res["tec_data"][sample][target]["note"] = ""
+                if sample in transSamTar:
+                    if target in transSamTar[sample]:
+                        res["tec_data"][sample][target]["sample_type"] = transSamTar[sample][target]
+                res["tec_data"][sample][target]["target_type"] = ""
+                if target in tarType:
+                    res["tec_data"][sample][target]["target_type"] = tarType[target]
+                res["tec_data"][sample][target]["n_tec_rep"] = len(nCopyData["Ncopy"][sample][target])
+                res["tec_data"][sample][target]["raw_vals"] = []
+                if len(nCopyData["Ncopy"][sample][target]) == 0:
+                    res["tec_data"][sample][target]["error"] += "No Ncopy values;"
+                    res["tec_data"][sample][target]["cop_mean"] = -1.0
+                    res["tec_data"][sample][target]["cop_sd"] = -1.0
+                    res["tec_data"][sample][target]["cop_cv"] = -1.0
+                else:
+                    for n0Val in nCopyData["Ncopy"][sample][target]:
+                        res["tec_data"][sample][target]["raw_vals"].append(n0Val / res["corrNcopyFact"][target])
+                    res["tec_data"][sample][target]["cop_mean"] = float(np.mean(res["tec_data"][sample][target]["raw_vals"]))
+                    if len(nCopyData["Ncopy"][sample][target]) == 1:
+                        res["tec_data"][sample][target]["cop_sd"] = 0.0
+                        res["tec_data"][sample][target]["cop_cv"] = 0.0
                     else:
-                        for n0Val in nCopyData["Ncopy"][sample][target]:
-                            res["tec_data"][sample][target]["raw_vals"].append(n0Val / res["corrNcopyFact"][target])
-                        res["tec_data"][sample][target]["cop_mean"] = float(np.mean(res["tec_data"][sample][target]["raw_vals"]))
-                        if len(nCopyData["Ncopy"][sample][target]) == 1:
-                            res["tec_data"][sample][target]["cop_sd"] = 0.0
-                            res["tec_data"][sample][target]["cop_cv"] = 0.0
-                        else:
-                            res["tec_data"][sample][target]["cop_sd"] = float(np.std(res["tec_data"][sample][target]["raw_vals"], ddof=1))
-                            calcCV = res["tec_data"][sample][target]["cop_sd"] / res["tec_data"][sample][target]["cop_mean"]
-                            res["tec_data"][sample][target]["cop_cv"] = calcCV
-                            if calcCV > 0.3:
-                                res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
+                        res["tec_data"][sample][target]["cop_sd"] = float(np.std(res["tec_data"][sample][target]["raw_vals"], ddof=1))
+                        calcCV = res["tec_data"][sample][target]["cop_sd"] / res["tec_data"][sample][target]["cop_mean"]
+                        res["tec_data"][sample][target]["cop_cv"] = calcCV
+                        if calcCV > 0.3:
+                            res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
 
-            if overlapType == "annotation":
-                res["anno_data"] = {}
-                res["anno_key"] = selAnnotation
-                for sample in res["tec_data"]:
-                    for target in res["tec_data"][sample]:
-                        if res["tec_data"][sample][target]["cop_mean"] > 0.0:
-                            if sample in samSelAnno:
-                                if target not in res["anno_data"]:
-                                    res["anno_data"][target] = {}
-                                if samSelAnno[sample] not in res["anno_data"][target]:
-                                    res["anno_data"][target][samSelAnno[sample]] = {}
-                                if "raw_vals" not in res["anno_data"][target][samSelAnno[sample]]:
-                                    res["anno_data"][target][samSelAnno[sample]]["raw_vals"] = []
-                                res["anno_data"][target][samSelAnno[sample]]["raw_vals"].append(res["tec_data"][sample][target]["cop_mean"])
-                for target in res["anno_data"]:
-                    for annoVal in res["anno_data"][target]:
-                        annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
-                        if len(annoCollVals) == 0:
-                            res["anno_data"][target][annoVal]["mean"] = -1.0
-                            res["anno_data"][target][annoVal]["sem"] = -1.0
-                        else:
-                            res["anno_data"][target][annoVal]["mean"] = float(np.mean(annoCollVals))
-                            if len(annoCollVals) == 1:
-                                res["anno_data"][target][annoVal]["sem"] = 0.0
-                            else:
-                                res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
-
-            res["tsv"]["technical_data"] = "Sample\tSample Type\t"
-            if inclAnnotation:
-                for currAnno in sortedAnnoKeys:
-                    res["tsv"]["technical_data"] += currAnno + "\t"
-            res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
-            res["tsv"]["technical_data"] += "n Tec. Rep.\tUnit\tMean\tSD\tCV\tIndividual Values\n"
-            sortSam = sorted(res["tec_data"].keys())
-            for sample in sortSam:
-                sortTar = sorted(res["tec_data"][sample].keys())
-                for target in sortTar:
-                    res["tsv"]["technical_data"] += sample + "\t"
-                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["sample_type"] + "\t"
-                    if inclAnnotation:
-                        for currAnno in sortedAnnoKeys:
-                            annoVal = ""
-                            if sample in samAllAnnos:
-                                if currAnno in samAllAnnos[sample]:
-                                    annoVal = samAllAnnos[sample][currAnno]
-                            res["tsv"]["technical_data"] += annoVal + "\t"
-                    res["tsv"]["technical_data"] += target + "\t"
-                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
-                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["error"] + "\t"
-                    res["tsv"]["technical_data"] += res["tec_data"][sample][target]["note"] + "\t"
-                    res["tsv"]["technical_data"] += str(res["tec_data"][sample][target]["n_tec_rep"]) + "\t"
-                    res["tsv"]["technical_data"] += res["absUnit"] + "\t"
-                    if res["absUnit"] == "cop":
-                        res["tsv"]["technical_data"] += "{:.2f}".format(
-                            res["tec_data"][sample][target]["cop_mean"]) + "\t"
-                        res["tsv"]["technical_data"] += "{:.6f}".format(
-                            res["tec_data"][sample][target]["cop_sd"]) + "\t"
-                        res["tsv"]["technical_data"] += "{:.2f}".format(
-                            res["tec_data"][sample][target]["cop_cv"]) + "\t"
-                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
-                            res["tsv"]["technical_data"] += "{:.2f}".format(indivVal) + ";"
+        if overlapType == "annotation":
+            res["anno_data"] = {}
+            res["anno_key"] = selAnnotation
+            for sample in res["tec_data"]:
+                for target in res["tec_data"][sample]:
+                    if res["tec_data"][sample][target]["cop_mean"] > 0.0:
+                        if sample in samSelAnno:
+                            if target not in res["anno_data"]:
+                                res["anno_data"][target] = {}
+                            if samSelAnno[sample] not in res["anno_data"][target]:
+                                res["anno_data"][target][samSelAnno[sample]] = {}
+                            if "raw_vals" not in res["anno_data"][target][samSelAnno[sample]]:
+                                res["anno_data"][target][samSelAnno[sample]]["raw_vals"] = []
+                            res["anno_data"][target][samSelAnno[sample]]["raw_vals"].append(res["tec_data"][sample][target]["cop_mean"])
+            for target in res["anno_data"]:
+                for annoVal in res["anno_data"][target]:
+                    annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
+                    if len(annoCollVals) == 0:
+                        res["anno_data"][target][annoVal]["mean"] = -1.0
+                        res["anno_data"][target][annoVal]["sem"] = -1.0
                     else:
-                        res["tsv"]["technical_data"] += "{:.6e}".format(
-                            res["tec_data"][sample][target]["cop_mean"]) + "\t"
-                        res["tsv"]["technical_data"] += "{:.6e}".format(
-                            res["tec_data"][sample][target]["cop_sd"]) + "\t"
-                        res["tsv"]["technical_data"] += "{:.6f}".format(
-                            res["tec_data"][sample][target]["cop_cv"]) + "\t"
-                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
-                            res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
+                        res["anno_data"][target][annoVal]["mean"] = float(np.mean(annoCollVals))
+                        if len(annoCollVals) == 1:
+                            res["anno_data"][target][annoVal]["sem"] = 0.0
+                        else:
+                            res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
 
-                    res["tsv"]["technical_data"] += "\n"
-
-            if overlapType == "annotation":
-                res["tsv"]["annotation_data"] = res["anno_key"] + "\t"
+        res["tsv"]["technical_data"] = "Sample\tSample Type\t"
+        if inclAnnotation:
+            for currAnno in sortedAnnoKeys:
+                res["tsv"]["technical_data"] += currAnno + "\t"
+        res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
+        res["tsv"]["technical_data"] += "n Tec. Rep.\tUnit\tMean\tSD\tCV\tIndividual Values\n"
+        sortSam = sorted(res["tec_data"].keys())
+        for sample in sortSam:
+            sortTar = sorted(res["tec_data"][sample].keys())
+            for target in sortTar:
+                res["tsv"]["technical_data"] += sample + "\t"
+                res["tsv"]["technical_data"] += res["tec_data"][sample][target]["sample_type"] + "\t"
                 if inclAnnotation:
                     for currAnno in sortedAnnoKeys:
-                        if currAnno == selAnnotation:
-                            continue
-                        if currAnno not in overSelAnno:
-                            continue
-                        if overSelAnno[currAnno]["conf"]:
-                            continue
-                        res["tsv"]["annotation_data"] += currAnno + "\t"
-                res["tsv"]["annotation_data"] += "Target\tAbs. Expression\tSEM\tIndividual Values\n"
-                sortTar = sorted(res["anno_data"].keys())
-                for target in sortTar:
-                    sortAnno = sorted(res["anno_data"][target].keys())
-                    for annoVal in sortAnno:
-                        res["tsv"]["annotation_data"] += annoVal + "\t"
-                        if inclAnnotation:
-                            for currAnno in sortedAnnoKeys:
-                                if currAnno == selAnnotation:
-                                    continue
-                                if currAnno not in overSelAnno:
-                                    continue
-                                if overSelAnno[currAnno]["conf"]:
-                                    continue
-                                annoData = ""
-                                if currAnno in overSelAnno:
-                                    if annoVal in overSelAnno[currAnno]["data"]:
-                                        annoData = overSelAnno[currAnno]["data"][annoVal]
-                                res["tsv"]["annotation_data"] += annoData + "\t"
-                        res["tsv"]["annotation_data"] += target + "\t"
-                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
-                        res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
-                        for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
-                            res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
-                        res["tsv"]["annotation_data"] += "\n"
+                        annoVal = ""
+                        if sample in samAllAnnos:
+                            if currAnno in samAllAnnos[sample]:
+                                annoVal = samAllAnnos[sample][currAnno]
+                        res["tsv"]["technical_data"] += annoVal + "\t"
+                res["tsv"]["technical_data"] += target + "\t"
+                res["tsv"]["technical_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
+                res["tsv"]["technical_data"] += res["tec_data"][sample][target]["error"] + "\t"
+                res["tsv"]["technical_data"] += res["tec_data"][sample][target]["note"] + "\t"
+                res["tsv"]["technical_data"] += str(res["tec_data"][sample][target]["n_tec_rep"]) + "\t"
+                res["tsv"]["technical_data"] += res["absUnit"] + "\t"
+                if res["absUnit"] == "cop":
+                    res["tsv"]["technical_data"] += "{:.2f}".format(
+                        res["tec_data"][sample][target]["cop_mean"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.6f}".format(
+                        res["tec_data"][sample][target]["cop_sd"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.2f}".format(
+                        res["tec_data"][sample][target]["cop_cv"]) + "\t"
+                    for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                        res["tsv"]["technical_data"] += "{:.2f}".format(indivVal) + ";"
+                else:
+                    res["tsv"]["technical_data"] += "{:.6e}".format(
+                        res["tec_data"][sample][target]["cop_mean"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.6e}".format(
+                        res["tec_data"][sample][target]["cop_sd"]) + "\t"
+                    res["tsv"]["technical_data"] += "{:.6f}".format(
+                        res["tec_data"][sample][target]["cop_cv"]) + "\t"
+                    for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                        res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
 
+                res["tsv"]["technical_data"] += "\n"
+
+        if overlapType == "annotation":
+            res["tsv"]["annotation_data"] = res["anno_key"] + "\t"
+            if inclAnnotation:
+                for currAnno in sortedAnnoKeys:
+                    if currAnno == selAnnotation:
+                        continue
+                    if currAnno not in overSelAnno:
+                        continue
+                    if overSelAnno[currAnno]["conf"]:
+                        continue
+                    res["tsv"]["annotation_data"] += currAnno + "\t"
+            res["tsv"]["annotation_data"] += "Target\tAbs. Expression\tSEM\tIndividual Values\n"
+            sortTar = sorted(res["anno_data"].keys())
+            for target in sortTar:
+                sortAnno = sorted(res["anno_data"][target].keys())
+                for annoVal in sortAnno:
+                    res["tsv"]["annotation_data"] += annoVal + "\t"
+                    if inclAnnotation:
+                        for currAnno in sortedAnnoKeys:
+                            if currAnno == selAnnotation:
+                                continue
+                            if currAnno not in overSelAnno:
+                                continue
+                            if overSelAnno[currAnno]["conf"]:
+                                continue
+                            annoData = ""
+                            if currAnno in overSelAnno:
+                                if annoVal in overSelAnno[currAnno]["data"]:
+                                    annoData = overSelAnno[currAnno]["data"][annoVal]
+                            res["tsv"]["annotation_data"] += annoData + "\t"
+                    res["tsv"]["annotation_data"] += target + "\t"
+                    res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
+                    res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
+                    for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
+                        res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
+                    res["tsv"]["annotation_data"] += "\n"
         return res
 
     def genorm(self, selSamples="samples", selAnnotation="", selAnnoValue="", saveResultsCSV=False, saveResultsSVG=False, maxRef=-1):
