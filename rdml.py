@@ -9059,6 +9059,9 @@ class Experiment:
         copyThreshold_rot = _get_copies_threshold()
         mol = 6.02214076e23  # copies / Mole
         baseWeight = 660  # g / mol per base
+        finalFluor = 1e12
+        finalConc = -1.0
+        tresh = 0.0
         nCopyData = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
@@ -9404,22 +9407,36 @@ class Experiment:
             concFluor = {}
             neg_sum = 0.0
             neg_num = 0
+            tresh_sum = 0.0
+            tresh_num = 0
             negFluor = 0.0
             for currConc in optQuantity:
                 fluor_sum = 0.0
                 fluor_num = 0
                 for currSamp in optQuantity[currConc]:
                     for react_data in optSamples[currSamp]:
-                        threshold = _get_first_child_text(adp, "cyc")
+                        volume = reactionVolume
+                        react = react_data.getparent()
+                        readVol = _get_first_child_text(react, "vol")
+                        if not readVol == "":
+                            try:
+                                volume = float(readVol)
+                            except ValueError:
+                                volume = reactionVolume
+                            if not math.isfinite(volume):
+                                volume = reactionVolume
+                            if volume <= 0.0:
+                                volume = reactionVolume
+                        threshold = _get_first_child_text(react_data, "quantFluor")
                         if not threshold == "":
                             try:
                                 threshold = float(threshold)
                             except ValueError:
                                 continue
-                            if not math.isfinite(threshold):
-                                continue
-                            if threshold <= 0.0:
-                                continue
+                            if math.isfinite(threshold):
+                                if threshold > 0.0:
+                                    tresh_sum += math.log(threshold)
+                                    tresh_num += 1
                         adps = _get_all_children(react_data, "adp")
                         for adp in adps:
                             cyc = _get_first_child_text(adp, "cyc")
@@ -9441,7 +9458,7 @@ class Experiment:
                                         continue
                                     if curFlour <= 0.0:
                                         continue
-                                corrFlour = curFlour / threshold
+                                corrFlour = curFlour / volume
                                 if currConc > 0.000001:
                                     fluor_sum += math.log(corrFlour)
                                     fluor_num += 1
@@ -9452,19 +9469,18 @@ class Experiment:
                     concFluor[currConc] = math.exp(fluor_sum / fluor_num)
             if neg_num > 0:
                 negFluor = math.exp(neg_sum / neg_num)
-
-            finalFluor = 1e12
-            finalConc = -1.0
+            if tresh_num > 0:
+                tresh = math.exp(tresh_sum / tresh_num)
+            if tresh <= 0.0:
+                raise RdmlError('Error: No threshold found.')
             ngTreshold_rot = copyThreshold_rot * 1e9 * ((100 * 615.96) + 36.04) / mol
             for currConc in concFluor:
-                currFluor = concFluor[currConc] - negFluor
-                if 1.0 + negFluor < currFluor < finalFluor:
+                currFluor = concFluor[currConc] / tresh - negFluor / tresh
+                if 0.05 + negFluor < currFluor < finalFluor:
                     finalFluor = currFluor
                     finalConc = currConc
-
-            # corrNcopyFact = float(res["threshold"]) / thresCopies
             for tar in res["target"]:
-                res["corrNcopyFact"][tar] *= (finalConc / (finalFluor - negFluor)) * 100 / res["target"][tar]["ampliconLen"]
+                res["corrNcopyFact"][tar] = finalConc / finalFluor / ngTreshold_rot
                 # 1.0 / (float(res["threshold"]) / ((currConc * mol / (100 * baseWeight * 1e9)) / currFluor) * res["target"][tar]["ampliconLen"] / reactionVolume) / 100
 
         res["tsv"]["corrNcopyFact"] = 'Target\tQuant. Fact.\tAmplicon Length\t'
@@ -9477,8 +9493,8 @@ class Experiment:
             if res["corrNcopyFact"][tar] > 0.0:
                 copiesCalc = copyThreshold_rot * res["corrNcopyFact"][tar]
                 ngCalc = copiesCalc * 1e9 * ((res["target"][tar]["ampliconLen"] * 615.96) + 36.04) / mol
-                res["tsv"]["corrNcopyFact"] += "{:.4e}".format(copiesCalc) + '\t'
-                res["tsv"]["corrNcopyFact"] += "{:.4f}".format(ngCalc)
+                res["tsv"]["corrNcopyFact"] += "{:.2e}".format(copiesCalc) + '\t'
+                res["tsv"]["corrNcopyFact"] += "{:.2f}".format(ngCalc)
             else:
                 res["tsv"]["corrNcopyFact"] += '\tt'
             res["tsv"]["corrNcopyFact"] += '\n'
@@ -9487,17 +9503,18 @@ class Experiment:
             csvStandard = ""
             if neg_num > 0:
                 csvStandard += 'Threshold\t' + _niceQuantityTypeReact("ng") + '\t'
-                csvStandard += "{:.2f}".format(float(res["threshold"])) + '\t\n'
+                csvStandard += "{:.2f}".format(tresh) + '\t\n'
 
             csvStandard += 'No DNA\t' + _niceQuantityTypeReact("ng") + '\t'
-            csvStandard += "{:.2f}".format(negFluor) + '\t\n'
+            csvStandard += "{:.2f}".format(negFluor * reactionVolume) + '\t\n'
 
             sortedConc = sorted(list(concFluor.keys()))
+            ngTreshold_rot = copyThreshold_rot * 1e9 * ((100 * 615.96) + 36.04) / mol
             for currConc in sortedConc:
-                csvStandard += "{:.2f}".format(currConc) + '\t' + _niceQuantityTypeReact("ng")
-                resFluor = concFluor[currConc] - negFluor
-                csvStandard += '\t' + "{:.2f}".format(resFluor)
-                calcFluor = finalFluor * currConc / finalConc
+                csvStandard += "{:.2f}".format(currConc * reactionVolume) + '\t' + _niceQuantityTypeReact("ng")
+                resFluor = concFluor[currConc] / tresh - negFluor / tresh
+                csvStandard += '\t' + "{:.2f}".format(resFluor * reactionVolume)
+                calcFluor =  currConc * reactionVolume / ngTreshold_rot
                 csvStandard += '\t' + "{:.2f}".format(calcFluor) + '\n'
 
             if csvStandard != "":
