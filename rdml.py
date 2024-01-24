@@ -8540,6 +8540,7 @@ class Experiment:
         res["reference"] = {}
         res["N0"] = {}
         res["Ncopy"] = {}
+        res["Vol"] = {}
         tarType = {}
         refTar = {}
 
@@ -8564,6 +8565,17 @@ class Experiment:
                 if "id" not in samId.attrib:
                     continue
                 sample = samId.attrib['id']
+                volume = 20.0
+                readVol = _get_first_child_text(react, "vol")
+                if not readVol == "":
+                    try:
+                        readVol = float(readVol)
+                    except ValueError:
+                        pass
+                    else:
+                        if math.isfinite(readVol):
+                            if readVol > 0.0:
+                                volume =  readVol
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
                     tarId = _get_first_child(react_data, "tar")
@@ -8576,10 +8588,14 @@ class Experiment:
                         res["N0"][sample] = {}
                     if sample not in res["Ncopy"]:
                         res["Ncopy"][sample] = {}
+                    if sample not in res["Vol"]:
+                        res["Vol"][sample] = {}
                     if target not in res["N0"][sample]:
                         res["N0"][sample][target] = []
                     if target not in res["Ncopy"][sample]:
                         res["Ncopy"][sample][target] = []
+                    if target not in res["Vol"][sample]:
+                        res["Vol"][sample][target] = []
                     excluded = _get_first_child_text(react_data, "excl")
                     if excluded != "":
                         continue
@@ -8636,6 +8652,7 @@ class Experiment:
                     if math.isfinite(nCopyVal):
                         if nCopyVal > 0.0:
                             res["Ncopy"][sample][target].append(nCopyVal)
+                            res["Vol"][sample][target].append(volume)
 
         res["reference"] = sorted(refTar, key=lambda key: refTar[key])
         return res
@@ -8656,6 +8673,12 @@ class Experiment:
             target: A dictionary with the results per target
             plate: A dictionary with the results per plate
         """
+
+        rootPar = self._node.getparent()
+        dataVersion = rootPar.get('version')
+
+        if dataVersion in ["1.0", "1.1", "1.2", "1.3"]:
+            raise RdmlError('Error: InterRunCorrection requires at least RDML version 1.4. After upgrading version run LinRegPCR again.')
 
         res = {}
         if overlapType not in ["samples", "annotation"]:
@@ -9040,6 +9063,12 @@ class Experiment:
             A dictionary with the resulting data, presence and format depending on input.
         """
 
+        rootPar = self._node.getparent()
+        dataVersion = rootPar.get('version')
+
+        if dataVersion in ["1.0", "1.1", "1.2", "1.3"]:
+            raise RdmlError('Error: AbsoluteQuantification requires at least RDML version 1.4. After upgrading version run LinRegPCR again.')
+
         if method not in ["reference", "cq-guess", "optical"]:
             raise RdmlError('Error: Unknown method used in absoluteQuantification.')
         if quantUnit not in ["cop", "fold", "dil", "nMol", "ng", "other"]:
@@ -9061,6 +9090,7 @@ class Experiment:
         baseWeight = 660  # g / mol per base
         finalFluor = 1e12
         finalConc = -1.0
+        opticalFactor = 1.0
         tresh = 0.0
         nCopyData = self.getExperimentData()
         pRoot = self._node.getparent()
@@ -9072,6 +9102,8 @@ class Experiment:
         samAllAnnos = {}
         allAnnoKeys = {}
         overSelAnno = {}
+        # corrNcopyFact corrects for standard and amplicon length
+        #               but not for volume effects
         res["corrNcopyFact"] = {}
         res["absUnit"] = ""
         allRuns = self.runs()
@@ -9127,12 +9159,25 @@ class Experiment:
                 tarId = target.attrib['id']
                 tarType[tarId] = _get_first_child_text(target, "type")
 
-        # Find all used Targets
+        # Find all used Targets and the geomean volume
         res["target"] = {}
+        vol_sum = 0.0
+        vol_num = 0
         for tRunA in range(0, len(allRuns)):
             runA = allRuns[tRunA]
             reacts = _get_all_children(runA._node, "react")
             for react in reacts:
+                readVol = _get_first_child_text(react, "vol")
+                if not readVol == "":
+                    try:
+                        readVol = float(readVol)
+                    except ValueError:
+                        pass
+                    else:
+                        if math.isfinite(readVol):
+                            if readVol > 0.0:
+                                vol_sum += math.log(readVol)
+                                vol_num += 1
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
                     tarId = _get_first_child(react_data, "tar")
@@ -9142,6 +9187,10 @@ class Experiment:
                         continue
                     tar = tarId.attrib['id']
                     res["target"][tar] = {}
+        if vol_num > 0:
+            geoVol = math.exp(vol_sum / vol_num)
+            if geoVol > 0.0:
+                reactionVolume = geoVol
 
         res["tsv"] = {}
         res["quantity"] = {}
@@ -9169,7 +9218,7 @@ class Experiment:
             res["corrNcopyFact"][tar] = -1.0
             # This are the used targets
             res["standard"][tar] = {}
-            res["target"][tar]["ampliconLen"] = 100
+            res["target"][tar]["ampliconLen"] = 100.0
             res["quantity"]["cop"]["samples"][tar] = {}
             res["quantity"]["fold"]["samples"][tar] = {}
             res["quantity"]["dil"]["samples"][tar] = {}
@@ -9276,7 +9325,7 @@ class Experiment:
                         amplicon = _get_first_child_text(ampliconEle, "sequence")
                         if amplicon != "":
                             if len(amplicon) > 20:
-                                res["target"][tarId]["ampliconLen"] = len(amplicon)
+                                res["target"][tarId]["ampliconLen"] = float(len(amplicon))
 
         if method == "reference":
             stdCurves = {}
@@ -9340,13 +9389,13 @@ class Experiment:
                                                     readVol = _get_first_child_text(react, "vol")
                                                     if not readVol == "":
                                                         try:
-                                                            volume = float(readVol)
+                                                            readVol = float(readVol)
                                                         except ValueError:
-                                                            volume = reactionVolume
-                                                        if not math.isfinite(volume):
-                                                            volume = reactionVolume
-                                                        if volume <= 0.0:
-                                                            volume = reactionVolume
+                                                            pass
+                                                        else:
+                                                            if math.isfinite(readVol):
+                                                                if readVol > 0.0:
+                                                                    volume = readVol
                                                     vol_sum += math.log(volume)
                                                     run = react.getparent()
                                                     if 'id' in run.attrib:
@@ -9356,7 +9405,9 @@ class Experiment:
                             if geo_num > 0:
                                 geoNcopy = math.exp(geo_sum / geo_num)
                                 geoVol = math.exp(vol_sum / geo_num)
-                                res["corrNcopyFact"][qTar] = (sortValues[0] * geoVol) / geoNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
+                                if geoVol > 0.0:
+                                    reactionVolume = geoVol
+                                res["corrNcopyFact"][qTar] = (sortValues[0] * 20.0) / geoNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
                     for pRunA in range(0, len(allRuns)):
                         for aPos  in range(0, len(stdCurves[qTar][run.attrib['id']]["Ncopy"])):
                             stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] = math.log2(copyThreshold_rot / (stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] * res["corrNcopyFact"][qTar]))
@@ -9387,20 +9438,18 @@ class Experiment:
                 geoTar_num = 0
                 for qTar in res["target"]:
                     if res["corrNcopyFact"][qTar] > 0.0:
-                        geoTar_sum += math.log(res["corrNcopyFact"][qTar])
+                        geoTar_sum += math.log(res["corrNcopyFact"][qTar] * res["target"][tar]["ampliconLen"] / 100.0)
                         geoTar_num += 1
                 if geoTar_num > 0:
                     geoTar = math.exp(geoTar_sum / geoTar_num)
                     for qTar in res["target"]:
                         if res["corrNcopyFact"][qTar] <= 0.0:
-                            res["corrNcopyFact"][qTar] = geoTar
+                            res["corrNcopyFact"][qTar] = geoTar * 100.0 / res["target"][tar]["ampliconLen"]
 
         if method == "cq-guess":
             res["absUnit"] = "cop"
             for tar in res["target"]:
-                res["corrNcopyFact"][tar] = 1.0
-                if res["target"][tar]["ampliconLen"] > 0.0:
-                    res["corrNcopyFact"][tar] = 100 / res["target"][tar]["ampliconLen"]
+                res["corrNcopyFact"][tar] = 100.0 / res["target"][tar]["ampliconLen"]
 
         if method == "optical":
             res["absUnit"] = "cop"
@@ -9420,13 +9469,13 @@ class Experiment:
                         readVol = _get_first_child_text(react, "vol")
                         if not readVol == "":
                             try:
-                                volume = float(readVol)
+                                readVol = float(readVol)
                             except ValueError:
-                                volume = reactionVolume
-                            if not math.isfinite(volume):
-                                volume = reactionVolume
-                            if volume <= 0.0:
-                                volume = reactionVolume
+                                pass
+                            else:
+                                if math.isfinite(readVol):
+                                    if readVol > 0.0:
+                                        volume = readVol
                         threshold = _get_first_child_text(react_data, "quantFluor")
                         if not threshold == "":
                             try:
@@ -9479,25 +9528,27 @@ class Experiment:
                 if 0.05 + negFluor < currFluor < finalFluor:
                     finalFluor = currFluor
                     finalConc = currConc
+            opticalFactor = finalConc / finalFluor / ngTreshold_rot
             for tar in res["target"]:
-                res["corrNcopyFact"][tar] = finalConc / finalFluor / ngTreshold_rot
+                res["corrNcopyFact"][tar] = opticalFactor * 100.0 / res["target"][tar]["ampliconLen"]
                 # 1.0 / (float(res["threshold"]) / ((currConc * mol / (100 * baseWeight * 1e9)) / currFluor) * res["target"][tar]["ampliconLen"] / reactionVolume) / 100
 
         res["tsv"]["corrNcopyFact"] = 'Target\tQuant. Fact.\tAmplicon Length\t'
         res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("cop") + ' at Threshold\t'
-        res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("ng") + ' at Threshold\n'
+        res["tsv"]["corrNcopyFact"] += _niceQuantityTypeReact("ng") + ' at Threshold\t'
+        res["tsv"]["corrNcopyFact"] += 'Reaction Volume\n'
         for tar in sortTargets:
             res["tsv"]["corrNcopyFact"] += tar + '\t'
             res["tsv"]["corrNcopyFact"] += "{:.6f}".format(res["corrNcopyFact"][tar]) + '\t'
             res["tsv"]["corrNcopyFact"] += str(res["target"][tar]["ampliconLen"]) + '\t'
             if res["corrNcopyFact"][tar] > 0.0:
-                copiesCalc = copyThreshold_rot * res["corrNcopyFact"][tar]
+                copiesCalc = copyThreshold_rot * res["corrNcopyFact"][tar] * reactionVolume / 20.0
                 ngCalc = copiesCalc * 1e9 * ((res["target"][tar]["ampliconLen"] * 615.96) + 36.04) / mol
                 res["tsv"]["corrNcopyFact"] += "{:.2e}".format(copiesCalc) + '\t'
                 res["tsv"]["corrNcopyFact"] += "{:.2f}".format(ngCalc)
             else:
-                res["tsv"]["corrNcopyFact"] += '\tt'
-            res["tsv"]["corrNcopyFact"] += '\n'
+                res["tsv"]["corrNcopyFact"] += '\t'
+            res["tsv"]["corrNcopyFact"] += '\t' + "{:.1f}".format(reactionVolume) + '\n'
 
         if method == "optical":
             csvStandard = ""
@@ -9514,11 +9565,13 @@ class Experiment:
                 csvStandard += "{:.2f}".format(currConc * reactionVolume) + '\t' + _niceQuantityTypeReact("ng")
                 resFluor = concFluor[currConc] / tresh - negFluor / tresh
                 csvStandard += '\t' + "{:.2f}".format(resFluor * reactionVolume)
+                corrFluor = resFluor * opticalFactor
+                csvStandard += '\t' + "{:.2f}".format(corrFluor * reactionVolume)
                 calcFluor =  currConc * reactionVolume / ngTreshold_rot
                 csvStandard += '\t' + "{:.2f}".format(calcFluor) + '\n'
 
             if csvStandard != "":
-                res["tsv"]["standard"] = "Concentration\tUnit\tFluorescence\tCalculated\n"
+                res["tsv"]["standard"] = "Concentration\tUnit\tRaw Fluor.\tCorrected Fluor.\tExpected Fluor.\n"
                 res["tsv"]["standard"] += csvStandard
         else:
             csvStandard = ""
@@ -9537,13 +9590,13 @@ class Experiment:
                                         readVol = _get_first_child_text(react, "vol")
                                         if not readVol == "":
                                             try:
-                                                volume = float(readVol)
+                                                readVol = float(readVol)
                                             except ValueError:
-                                                volume = reactionVolume
-                                            if not math.isfinite(volume):
-                                                volume = reactionVolume
-                                            if volume <= 0.0:
-                                                volume = reactionVolume
+                                                pass
+                                            else:
+                                                if math.isfinite(readVol):
+                                                    if readVol > 0.0:
+                                                        volume = readVol
                                         run = react.getparent()
                                         if 'id' in run.attrib:
                                             csvStandard += run.attrib['id']
@@ -9588,7 +9641,7 @@ class Experiment:
                                                     pass
                                                 else:
                                                     if math.isfinite(calcNcopy):
-                                                        finalNcopy = calcCorr * calcNcopy
+                                                        finalNcopy = calcCorr * calcNcopy * volume / 20.0
                                                         calcQuant = finalNcopy * res["corrNcopyFact"][oTar]
                                                         if oUnit == "cop":
                                                             csvStandard += "{:.2f}".format(calcQuant)
@@ -9624,8 +9677,8 @@ class Experiment:
                     res["tec_data"][sample][target]["cop_sd"] = -1.0
                     res["tec_data"][sample][target]["cop_cv"] = -1.0
                 else:
-                    for n0Val in nCopyData["Ncopy"][sample][target]:
-                        res["tec_data"][sample][target]["raw_vals"].append(n0Val / res["corrNcopyFact"][target])
+                    for nPos in range(0, len(nCopyData["Ncopy"][sample][target])):
+                        res["tec_data"][sample][target]["raw_vals"].append(nCopyData["Ncopy"][sample][target][nPos] * res["corrNcopyFact"][target] * nCopyData["Vol"][sample][target][nPos] / 20.0)
                     res["tec_data"][sample][target]["cop_mean"] = float(np.mean(res["tec_data"][sample][target]["raw_vals"]))
                     if len(nCopyData["Ncopy"][sample][target]) == 1:
                         res["tec_data"][sample][target]["cop_sd"] = 0.0
@@ -9692,7 +9745,7 @@ class Experiment:
                 if res["absUnit"] == "cop":
                     res["tsv"]["technical_data"] += "{:.2f}".format(
                         res["tec_data"][sample][target]["cop_mean"]) + "\t"
-                    res["tsv"]["technical_data"] += "{:.6f}".format(
+                    res["tsv"]["technical_data"] += "{:.2f}".format(
                         res["tec_data"][sample][target]["cop_sd"]) + "\t"
                     res["tsv"]["technical_data"] += "{:.2f}".format(
                         res["tec_data"][sample][target]["cop_cv"]) + "\t"
@@ -9766,6 +9819,12 @@ class Experiment:
             target: A dictionary with the results per target
             plate: A dictionary with the results per plate
         """
+
+        rootPar = self._node.getparent()
+        dataVersion = rootPar.get('version')
+
+        if dataVersion in ["1.0", "1.1", "1.2", "1.3"]:
+            raise RdmlError('Error: geNorm requires at least RDML version 1.4. After upgrading version run LinRegPCR again.')
 
         res = {}
         if selSamples not in ["all", "annotation"]:
@@ -10093,6 +10152,12 @@ class Experiment:
             target: A dictionary with the results per target
             plate: A dictionary with the results per plate
         """
+
+        rootPar = self._node.getparent()
+        dataVersion = rootPar.get('version')
+
+        if dataVersion in ["1.0", "1.1", "1.2", "1.3"]:
+            raise RdmlError('Error: RelativeQuantification requires at least RDML version 1.4. After upgrading version run LinRegPCR again.')
 
         res = {}
         tarType = {}
