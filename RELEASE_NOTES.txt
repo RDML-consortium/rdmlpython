@@ -1,17 +1,23 @@
-Version 2.0.0  -  XX.01.2024
+Version 2.0.1  -  XX.01.2024
+----------------------------
+
+- GeNorm with interpretation.
+
+
+Version 2.0.0  -  24.01.2024
 ----------------------------
 
 - Introduction of Ncopy.
 
-- Introduce RDML v1.4
+- Introduce RDML v1.4.
 
-- Replace Cq tests by Ncopy tests
+- Replace Cq tests by Ncopy tests.
 
-- Change RDML by default yes
+- Change RDML by default yes.
 
-- Absolute quantification only uses Ncopy
+- Absolute quantification only uses Ncopy.
 
-- corrCq is calculated based on Ncopy with PCR eff 2.0
+- corrCq is calculated based on Ncopy with PCR eff 2.0:
     corrCq = log2(copyThreshold / corrNcopy)
 
 

@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.0.0"
+    return "2.0.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -10049,8 +10049,11 @@ class Experiment:
         sorted_nCopy_geo = nCopy_geo[:, mFactorInds[::1]]
         sorted_Refs = np.array(res["reference"])[mFactorInds[::1]]
 
+        res["result"] = ""
         res["m_targets"] = []
         res["m_values"] = []
+        vValScore = -1
+        vCount = 1
         for col in range(np.shape(nCopy_geo)[1] - 1, -1, -1):
             res["m_targets"].append(str(sorted_Refs[col]))
             res["m_values"].append(float(sorted_mFactor[col]))
@@ -10078,7 +10081,26 @@ class Experiment:
                     geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
                     logDiff = np.log2(geoDiff)
                     vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
-                    res["v_values"].append(float(np.nanstd(logDiff, axis=0, ddof=1)))
+                    curr_vVal = float(np.nanstd(logDiff, axis=0, ddof=1))
+                    res["v_values"].append(curr_vVal)
+                    vCount += 1
+                    if curr_vVal < 0.15:
+                        if vValScore < 0:
+                            vValScore = vCount
+
+        if vValScore < 0:
+            res["result"] = "The selected genes are not stable enough. Please look for other candidates."
+        else:
+            resString = "The genes "
+            for genPos in range(0, vValScore):
+                finPos = len(res["m_targets"]) - genPos - 1
+                resString += res["m_targets"][finPos]
+                if vValScore - 2 - genPos > 0:
+                    resString += ", "
+                if vValScore - 2 - genPos == 0:
+                    resString += " and "
+            resString += " are stable enough."
+            res["result"] = resString
 
         if saveResultsCSV:
             if np.shape(nCopy_geo)[1] > 2:
