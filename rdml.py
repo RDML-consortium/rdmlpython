@@ -1904,9 +1904,27 @@ def _getXMLDataType():
 def _getXMLPartitionDataType():
     return ["tar", "excluded", "note", "pos", "neg", "undef", "excl", "conc"]
 
-def runStatistics(statTarGroup, parametric, translateGrp):
+def runStatistics(statTarGroup, parametric, translateGrp, statAlpha=0.05):
+    try:
+        statAlpha = float(statAlpha)
+    except ValueError:
+        raise RdmlError('Error: Alpha must be a number.')
+    if statAlpha <= 0.0:
+        raise RdmlError('Error: Alpha must be > 0.0.')
+    if statAlpha >= 1.0:
+        raise RdmlError('Error: Alpha must be < 1.0.')
+    sym = '#'
+    if statAlpha <= 0.05:
+        sym = '*'
+    if statAlpha <= 0.01:
+        sym = '**'
+    if statAlpha <= 0.001:
+        sym = '***'
+
     ret = {}
     ret["multi comparison"] = ""
+    ret["alpha"] = statAlpha
+    ret["df"] = len(statTarGroup) - 1
     if len(statTarGroup) < 2:
         ret["test name"] = "no test possible"
         ret["stat name"] = "only 1 group"
@@ -1924,7 +1942,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             ret["stat name"] = "F statistic"
             ret["stat val"], ret["p val"] = scp.f_oneway(*statTarGroup)
 
-            if ret["p val"] > 0.05:
+            if ret["p val"] > statAlpha:
                 return ret
             gridGroup = []
             gridValue = []
@@ -1986,7 +2004,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
 
             stat_F = stat_ms_groups / stat_ms_within
             stat_P = 1 - scp.f.cdf(stat_F, stat_df_groups, stat_df_within)
-            stat_grp_range = scp.t.ppf(1 - 0.05 / 2.0, stat_df_within)
+            stat_grp_range = scp.t.ppf(1 - statAlpha / 2.0, stat_df_within)
 
             # Student-Newman-Keuls multiple comparison of groups
             # Sort by increasing mean
@@ -2050,7 +2068,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                     if grpGridCriticDiff[row][col] == "":
                         grpGridMultiComp[row + 2].append("-")
                     elif grpGridObsDiff[row][col] > grpGridCriticDiff[row][col]:
-                        grpGridMultiComp[row + 2].append("*")
+                        grpGridMultiComp[row + 2].append(sym)
                     else:
                         grpGridMultiComp[row + 2].append("ns")
             ret["multi comparison"] = grpGridMultiComp
@@ -2064,7 +2082,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             ret["stat name"] = "H statistic"
             ret["stat val"], ret["p val"] = scp.kruskal(*statTarGroup)
 
-            if ret["p val"] > 0.05:
+            if ret["p val"] > statAlpha:
                 return ret
             gridGroup = []
             gridValue = []
@@ -2117,7 +2135,7 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             statres_tt = (1 / statres_s2) * (statres_s1 - statres_n3)
             statres_df = len(statTarGroup) - 1
             statres_prob = 1 - scp.chi2.cdf(statres_tt, df=statres_df)
-            statres_t = scp.t.ppf(1 - 0.05 / 2.0, statres_total_n - len(statTarGroup))
+            statres_t = scp.t.ppf(1 - statAlpha / 2.0, statres_total_n - len(statTarGroup))
             statres_SD = statres_t * np.sqrt(( statres_s2 * (( statres_total_n - 1 - statres_tt) / (statres_total_n - len(statTarGroup)))))
             # Calculate mean ranksum difference
             for row in range(0, len(statTarGroup)):
@@ -2145,13 +2163,13 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                     if grpGridCriticDiff[row][col] == "":
                         grpGridMultiComp[row + 2].append("-")
                     elif grpGridRanksum[row][col] > grpGridCriticDiff[row][col]:
-                        grpGridMultiComp[row + 2].append("*")
+                        grpGridMultiComp[row + 2].append(sym)
                     else:
                         grpGridMultiComp[row + 2].append("ns")
             ret["multi comparison"] = grpGridMultiComp
     return ret
 
-def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=True):
+def webAppRunStatistics(data, parametric=False, statAlpha=0.05, seperator='\t', replaceComma=True):
     replaceComma = _string_to_bool(replaceComma, triple=False)
     goodData = []
     foundGrp = {}
@@ -2175,7 +2193,7 @@ def webAppRunStatistics(data, parametric=False, seperator='\t', replaceComma=Tru
                 cell = re.sub(r",", "\.", cell)
             goodData[foundGrp[rawData[row][0]]].append(float(cell))
 
-    return runStatistics(goodData, parametric, translateGrp)
+    return runStatistics(goodData, parametric, translateGrp, statAlpha)
 
 class Rdml:
     """RDML-Python library
@@ -10156,7 +10174,7 @@ class Experiment:
 
         return res
 
-    def relative(self, overlapType="samples", selAnnotation="", statsParametric=False, inclAnnotation= False, selReferences=[], saveResultsCSV=False):
+    def relative(self, overlapType="samples", selAnnotation="", statsParametric=False, statAlpha=0.05, inclAnnotation= False, selReferences=[], saveResultsCSV=False):
         """Calulates relative expression and returns a json with additional data.
 
         Args:
@@ -10164,6 +10182,7 @@ class Experiment:
             overlapType: Base the overlap on "samples" or "annotation".
             selAnnotation: The annotation to use if overlapType == "annotation", else ignored.
             statsParametric: True uses parametric tests, False non-parametric tests for statistics
+            statAlpha: The alpha for group comparisons.
             inclAnnotation: If true, all annotations are included in csv output
             selReferences: The list of reference genes to correct for.
             saveResultsCSV: Save the results as tsv file.
@@ -10397,7 +10416,7 @@ class Experiment:
                             res["anno_data"][target][annoVal]["sem"] = 0.0
                         else:
                             res["anno_data"][target][annoVal]["sem"] = float(scp.sem(annoCollVals))
-                res["anno_stats"][target] = runStatistics(statTarGroup, statsParametric, translateGrp)
+                res["anno_stats"][target] = runStatistics(statTarGroup, statsParametric, translateGrp, statAlpha)
 
         if saveResultsCSV:
             res["tsv"]["technical_data"] = "Sample\tSample Type\t"
@@ -10521,13 +10540,14 @@ class Experiment:
                             res["tsv"]["annotation_data"] += "{:.4f}".format(indivVal) + ";"
                         res["tsv"]["annotation_data"] += "\n"
 
-                res["tsv"]["statistics_data"] = "Target\tStat. Test\tTest Output\tTest Output\tP Value\tP Value\n"
+                res["tsv"]["statistics_data"] = "Target\tStat. Test\tAlpha\tTest Var. Name\tTest Output\tdf\tP Value\n"
                 for target in sortTar:
                     res["tsv"]["statistics_data"] += target + "\t"
                     res["tsv"]["statistics_data"] += res["anno_stats"][target]["test name"] + "\t"
+                    res["tsv"]["statistics_data"] += str(res["anno_stats"][target]["alpha"]) + "\t"
                     res["tsv"]["statistics_data"] += res["anno_stats"][target]["stat name"] + "\t"
                     res["tsv"]["statistics_data"] += "{:.4f}".format(res["anno_stats"][target]["stat val"]) + "\t"
-                    res["tsv"]["statistics_data"] += "p-value\t"
+                    res["tsv"]["statistics_data"] += str(res["anno_stats"][target]["df"]) + "\t"
                     res["tsv"]["statistics_data"] += "{:.4f}".format(res["anno_stats"][target]["p val"]) + "\n"
 
                 res["tsv"]["statistics_multi_comp"] = ""
