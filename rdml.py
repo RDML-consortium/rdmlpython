@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.0.1"
+    return "2.0.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -9105,7 +9105,7 @@ class Experiment:
 
         copyThreshold_rot = _get_copies_threshold()
         mol = 6.02214076e23  # copies / Mole
-        baseWeight = 660  # g / mol per base
+        baseWeight = 660.0  # g / mol per base
         finalFluor = 1e12
         finalConc = -1.0
         opticalFactor = 1.0
@@ -9540,7 +9540,7 @@ class Experiment:
                 tresh = math.exp(tresh_sum / tresh_num)
             if tresh <= 0.0:
                 raise RdmlError('Error: No threshold found.')
-            ngTreshold_rot = copyThreshold_rot * 1e9 * ((100 * 615.96) + 36.04) / mol
+            ngTreshold_rot = copyThreshold_rot * 1e9 * 100 * baseWeight / mol
             for currConc in concFluor:
                 currFluor = concFluor[currConc] / tresh - negFluor / tresh
                 if 0.05 + negFluor < currFluor < finalFluor:
@@ -9561,7 +9561,7 @@ class Experiment:
             res["tsv"]["corrNcopyFact"] += str(res["target"][tar]["ampliconLen"]) + '\t'
             if res["corrNcopyFact"][tar] > 0.0:
                 copiesCalc = copyThreshold_rot * res["corrNcopyFact"][tar] * reactionVolume / 20.0
-                ngCalc = copiesCalc * 1e9 * ((res["target"][tar]["ampliconLen"] * 615.96) + 36.04) / mol
+                ngCalc = copiesCalc * 1e9 * res["target"][tar]["ampliconLen"] * baseWeight / mol
                 res["tsv"]["corrNcopyFact"] += "{:.2e}".format(copiesCalc) + '\t'
                 res["tsv"]["corrNcopyFact"] += "{:.2f}".format(ngCalc)
             else:
@@ -9578,7 +9578,7 @@ class Experiment:
             csvStandard += "{:.2f}".format(negFluor * reactionVolume) + '\t\n'
 
             sortedConc = sorted(list(concFluor.keys()))
-            ngTreshold_rot = copyThreshold_rot * 1e9 * ((100 * 615.96) + 36.04) / mol
+            ngTreshold_rot = copyThreshold_rot * 1e9 * 100 * baseWeight / mol
             for currConc in sortedConc:
                 csvStandard += "{:.2f}".format(currConc * reactionVolume) + '\t' + _niceQuantityTypeReact("ng")
                 resFluor = concFluor[currConc] / tresh - negFluor / tresh
