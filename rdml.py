@@ -10107,9 +10107,9 @@ class Experiment:
                             vValScore = vCount
 
         if vValScore < 0:
-            res["result"] = "The selected genes are not stable enough. Please look for other candidates."
+            res["result"] = "No useful set of reference genes for normalization found (V >0.15). Start over by selecting new candidate reference genes."
         else:
-            resString = "The genes "
+            resString = "The combination of the genes "
             for genPos in range(0, vValScore):
                 finPos = len(res["m_targets"]) - genPos - 1
                 resString += res["m_targets"][finPos]
@@ -10117,7 +10117,7 @@ class Experiment:
                     resString += ", "
                 if vValScore - 2 - genPos == 0:
                     resString += " and "
-            resString += " are stable enough."
+            resString += " is suitable for normalization."
             res["result"] = resString
 
         if saveResultsCSV:
