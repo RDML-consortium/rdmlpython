@@ -1936,6 +1936,7 @@ def runStatistics(statTarGroup, parametric, translateGrp, statAlpha=0.05):
         if len(statTarGroup) == 2:
             ret["test name"] = "T-test"
             ret["stat name"] = "t-statistic"
+            ret["df"] = len(statTarGroup[0]) + len(statTarGroup[1]) - 2
             ret["stat val"], ret["p val"] = scp.ttest_ind(statTarGroup[0], statTarGroup[1])
         else:
             ret["test name"] = "One-way ANOVA"
@@ -10480,7 +10481,7 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["relative_data"] += currAnno + "\t"
-            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\n"
+            res["tsv"]["relative_data"] += "Target\tTarget Type\tn Rel. Exp.\tRel. Expression\n"
             sortSam = sorted(res["rel_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["rel_data"][sample].keys())
@@ -10496,6 +10497,7 @@ class Experiment:
                             res["tsv"]["relative_data"] += annoVal + "\t"
                     res["tsv"]["relative_data"] += target + "\t"
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
+                    res["tsv"]["relative_data"] += str(len(res["rel_data"][sample][target]["raw_vals"]) + 1) + "\t"
                     if res["rel_data"][sample][target]["ref_missing"]:
                         res["tsv"]["relative_data"] += "Reference Genes without Ncopy"
                     res["tsv"]["relative_data"] += "{:.4f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
@@ -10514,7 +10516,7 @@ class Experiment:
                         if overSelAnno[currAnno]["conf"]:
                             continue
                         res["tsv"]["annotation_data"] += currAnno + "\t"
-                res["tsv"]["annotation_data"] += "Target\tRel. Expression\tSEM\tIndividual Values\n"
+                res["tsv"]["annotation_data"] += "Target\tn\tRel. Expression\tSEM\tIndividual Values\n"
                 sortTar = sorted(res["anno_data"].keys())
                 for target in sortTar:
                     sortAnno = sorted(res["anno_data"][target].keys())
@@ -10534,6 +10536,7 @@ class Experiment:
                                         annoData = overSelAnno[currAnno]["data"][annoVal]
                                 res["tsv"]["annotation_data"] += annoData + "\t"
                         res["tsv"]["annotation_data"] += target + "\t"
+                        res["tsv"]["annotation_data"] += str(len(res["anno_data"][target][annoVal]["raw_vals"]) + 1) + "\t"
                         res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
                         res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
                         for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
