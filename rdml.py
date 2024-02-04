@@ -9442,7 +9442,6 @@ class Experiment:
                             dilPCREff = float(np.power(10.0, -1.0 / curveLinReg.slope))
                             rSquared = float(curveLinReg.rvalue) ** 2
                             dilFactor = 10 * float(np.power(2.0, -1.0 / np.log10(dilPCREff)))
-                            print(dilFactor)
                             stdCurvesCsv += tar + '\t'
                             stdCurvesCsv += runID + '\t'
                             stdCurvesCsv += "{:.4f}".format(rSquared) + '\t'
@@ -9478,6 +9477,8 @@ class Experiment:
             tresh_sum = 0.0
             tresh_num = 0
             negFluor = 0.0
+            if len(optQuantity) == 0:
+                raise RdmlError('Error: No optical standard found.')
             for currConc in optQuantity:
                 fluor_sum = 0.0
                 fluor_num = 0
