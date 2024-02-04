@@ -10498,7 +10498,7 @@ class Experiment:
                             res["tsv"]["relative_data"] += annoVal + "\t"
                     res["tsv"]["relative_data"] += target + "\t"
                     res["tsv"]["relative_data"] += res["tec_data"][sample][target]["target_type"] + "\t"
-                    res["tsv"]["relative_data"] += str(len(res["rel_data"][sample][target]["raw_vals"]) + 1) + "\t"
+                    res["tsv"]["relative_data"] += str(len(res["rel_data"][sample][target]["raw_vals"])) + "\t"
                     if res["rel_data"][sample][target]["ref_missing"]:
                         res["tsv"]["relative_data"] += "Reference Genes without Ncopy"
                     res["tsv"]["relative_data"] += "{:.4f}".format(res["rel_data"][sample][target]["rel_expression"]) + "\t"
@@ -10537,7 +10537,7 @@ class Experiment:
                                         annoData = overSelAnno[currAnno]["data"][annoVal]
                                 res["tsv"]["annotation_data"] += annoData + "\t"
                         res["tsv"]["annotation_data"] += target + "\t"
-                        res["tsv"]["annotation_data"] += str(len(res["anno_data"][target][annoVal]["raw_vals"]) + 1) + "\t"
+                        res["tsv"]["annotation_data"] += str(len(res["anno_data"][target][annoVal]["raw_vals"])) + "\t"
                         res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["mean"]) + "\t"
                         res["tsv"]["annotation_data"] += "{:.4f}".format(res["anno_data"][target][annoVal]["sem"]) + "\t"
                         for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
