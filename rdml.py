@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.0.2"
+    return "2.0.3"
 
 
 class NpEncoder(json.JSONEncoder):
