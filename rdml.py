@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.0.3"
+    return "2.0.4"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -2949,12 +2949,46 @@ class Rdml:
             A list of strings with the modifications made.
         """
 
+        copyThreshold = _get_copies_threshold()
+        dataXMLelements = _getXMLDataType()
         ret = []
         rdml_version = self._node.get('version')
         if rdml_version != '1.3':
             raise RdmlError('RDML version for migration has to be v1.3.')
 
         self._node.attrib['version'] = "1.4"
+        exp1 = _get_all_children(self._node, "experiment")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "run")
+            for node2 in exp2:
+                exp3 = _get_all_children(node2, "react")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "data")
+                    for node4 in exp4:
+                        n0Val = _get_first_child_text(node4, "N0")
+                        if n0Val == "":
+                            continue
+                        try:
+                            n0Val = float(n0Val)
+                        except ValueError:
+                            continue
+                        if not math.isfinite(n0Val):
+                            continue
+                        if n0Val <= 0.0:
+                            continue
+                        threshold = _get_first_child_text(node4, "quantFluor")
+                        if threshold == "":
+                            continue
+                        try:
+                            threshold = float(threshold)
+                        except ValueError:
+                            continue
+                        if not math.isfinite(threshold):
+                            continue
+                        if threshold <= 0.0:
+                            continue
+                        Ncopy = copyThreshold * n0Val / threshold
+                        _change_subelement(node4, "Ncopy", dataXMLelements, "{:.4f}".format(Ncopy), True, "string")
         return ret
 
     def migrate_version_1_4_to_1_3(self):
