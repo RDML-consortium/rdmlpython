@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.0.4"
+    return "2.0.5"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -4288,7 +4288,10 @@ class Rdml:
             return ""
 
         with open(csvData, newline='') as tfile:  # add encoding='utf-8' ?
-            annoTab = list(csv.reader(tfile, delimiter='\t'))
+            try:
+                annoTab = list(csv.reader(tfile, delimiter='\t'))
+            except UnicodeDecodeError:
+                raise RdmlError('The annotation must have UTF-8 encoding.')
             if len(annoTab) < 2:
                 raise RdmlError('The annotation file must have at least two rows.')
             if len(annoTab[0]) < 2:
@@ -11201,7 +11204,7 @@ class Run:
                     data.remove(present7)
             else:
                 if ((dMode == "melt" and dataVersion in ["1.3", "1.4"]) or 
-                    (dMode == "amp" and dataVersion in ["1.3", "1.4"] and keyFor7 == "Ncopy") or
+                    (dMode == "amp" and dataVersion in ["1.4"] and keyFor7 == "Ncopy") or
                     (dMode == "amp" and keyFor7 == "cq")):
                     if present7 is None:
                         new_node = et.Element(keyFor7)
