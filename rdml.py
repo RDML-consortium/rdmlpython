@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.0.5"
+    return "2.1.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -67,7 +67,7 @@ def _get_copies_threshold():
         The number of copies at threshold as float.
     """
 
-    copies = 10 * pow(1.9, 35.0)
+    copies = 10 * pow(1.9, 35.0)  * 20.0 / 50.0
     return copies
 
 
@@ -9474,15 +9474,18 @@ class Experiment:
                     runEle = allRuns[runPos]
                     runID = runEle['id']
                     if runID in stdCurves[tar]:
-                        if len(stdCurves[tar][runID]["x"]) > 0:
-                            curveLinReg = scp.stats.linregress(x=stdCurves[tar][runID]["x"], y=stdCurves[tar][runID]["Ncopy"])
-                            dilPCREff = float(np.power(10.0, -1.0 / curveLinReg.slope))
-                            rSquared = float(curveLinReg.rvalue) ** 2
-                            dilFactor = 10 * float(np.power(2.0, -1.0 / np.log10(dilPCREff)))
-                            stdCurvesCsv += tar + '\t'
-                            stdCurvesCsv += runID + '\t'
-                            stdCurvesCsv += "{:.4f}".format(rSquared) + '\t'
-                            stdCurvesCsv += "{:.4f}".format(dilFactor) + '\n'
+                        if len(stdCurves[tar][runID]["x"]) > 1:
+                            try:
+                                curveLinReg = scp.stats.linregress(x=stdCurves[tar][runID]["x"], y=stdCurves[tar][runID]["Ncopy"])
+                                dilPCREff = float(np.power(10.0, -1.0 / curveLinReg.slope))
+                                rSquared = float(curveLinReg.rvalue) ** 2
+                                dilFactor = 10 * float(np.power(2.0, -1.0 / np.log10(dilPCREff)))
+                                stdCurvesCsv += tar + '\t'
+                                stdCurvesCsv += runID + '\t'
+                                stdCurvesCsv += "{:.4f}".format(rSquared) + '\t'
+                                stdCurvesCsv += "{:.4f}".format(dilFactor) + '\n'
+                            except ValueError:
+                                stdCurvesCsv = ""
 
             if stdCurvesCsv != "":
                 res["tsv"]["dilStandard"] = "Target\tRun\tDilution R^2\tDilution Factor\n"
@@ -9553,7 +9556,7 @@ class Experiment:
                                     continue
                                 if cyc < 0:
                                     continue
-                            if cyc < 6:
+                            if 5 < cyc < 11:
                                 curFlour = _get_first_child_text(adp, "fluor")
                                 if not curFlour == "":
                                     try:
@@ -9582,9 +9585,9 @@ class Experiment:
             ngTreshold_rot = copyThreshold_rot * 1e9 * 100 * baseWeight / mol
             for currConc in concFluor:
                 currFluor = concFluor[currConc] / tresh - negFluor / tresh
-                if 0.05 + negFluor < currFluor < finalFluor:
-                    finalFluor = currFluor
-                    finalConc = currConc
+                #if 0.05 + negFluor < currFluor < finalFluor:
+                finalFluor = currFluor
+                finalConc = currConc
             opticalFactor = finalConc / finalFluor / ngTreshold_rot
             for tar in res["target"]:
                 res["corrNcopyFact"][tar] = opticalFactor * 100.0 / res["target"][tar]["ampliconLen"]
@@ -12518,6 +12521,40 @@ class Run:
             finally:
                 zf.close()
         return retVal
+
+    def setReactionVolume(self, vol):
+        """Imports data from a tab seperated table file with react fluorescence data.
+
+        Args:
+            self: The class self parameter.
+            vol: The default volume of each reaction in microliter.
+
+        Returns:
+            None.
+        """
+
+        expParent = self._node.getparent()
+        rootPar = expParent.getparent()
+        rdml_version = rootPar.get('version')
+        if rdml_version not in ['1.4']:
+            return
+
+        if vol == "":
+            return
+
+        vol = re.sub(r"[^0-9\.]", "", vol)
+        try:
+            mVol = float(vol)
+        except ValueError:
+            return
+        if not math.isfinite(mVol):
+            return
+        if mVol <= 0.0:
+            return
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            _change_subelement(react, "vol", ["sample", "vol", "data", "partitions"], vol, True, "float")
 
     def getreactjson(self, curves=True):
         """Returns a json of the react data including fluorescence data.
