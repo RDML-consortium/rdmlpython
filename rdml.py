@@ -4285,8 +4285,13 @@ class Rdml:
 
         ver = self._node.get('version')
         if ver == "1.1":
-            return ""
+            return "Error: Not available in RDML v1.1."
 
+        err = ""
+        presSamples = []
+        exp = _get_all_children(self._node, "sample")
+        for node in exp:
+            presSamples.append(node.attrib['id'])
         with open(csvData, newline='') as tfile:  # add encoding='utf-8' ?
             try:
                 annoTab = list(csv.reader(tfile, delimiter='\t'))
@@ -4299,13 +4304,21 @@ class Rdml:
             for row in range(1, len(annoTab)):
                 samId = annoTab[row][0]
                 if samId != "":
+                    if samId not in presSamples:
+                        if err == "":
+                            err += samId
+                        else:
+                            err += ", " + samId
+                        continue
                     for col in range(1, len(annoTab[0])):
                         annoProp = annoTab[0][col]
                         annoVal = annoTab[row][col]
                         if annoProp != "":
                             el = self.get_sample(byid=samId)
                             el.edit_annotation_value(property=annoProp, value=annoVal)
-        return
+        if err != "":
+            err = "Error: The uploaded sample ids are not found in the RDML file: " + err
+        return err
 
     def rename_annotation_property(self, oldProperty, newProperty):
         """Returns a list of the annotations in the xml file.
@@ -10241,6 +10254,9 @@ class Experiment:
 
         if dataVersion in ["1.0", "1.1", "1.2", "1.3"]:
             raise RdmlError('Error: RelativeQuantification requires at least RDML version 1.4. After upgrading version run LinRegPCR again.')
+
+        if len(selReferences) < 1:
+            raise RdmlError('Error: RelativeQuantification requires at least one reference gene.')
 
         res = {}
         tarType = {}
