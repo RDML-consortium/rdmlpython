@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.1.0"
+    return "2.1.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1227,7 +1227,7 @@ def _lrp_setLogWin(tarGroup, newUpWin, foldWidth, upWin, lowWin, maxFluorTotal, 
         minFluorTotal: The minimum fluorescence over all rows
 
     Returns:
-        An array with [indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl].
+        The arrays upWin and lowWin.
     """
     # No rounding needed, only present for exact identical output with Pascal version
     tempUpWin = np.power(10, np.round(1000 * newUpWin) / 1000)
@@ -11073,6 +11073,7 @@ class Run:
 
         dataVersion = rootEl._node.attrib['version'] # _get_first_child_text(rootEl, "version")
         ret = ""
+        negWarning = False
         with open(filename, "r") as tfile:
             fileContent = tfile.read()
 
@@ -11252,6 +11253,8 @@ class Run:
                                 pass
                             else:
                                 if math.isfinite(colToFloat):
+                                    if colToFloat < 0.0:
+                                        negWarning = True
                                     new_node = et.Element("adp")
                                     place = _get_tag_pos(data, "adp",
                                                         _getXMLDataType(),
@@ -11283,6 +11286,8 @@ class Run:
                                 pass
                             else:
                                 if math.isfinite(colToFloat):
+                                    if colToFloat < 0.0:
+                                        negWarning = True
                                     new_node = et.Element("mdp")
                                     place = _get_tag_pos(data, "mdp",
                                                         _getXMLDataType(),
@@ -11297,6 +11302,12 @@ class Run:
                                     place = _get_tag_pos(new_node, "fluor", ["tmp", "fluor"], 9999999)
                                     new_node.insert(place, new_sub)
                         colCount += 1
+        if negWarning == True:
+            if ret == "":
+                ret = "Warning: Negative fluorescence values detected. Be sure to import raw data without baseline correction.\n"
+            else:
+                ret = "Warning: Negative fluorescence values detected. Be sure to import raw data without baseline correction.\n" + ret
+                ret += "\nWarning: Negative fluorescence values detected. Be sure to import raw data without baseline correction."
         return ret
 
     def import_digital_data(self, rootEl, fileformat, filename, filelist, ignoreCh=""):
@@ -13670,10 +13681,10 @@ class Run:
             finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
             finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!"
             vecMinFluor = np.nanmin(rawMod, axis=1)
-            vecMaxFluor = np.nanmax(rawMod, axis=1)
+            vecMaxFluor = np.nanmax(rawMod)
             for oRow in range(0, spFl[0]):
                 if vecMinFluor[oRow] < 0.0:
-                    negShiftBaseline[oRow] = (vecMaxFluor[oRow] - vecMinFluor[oRow]) / 100.0 - vecMinFluor[oRow]
+                    negShiftBaseline[oRow] = (vecMaxFluor - vecMinFluor[oRow]) / 100.0 - vecMinFluor[oRow]
                     for oCol in range(0, spFl[1]):
                         rawFluor[oRow, oCol] += negShiftBaseline[oRow]
             baseCorFluor = rawFluor.copy()
@@ -14085,8 +14096,21 @@ class Run:
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
         vecSkipSample_Plat[vecNoPlateau] = True
-        logThreshold = np.log10(threshold[1:])
-        threshold[0] = np.power(10, np.mean(logThreshold))
+
+        # Common threshold calculation
+        comThreshSum = 0.0
+        comThreshNum = 0
+        for oRow in range(0, spFl[0]):
+            if not vecSkipSample[oRow]:
+                if not vecNoAmplification[oRow]:
+                    if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
+                        comThreshSum += math.log(threshold[vecTarget[oRow]])
+                        comThreshNum += 1
+        if comThreshNum > 0:
+            threshold[0] = math.exp(comThreshSum / comThreshNum)
+        else:
+            logThreshold = np.log10(threshold[1:])
+            threshold[0] = np.power(10, np.mean(logThreshold))
 
         # Create the warnings for the different chemistries
         # Chem Arr     0     1     2     3     4     5     6     7     8     9    10
