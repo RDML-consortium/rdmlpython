@@ -13305,32 +13305,32 @@ class Run:
                    "Cq (indiv eff - for debug use)",  # 25
                    "Cq with group threshold (indiv eff - for debug use)",  # 26
                    "mean PCR eff",   # 27
-                   "standard error of the mean PCR eff",   # 28
+                   "standard error of mean PCR eff",   # 28
                    "Ncopy (mean eff)",   # 29
                    "N0 (mean eff)",   # 30
                    "Cq (mean eff)",   # 31
                    "mean PCR eff - no plateau",   # 32
-                   "standard error of the mean PCR eff - no plateau",   # 33
+                   "standard error of mean PCR eff - no plateau",   # 33
                    "Ncopy (mean eff) - no plateau",   # 34
                    "N0 (mean eff) - no plateau",   # 35
                    "Cq (mean eff) - no plateau",   # 36
                    "mean PCR eff - mean efficiency",   # 37
-                   "standard error of the mean PCR eff - mean efficiency",   # 38
+                   "standard error of mean PCR eff - mean efficiency",   # 38
                    "Ncopy (mean eff) - mean efficiency",   # 39
                    "N0 (mean eff) - mean efficiency",   # 40
                    "Cq (mean eff) - mean efficiency",   # 41
                    "mean PCR eff - no plateau - mean efficiency",   # 42
-                   "standard error of the mean PCR eff - no plateau - mean efficiency",   # 43
+                   "standard error of mean PCR eff - no plateau - mean efficiency",   # 43
                    "Ncopy (mean eff) - no plateau - mean efficiency",   # 44
                    "N0 (mean eff) - no plateau - mean efficiency",   # 45
                    "Cq (mean eff) - no plateau - mean efficiency",   # 46
                    "mean PCR eff - stat efficiency",   # 47
-                   "standard error of the mean PCR eff - stat efficiency",   # 48
+                   "standard error of mean PCR eff - stat efficiency",   # 48
                    "Ncopy (mean eff) - stat efficiency",   # 49
                    "N0 (mean eff) - stat efficiency",   # 50
                    "Cq (mean eff) - stat efficiency",   # 51
                    "mean PCR eff - no plateau - stat efficiency",   # 52
-                   "standard error of the stat PCR eff - no plateau - stat efficiency",   # 53
+                   "standard error of mean PCR eff - no plateau - stat efficiency",   # 53
                    "Ncopy (mean eff) - no plateau - stat efficiency",   # 54
                    "N0 (mean eff) - no plateau - stat efficiency",   # 55
                    "Cq (mean eff) - no plateau - stat efficiency",   # 56
