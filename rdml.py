@@ -10935,6 +10935,122 @@ class Run:
         data["react"] = _get_number_of_children(self._node, "react")
         return data
 
+    def remove_calculations(self):
+        """Removes all values which result of calculations in a run.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the data.
+        """
+
+        ret = []
+        hint1 = ""
+        hint2 = ""
+        hint3 = ""
+        hint4 = ""
+        hint5 = ""
+        hint6 = ""
+        hint7 = ""
+        hint8 = ""
+        hint9 = ""
+        hint10 = ""
+        hint11 = ""
+        hint12 = ""
+        hint13 = ""
+        hint14 = ""
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                exp5 = _get_all_children(react_data, "cq")
+                for node5 in exp5:
+                    hint1 = "Deleted react data \"cq\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "N0")
+                for node5 in exp5:
+                    hint2 = "Deleted react data \"N0\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "Ncopy")
+                for node5 in exp5:
+                    hint14 = "Deleted react data \"Ncopy\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "ampEffMet")
+                for node5 in exp5:
+                    hint3 = "Deleted react data \"ampEffMet\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "ampEff")
+                for node5 in exp5:
+                    hint4 = "Deleted react data \"ampEff\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "ampEffSE")
+                for node5 in exp5:
+                    hint5 = "Deleted react data \"ampEffSE\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "corrF")
+                for node5 in exp5:
+                    hint6 = "Deleted react data \"corrF\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "corrP")
+                for node5 in exp5:
+                    hint7 = "Deleted react data \"corrP\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "corrCq")
+                for node5 in exp5:
+                    hint8 = "Deleted react data \"corrCq\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "meltTemp")
+                for node5 in exp5:
+                    hint9 = "Deleted react data \"meltTemp\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "endPt")
+                for node5 in exp5:
+                    hint10 = "Deleted react data \"endPt\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "bgFluor")
+                for node5 in exp5:
+                    hint11 = "Deleted react data \"bgFluor\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "bgFluorSlp")
+                for node5 in exp5:
+                    hint12 = "Deleted react data \"bgFluorSlp\" elements."
+                    react_data.remove(node5)
+                exp5 = _get_all_children(react_data, "quantFluor")
+                for node5 in exp5:
+                    hint13 = "Deleted react data \"quantFluor\" elements."
+                    react_data.remove(node5)
+
+        if hint1 != "":
+            ret.append(hint1)
+        if hint2 != "":
+            ret.append(hint2)
+        if hint14 != "":
+            ret.append(hint14)
+        if hint3 != "":
+            ret.append(hint3)
+        if hint4 != "":
+            ret.append(hint4)
+        if hint5 != "":
+            ret.append(hint5)
+        if hint6 != "":
+            ret.append(hint6)
+        if hint7 != "":
+            ret.append(hint7)
+        if hint8 != "":
+            ret.append(hint8)
+        if hint9 != "":
+            ret.append(hint9)
+        if hint10 != "":
+            ret.append(hint10)
+        if hint11 != "":
+            ret.append(hint11)
+        if hint12 != "":
+            ret.append(hint12)
+        if hint13 != "":
+            ret.append(hint13)
+        return ret
+
     def export_table(self, dMode):
         """Returns a tab seperated table file with the react fluorescence data in RDES format.
 
