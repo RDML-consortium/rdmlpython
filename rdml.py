@@ -9246,7 +9246,7 @@ class Experiment:
                     else:
                         if math.isfinite(readVol):
                             if readVol > 0.0:
-                                vol_sum += math.log(readVol)
+                                vol_sum += readVol
                                 vol_num += 1
                 react_datas = _get_all_children(react, "data")
                 for react_data in react_datas:
@@ -9258,9 +9258,9 @@ class Experiment:
                     tar = tarId.attrib['id']
                     res["target"][tar] = {}
         if vol_num > 0:
-            geoVol = math.exp(vol_sum / vol_num)
-            if geoVol > 0.0:
-                reactionVolume = geoVol
+            meanVol = vol_sum / vol_num
+            if meanVol > 0.0:
+                reactionVolume = meanVol
 
         res["tsv"] = {}
         res["quantity"] = {}
@@ -9415,8 +9415,8 @@ class Experiment:
                     for qValue in res["quantity"][quantUnit]["samples"][qTar]:
                         if qValue <= 0.0:
                             continue
-                        geo_sum = 0.0
-                        geo_num = 0
+                        mean_sum = 0.0
+                        mean_num = 0
                         vol_sum = 0.0
                         selSamples = list(res["quantity"][quantUnit]["samples"][qTar][qValue].keys())
                         for qSamp in selSamples:
@@ -9455,8 +9455,8 @@ class Experiment:
                                             if math.isfinite(calcNcopy):
                                                 finalNcopy = calcCorr * calcNcopy
                                                 if finalNcopy > 0.0:
-                                                    geo_sum += math.log(finalNcopy)
-                                                    geo_num += 1
+                                                    mean_sum += finalNcopy
+                                                    mean_num += 1
                                                     volume = reactionVolume
                                                     react = react_data.getparent()
                                                     readVol = _get_first_child_text(react, "vol")
@@ -9469,18 +9469,18 @@ class Experiment:
                                                             if math.isfinite(readVol):
                                                                 if readVol > 0.0:
                                                                     volume = readVol
-                                                    vol_sum += math.log(volume)
+                                                    vol_sum += volume
                                                     run = react.getparent()
                                                     if 'id' in run.attrib:
                                                         stdCurves[qTar][run.attrib['id']]["x"].append(math.log10(qValue * volume))
                                                         stdCurves[qTar][run.attrib['id']]["Ncopy"].append(finalNcopy)
                         if qValue == sortValues[0]:
-                            if geo_num > 0:
-                                geoNcopy = math.exp(geo_sum / geo_num)
-                                geoVol = math.exp(vol_sum / geo_num)
-                                if geoVol > 0.0:
-                                    reactionVolume = geoVol
-                                res["corrNcopyFact"][qTar] = (sortValues[0] * 20.0) / geoNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
+                            if mean_num > 0:
+                                meanNcopy = mean_sum / mean_num
+                                meanVol = vol_sum / mean_num
+                                if meanVol > 0.0:
+                                    reactionVolume = meanVol
+                                res["corrNcopyFact"][qTar] = (sortValues[0] * 20.0) / meanNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
                                 no_standard_found = False
                                 currTarStd = True
                     for pRunA in range(0, len(allRuns)):
