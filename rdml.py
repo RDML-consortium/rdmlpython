@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.1.1"
+    return "2.1.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -9161,6 +9161,7 @@ class Experiment:
         finalConc = -1.0
         opticalFactor = 1.0
         tresh = 0.0
+        no_optical_calibrator = True
         nCopyData = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
@@ -9397,9 +9398,12 @@ class Experiment:
                                 res["target"][tarId]["ampliconLen"] = float(len(amplicon))
 
         if method == "reference":
+            no_standard_found = True
+            all_standards_found = True
             stdCurves = {}
             res["absUnit"] = quantUnit
             for qTar in res["target"]:
+                currTarStd = False
                 stdCurves[qTar] = {}
                 for pRunA in range(0, len(allRuns)):
                     runA = allRuns[pRunA]
@@ -9477,9 +9481,18 @@ class Experiment:
                                 if geoVol > 0.0:
                                     reactionVolume = geoVol
                                 res["corrNcopyFact"][qTar] = (sortValues[0] * 20.0) / geoNcopy  # (geoNcopy / sortValues[0]) * pow(1.9, 35.0)
+                                no_standard_found = False
+                                currTarStd = True
                     for pRunA in range(0, len(allRuns)):
                         for aPos  in range(0, len(stdCurves[qTar][run.attrib['id']]["Ncopy"])):
                             stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] = math.log2(copyThreshold_rot / (stdCurves[qTar][run.attrib['id']]["Ncopy"][aPos] * res["corrNcopyFact"][qTar]))
+                if currTarStd == False:
+                    all_standards_found = False
+            if no_standard_found == False:
+                if all_standards_found == False:
+                    res["error"] = "Warning: Not all targets have standard samples. Consider to set estimate missing targets to yes."
+            else:
+                raise RdmlError("Error: No standard sample found. A sample type \"std\" must be selected and a quantity must be provided.")
 
             stdCurvesCsv = ""
             for tar in stdCurves:
@@ -9530,6 +9543,8 @@ class Experiment:
             tresh_sum = 0.0
             tresh_num = 0
             negFluor = 0.0
+            no_optical_calibrator = True
+            no_neg_calibrator = True
             if len(optQuantity) == 0:
                 raise RdmlError('Error: No optical standard found.')
             for currConc in optQuantity:
@@ -9578,29 +9593,35 @@ class Experiment:
                                         continue
                                     if not math.isfinite(curFlour):
                                         continue
-                                    if curFlour <= 0.0:
-                                        continue
                                 corrFlour = curFlour / volume
                                 if currConc > 0.000001:
-                                    fluor_sum += math.log(corrFlour)
+                                    fluor_sum += corrFlour
                                     fluor_num += 1
+                                    no_optical_calibrator = False
                                 else:
-                                    neg_sum += math.log(corrFlour)
+                                    neg_sum += corrFlour
                                     neg_num += 1
+                                    no_neg_calibrator = False
                 if fluor_num > 0:
-                    concFluor[currConc] = math.exp(fluor_sum / fluor_num)
+                    concFluor[currConc] = fluor_sum / fluor_num
+            if no_optical_calibrator == True:
+                raise RdmlError("Error: Not optical calibrator sample found. A sample type \"opt\" must be selected and a quantity must be provided.")
+            else:
+                if no_neg_calibrator == True:
+                    raise RdmlError("Error: Not negative optical calibrator sample found. A sample type \"opt\" must be selected and a 0.0 ng quantity must be provided.")
+
             if neg_num > 0:
-                negFluor = math.exp(neg_sum / neg_num)
+                negFluor = neg_sum / neg_num
             if tresh_num > 0:
                 tresh = math.exp(tresh_sum / tresh_num)
             if tresh <= 0.0:
                 raise RdmlError('Error: No threshold found.')
             ngTreshold_rot = copyThreshold_rot * 1e9 * 100 * baseWeight / mol
             for currConc in concFluor:
-                currFluor = concFluor[currConc] / tresh - negFluor / tresh
-                #if 0.05 + negFluor < currFluor < finalFluor:
-                finalFluor = currFluor
-                finalConc = currConc
+                currFluor = (concFluor[currConc] / tresh) - (negFluor / tresh)
+                if 0.05 + (negFluor / tresh) < currFluor < finalFluor:
+                    finalFluor = currFluor
+                    finalConc = currConc
             opticalFactor = finalConc / finalFluor / ngTreshold_rot
             for tar in res["target"]:
                 res["corrNcopyFact"][tar] = opticalFactor * 100.0 / res["target"][tar]["ampliconLen"]
@@ -9757,11 +9778,17 @@ class Experiment:
                         res["tec_data"][sample][target]["cop_sd"] = 0.0
                         res["tec_data"][sample][target]["cop_cv"] = 0.0
                     else:
-                        res["tec_data"][sample][target]["cop_sd"] = float(np.std(res["tec_data"][sample][target]["raw_vals"], ddof=1))
-                        calcCV = res["tec_data"][sample][target]["cop_sd"] / res["tec_data"][sample][target]["cop_mean"]
-                        res["tec_data"][sample][target]["cop_cv"] = calcCV
-                        if calcCV > 0.3:
-                            res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
+                        if res["tec_data"][sample][target]["cop_mean"] < 0.00:
+                            res["tec_data"][sample][target]["error"] += "No Standard sample;"
+                            res["tec_data"][sample][target]["cop_mean"] = -1.0
+                            res["tec_data"][sample][target]["cop_sd"] = -1.0
+                            res["tec_data"][sample][target]["cop_cv"] = -1.0
+                        else:
+                            res["tec_data"][sample][target]["cop_sd"] = float(np.std(res["tec_data"][sample][target]["raw_vals"], ddof=1))
+                            calcCV = res["tec_data"][sample][target]["cop_sd"] / res["tec_data"][sample][target]["cop_mean"]
+                            res["tec_data"][sample][target]["cop_cv"] = calcCV
+                            if calcCV > 0.3:
+                                res["tec_data"][sample][target]["note"] += "Tec. Rep. CV > 0.3;"
 
         if overlapType == "annotation":
             res["anno_data"] = {}
@@ -9822,8 +9849,9 @@ class Experiment:
                         res["tec_data"][sample][target]["cop_sd"]) + "\t"
                     res["tsv"]["technical_data"] += "{:.2f}".format(
                         res["tec_data"][sample][target]["cop_cv"]) + "\t"
-                    for indivVal in res["tec_data"][sample][target]["raw_vals"]:
-                        res["tsv"]["technical_data"] += "{:.2f}".format(indivVal) + ";"
+                    if res["tec_data"][sample][target]["cop_mean"] > 0.0:
+                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                            res["tsv"]["technical_data"] += "{:.2f}".format(indivVal) + ";"
                 else:
                     res["tsv"]["technical_data"] += "{:.6e}".format(
                         res["tec_data"][sample][target]["cop_mean"]) + "\t"
@@ -9831,8 +9859,9 @@ class Experiment:
                         res["tec_data"][sample][target]["cop_sd"]) + "\t"
                     res["tsv"]["technical_data"] += "{:.6f}".format(
                         res["tec_data"][sample][target]["cop_cv"]) + "\t"
-                    for indivVal in res["tec_data"][sample][target]["raw_vals"]:
-                        res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
+                    if res["tec_data"][sample][target]["cop_mean"] > 0.0:
+                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                            res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
 
                 res["tsv"]["technical_data"] += "\n"
 
@@ -11049,6 +11078,56 @@ class Run:
             ret.append(hint12)
         if hint13 != "":
             ret.append(hint13)
+        return ret
+
+    def remove_notes(self):
+        """Removes all values which result of calculations in a run.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the data.
+        """
+
+        ret = []
+        hint1 = ""
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                exp5 = _get_all_children(react_data, "note")
+                for node5 in exp5:
+                    hint1 = "Deleted react data \"note\" elements."
+                    react_data.remove(node5)
+
+        if hint1 != "":
+            ret.append(hint1)
+        return ret
+
+    def remove_errors(self):
+        """Removes all values which result of calculations in a run.
+
+        Args:
+            self: The class self parameter.
+
+        Returns:
+            A string with the data.
+        """
+
+        ret = []
+        hint1 = ""
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            react_datas = _get_all_children(react, "data")
+            for react_data in react_datas:
+                exp5 = _get_all_children(react_data, "excl")
+                for node5 in exp5:
+                    hint1 = "Deleted react data \"error\" elements."
+                    react_data.remove(node5)
+
+        if hint1 != "":
+            ret.append(hint1)
         return ret
 
     def export_table(self, dMode):
