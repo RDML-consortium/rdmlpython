@@ -2191,7 +2191,7 @@ def webAppRunStatistics(data, parametric=False, statAlpha=0.05, seperator='\t', 
             cell = rawData[row][col]
             if replaceComma:
                 cell = re.sub(r"\.", "", cell)
-                cell = re.sub(r",", "\.", cell)
+                cell = re.sub(r",", r"\.", cell)
             goodData[foundGrp[rawData[row][0]]].append(float(cell))
 
     return runStatistics(goodData, parametric, translateGrp, statAlpha)
@@ -11260,7 +11260,7 @@ class Run:
             self: The class self parameter.
             rootEl: The rdml root element.
             filename: The tab file to open.
-            dMode: amp for amplification data, melt for meltcurve data.
+            dMode: amp for amplification data, melt for meltcurve data or ncopy for only Ncopy data.
 
         Returns:
             A string with the modifications made.
@@ -11419,7 +11419,7 @@ class Run:
                     data.remove(present7)
             else:
                 if ((dMode == "melt" and dataVersion in ["1.3", "1.4"]) or 
-                    (dMode == "amp" and dataVersion in ["1.4"] and keyFor7 == "Ncopy") or
+                    (dMode in ["amp", "ncopy"] and dataVersion in ["1.4"] and keyFor7 == "Ncopy") or
                     (dMode == "amp" and keyFor7 == "cq")):
                     if present7 is None:
                         new_node = et.Element(keyFor7)
