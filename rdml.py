@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "2.1.2"
+    return "3.0.0"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -3030,6 +3030,61 @@ class Rdml:
         if hint2 != "":
             ret.append(hint2)
 
+        hint = ""
+        exp1 = _get_all_children(self._node, "target")
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "sequences")
+            for node2 in exp2:
+                exp3 = _get_all_children(node2, "forwardPrimer")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "oligoConc")
+                    for node4 in exp4:
+                        hint = "Migration to v1.3 deleted react data \"oligoConc\" elements."
+                        node3.remove(node4)
+                exp3 = _get_all_children(node2, "reversePrimer")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "oligoConc")
+                    for node4 in exp4:
+                        hint = "Migration to v1.3 deleted react data \"oligoConc\" elements."
+                        node3.remove(node4)
+                exp3 = _get_all_children(node2, "probe1")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "oligoConc")
+                    for node4 in exp4:
+                        hint = "Migration to v1.3 deleted react data \"oligoConc\" elements."
+                        node3.remove(node4)
+                exp3 = _get_all_children(node2, "probe2")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "oligoConc")
+                    for node4 in exp4:
+                        hint = "Migration to v1.3 deleted react data \"oligoConc\" elements."
+                        node3.remove(node4)
+                exp3 = _get_all_children(node2, "amplicon")
+                for node3 in exp3:
+                    exp4 = _get_all_children(node3, "oligoConc")
+                    for node4 in exp4:
+                        hint = "Migration to v1.3 deleted react data \"oligoConc\" elements."
+                        node3.remove(node4)
+        if hint != "":
+            ret.append(hint)
+
+        exp1 = _get_all_children(self._node, "dye")
+        hint = ""
+        hint2 = ""
+        for node1 in exp1:
+            exp2 = _get_all_children(node1, "dNTPs")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.3 deleted dye \"dNTPs\" elements."
+            exp2b = _get_all_children(node1, "dyeConc")
+            for node2 in exp2b:
+                node1.remove(node2)
+                hint = "Migration to v1.3 deleted dye \"dyeConc\" elements."
+        if hint != "":
+            ret.append(hint)
+        if hint2 != "":
+            ret.append(hint2)
+
         self._node.attrib['version'] = "1.3"
         return ret
 
@@ -5907,7 +5962,7 @@ class Dye:
 
         if key == "id":
             return self._node.get('id')
-        if key in ["description", "dyeChemistry"]:
+        if key in ["description", "dyeChemistry", "dNTPs", "dyeConc"]:
             var = _get_first_child_text(self._node, key)
             if var == "":
                 return None
@@ -5930,7 +5985,7 @@ class Dye:
         if key == "dyeChemistry":
             if value not in ["non-saturating DNA binding dye", "saturating DNA binding dye", "hybridization probe",
                              "hydrolysis probe", "labelled forward primer", "labelled reverse primer",
-                             "DNA-zyme probe"]:
+                             "DNA-zyme probe", ""]:
                 raise RdmlError('Unknown or unsupported dye chemistry value "' + value + '".')
 
         if key == "id":
@@ -5942,6 +5997,10 @@ class Dye:
         ver = par.get('version')
         if ver in ["1.3", "1.4"]:
             if key == "dyeChemistry":
+                return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
+        print(ver + " - " + key)
+        if ver in ["1.4"]:
+            if key in ["dNTPs", "dyeConc"]:
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
 
@@ -5984,7 +6043,7 @@ class Dye:
             A list of the key strings.
         """
 
-        return ["id", "description", "dyeChemistry"]
+        return ["id", "description", "dyeChemistry", "dNTPs", "dyeConc"]
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -6013,6 +6072,8 @@ class Dye:
         }
         _add_first_child_to_dic(self._node, data, True, "description")
         _add_first_child_to_dic(self._node, data, True, "dyeChemistry")
+        _add_first_child_to_dic(self._node, data, True, "dNTPs")
+        _add_first_child_to_dic(self._node, data, True, "dyeConc")
         return data
 
 
@@ -6955,29 +7016,33 @@ class Target:
             else:
                 return None
         if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
-                   "sequences_forwardPrimer_sequence", "sequences_reversePrimer_threePrimeTag",
-                   "sequences_reversePrimer_fivePrimeTag", "sequences_reversePrimer_sequence",
+                   "sequences_forwardPrimer_sequence", "sequences_forwardPrimer_oligoConc",
+                   "sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                   "sequences_reversePrimer_sequence", "sequences_reversePrimer_oligoConc",
                    "sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
-                   "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
-                   "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence",
+                   "sequences_probe1_sequence", "sequences_probe1_oligoConc",
+                   "sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag",
+                   "sequences_probe2_sequence", "sequences_probe2_oligoConc",
                    "sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
-                   "sequences_amplicon_sequence"]:
+                   "sequences_amplicon_sequence", "sequences_amplicon_oligoConc"]:
             prim = _get_first_child(self._node, "sequences")
             if prim is None:
                 return None
             sec = None
             if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
-                       "sequences_forwardPrimer_sequence"]:
+                       "sequences_forwardPrimer_sequence", "sequences_forwardPrimer_oligoConc"]:
                 sec = _get_first_child(prim, "forwardPrimer")
             if key in ["sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
-                       "sequences_reversePrimer_sequence"]:
+                       "sequences_reversePrimer_sequence", "sequences_reversePrimer_oligoConc"]:
                 sec = _get_first_child(prim, "reversePrimer")
-            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence"]:
+            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
+                       "sequences_probe1_sequence", "sequences_probe1_oligoConc"]:
                 sec = _get_first_child(prim, "probe1")
-            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence"]:
+            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag",
+                       "sequences_probe2_sequence", "sequences_probe2_fivePrimeTag"]:
                 sec = _get_first_child(prim, "probe2")
             if key in ["sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
-                       "sequences_amplicon_sequence"]:
+                       "sequences_amplicon_sequence", "sequences_amplicon_oligoConc"]:
                 sec = _get_first_child(prim, "amplicon")
             if sec is None:
                 return None
@@ -6993,6 +7058,10 @@ class Target:
                        "sequences_probe1_sequence", "sequences_probe2_sequence",
                        "sequences_amplicon_sequence"]:
                 return _get_first_child_text(sec, "sequence")
+            if key in ["sequences_forwardPrimer_oligoConc", "sequences_reversePrimer_oligoConc",
+                       "sequences_probe1_oligoConc", "sequences_probe2_oligoConc",
+                       "sequences_amplicon_oligoConc"]:
+                return _get_first_child_text(sec, "oligoConc")
             raise RdmlError('Target sequences programming read error.')
         if key in ["commercialAssay_company", "commercialAssay_orderNumber"]:
             prim = _get_first_child(self._node, "commercialAssay")
@@ -7054,31 +7123,35 @@ class Target:
                 self._node.remove(forId)
             return
         if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
-                   "sequences_forwardPrimer_sequence", "sequences_reversePrimer_threePrimeTag",
-                   "sequences_reversePrimer_fivePrimeTag", "sequences_reversePrimer_sequence",
+                   "sequences_forwardPrimer_sequence", "sequences_forwardPrimer_oligoConc",
+                   "sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
+                   "sequences_reversePrimer_sequence", "sequences_reversePrimer_oligoConc",
                    "sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
-                   "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
-                   "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence",
+                   "sequences_probe1_sequence", "sequences_probe1_oligoConc",
+                   "sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag",
+                   "sequences_probe2_sequence", "sequences_probe2_oligoConc",
                    "sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
-                   "sequences_amplicon_sequence"]:
+                   "sequences_amplicon_sequence", "sequences_amplicon_oligoConc"]:
             prim = _get_or_create_subelement(self._node, "sequences", self.xmlkeys())
             sec = None
             if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
-                       "sequences_forwardPrimer_sequence"]:
+                       "sequences_forwardPrimer_sequence", "sequences_forwardPrimer_oligoConc"]:
                 sec = _get_or_create_subelement(prim, "forwardPrimer",
                                                 ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
             if key in ["sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
-                       "sequences_reversePrimer_sequence"]:
+                       "sequences_reversePrimer_sequence", "sequences_reversePrimer_oligoConc"]:
                 sec = _get_or_create_subelement(prim, "reversePrimer",
                                                 ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
-            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence"]:
+            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
+                       "sequences_probe1_sequence", "sequences_probe1_oligoConc"]:
                 sec = _get_or_create_subelement(prim, "probe1",
                                                 ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
-            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence"]:
+            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag",
+                       "sequences_probe2_sequence", "sequences_probe2_oligoConc"]:
                 sec = _get_or_create_subelement(prim, "probe2",
                                                 ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
             if key in ["sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
-                       "sequences_amplicon_sequence"]:
+                       "sequences_amplicon_sequence", "sequences_amplicon_oligoConc"]:
                 sec = _get_or_create_subelement(prim, "amplicon",
                                                 ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"])
             if sec is None:
@@ -7087,29 +7160,42 @@ class Target:
                        "sequences_probe1_threePrimeTag", "sequences_probe2_threePrimeTag",
                        "sequences_amplicon_threePrimeTag"]:
                 _change_subelement(sec, "threePrimeTag",
-                                   ["threePrimeTag", "fivePrimeTag", "sequence"], value, True, "string")
+                                   ["threePrimeTag", "fivePrimeTag", "sequence", "oligoConc"], value, True, "string")
             if key in ["sequences_forwardPrimer_fivePrimeTag", "sequences_reversePrimer_fivePrimeTag",
                        "sequences_probe1_fivePrimeTag", "sequences_probe2_fivePrimeTag",
                        "sequences_amplicon_fivePrimeTag"]:
                 _change_subelement(sec, "fivePrimeTag",
-                                   ["threePrimeTag", "fivePrimeTag", "sequence"], value, True, "string")
+                                   ["threePrimeTag", "fivePrimeTag", "sequence", "oligoConc"], value, True, "string")
             if key in ["sequences_forwardPrimer_sequence", "sequences_reversePrimer_sequence",
                        "sequences_probe1_sequence", "sequences_probe2_sequence",
                        "sequences_amplicon_sequence"]:
                 _change_subelement(sec, "sequence",
-                                   ["threePrimeTag", "fivePrimeTag", "sequence"], value, True, "string")
+                                   ["threePrimeTag", "fivePrimeTag", "sequence", "oligoConc"], value, True, "string")
+            if key in ["sequences_forwardPrimer_sequence", "sequences_reversePrimer_sequence",
+                       "sequences_probe1_sequence", "sequences_probe2_sequence",
+                       "sequences_amplicon_sequence"]:
+                _change_subelement(sec, "sequence",
+                                   ["threePrimeTag", "fivePrimeTag", "sequence", "oligoConc"], value, True, "string")
+            if key in ["sequences_forwardPrimer_oligoConc", "sequences_reversePrimer_oligoConc",
+                       "sequences_probe1_oligoConc", "sequences_probe2_oligoConc",
+                       "sequences_amplicon_oligoConc"]:
+                _change_subelement(sec, "oligoConc",
+                                   ["threePrimeTag", "fivePrimeTag", "sequence", "oligoConc"], value, True, "string")
+
             if key in ["sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
-                       "sequences_forwardPrimer_sequence"]:
+                       "sequences_forwardPrimer_sequence", "sequences_forwardPrimer_oligoConc"]:
                 _remove_irrelevant_subelement(prim, "forwardPrimer")
             if key in ["sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
-                       "sequences_reversePrimer_sequence"]:
+                       "sequences_reversePrimer_sequence", "sequences_reversePrimer_oligoConc"]:
                 _remove_irrelevant_subelement(prim, "reversePrimer")
-            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence"]:
+            if key in ["sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
+                       "sequences_probe1_sequence", "sequences_probe1_oligoConc"]:
                 _remove_irrelevant_subelement(prim, "probe1")
-            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence"]:
+            if key in ["sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag",
+                       "sequences_probe2_sequence", "sequences_probe2_oligoConc"]:
                 _remove_irrelevant_subelement(prim, "probe2")
             if key in ["sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
-                       "sequences_amplicon_sequence"]:
+                       "sequences_amplicon_sequence", "sequences_amplicon_oligoConc"]:
                 _remove_irrelevant_subelement(prim, "amplicon")
             _remove_irrelevant_subelement(self._node, "sequences")
             return
@@ -7243,14 +7329,17 @@ class Target:
 
         return ["id", "description", "type", "amplificationEfficiencyMethod", "amplificationEfficiency",
                 "amplificationEfficiencySE", "meltingTemperature", "detectionLimit", "dyeId",
-                "sequences_forwardPrimer_threePrimeTag",
-                "sequences_forwardPrimer_fivePrimeTag", "sequences_forwardPrimer_sequence",
+                "sequences_forwardPrimer_threePrimeTag", "sequences_forwardPrimer_fivePrimeTag",
+                "sequences_forwardPrimer_sequence", "sequences_forwardPrimer_oligoConc",
                 "sequences_reversePrimer_threePrimeTag", "sequences_reversePrimer_fivePrimeTag",
-                "sequences_reversePrimer_sequence", "sequences_probe1_threePrimeTag",
-                "sequences_probe1_fivePrimeTag", "sequences_probe1_sequence", "sequences_probe2_threePrimeTag",
-                "sequences_probe2_fivePrimeTag", "sequences_probe2_sequence", "sequences_amplicon_threePrimeTag",
-                "sequences_amplicon_fivePrimeTag", "sequences_amplicon_sequence", "commercialAssay_company",
-                "commercialAssay_orderNumber"]  # Also change in LinRegPCR save RDML
+                "sequences_reversePrimer_sequence", "sequences_reversePrimer_oligoConc",
+                "sequences_probe1_threePrimeTag", "sequences_probe1_fivePrimeTag",
+                "sequences_probe1_sequence", "sequences_probe1_oligoConc",
+                "sequences_probe2_threePrimeTag", "sequences_probe2_fivePrimeTag",
+                "sequences_probe2_sequence", "sequences_probe2_oligoConc",
+                "sequences_amplicon_threePrimeTag", "sequences_amplicon_fivePrimeTag",
+                "sequences_amplicon_sequence", "sequences_amplicon_oligoConc",
+                "commercialAssay_company", "commercialAssay_orderNumber"]  # Also change in LinRegPCR save RDML
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -7453,6 +7542,7 @@ class Target:
                 _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "sequence")
+                _add_first_child_to_dic(sec, sdic, True, "oligoConc")
                 if len(sdic.keys()) != 0:
                     qdic["forwardPrimer"] = sdic
             sec = _get_first_child(elem, "reversePrimer")
@@ -7461,6 +7551,7 @@ class Target:
                 _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "sequence")
+                _add_first_child_to_dic(sec, sdic, True, "oligoConc")
                 if len(sdic.keys()) != 0:
                     qdic["reversePrimer"] = sdic
             sec = _get_first_child(elem, "probe1")
@@ -7469,6 +7560,7 @@ class Target:
                 _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "sequence")
+                _add_first_child_to_dic(sec, sdic, True, "oligoConc")
                 if len(sdic.keys()) != 0:
                     qdic["probe1"] = sdic
             sec = _get_first_child(elem, "probe2")
@@ -7477,6 +7569,7 @@ class Target:
                 _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "sequence")
+                _add_first_child_to_dic(sec, sdic, True, "oligoConc")
                 if len(sdic.keys()) != 0:
                     qdic["probe2"] = sdic
             sec = _get_first_child(elem, "amplicon")
@@ -7485,6 +7578,7 @@ class Target:
                 _add_first_child_to_dic(sec, sdic, True, "threePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "fivePrimeTag")
                 _add_first_child_to_dic(sec, sdic, True, "sequence")
+                _add_first_child_to_dic(sec, sdic, True, "oligoConc")
                 if len(sdic.keys()) != 0:
                     qdic["amplicon"] = sdic
             if len(qdic.keys()) != 0:
@@ -13799,6 +13893,8 @@ class Run:
         startCycFix = np.zeros(spFl[0], dtype=np.int64)
 
         negShiftBaseline = np.zeros(spFl[0], dtype=np.float64)
+        janCq = np.zeros(spFl[0], dtype=np.float64)
+        janTres = np.zeros(spFl[0], dtype=np.float64)
 
         # Initialization of the PCR efficiency vectors
         pcrEff = np.ones(spFl[0], dtype=np.float64)
@@ -14288,6 +14384,52 @@ class Run:
                                                                                                                                               vecBaselineError, vecSkipSample,
                                                                                                                                               vecNoPlateau, vecShortLogLin,
                                                                                                                                               vecIsUsedInWoL)
+
+        # Calculate first, second and third derivative
+        zeroCol =  np.zeros((spFl[0], 1), dtype=np.float64)
+        zeroCol[zeroCol <= 0.00000001] = np.nan
+        tmp = baselineCorrectedData - np.roll(baselineCorrectedData, 1, axis=1)  # Shift to right
+        # tmp = np.roll(np.log10(baselineCorrectedData), 1, axis=1) - np.log10(baselineCorrectedData)  # Shift to right
+        firstDerivative = tmp[:, 1:] # Cq is +0.5
+        tmp = firstDerivative - np.roll(firstDerivative, 1, axis=1)  # Shift to right
+        tmp2 = np.append(zeroCol, tmp[:, 1:], axis=1)
+        secondDerivative = np.append(tmp2, zeroCol, axis=1)
+        tmp = secondDerivative - np.roll(secondDerivative, 1, axis=1)  # Shift to right
+        thirdDerivative = tmp[:, 1:] # Cq is +0.5
+
+        rawTable = [["-"]]
+        for oCol in range(0, spFl[1]):
+            rawTable[0].append(str(oCol + 1))
+        for oRow in range(0, spFl[0]):
+            rawTable.append([str(oRow) + " BASE"])
+            for oCol in range(0, spFl[1]):
+                rawTable[oRow * 4 + 1].append(float(baselineCorrectedData[oRow, oCol]))
+            rawTable.append([str(oRow) + " FD"])
+            for oCol in range(0, spFl[1] - 1):
+                rawTable[oRow * 4 + 2].append(float(firstDerivative[oRow, oCol]))
+            rawTable.append([str(oRow) + " SD"])
+            for oCol in range(0, spFl[1]):
+                rawTable[oRow * 4 + 3].append(float(secondDerivative[oRow, oCol]))
+            rawTable.append([str(oRow) + " TD"])
+            for oCol in range(0, spFl[1] - 1):
+                rawTable[oRow * 4 + 4].append(float(thirdDerivative[oRow, oCol]))
+        finalData["baselineCorrectedData"] = rawTable
+
+        for oRow in range(0, spFl[0]):
+            print(str(startCyc[oRow]) + " - " + str(stopCyc[oRow]))
+            for cyc in reversed(range(startCyc[oRow], stopCyc[oRow] + 2)):
+                if (thirdDerivative[oRow, cyc] > 0.0) and (thirdDerivative[oRow, cyc+1] < 0.0):
+                    janCq[oRow] = float(cyc) + 1.5 + thirdDerivative[oRow, cyc] / (thirdDerivative[oRow, cyc] - thirdDerivative[oRow, cyc+1])
+                    low = int(np.floor(janCq[oRow])) - 1
+                    high = int(np.ceil(janCq[oRow])) - 1
+                    print(baselineCorrectedData[oRow, low])
+                    print(baselineCorrectedData[oRow, high])
+                    janTres[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (janCq[oRow] - np.floor(janCq[oRow])))
+                    break
+
+            print(janCq[oRow])
+            print(janTres[oRow])
+
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
         vecSkipSample_Plat[vecNoPlateau] = True
@@ -14726,6 +14868,8 @@ class Run:
         ##############################
         # write out the rdml results #
         ##############################
+        updateRDML = True
+        menJanTres = np.mean(janTres)
         if updateRDML is True:
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
             self["cqDetectionMethod"] = 'automated threshold and baseline settings'
@@ -14773,6 +14917,20 @@ class Run:
                         goodVal = "-1.0"
                     else:
                         goodVal = "{:.3f}".format(cqVal)
+
+                    print("Row:   " + str(rRow))
+                    print("Tresh: " + str(janTres[rRow]))
+                    print("Cq:    " + str(janCq[rRow]))
+
+                    janN0 = janTres[rRow] / np.power(meanEffVal, janCq[rRow])
+                    newFixCq = np.log(menJanTres / janN0) / np.log(meanEffVal)
+
+                    print("mtCq:    " + str(newFixCq))
+                    print("N0:    " + str(janN0))
+                    print("truN0: " + str(N0Val))
+
+                    print("Dif:    " + str(janN0 / N0Val))
+
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
                     if dataVersion in ["1.3", "1.4"]:
