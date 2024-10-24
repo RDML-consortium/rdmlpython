@@ -60,6 +60,26 @@ class secondError(RdmlError):
     pass
 
 
+def _save_float(var):
+    """Get the var as float or "".
+
+    Returns:
+        The float or "" on error.
+    """
+
+    if var == "":
+        return ""
+    try:
+        vFloat = float(var)
+    except ValueError:
+        return ""
+    else:
+        if math.isfinite(vFloat):
+            return vFloat
+        else:
+            return ""
+
+
 def _get_copies_threshold():
     """Get the number of copies at threshold (rule of thumb).
 
@@ -13710,6 +13730,7 @@ class Run:
         rar_isUsedInWoL = 70
 
         copyThreshold = _get_copies_threshold()
+        avogadro = 6.02214076e23
 
         res = []
         finalData = {}
@@ -13733,6 +13754,7 @@ class Run:
         adp_cyc_max = math.ceil(adp_cyc_max)
 
         # spFl is the shape for all fluorescence numpy data arrays
+        # cycle number is arrar pos + 1 - zero is first
         spFl = (colCount, int(adp_cyc_max))
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor <= 0.00000001] = np.nan
@@ -13747,6 +13769,13 @@ class Run:
         # Now process the data for numpy and create results array
         anyRawData = False
         rowCount = 0
+        reactVol = np.zeros(spFl[0], dtype=np.float64)
+        volSum = 0.0
+        volNum = 0
+        # Default volume
+        devVol = 10.0
+        if int(self["pcrFormat_columns"]) < 13:
+            devVol = 20.0
         for react in reacts:
             posId = react.get('id')
             pIdNumber = (int(posId) - 1) % int(self["pcrFormat_columns"]) + 1
@@ -13757,6 +13786,13 @@ class Run:
             if forId is not None:
                 if forId.attrib['id'] != "":
                     sample = forId.attrib['id']
+            volTemp = _save_float(_get_first_child_text(react, "vol"))
+            if volTemp != "":
+                volSum += volTemp
+                volNum += 1
+                reactVol[rowCount] = volTemp
+            else:
+                reactVol[rowCount] = devVol
             react_datas = _get_all_children(react, "data")
             for react_data in react_datas:
                 forId = _get_first_child(react_data, "tar")
@@ -13794,14 +13830,19 @@ class Run:
                     rawFluor[rowCount, cyc] = float(fluor)
                     anyRawData = True
                 rowCount += 1
+        averageVolume = devVol
+        if volNum > 0:
+            averageVolume = volSum / float(volNum)
         if anyRawData == False:
             raise RdmlError('LinRegPCR requires raw data. No raw data were found in this run.')
 
-        # Look up sample and target information
+        # Look up sampddle and target information
         parExp = self._node.getparent()
         parRoot = parExp.getparent()
 
         dicLU_dyes = {}
+        dicLU_dye_conc = {}
+        dicLU_dye_dNTPs = {}
         luDyes = _get_all_children(parRoot, "dye")
         for lu_dye in luDyes:
             lu_chemistry = _get_first_child_text(lu_dye, "dyeChemistry")
@@ -13809,19 +13850,73 @@ class Run:
                 lu_chemistry = "non-saturating DNA binding dye"
             if lu_dye.attrib['id'] != "":
                 dicLU_dyes[lu_dye.attrib['id']] = lu_chemistry
-
+            # Default dye conc
+            dicLU_dye_conc[lu_dye.attrib['id']] = 0.98
+            lu_dyeConc = _get_first_child_text(lu_dye, "dyeConc")
+            dyeConcVal = _save_float(lu_dyeConc)
+            if dyeConcVal != "":
+                dicLU_dye_conc[lu_dye.attrib['id']] = dyeConcVal
+            # Default dNTPs conc
+            dicLU_dye_dNTPs[lu_dye.attrib['id']] = 200.0
+            lu_dNTPs = _get_first_child_text(lu_dye, "dyeConc")
+            dyeConcDNTPs = _save_float(lu_dNTPs)
+            if dyeConcDNTPs != "":
+                dicLU_dye_dNTPs[lu_dye.attrib['id']] = dyeConcDNTPs
         dicLU_targets = {}
+        dicLU_target_dyeConc = {}
+        dicLU_target_dNTPs = {}
+        dicLU_target_fw_len = {}
+        dicLU_target_rv_len = {}
+        dicLU_target_amp_len = {}
+        dicLU_target_fw_conc = {}
+        dicLU_target_rv_conc = {}
         luTargets = _get_all_children(parRoot, "target")
         for lu_target in luTargets:
+            if lu_target.attrib['id'] == "":
+                continue
             forId = _get_first_child(lu_target, "dyeId")
             lu_dyeId = ""
             if forId is not None:
                 if forId.attrib['id'] != "":
                     lu_dyeId = forId.attrib['id']
-            if lu_dyeId == "" or lu_dyeId not in dicLU_dyes:
-                dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
-            if lu_target.attrib['id'] != "":
+            dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
+            # Default dye conc
+            dicLU_target_dyeConc[lu_target.attrib['id']] = 0.98
+            # Default dNTPs conc
+            dicLU_target_dNTPs[lu_target.attrib['id']] = 200.0
+            # Default primers and amplicon
+            dicLU_target_fw_len[lu_target.attrib['id']] = 20.0
+            dicLU_target_rv_len[lu_target.attrib['id']] = 20.0
+            dicLU_target_amp_len[lu_target.attrib['id']] = 100.0
+            dicLU_target_fw_conc[lu_target.attrib['id']] = 250.0
+            dicLU_target_rv_conc[lu_target.attrib['id']] = 250.0
+            if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
+                dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
+                dicLU_target_dNTPs[lu_target.attrib['id']] = dicLU_dye_dNTPs[lu_dyeId]
+            seqNode = _get_first_child(lu_target, "sequences")
+            if seqNode != None:
+                fwPrimNode = _get_first_child(seqNode, "forwardPrimer")
+                if fwPrimNode != None:
+                    fwPrimLenTmp = len(str(_get_first_child_text(fwPrimNode, "sequence")))
+                    if fwPrimLenTmp > 5:
+                        dicLU_target_fw_len[lu_target.attrib['id']] = float(fwPrimLenTmp)
+                    fwPrimConcTmp = _save_float(_get_first_child_text(fwPrimNode, "oligoConc"))
+                    if fwPrimConcTmp != "":
+                        dicLU_target_fw_conc[lu_target.attrib['id']] = fwPrimConcTmp
+                rvPrimNode = _get_first_child(seqNode, "reversePrimer")
+                if rvPrimNode != None:
+                    rvPrimLenTmp = len(str(_get_first_child_text(rvPrimNode, "sequence")))
+                    if rvPrimLenTmp > 5:
+                        dicLU_target_rv_len[lu_target.attrib['id']] = float(rvPrimLenTmp)
+                    rvPrimConcTmp = _save_float(_get_first_child_text(rvPrimNode, "oligoConc"))
+                    if rvPrimConcTmp != "":
+                        dicLU_target_rv_conc[lu_target.attrib['id']] = rvPrimConcTmp
+                ampPrimNode = _get_first_child(seqNode, "amplicon")
+                if ampPrimNode != None:
+                    ampPrimLenTmp = len(str(_get_first_child_text(ampPrimNode, "sequence")))
+                    if ampPrimLenTmp > 30:
+                        dicLU_target_amp_len[lu_target.attrib['id']] = float(ampPrimLenTmp)
 
         dicLU_samNucl = {}
         luSamples = _get_all_children(parRoot, "sample")
@@ -13861,7 +13956,9 @@ class Run:
         vecTarget[vecTarget <= 0] = -1
         targetsCount = 1
         tarWinLookup = {}
+        usedTargets = {}
         for oRow in range(0, spFl[0]):
+            usedTargets[res[oRow][rar_tar]] = 1.0
             if res[oRow][rar_tar] not in tarWinLookup:
                 tarWinLookup[res[oRow][rar_tar]] = targetsCount
                 targetsCount += 1
@@ -13869,6 +13966,49 @@ class Run:
         upWin = np.zeros(targetsCount, dtype=np.float64)
         lowWin = np.zeros(targetsCount, dtype=np.float64)
         threshold = np.ones(targetsCount, dtype=np.float64)
+
+        # Calculate a report of the supplied data and the limiting factor
+        report = ""
+        target_limit = {}
+        for lu_dye in luDyes:
+            report = "The dye \"" + lu_dye.attrib['id'] +"\" is a " + dicLU_dyes[lu_dye.attrib['id']] + " with "
+            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " &micro;Mol/l dye and "
+            report += str(dicLU_dye_dNTPs[lu_dye.attrib['id']]) + " &micro;Mol/l dNTPs.\n"
+        for tarID in usedTargets:
+            report += "The target \"" + tarID +"\" has a " + str(int(dicLU_target_fw_len[tarID]))
+            report += "bp forward primer in " + str(dicLU_target_fw_conc[tarID]) + " nMol/l ("
+            report += str(dicLU_target_fw_conc[tarID] * averageVolume / 1000.0) + " pMol in "
+            report += str(averageVolume) + " &micro;l), a " + str(int(dicLU_target_rv_len[tarID]))
+            report += "bp reverse primer in " + str(dicLU_target_rv_conc[tarID]) + " nMol/l ("
+            report += str(dicLU_target_rv_conc[tarID] * averageVolume / 1000.0) + " pMol in "
+            report += str(averageVolume) + " &micro;l) resulting in an amplicon of "
+            report += str(int(dicLU_target_amp_len[tarID])) + "bp. The exponential phase starts to be limited by "
+            # Calculate the limits for each factor
+            lowerPrimerConc = dicLU_target_fw_conc[tarID]
+            if dicLU_target_rv_conc[tarID] < lowerPrimerConc:
+                lowerPrimerConc = dicLU_target_rv_conc[tarID]
+            limit_oligo = 0.02 * lowerPrimerConc * 0.000000001 * avogadro * 0.000001
+            react_limit_string = "primer concentration "
+            target_limit[tarID] = limit_oligo
+            limit_dye = 0.1 * 10.4 * dicLU_target_dyeConc[tarID] * 0.000001 * avogadro * 0.000001 / dicLU_target_amp_len[tarID]
+            if limit_dye < target_limit[tarID]:
+                react_limit_string = "dye concentration "
+                target_limit[tarID] = limit_dye
+            bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
+            limit_dNTPs = 0.01 * 4 * dicLU_target_dNTPs[tarID] * 0.000001 * avogadro * 0.000001 / bp_per_amplicon
+            if limit_dNTPs < target_limit[tarID]:
+                react_limit_string = "dNTP concentration "
+                target_limit[tarID] = limit_dNTPs
+            report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
+            report += str(averageVolume) + " &micro;l\n"
+
+            print(bp_per_amplicon)
+            print(limit_oligo)
+            print(limit_dye)
+            print(limit_dNTPs)
+
+
+        print(report)
 
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
@@ -14704,21 +14844,14 @@ class Run:
             res[rRow][rar_meanNcopy_Skip_Plat_Mean] = -1.0
             res[rRow][rar_meanNcopy_Skip_Out] = -1.0
             res[rRow][rar_meanNcopy_Skip_Plat_Out] = -1.0
-            if threshold[0] > 0.0:
-                if nNulls[rRow] > 0.0:
-                    res[rRow][rar_Ncopy_indiv_eff] = copyThreshold * nNulls[rRow] / threshold[0]
-                if meanNnull_Skip[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip] = copyThreshold * meanNnull_Skip[rRow] / threshold[0]
-                if meanNnull_Skip_Plat[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Plat] = copyThreshold * meanNnull_Skip_Plat[rRow] / threshold[0]
-                if meanNnull_Skip_Mean[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Mean] = copyThreshold * meanNnull_Skip_Mean[rRow] / threshold[0]
-                if meanNnull_Skip_Plat_Mean[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Plat_Mean] = copyThreshold * meanNnull_Skip_Plat_Mean[rRow] / threshold[0]
-                if meanNnull_Skip_Out[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Out] = copyThreshold * meanNnull_Skip_Out[rRow] / threshold[0]
-                if meanNnull_Skip_Plat_Out[rRow] > 0.0:
-                    res[rRow][rar_meanNcopy_Skip_Plat_Out] = copyThreshold * meanNnull_Skip_Plat_Out[rRow] / threshold[0]
+            if janCq[rRow] > 0.0:
+                res[rRow][rar_Ncopy_indiv_eff] =  target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(pcrEff[rRow], janCq[rRow])
+                res[rRow][rar_meanNcopy_Skip] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip[rRow], janCq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Plat] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat[rRow], janCq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Mean[rRow], janCq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Plat_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Mean[rRow], janCq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Out[rRow], janCq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Plat_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Out[rRow], janCq[rRow])
  
             res[rRow][rar_amplification] = not vecNoAmplification[rRow]
             res[rRow][rar_baseline_error] = vecBaselineError[rRow]
@@ -14868,7 +15001,7 @@ class Run:
         ##############################
         # write out the rdml results #
         ##############################
-        updateRDML = True
+        # updateRDML = True
         menJanTres = np.mean(janTres)
         if updateRDML is True:
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
