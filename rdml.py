@@ -14028,7 +14028,6 @@ class Run:
         startCycFix = np.zeros(spFl[0], dtype=np.int64)
 
         negShiftBaseline = np.zeros(spFl[0], dtype=np.float64)
-        janCq = np.zeros(spFl[0], dtype=np.float64)
         janTres = np.zeros(spFl[0], dtype=np.float64)
 
         # Initialization of the PCR efficiency vectors
@@ -14052,6 +14051,7 @@ class Run:
 
         indMeanX = np.zeros(spFl[0], dtype=np.float64)
         indMeanY = np.zeros(spFl[0], dtype=np.float64)
+        td0Cq = np.zeros(spFl[0], dtype=np.float64)
         indivCq = np.zeros(spFl[0], dtype=np.float64)
         indivCq_Grp = np.zeros(spFl[0], dtype=np.float64)
         meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
@@ -14535,10 +14535,10 @@ class Run:
         for oRow in range(0, spFl[0]):
             for cyc in reversed(range(startCyc[oRow], stopCyc[oRow] + 2)):
                 if (thirdDerivative[oRow, cyc] > 0.0) and (thirdDerivative[oRow, cyc+1] < 0.0):
-                    janCq[oRow] = float(cyc) + 1.5 + thirdDerivative[oRow, cyc] / (thirdDerivative[oRow, cyc] - thirdDerivative[oRow, cyc+1])
-                    low = int(np.floor(janCq[oRow])) - 1
-                    high = int(np.ceil(janCq[oRow])) - 1
-                    janTres[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (janCq[oRow] - np.floor(janCq[oRow])))
+                    td0Cq[oRow] = float(cyc) + 1.5 + thirdDerivative[oRow, cyc] / (thirdDerivative[oRow, cyc] - thirdDerivative[oRow, cyc+1])
+                    low = int(np.floor(td0Cq[oRow])) - 1
+                    high = int(np.ceil(td0Cq[oRow])) - 1
+                    janTres[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0Cq[oRow] - np.floor(td0Cq[oRow])))
                     break
 
         # Median values calculation
@@ -14780,33 +14780,33 @@ class Run:
             res[rRow][rar_indiv_PCR_eff] = pcrEff[rRow]
             res[rRow][rar_R2] = correl[rRow] * correl[rRow]
             res[rRow][rar_N0_indiv_eff] = nNulls[rRow]
-            res[rRow][rar_Cq_common] = indivCq[rRow]
+            res[rRow][rar_Cq_common] = td0Cq[rRow]
             res[rRow][rar_Cq_grp] = indivCq_Grp[rRow]
 
             res[rRow][rar_meanEff_Skip] = meanEff_Skip[rRow]
             res[rRow][rar_stdEff_Skip] = stdEff_Skip[rRow]
             res[rRow][rar_meanN0_Skip] = meanNnull_Skip[rRow]
-            res[rRow][rar_Cq_Skip] = meanCq_Skip[rRow]
+            res[rRow][rar_Cq_Skip] = td0Cq[rRow]
             res[rRow][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[rRow]
             res[rRow][rar_stdEff_Skip_Plat] = stdEff_Skip_Plat[rRow]
             res[rRow][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[rRow]
-            res[rRow][rar_Cq_Skip_Plat] = meanCq_Skip_Plat[rRow]
+            res[rRow][rar_Cq_Skip_Plat] = td0Cq[rRow]
             res[rRow][rar_meanEff_Skip_Mean] = meanEff_Skip_Mean[rRow]
             res[rRow][rar_stdEff_Skip_Mean] = stdEff_Skip_Mean[rRow]
             res[rRow][rar_meanN0_Skip_Mean] = meanNnull_Skip_Mean[rRow]
-            res[rRow][rar_Cq_Skip_Mean] = meanCq_Skip_Mean[rRow]
+            res[rRow][rar_Cq_Skip_Mean] = td0Cq[rRow]
             res[rRow][rar_meanEff_Skip_Plat_Mean] = meanEff_Skip_Plat_Mean[rRow]
             res[rRow][rar_stdEff_Skip_Plat_Mean] = stdEff_Skip_Plat_Mean[rRow]
             res[rRow][rar_meanN0_Skip_Plat_Mean] = meanNnull_Skip_Plat_Mean[rRow]
-            res[rRow][rar_Cq_Skip_Plat_Mean] = meanCq_Skip_Plat_Mean[rRow]
+            res[rRow][rar_Cq_Skip_Plat_Mean] = td0Cq[rRow]
             res[rRow][rar_meanEff_Skip_Out] = meanEff_Skip_Out[rRow]
             res[rRow][rar_stdEff_Skip_Out] = stdEff_Skip_Out[rRow]
             res[rRow][rar_meanN0_Skip_Out] = meanNnull_Skip_Out[rRow]
-            res[rRow][rar_Cq_Skip_Out] = meanCq_Skip_Out[rRow]
+            res[rRow][rar_Cq_Skip_Out] = td0Cq[rRow]
             res[rRow][rar_meanEff_Skip_Plat_Out] = meanEff_Skip_Plat_Out[rRow]
             res[rRow][rar_stdEff_Skip_Plat_Out] = stdEff_Skip_Plat_Out[rRow]
             res[rRow][rar_meanN0_Skip_Plat_Out] = meanNnull_Skip_Plat_Out[rRow]
-            res[rRow][rar_Cq_Skip_Plat_Out] = meanCq_Skip_Plat_Out[rRow]
+            res[rRow][rar_Cq_Skip_Plat_Out] = td0Cq[rRow]
 
             res[rRow][rar_Ncopy_indiv_eff] = -1.0
             res[rRow][rar_meanNcopy_Skip] = -1.0
@@ -14815,14 +14815,14 @@ class Run:
             res[rRow][rar_meanNcopy_Skip_Plat_Mean] = -1.0
             res[rRow][rar_meanNcopy_Skip_Out] = -1.0
             res[rRow][rar_meanNcopy_Skip_Plat_Out] = -1.0
-            if janCq[rRow] > 0.0:
-                res[rRow][rar_Ncopy_indiv_eff] =  target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(pcrEff[rRow], janCq[rRow])
-                res[rRow][rar_meanNcopy_Skip] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip[rRow], janCq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Plat] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat[rRow], janCq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Mean[rRow], janCq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Plat_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Mean[rRow], janCq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Out[rRow], janCq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Plat_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Out[rRow], janCq[rRow])
+            if td0Cq[rRow] > 0.0:
+                res[rRow][rar_Ncopy_indiv_eff] =  target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(pcrEff[rRow], td0Cq[rRow])
+                res[rRow][rar_meanNcopy_Skip] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip[rRow], td0Cq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Plat] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat[rRow], td0Cq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Mean[rRow], td0Cq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Plat_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Mean[rRow], td0Cq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Out[rRow], td0Cq[rRow])
+                res[rRow][rar_meanNcopy_Skip_Plat_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Out[rRow], td0Cq[rRow])
  
             res[rRow][rar_amplification] = not vecNoAmplification[rRow]
             res[rRow][rar_baseline_error] = vecBaselineError[rRow]
@@ -15021,9 +15021,6 @@ class Run:
                         goodVal = "-1.0"
                     else:
                         goodVal = "{:.3f}".format(cqVal)
-
-                    janN0 = janTres[rRow] / np.power(meanEffVal, janCq[rRow])
-                    newFixCq = np.log(menJanTres / janN0) / np.log(meanEffVal)
 
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
