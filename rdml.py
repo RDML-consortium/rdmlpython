@@ -6018,7 +6018,6 @@ class Dye:
         if ver in ["1.3", "1.4"]:
             if key == "dyeChemistry":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
-        print(ver + " - " + key)
         if ver in ["1.4"]:
             if key in ["dNTPs", "dyeConc"]:
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
@@ -13538,6 +13537,9 @@ class Run:
         if "noRawData" in res:
             allData["error"] = res["noRawData"]
 
+        if "resultsLinRegPCRReport" in res:
+            allData["resultsLinRegPCRReport"] = res["resultsLinRegPCRReport"]
+
         return allData
 
     def linRegPCR(self, pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=False,
@@ -13972,15 +13974,15 @@ class Run:
         target_limit = {}
         for lu_dye in luDyes:
             report = "The dye \"" + lu_dye.attrib['id'] +"\" is a " + dicLU_dyes[lu_dye.attrib['id']] + " with "
-            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " &micro;Mol/l dye and "
-            report += str(dicLU_dye_dNTPs[lu_dye.attrib['id']]) + " &micro;Mol/l dNTPs.\n"
+            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " &micro;M (&micro;mol/l) dye and "
+            report += str(dicLU_dye_dNTPs[lu_dye.attrib['id']]) + " &micro;M (&micro;mol/l) dNTPs.\n"
         for tarID in usedTargets:
             report += "The target \"" + tarID +"\" has a " + str(int(dicLU_target_fw_len[tarID]))
-            report += "bp forward primer in " + str(dicLU_target_fw_conc[tarID]) + " nMol/l ("
-            report += str(dicLU_target_fw_conc[tarID] * averageVolume / 1000.0) + " pMol in "
+            report += "bp forward primer in " + str(dicLU_target_fw_conc[tarID]) + " nM (nmol/l or "
+            report += str(dicLU_target_fw_conc[tarID] * averageVolume / 1000.0) + " pmol in "
             report += str(averageVolume) + " &micro;l), a " + str(int(dicLU_target_rv_len[tarID]))
-            report += "bp reverse primer in " + str(dicLU_target_rv_conc[tarID]) + " nMol/l ("
-            report += str(dicLU_target_rv_conc[tarID] * averageVolume / 1000.0) + " pMol in "
+            report += "bp reverse primer in " + str(dicLU_target_rv_conc[tarID]) + " nM (nmol/l or "
+            report += str(dicLU_target_rv_conc[tarID] * averageVolume / 1000.0) + " pmol in "
             report += str(averageVolume) + " &micro;l) resulting in an amplicon of "
             report += str(int(dicLU_target_amp_len[tarID])) + "bp. The exponential phase starts to be limited by "
             # Calculate the limits for each factor
@@ -14001,14 +14003,7 @@ class Run:
                 target_limit[tarID] = limit_dNTPs
             report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
             report += str(averageVolume) + " &micro;l\n"
-
-            print(bp_per_amplicon)
-            print(limit_oligo)
-            print(limit_dye)
-            print(limit_dNTPs)
-
-
-        print(report)
+        finalData["resultsLinRegPCRReport"] = report
 
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
@@ -14537,38 +14532,14 @@ class Run:
         tmp = secondDerivative - np.roll(secondDerivative, 1, axis=1)  # Shift to right
         thirdDerivative = tmp[:, 1:] # Cq is +0.5
 
-        rawTable = [["-"]]
-        for oCol in range(0, spFl[1]):
-            rawTable[0].append(str(oCol + 1))
         for oRow in range(0, spFl[0]):
-            rawTable.append([str(oRow) + " BASE"])
-            for oCol in range(0, spFl[1]):
-                rawTable[oRow * 4 + 1].append(float(baselineCorrectedData[oRow, oCol]))
-            rawTable.append([str(oRow) + " FD"])
-            for oCol in range(0, spFl[1] - 1):
-                rawTable[oRow * 4 + 2].append(float(firstDerivative[oRow, oCol]))
-            rawTable.append([str(oRow) + " SD"])
-            for oCol in range(0, spFl[1]):
-                rawTable[oRow * 4 + 3].append(float(secondDerivative[oRow, oCol]))
-            rawTable.append([str(oRow) + " TD"])
-            for oCol in range(0, spFl[1] - 1):
-                rawTable[oRow * 4 + 4].append(float(thirdDerivative[oRow, oCol]))
-        finalData["baselineCorrectedData"] = rawTable
-
-        for oRow in range(0, spFl[0]):
-            print(str(startCyc[oRow]) + " - " + str(stopCyc[oRow]))
             for cyc in reversed(range(startCyc[oRow], stopCyc[oRow] + 2)):
                 if (thirdDerivative[oRow, cyc] > 0.0) and (thirdDerivative[oRow, cyc+1] < 0.0):
                     janCq[oRow] = float(cyc) + 1.5 + thirdDerivative[oRow, cyc] / (thirdDerivative[oRow, cyc] - thirdDerivative[oRow, cyc+1])
                     low = int(np.floor(janCq[oRow])) - 1
                     high = int(np.ceil(janCq[oRow])) - 1
-                    print(baselineCorrectedData[oRow, low])
-                    print(baselineCorrectedData[oRow, high])
                     janTres[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (janCq[oRow] - np.floor(janCq[oRow])))
                     break
-
-            print(janCq[oRow])
-            print(janTres[oRow])
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
@@ -15051,18 +15022,8 @@ class Run:
                     else:
                         goodVal = "{:.3f}".format(cqVal)
 
-                    print("Row:   " + str(rRow))
-                    print("Tresh: " + str(janTres[rRow]))
-                    print("Cq:    " + str(janCq[rRow]))
-
                     janN0 = janTres[rRow] / np.power(meanEffVal, janCq[rRow])
                     newFixCq = np.log(menJanTres / janN0) / np.log(meanEffVal)
-
-                    print("mtCq:    " + str(newFixCq))
-                    print("N0:    " + str(janN0))
-                    print("truN0: " + str(N0Val))
-
-                    print("Dif:    " + str(janN0 / N0Val))
 
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
