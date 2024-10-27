@@ -785,9 +785,10 @@ def _lrp_linReg(xIn, yUse):
     ssx = sumCycSquared - (sumCyc * sumCyc) / n
     sxy = sumCycFluor - (sumCyc * sumFluor) / n
 
-    slope = sxy / ssx
-    intercept = (sumFluor / n) - slope * (sumCyc / n)
-    return [slope, intercept]
+    return sxy / ssx
+    # slope = sxy / ssx
+    # intercept = (sumFluor / n) - slope * (sumCyc / n)
+    # return [slope, intercept]
 
 
 def _lrp_findStopCyc(fluor, aRow):
@@ -13574,13 +13575,47 @@ class Run:
             resultsCSV: A csv string.
         """
 
+        try:
+            pcrEfficiencyExl = float(pcrEfficiencyExl)
+        except ValueError:
+            raise RdmlError('LinRegPCR pcrEfficiencyExl parameter must be a float number.')
+        if not np.isfinite(pcrEfficiencyExl):
+            raise RdmlError('LinRegPCR pcrEfficiencyExl parameter must be a float number.')
+        if excludeEfficiency not in ["outlier", "mean", "include"]:
+            raise RdmlError('LinRegPCR excludeEfficiency parameter must be "outlier", "mean" or "include".')
+
+        if type(updateTargetEfficiency) != bool:
+            raise RdmlError('LinRegPCR updateTargetEfficiency parameter must be True or False.')
+        if type(updateRDML) != bool:
+            raise RdmlError('LinRegPCR updateRDML parameter must be True or False.')
+        if type(excludeNoPlateau) != bool:
+            raise RdmlError('LinRegPCR excludeNoPlateau parameter must be True or False.')
+        if type(excludeInstableBaseline) != bool:
+            raise RdmlError('LinRegPCR excludeInstableBaseline parameter must be True or False.')
+        if type(commaConv) != bool:
+            raise RdmlError('LinRegPCR commaConv parameter must be True or False.')
+        if type(ignoreExclusion) != bool:
+            raise RdmlError('LinRegPCR ignoreExclusion parameter must be True or False.')
+        if type(saveRaw) != bool:
+            raise RdmlError('LinRegPCR saveRaw parameter must be True or False.')
+        if type(saveBaslineCorr) != bool:
+            raise RdmlError('LinRegPCR saveBaslineCorr parameter must be True or False.')
+        if type(saveResultsList) != bool:
+            raise RdmlError('LinRegPCR saveResultsList parameter must be True or False.')
+        if type(saveResultsCSV) != bool:
+            raise RdmlError('LinRegPCR saveResultsCSV parameter must be True or False.')
+        if type(timeRun) != bool:
+            raise RdmlError('LinRegPCR timeRun parameter must be True or False.')
+        if type(verbose) != bool:
+            raise RdmlError('LinRegPCR verbose parameter must be True or False.')
+
         expParent = self._node.getparent()
         rootPar = expParent.getparent()
         dataVersion = rootPar.get('version')
         transSamTar = _sampleTypeToDics(rootPar)
 
-        if dataVersion == "1.0":
-            raise RdmlError('LinRegPCR requires RDML version > 1.0.')
+        if dataVersion not in ["1.4"]:
+            raise RdmlError('LinRegPCR requires RDML version >= 1.4. Got v' + dataVersion)
 
         ##############################
         # Collect the data in arrays #
@@ -13602,63 +13637,41 @@ class Run:
                    "plateau / baseline",   # 11
                    "lower limit",   # 12
                    "upper limit",   # 13
-                   "common threshold",  # 14
-                   "group threshold",  # 15
-                   "n in log phase",   # 16
-                   "last log cycle",   # 17
-                   "n included",   # 18
-                   "log lin cycle",  # 19
-                   "log lin fluorescence",  # 20
-                   "indiv PCR eff",   # 21
-                   "R2",   # 22
-                   "Ncopy (indiv eff - for debug use)",   # 23
-                   "N0 (indiv eff - for debug use)",   # 24
-                   "Cq (indiv eff - for debug use)",  # 25
-                   "Cq with group threshold (indiv eff - for debug use)",  # 26
-                   "mean PCR eff",   # 27
-                   "standard error of mean PCR eff",   # 28
-                   "Ncopy (mean eff)",   # 29
-                   "N0 (mean eff)",   # 30
-                   "Cq (mean eff)",   # 31
-                   "mean PCR eff - no plateau",   # 32
-                   "standard error of mean PCR eff - no plateau",   # 33
-                   "Ncopy (mean eff) - no plateau",   # 34
-                   "N0 (mean eff) - no plateau",   # 35
-                   "Cq (mean eff) - no plateau",   # 36
-                   "mean PCR eff - mean efficiency",   # 37
-                   "standard error of mean PCR eff - mean efficiency",   # 38
-                   "Ncopy (mean eff) - mean efficiency",   # 39
-                   "N0 (mean eff) - mean efficiency",   # 40
-                   "Cq (mean eff) - mean efficiency",   # 41
-                   "mean PCR eff - no plateau - mean efficiency",   # 42
-                   "standard error of mean PCR eff - no plateau - mean efficiency",   # 43
-                   "Ncopy (mean eff) - no plateau - mean efficiency",   # 44
-                   "N0 (mean eff) - no plateau - mean efficiency",   # 45
-                   "Cq (mean eff) - no plateau - mean efficiency",   # 46
-                   "mean PCR eff - stat efficiency",   # 47
-                   "standard error of mean PCR eff - stat efficiency",   # 48
-                   "Ncopy (mean eff) - stat efficiency",   # 49
-                   "N0 (mean eff) - stat efficiency",   # 50
-                   "Cq (mean eff) - stat efficiency",   # 51
-                   "mean PCR eff - no plateau - stat efficiency",   # 52
-                   "standard error of mean PCR eff - no plateau - stat efficiency",   # 53
-                   "Ncopy (mean eff) - no plateau - stat efficiency",   # 54
-                   "N0 (mean eff) - no plateau - stat efficiency",   # 55
-                   "Cq (mean eff) - no plateau - stat efficiency",   # 56
-                   "amplification",   # 57
-                   "baseline error",   # 58
-                   "instable baseline",   # 59
-                   "plateau",   # 60
-                   "noisy sample",   # 61
-                   "PCR efficiency outside mean rage",   # 62
-                   "PCR efficiency outside mean rage - no plateau",   # 63
-                   "PCR efficiency outlier",   # 64
-                   "PCR efficiency outlier - no plateau",   # 65
-                   "short log lin phase",   # 66
-                   "Cq is shifting",   # 67
-                   "too low Cq eff",   # 68
-                   "too low Cq N0",   # 69
-                   "used for W-o-L setting"]]   # 70
+                   "n in log phase",   # 14
+                   "last log cycle",   # 15
+                   "n included",   # 16
+                   "indiv PCR eff",   # 17
+                   "R2",   # 18
+                   "PCR eff",   # 19
+                   "standard error of PCR eff",   # 20
+                   "threshold",  # 21
+                   "Cq",   # 22
+                   "indiv Ncopy",   # 23
+                   "Ncopy",   # 24
+                   "amplification",   # 25
+                   "baseline error",   # 26
+                   "instable baseline",   # 27
+                   "plateau",   # 28
+                   "noisy sample",   # 29
+                   "excl PCR efficiency",   # 30
+                   "short log lin phase",   # 31
+                   "Cq is shifting",   # 32
+                   "too low Cq eff",   # 33
+                   "too low Cq N0",   # 34
+                   "used for W-o-L setting",   # 35
+                   "nAmpli",   # 36
+				   "vol",   # 37
+				   "dNTPs",   # 38
+				   "dyeConc",   # 39
+				   "primer len for",   # 40
+				   "primer conc for",   # 41
+				   "primer len rev",   # 42
+				   "primer conc rev",   # 43
+				   "probe1 len",   # 44
+				   "probe1 conc",   # 45
+				   "probe2 len",   # 46
+				   "probe2 conc",   # 47
+				   "amplicon len"]]   # 48
         rar_id = 0
         rar_well = 1
         rar_sample = 2
@@ -13673,91 +13686,82 @@ class Run:
         rar_plat_base = 11
         rar_lower_limit = 12
         rar_upper_limit = 13
-        rar_threshold_common = 14
-        rar_threshold_group = 15
-        rar_n_log = 16
-        rar_stop_log = 17
-        rar_n_included = 18
-        rar_log_lin_cycle = 19
-        rar_log_lin_fluorescence = 20
-        rar_indiv_PCR_eff = 21
-        rar_R2 = 22
-        rar_Ncopy_indiv_eff = 23
-        rar_N0_indiv_eff = 24
-        rar_Cq_common = 25
-        rar_Cq_grp = 26
-        rar_meanEff_Skip = 27
-        rar_stdEff_Skip = 28
-        rar_meanNcopy_Skip = 29
-        rar_meanN0_Skip = 30
-        rar_Cq_Skip = 31
-        rar_meanEff_Skip_Plat = 32
-        rar_stdEff_Skip_Plat = 33
-        rar_meanNcopy_Skip_Plat = 34
-        rar_meanN0_Skip_Plat = 35
-        rar_Cq_Skip_Plat = 36
-        rar_meanEff_Skip_Mean = 37
-        rar_stdEff_Skip_Mean = 38
-        rar_meanNcopy_Skip_Mean = 39
-        rar_meanN0_Skip_Mean = 40
-        rar_Cq_Skip_Mean = 41
-        rar_meanEff_Skip_Plat_Mean = 42
-        rar_stdEff_Skip_Plat_Mean = 43
-        rar_meanNcopy_Skip_Plat_Mean = 44
-        rar_meanN0_Skip_Plat_Mean = 45
-        rar_Cq_Skip_Plat_Mean = 46
-        rar_meanEff_Skip_Out = 47
-        rar_stdEff_Skip_Out = 48
-        rar_meanNcopy_Skip_Out = 49
-        rar_meanN0_Skip_Out = 50
-        rar_Cq_Skip_Out = 51
-        rar_meanEff_Skip_Plat_Out = 52
-        rar_stdEff_Skip_Plat_Out = 53
-        rar_meanNcopy_Skip_Plat_Out = 54
-        rar_meanN0_Skip_Plat_Out = 55
-        rar_Cq_Skip_Plat_Out = 56
-        rar_amplification = 57
-        rar_baseline_error = 58
-        rar_instable_baseline = 59
-        rar_plateau = 60
-        rar_noisy_sample = 61
-        rar_effOutlier_Skip_Mean = 62
-        rar_effOutlier_Skip_Plat_Mean = 63
-        rar_effOutlier_Skip_Out = 64
-        rar_effOutlier_Skip_Plat_Out = 65
-        rar_shortLogLinPhase = 66
-        rar_CqIsShifting = 67
-        rar_tooLowCqEff = 68
-        rar_tooLowCqN0 = 69
-        rar_isUsedInWoL = 70
+        rar_n_log = 14
+        rar_stop_log = 15
+        rar_n_included = 16
+        rar_indiv_PCR_eff = 17
+        rar_R2 = 18
+        rar_PCR_eff = 19
+        rar_PCR_eff_err = 20
+        rar_threshold = 21
+        rar_Cq = 22
+        rar_indiv_Ncopy = 23
+        rar_Ncopy = 24
+        rar_amplification = 25
+        rar_baseline_error = 26
+        rar_instable_baseline = 27
+        rar_plateau = 28
+        rar_noisy_sample = 29
+        rar_excl_eff = 30
+        rar_shortLogLinPhase = 31
+        rar_CqIsShifting = 32
+        rar_tooLowCqEff = 33
+        rar_tooLowCqN0 = 34
+        rar_isUsedInWoL = 35
+        rar_nAmpli = 36
+        rar_vol = 37
+        rar_dNTPs = 38
+        rar_dyeConc = 39
+        rar_primer_len_for = 40
+        rar_primer_conc_for = 41
+        rar_primer_len_rev = 42
+        rar_primer_conc_rev = 43
+        rar_probe1_len = 44
+        rar_probe1_conc = 45
+        rar_probe2_len = 46
+        rar_probe2_conc = 47
+        rar_amplicon_len = 48
 
         copyThreshold = _get_copies_threshold()
-        avogadro = 6.02214076e23
+
+        # Constand default values
+        AVOGADRO = 6.02214076e23
+        DEF_VOL_96 = 20.0
+        DEF_VOL_384 = 10.0
+        DEF_DNTP = 200.0
+        DEF_DYE_CONC = 0.98
+        DEF_PRIMER_CONC = 250.0
+        DEF_PRIMER_LEN = 20.0
+        DEF_AMPLICON_LEN = 1000.0
+
+        #############################################
+        #  Read all data from RDML into the arrays  #
+        #############################################
 
         res = []
         finalData = {}
-        adp_cyc_max = 0
-        pcrEfficiencyExl = float(pcrEfficiencyExl)
-        if excludeEfficiency not in ["outlier", "mean", "include"]:
-            excludeEfficiency = "outlier"
-
-        reacts = _get_all_children(self._node, "react")
 
         # First get the max number of cycles and create the numpy array
         colCount = 0
+        adp_cyc_min = 1000000000.0
+        adp_cyc_max = 0.0
+        reacts = _get_all_children(self._node, "react")
         for react in reacts:
             react_datas = _get_all_children(react, "data")
             for react_data in react_datas:
                 colCount += 1
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
-                    cyc = _get_first_child_text(adp, "cyc")
-                    adp_cyc_max = max(adp_cyc_max, float(cyc))
-        adp_cyc_max = math.ceil(adp_cyc_max)
+                    cyc = float(_get_first_child_text(adp, "cyc"))
+                    adp_cyc_min = min(adp_cyc_min, cyc)
+                    adp_cyc_max = max(adp_cyc_max, cyc)
+        adp_cyc_min = int(math.ceil(adp_cyc_min))
+        adp_cyc_max = int(math.ceil(adp_cyc_max))
+        # print(str(adp_cyc_min) + " - " + str(adp_cyc_max))
 
         # spFl is the shape for all fluorescence numpy data arrays
         # cycle number is arrar pos + 1 - zero is first
-        spFl = (colCount, int(adp_cyc_max))
+        spFl = (colCount, adp_cyc_max)
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor <= 0.00000001] = np.nan
 
@@ -13774,10 +13778,9 @@ class Run:
         reactVol = np.zeros(spFl[0], dtype=np.float64)
         volSum = 0.0
         volNum = 0
-        # Default volume
-        devVol = 10.0
+        devVol = DEF_VOL_384
         if int(self["pcrFormat_columns"]) < 13:
-            devVol = 20.0
+            devVol = DEF_VOL_96
         for react in reacts:
             posId = react.get('id')
             pIdNumber = (int(posId) - 1) % int(self["pcrFormat_columns"]) + 1
@@ -13802,6 +13805,7 @@ class Run:
                 if forId is not None:
                     if forId.attrib['id'] != "":
                         target = forId.attrib['id']
+
                 if ignoreExclusion:
                     excl = ""
                 else:
@@ -13810,18 +13814,17 @@ class Run:
                     excl = re.sub(r'^;|;$', '', excl)
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
+
                 noteVal = _get_first_child_text(react_data, "note")
                 noteVal = _cleanErrorString(noteVal, "amp")
                 noteVal = re.sub(r'^;|;$', '', noteVal)
+                # To update the RDML data later
                 rdmlElemData.append(react_data)
                 res.append([posId, pWell, sample, "",  "",  target, "", excl, noteVal, "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", "",
-                            ""])  # Must match header length
+                            "", "", "", "", "",  "", "", "", "" ])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -13838,7 +13841,7 @@ class Run:
         if anyRawData == False:
             raise RdmlError('LinRegPCR requires raw data. No raw data were found in this run.')
 
-        # Look up sampddle and target information
+        # Look up sample and target information
         parExp = self._node.getparent()
         parRoot = parExp.getparent()
 
@@ -13852,14 +13855,12 @@ class Run:
                 lu_chemistry = "non-saturating DNA binding dye"
             if lu_dye.attrib['id'] != "":
                 dicLU_dyes[lu_dye.attrib['id']] = lu_chemistry
-            # Default dye conc
-            dicLU_dye_conc[lu_dye.attrib['id']] = 0.98
+            dicLU_dye_conc[lu_dye.attrib['id']] = DEF_DYE_CONC
             lu_dyeConc = _get_first_child_text(lu_dye, "dyeConc")
             dyeConcVal = _save_float(lu_dyeConc)
             if dyeConcVal != "":
                 dicLU_dye_conc[lu_dye.attrib['id']] = dyeConcVal
-            # Default dNTPs conc
-            dicLU_dye_dNTPs[lu_dye.attrib['id']] = 200.0
+            dicLU_dye_dNTPs[lu_dye.attrib['id']] = DEF_DNTP
             lu_dNTPs = _get_first_child_text(lu_dye, "dyeConc")
             dyeConcDNTPs = _save_float(lu_dNTPs)
             if dyeConcDNTPs != "":
@@ -13882,16 +13883,13 @@ class Run:
                 if forId.attrib['id'] != "":
                     lu_dyeId = forId.attrib['id']
             dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
-            # Default dye conc
-            dicLU_target_dyeConc[lu_target.attrib['id']] = 0.98
-            # Default dNTPs conc
-            dicLU_target_dNTPs[lu_target.attrib['id']] = 200.0
-            # Default primers and amplicon
-            dicLU_target_fw_len[lu_target.attrib['id']] = 20.0
-            dicLU_target_rv_len[lu_target.attrib['id']] = 20.0
-            dicLU_target_amp_len[lu_target.attrib['id']] = 100.0
-            dicLU_target_fw_conc[lu_target.attrib['id']] = 250.0
-            dicLU_target_rv_conc[lu_target.attrib['id']] = 250.0
+            dicLU_target_dyeConc[lu_target.attrib['id']] = DEF_DYE_CONC
+            dicLU_target_dNTPs[lu_target.attrib['id']] = DEF_DNTP
+            dicLU_target_fw_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
+            dicLU_target_rv_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
+            dicLU_target_amp_len[lu_target.attrib['id']] = DEF_AMPLICON_LEN
+            dicLU_target_fw_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
+            dicLU_target_rv_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
             if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
                 dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
@@ -13935,9 +13933,8 @@ class Run:
         # Update the table with dictionary help
         for oRow in range(0, spFl[0]):
             if res[oRow][rar_sample] != "":
-                if res[oRow][rar_sample] != "":
-                    if res[oRow][rar_tar] != "":
-                        res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][res[oRow][rar_tar]]
+                if res[oRow][rar_tar] != "":
+                    res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][res[oRow][rar_tar]]
                 res[oRow][rar_sample_nucleotide] = dicLU_samNucl[res[oRow][rar_sample]]
             if res[oRow][rar_tar] != "":
                 res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
@@ -13989,15 +13986,15 @@ class Run:
             lowerPrimerConc = dicLU_target_fw_conc[tarID]
             if dicLU_target_rv_conc[tarID] < lowerPrimerConc:
                 lowerPrimerConc = dicLU_target_rv_conc[tarID]
-            limit_oligo = 0.02 * lowerPrimerConc * 0.000000001 * avogadro * 0.000001
+            limit_oligo = 0.02 * lowerPrimerConc * 0.000000001 * AVOGADRO * 0.000001
             react_limit_string = "primer concentration "
             target_limit[tarID] = limit_oligo
-            limit_dye = 0.1 * 10.4 * dicLU_target_dyeConc[tarID] * 0.000001 * avogadro * 0.000001 / dicLU_target_amp_len[tarID]
+            limit_dye = 0.1 * 10.4 * dicLU_target_dyeConc[tarID] * 0.000001 * AVOGADRO * 0.000001 / dicLU_target_amp_len[tarID]
             if limit_dye < target_limit[tarID]:
                 react_limit_string = "dye concentration "
                 target_limit[tarID] = limit_dye
             bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
-            limit_dNTPs = 0.01 * 4 * dicLU_target_dNTPs[tarID] * 0.000001 * avogadro * 0.000001 / bp_per_amplicon
+            limit_dNTPs = 0.01 * 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
             if limit_dNTPs < target_limit[tarID]:
                 react_limit_string = "dNTP concentration "
                 target_limit[tarID] = limit_dNTPs
@@ -14014,13 +14011,10 @@ class Run:
         vecSkipSample = np.zeros(spFl[0], dtype=np.bool_)
         vecShortLogLin = np.zeros(spFl[0], dtype=np.bool_)
         vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool_)
-        vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool_)
-        vecEffOutlier_Skip_Mean = np.zeros(spFl[0], dtype=np.bool_)
-        vecEffOutlier_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.bool_)
-        vecEffOutlier_Skip_Out = np.zeros(spFl[0], dtype=np.bool_)
-        vecEffOutlier_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.bool_)
+        vecExclEff = np.zeros(spFl[0], dtype=np.bool_)
         vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool_)
         vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool_)
+        vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool_)
 
         # Start and stop cycles of the log lin phase
         stopCyc = np.zeros(spFl[0], dtype=np.int64)
@@ -14028,62 +14022,24 @@ class Run:
         startCycFix = np.zeros(spFl[0], dtype=np.int64)
 
         negShiftBaseline = np.zeros(spFl[0], dtype=np.float64)
-        janTres = np.zeros(spFl[0], dtype=np.float64)
 
         # Initialization of the PCR efficiency vectors
-        pcrEff = np.ones(spFl[0], dtype=np.float64)
+        indiv_thres = np.zeros(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
+        mean_PCR_Eff = np.zeros(spFl[0], dtype=np.float64)
+        mean_PCR_Eff_Err = np.zeros(spFl[0], dtype=np.float64)
+        td0Cq = np.zeros(spFl[0], dtype=np.float64)
 
         nNulls = np.ones(spFl[0], dtype=np.float64)
         nInclu = np.zeros(spFl[0], dtype=np.int64)
         correl = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Mean = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Out = np.zeros(spFl[0], dtype=np.float64)
-        meanEff_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Mean = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Out = np.zeros(spFl[0], dtype=np.float64)
-        stdEff_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.float64)
 
         indMeanX = np.zeros(spFl[0], dtype=np.float64)
         indMeanY = np.zeros(spFl[0], dtype=np.float64)
-        td0Cq = np.zeros(spFl[0], dtype=np.float64)
-        indivCq = np.zeros(spFl[0], dtype=np.float64)
-        indivCq_Grp = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Mean = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Out = np.zeros(spFl[0], dtype=np.float64)
-        meanNnull_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Plat = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Mean = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Plat_Mean = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Out = np.zeros(spFl[0], dtype=np.float64)
-        meanCq_Skip_Plat_Out = np.zeros(spFl[0], dtype=np.float64)
 
         # Set all to nan
         indMeanX[:] = np.nan
         indMeanY[:] = np.nan
-        indivCq[:] = np.nan
-        indivCq_Grp[:] = np.nan
-        meanNnull_Skip[:] = np.nan
-        meanNnull_Skip_Plat[:] = np.nan
-        meanNnull_Skip_Mean[:] = np.nan
-        meanNnull_Skip_Plat_Mean[:] = np.nan
-        meanNnull_Skip_Out[:] = np.nan
-        meanNnull_Skip_Plat_Out[:] = np.nan
-        meanCq_Skip[:] = np.nan
-        meanCq_Skip_Plat[:] = np.nan
-        meanCq_Skip_Mean[:] = np.nan
-        meanCq_Skip_Plat_Mean[:] = np.nan
-        meanCq_Skip_Out[:] = np.nan
-        meanCq_Skip_Plat_Out[:] = np.nan
 
         # Basic Variables
         pointsInWoL = 4
@@ -14103,13 +14059,13 @@ class Run:
 
         # There should be no negative values in uncorrected raw data
         absMinFluor = np.nanmin(rawMod)
-        if absMinFluor < 0.0:
+        if absMinFluor < 0.00000001:
             finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
             finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!"
             vecMinFluor = np.nanmin(rawMod, axis=1)
             vecMaxFluor = np.nanmax(rawMod)
             for oRow in range(0, spFl[0]):
-                if vecMinFluor[oRow] < 0.0:
+                if vecMinFluor[oRow] < 0.00000001:
                     negShiftBaseline[oRow] = (vecMaxFluor - vecMinFluor[oRow]) / 100.0 - vecMinFluor[oRow]
                     for oCol in range(0, spFl[1]):
                         rawFluor[oRow, oCol] += negShiftBaseline[oRow]
@@ -14117,8 +14073,8 @@ class Run:
             rawMod = rawFluor.copy()
 
         rawMod[np.isnan(rawMod)] = 0
-        rawMod[rawMod <= 0.00000001] = np.nan
-        [slopeAmp, _unused] = _lrp_linReg(vecCycles, np.log10(rawMod))
+        rawMod[rawMod < 0.00000001] = np.nan
+        slopeAmp = _lrp_linReg(vecCycles, np.log10(rawMod))
 
         # Calculate the minimum of fluorescence values per react/target, store it as background
         # and substract it from the raw fluorescence values
@@ -14132,7 +14088,7 @@ class Run:
         minFluCount = np.ones(minCorFluor.shape, dtype=np.int64)
         minFluCount[np.isnan(minCorFluor)] = 0
         minFluCountSum = np.sum(minFluCount, axis=1)
-        [minSlopeAmp, _unused] = _lrp_linReg(vecCycles, np.log10(minCorFluor))
+        minSlopeAmp = _lrp_linReg(vecCycles, np.log10(minCorFluor))
 
         for oRow in range(0, spFl[0]):
             # Check to detect the negative slopes and the PCR reactions that have an
@@ -14327,7 +14283,7 @@ class Run:
                 if baseCorFluor[oRow, stopCyc[oRow] - 1] / baseCorFluor[oRow, startCycFix[oRow] - 1] < loglinlen:
                     vecShortLogLin[oRow] = True
 
-                pcrEff[oRow] = np.power(10, lastSlope)
+                indiv_PCR_Eff[oRow] = np.power(10, lastSlope)
 
             if vecNoAmplification[oRow] or vecBaselineError[oRow]:
                 vecSkipSample[oRow] = True
@@ -14341,7 +14297,7 @@ class Run:
                 startCyc[oRow] = spFl[1] + 1
                 startCycFix[oRow] = spFl[1] + 1
 
-                pcrEff[oRow] = np.nan
+                indiv_PCR_Eff[oRow] = np.nan
 
             # Negative controls should not be part of the mean calculations
             if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
@@ -14352,7 +14308,7 @@ class Run:
 
         # Check if cq values are stable with a modified baseline
         checkFluor = np.zeros(spFl, dtype=np.float64)
-        [meanPcrEff, _unused] = _lrp_meanPcrEff(None, [], pcrEff, vecSkipSample, vecNoPlateau, vecShortLogLin)
+        [meanPcrEff, _unused] = _lrp_meanPcrEff(None, [], indiv_PCR_Eff, vecSkipSample, vecNoPlateau, vecShortLogLin)
         # The baseline is only used for this check
         checkBaseline = np.log10(upWin[0]) - np.log10(meanPcrEff)
         for oRow in range(0, spFl[0]):
@@ -14430,7 +14386,7 @@ class Run:
             _unused, _unused2, tempPcrEff, _unused3, _unused4, _unused5 = _lrp_allParamInWindow(baseCorFluor,
                                                                                                 None, [],
                                                                                                 indMeanX, indMeanY,
-                                                                                                pcrEff, nNulls,
+                                                                                                indiv_PCR_Eff, nNulls,
                                                                                                 nInclu, correl,
                                                                                                 upWin, lowWin,
                                                                                                 vecNoAmplification,
@@ -14503,16 +14459,16 @@ class Run:
                 vecNoPlateau[oRow] = False
 
         for tar in range(1, targetsCount):
-            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(baseCorFluor, tar, vecTarget, pointsInWoL,
-                                                                                                                       indMeanX, indMeanY, pcrEff, nNulls, nInclu,
+            indMeanX, indMeanY, indiv_PCR_Eff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(baseCorFluor, tar, vecTarget, pointsInWoL,
+                                                                                                                       indMeanX, indMeanY, indiv_PCR_Eff, nNulls, nInclu,
                                                                                                                        correl, upWin, lowWin, maxFluorTotal,
                                                                                                                        minFluorTotal, stopCyc, startCyc, threshold,
                                                                                                                        vecNoAmplification, vecBaselineError,
                                                                                                                        vecSkipSample, vecNoPlateau, vecShortLogLin,
                                                                                                                        vecIsUsedInWoL)
-            indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _lrp_assignNoPlateau(baseCorFluor, tar, vecTarget,
+            indMeanX, indMeanY, indiv_PCR_Eff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _lrp_assignNoPlateau(baseCorFluor, tar, vecTarget,
                                                                                                                                               pointsInWoL, indMeanX, indMeanY,
-                                                                                                                                              pcrEff, nNulls, nInclu, correl,
+                                                                                                                                              indiv_PCR_Eff, nNulls, nInclu, correl,
                                                                                                                                               upWin, lowWin, maxFluorTotal,
                                                                                                                                               minFluorTotal, stopCyc, startCyc,
                                                                                                                                               threshold, vecNoAmplification,
@@ -14533,12 +14489,20 @@ class Run:
         thirdDerivative = tmp[:, 1:] # Cq is +0.5
 
         for oRow in range(0, spFl[0]):
-            for cyc in reversed(range(startCyc[oRow], stopCyc[oRow] + 2)):
-                if (thirdDerivative[oRow, cyc] > 0.0) and (thirdDerivative[oRow, cyc+1] < 0.0):
-                    td0Cq[oRow] = float(cyc) + 1.5 + thirdDerivative[oRow, cyc] / (thirdDerivative[oRow, cyc] - thirdDerivative[oRow, cyc+1])
+            stopTmp = stopCyc[oRow] + 2
+            maxLen = len(thirdDerivative[oRow])
+            if maxLen < stopTmp + 1:
+                stopTmp = maxLen - 1
+            for cyc in reversed(range(startCyc[oRow], stopTmp)):
+                if np.isnan(np.isnan(thirdDerivative[oRow, cyc])):
+                    continue
+                if np.isnan(np.isnan(thirdDerivative[oRow, cyc + 1])):
+                    continue
+                if (thirdDerivative[oRow, cyc] > 0.0) and (thirdDerivative[oRow, cyc + 1] < 0.0):
+                    td0Cq[oRow] = float(cyc) + 1.5 + thirdDerivative[oRow, cyc] / (thirdDerivative[oRow, cyc] - thirdDerivative[oRow, cyc + 1])
                     low = int(np.floor(td0Cq[oRow])) - 1
                     high = int(np.ceil(td0Cq[oRow])) - 1
-                    janTres[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0Cq[oRow] - np.floor(td0Cq[oRow])))
+                    indiv_thres[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0Cq[oRow] - np.floor(td0Cq[oRow])))
                     break
 
         # Median values calculation
@@ -14576,186 +14540,95 @@ class Run:
                 if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
                         res[oRow][rar_sample_nucleotide] in ["cDNA", "RNA"]):
                     critCqOffset = 6.0
-                if (not np.isnan(pcrEff[oRow]) and pcrEff[oRow] > 1.0001 and
+                if (not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0001 and
                         threshold[vecTarget[oRow]] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow])):
-                    effIndex = int(np.trunc(10 * pcrEff[oRow] + 1 - 10))
+                    effIndex = int(np.trunc(10 * indiv_PCR_Eff[oRow] + 1 - 10))
                     if effIndex < 0:
                         effIndex = 0
                     if effIndex > 10:
                         effIndex = 10
-                    tempCq_Grp = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(pcrEff[oRow])
+                    tempCq_Grp = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(indiv_PCR_Eff[oRow])
                     if tempCq_Grp > 0.0:
                         if tempCq_Grp < (critCqEff[effIndex] + critCqOffset):
                             vecTooLowCqEff[oRow] = True
                         if tempCq_Grp < (critCqN0[effIndex] + critCqOffset):
                             vecTooLowCqN0[oRow] = True
 
-        pcreff_NoNaN = pcrEff.copy()
-        pcreff_NoNaN[np.isnan(pcrEff)] = 0.0
+        pcreff_NoNaN = indiv_PCR_Eff.copy()
+        pcreff_NoNaN[np.isnan(indiv_PCR_Eff)] = 0.0
         for tar in range(1, targetsCount):
             # Calculating all choices takes less time then to recalculate
-            pcreff_Skip = pcrEff.copy()
+            pcreff_Skip = indiv_PCR_Eff.copy()
             pcreff_Skip[vecTooLowCqEff] = np.nan
             pcreff_Skip[vecSkipSample] = np.nan
             pcreff_Skip[pcreff_NoNaN < 1.001] = np.nan
             pcreff_Skip[~(vecTarget == tar)] = np.nan
 
-            pcreff_Skip_Plat = pcreff_Skip.copy()
-            pcreff_Skip_Plat[vecSkipSample_Plat] = np.nan
+            if excludeNoPlateau is True:
+                pcreff_Skip[vecNoPlateau] = np.nan
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=RuntimeWarning)
-                pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
-                pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat)
-            for oRow in range(0, spFl[0]):
-                if tar == vecTarget[oRow]:
-                    if not np.isnan(pcrEff[oRow]):
-                        if (np.isnan(pcreffMedian_Skip) or
-                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcrEff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip_Mean[oRow] = True
-                        if (np.isnan(pcreffMedian_Skip_Plat) or
-                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcrEff[oRow] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip_Plat_Mean[oRow] = True
+            if excludeEfficiency == "mean":
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
+                for oRow in range(0, spFl[0]):
+                    if tar == vecTarget[oRow]:
+                        if not np.isnan(indiv_PCR_Eff[oRow]):
+                            if (np.isnan(pcreffMedian_Skip) or
+                                    not (pcreffMedian_Skip - pcrEfficiencyExl <= indiv_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
+                                vecExclEff[oRow] = True
+                pcreff_Skip[vecExclEff] = np.nan
 
-            pcreff_Skip_Mean = pcreff_Skip.copy()
-            pcreff_Skip_Mean[vecEffOutlier_Skip_Mean] = np.nan
-            pcreff_Skip_Plat_Mean = pcreff_Skip_Plat.copy()
-            pcreff_Skip_Plat_Mean[vecEffOutlier_Skip_Plat_Mean] = np.nan
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=RuntimeWarning)
-                pcreffMedian_Skip = np.nanmedian(pcreff_Skip_Mean)
-                pcreffMedian_Skip_Plat = np.nanmedian(pcreff_Skip_Plat_Mean)
-            for oRow in range(0, spFl[0]):
-                if tar is None or tar == vecTarget[oRow]:
-                    if not np.isnan(pcrEff[oRow]):
-                        if (np.isnan(pcreffMedian_Skip) or
-                                not (pcreffMedian_Skip - pcrEfficiencyExl <= pcrEff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip_Mean[oRow] = True
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
+                for oRow in range(0, spFl[0]):
+                    if tar is None or tar == vecTarget[oRow]:
+                        if not np.isnan(indiv_PCR_Eff[oRow]):
+                            if (np.isnan(pcreffMedian_Skip) or
+                                    not (pcreffMedian_Skip - pcrEfficiencyExl <= indiv_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
+                                vecExclEff[oRow] = True
+                            else:
+                                vecExclEff[oRow] = False
                         else:
-                            vecEffOutlier_Skip_Mean[oRow] = False
-                        if (np.isnan(pcreffMedian_Skip_Plat) or
-                                not (pcreffMedian_Skip_Plat - pcrEfficiencyExl <= pcrEff[oRow] <= pcreffMedian_Skip_Plat + pcrEfficiencyExl)):
-                            vecEffOutlier_Skip_Plat_Mean[oRow] = True
-                        else:
-                            vecEffOutlier_Skip_Plat_Mean[oRow] = False
-                    else:
-                        vecEffOutlier_Skip_Mean[oRow] = True
-                        vecEffOutlier_Skip_Plat_Mean[oRow] = True
+                            vecExclEff[oRow] = True
+                pcreff_Skip[vecExclEff] = np.nan
 
-            pcreff_Skip_Mean = pcreff_Skip.copy()
-            pcreff_Skip_Mean[vecEffOutlier_Skip_Mean] = np.nan
-            pcreff_Skip_Plat_Mean = pcreff_Skip_Plat.copy()
-            pcreff_Skip_Plat_Mean[vecEffOutlier_Skip_Plat_Mean] = np.nan
-
-            vecEffOutlier_Skip_Out[_lrp_removeOutlier(pcreff_Skip, vecNoPlateau)] = True
-            vecEffOutlier_Skip_Plat_Out[_lrp_removeOutlier(pcreff_Skip_Plat, vecNoPlateau)] = True
-            pcreff_Skip_Out = pcreff_Skip.copy()
-            pcreff_Skip_Out[vecEffOutlier_Skip_Out] = np.nan
-            pcreff_Skip_Plat_Out = pcreff_Skip_Plat.copy()
-            pcreff_Skip_Plat_Out[vecEffOutlier_Skip_Plat_Out] = np.nan
+            if excludeEfficiency == "outlier":
+                vecExclEff[_lrp_removeOutlier(pcreff_Skip, vecNoPlateau)] = True
+                pcreff_Skip[vecExclEff] = np.nan
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 tempMeanEff_Skip = np.nanmean(pcreff_Skip)
-                tempMeanEff_Skip_Plat = np.nanmean(pcreff_Skip_Plat)
-                tempMeanEff_Skip_Mean = np.nanmean(pcreff_Skip_Mean)
-                tempMeanEff_Skip_Plat_Mean = np.nanmean(pcreff_Skip_Plat_Mean)
-                tempMeanEff_Skip_Out = np.nanmean(pcreff_Skip_Out)
-                tempMeanEff_Skip_Plat_Out = np.nanmean(pcreff_Skip_Plat_Out)
                 tempStdEff_Skip = np.nanstd(pcreff_Skip)
-                tempStdEff_Skip_Plat = np.nanstd(pcreff_Skip_Plat)
-                tempStdEff_Skip_Mean = np.nanstd(pcreff_Skip_Mean)
-                tempStdEff_Skip_Plat_Mean = np.nanstd(pcreff_Skip_Plat_Mean)
-                tempStdEff_Skip_Out = np.nanstd(pcreff_Skip_Out)
-                tempStdEff_Skip_Plat_Out = np.nanstd(pcreff_Skip_Plat_Out)
 
             for oRow in range(0, spFl[0]):
                 if tar == vecTarget[oRow]:
-                    meanEff_Skip[oRow] = tempMeanEff_Skip
-                    meanEff_Skip_Plat[oRow] = tempMeanEff_Skip_Plat
-                    meanEff_Skip_Mean[oRow] = tempMeanEff_Skip_Mean
-                    meanEff_Skip_Plat_Mean[oRow] = tempMeanEff_Skip_Plat_Mean
-                    meanEff_Skip_Out[oRow] = tempMeanEff_Skip_Out
-                    meanEff_Skip_Plat_Out[oRow] = tempMeanEff_Skip_Plat_Out
-
-                    stdEff_Skip[oRow] = tempStdEff_Skip
-                    stdEff_Skip_Plat[oRow] = tempStdEff_Skip_Plat
-                    stdEff_Skip_Mean[oRow] = tempStdEff_Skip_Mean
-                    stdEff_Skip_Plat_Mean[oRow] = tempStdEff_Skip_Plat_Mean
-                    stdEff_Skip_Out[oRow] = tempStdEff_Skip_Out
-                    stdEff_Skip_Plat_Out[oRow] = tempStdEff_Skip_Plat_Out
+                    mean_PCR_Eff[oRow] = tempMeanEff_Skip
+                    mean_PCR_Eff_Err[oRow] = tempStdEff_Skip
 
                     # Correction of the different chemistries
-                    cqCorrection = 0.0
-                    if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
-                        cqCorrection = -1.0
+             #       cqCorrection = 0.0
+             #       if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
+             #           cqCorrection = -1.0
 
-                    if not np.isnan(pcrEff[oRow]) and pcrEff[oRow] > 1.0001 and threshold[tar] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow]):
-                        if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                            cqCorrection = -1.0 + np.log10(1 / (1 - (1 / pcrEff[oRow]))) / np.log10(pcrEff[oRow])
-                        indivCq[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(pcrEff[oRow]) + cqCorrection
-                        indivCq_Grp[oRow] = indMeanX[oRow] + (np.log10(threshold[tar]) - indMeanY[oRow]) / np.log10(pcrEff[oRow]) + cqCorrection
+              #      if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0001 and threshold[tar] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow]):
+              #          if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+             #               cqCorrection = -1.0 + np.log10(1 / (1 - (1 / indiv_PCR_Eff[oRow]))) / np.log10(indiv_PCR_Eff[oRow])
+              #          indivCq[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(indiv_PCR_Eff[oRow]) + cqCorrection
+             #           indivCq_Grp[oRow] = indMeanX[oRow] + (np.log10(threshold[tar]) - indMeanY[oRow]) / np.log10(indiv_PCR_Eff[oRow]) + cqCorrection
 
-                    if not np.isnan(pcrEff[oRow]) and pcrEff[oRow] > 1.0:
-                        if not np.isnan(meanEff_Skip[oRow]) and meanEff_Skip[oRow] > 1.001:
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip[oRow]))) / np.log10(meanEff_Skip[oRow])
-                            meanCq_Skip[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip[oRow]) + cqCorrection
+             #       if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0:
+             #           if not np.isnan(mean_PCR_Eff[oRow]) and mean_PCR_Eff[oRow] > 1.001:
+              #              if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+              #                  cqCorrection = -1.0 + np.log10(1 / (1 - (1 / mean_PCR_Eff[oRow]))) / np.log10(mean_PCR_Eff[oRow])
+              #              meanCq_Skip[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(mean_PCR_Eff[oRow]) + cqCorrection
 
-                        if not np.isnan(meanEff_Skip_Plat[oRow]) and meanEff_Skip_Plat[oRow] > 1.001:
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat[oRow]))) / np.log10(meanEff_Skip_Plat[oRow])
-                            meanCq_Skip_Plat[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Plat[oRow]) + cqCorrection
+              #      if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0 and 0.0 < indivCq[oRow] < 2 * spFl[1]:
+              #          if not np.isnan(mean_PCR_Eff[oRow]) and mean_PCR_Eff[oRow] > 1.001:
+               #             meanNnull_Skip[oRow] = threshold[0] / np.power(mean_PCR_Eff[oRow], meanCq_Skip[oRow])
 
-                        if not np.isnan(meanEff_Skip_Mean[oRow]) and meanEff_Skip_Mean[oRow] > 1.001:
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Mean[oRow]))) / np.log10(meanEff_Skip_Mean[oRow])
-                            meanCq_Skip_Mean[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Mean[oRow]) + cqCorrection
-
-                        if not np.isnan(meanEff_Skip_Plat_Mean[oRow]) and meanEff_Skip_Plat_Mean[oRow] > 1.001:
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat_Mean[oRow]))) / np.log10(meanEff_Skip_Plat_Mean[oRow])
-                            meanCq_Skip_Plat_Mean[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Plat_Mean[oRow]) + cqCorrection
-
-                        if not np.isnan(meanEff_Skip_Out[oRow]) and meanEff_Skip_Out[oRow] > 1.001:
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Out[oRow]))) / np.log10(meanEff_Skip_Out[oRow])
-                            meanCq_Skip_Out[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Out[oRow]) + cqCorrection
-
-                        if not np.isnan(meanEff_Skip_Plat_Out[oRow]) and meanEff_Skip_Plat_Out[oRow] > 1.001:
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
-                                cqCorrection = -1.0 + np.log10(1 / (1 - (1 / meanEff_Skip_Plat_Out[oRow]))) / np.log10(meanEff_Skip_Plat_Out[oRow])
-                            meanCq_Skip_Plat_Out[oRow] = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(meanEff_Skip_Plat_Out[oRow]) + cqCorrection
-
-                    if not np.isnan(pcrEff[oRow]) and pcrEff[oRow] > 1.0 and 0.0 < indivCq[oRow] < 2 * spFl[1]:
-                        if not np.isnan(meanEff_Skip[oRow]) and meanEff_Skip[oRow] > 1.001:
-                            meanNnull_Skip[oRow] = threshold[0] / np.power(meanEff_Skip[oRow], meanCq_Skip[oRow])
-
-                        if not np.isnan(meanEff_Skip_Plat[oRow]) and meanEff_Skip_Plat[oRow] > 1.001:
-                            meanNnull_Skip_Plat[oRow] = threshold[0] / np.power(meanEff_Skip_Plat[oRow], meanCq_Skip_Plat[oRow])
-
-                        if not np.isnan(meanEff_Skip_Mean[oRow]) and meanEff_Skip_Mean[oRow] > 1.001:
-                            meanNnull_Skip_Mean[oRow] = threshold[0] / np.power(meanEff_Skip_Mean[oRow], meanCq_Skip_Mean[oRow])
-
-                        if not np.isnan(meanEff_Skip_Plat_Mean[oRow]) and meanEff_Skip_Plat_Mean[oRow] > 1.001:
-                            meanNnull_Skip_Plat_Mean[oRow] = threshold[0] / np.power(meanEff_Skip_Plat_Mean[oRow], meanCq_Skip_Plat_Mean[oRow])
-
-                        if not np.isnan(meanEff_Skip_Out[oRow]) and meanEff_Skip_Out[oRow] > 1.001:
-                            meanNnull_Skip_Out[oRow] = threshold[0] / np.power(meanEff_Skip_Out[oRow], meanCq_Skip_Out[oRow])
-
-                        if not np.isnan(meanEff_Skip_Plat_Out[oRow]) and meanEff_Skip_Plat_Out[oRow] > 1.001:
-                            meanNnull_Skip_Plat_Out[oRow] = threshold[0] / np.power(meanEff_Skip_Plat_Out[oRow], meanCq_Skip_Plat_Out[oRow])
-
-                    if vecNoPlateau[oRow]:
-                        if vecEffOutlier_Skip_Mean[oRow]:
-                            meanNnull_Skip_Mean[oRow] = np.nan
-                        if vecEffOutlier_Skip_Plat_Mean[oRow]:
-                            meanNnull_Skip_Plat_Mean[oRow] = np.nan
-                        if vecEffOutlier_Skip_Out[oRow]:
-                            meanNnull_Skip_Out[oRow] = np.nan
-                        if vecEffOutlier_Skip_Plat_Out[oRow]:
-                            meanNnull_Skip_Plat_Out[oRow] = np.nan
 
         #########################
         # write out the results #
@@ -14769,70 +14642,35 @@ class Run:
                 res[rRow][rar_plat_base] = 0.0
             res[rRow][rar_lower_limit] = lowWin[vecTarget[rRow]]
             res[rRow][rar_upper_limit] = upWin[vecTarget[rRow]]
-            res[rRow][rar_threshold_common] = threshold[0]
-            res[rRow][rar_threshold_group] = threshold[vecTarget[rRow]]
 
             res[rRow][rar_n_log] = stopCyc[rRow] - startCycFix[rRow] + 1
             res[rRow][rar_stop_log] = stopCyc[rRow]
             res[rRow][rar_n_included] = nInclu[rRow]
-            res[rRow][rar_log_lin_cycle] = indMeanX[rRow]
-            res[rRow][rar_log_lin_fluorescence] = np.power(10, indMeanY[rRow])
-            res[rRow][rar_indiv_PCR_eff] = pcrEff[rRow]
+
+            res[rRow][rar_indiv_PCR_eff] = indiv_PCR_Eff[rRow]
             res[rRow][rar_R2] = correl[rRow] * correl[rRow]
-            res[rRow][rar_N0_indiv_eff] = nNulls[rRow]
-            res[rRow][rar_Cq_common] = td0Cq[rRow]
-            res[rRow][rar_Cq_grp] = indivCq_Grp[rRow]
+            res[rRow][rar_PCR_eff] = mean_PCR_Eff[rRow]
+            res[rRow][rar_PCR_eff_err] = mean_PCR_Eff_Err[rRow]
 
-            res[rRow][rar_meanEff_Skip] = meanEff_Skip[rRow]
-            res[rRow][rar_stdEff_Skip] = stdEff_Skip[rRow]
-            res[rRow][rar_meanN0_Skip] = meanNnull_Skip[rRow]
-            res[rRow][rar_Cq_Skip] = td0Cq[rRow]
-            res[rRow][rar_meanEff_Skip_Plat] = meanEff_Skip_Plat[rRow]
-            res[rRow][rar_stdEff_Skip_Plat] = stdEff_Skip_Plat[rRow]
-            res[rRow][rar_meanN0_Skip_Plat] = meanNnull_Skip_Plat[rRow]
-            res[rRow][rar_Cq_Skip_Plat] = td0Cq[rRow]
-            res[rRow][rar_meanEff_Skip_Mean] = meanEff_Skip_Mean[rRow]
-            res[rRow][rar_stdEff_Skip_Mean] = stdEff_Skip_Mean[rRow]
-            res[rRow][rar_meanN0_Skip_Mean] = meanNnull_Skip_Mean[rRow]
-            res[rRow][rar_Cq_Skip_Mean] = td0Cq[rRow]
-            res[rRow][rar_meanEff_Skip_Plat_Mean] = meanEff_Skip_Plat_Mean[rRow]
-            res[rRow][rar_stdEff_Skip_Plat_Mean] = stdEff_Skip_Plat_Mean[rRow]
-            res[rRow][rar_meanN0_Skip_Plat_Mean] = meanNnull_Skip_Plat_Mean[rRow]
-            res[rRow][rar_Cq_Skip_Plat_Mean] = td0Cq[rRow]
-            res[rRow][rar_meanEff_Skip_Out] = meanEff_Skip_Out[rRow]
-            res[rRow][rar_stdEff_Skip_Out] = stdEff_Skip_Out[rRow]
-            res[rRow][rar_meanN0_Skip_Out] = meanNnull_Skip_Out[rRow]
-            res[rRow][rar_Cq_Skip_Out] = td0Cq[rRow]
-            res[rRow][rar_meanEff_Skip_Plat_Out] = meanEff_Skip_Plat_Out[rRow]
-            res[rRow][rar_stdEff_Skip_Plat_Out] = stdEff_Skip_Plat_Out[rRow]
-            res[rRow][rar_meanN0_Skip_Plat_Out] = meanNnull_Skip_Plat_Out[rRow]
-            res[rRow][rar_Cq_Skip_Plat_Out] = td0Cq[rRow]
-
-            res[rRow][rar_Ncopy_indiv_eff] = -1.0
-            res[rRow][rar_meanNcopy_Skip] = -1.0
-            res[rRow][rar_meanNcopy_Skip_Plat] = -1.0
-            res[rRow][rar_meanNcopy_Skip_Mean] = -1.0
-            res[rRow][rar_meanNcopy_Skip_Plat_Mean] = -1.0
-            res[rRow][rar_meanNcopy_Skip_Out] = -1.0
-            res[rRow][rar_meanNcopy_Skip_Plat_Out] = -1.0
+            res[rRow][rar_threshold] = indiv_thres[rRow]
+            res[rRow][rar_Cq] = td0Cq[rRow]
+            res[rRow][rar_indiv_Ncopy] = -1.0
+            res[rRow][rar_Ncopy] = -1.0
             if td0Cq[rRow] > 0.0:
-                res[rRow][rar_Ncopy_indiv_eff] =  target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(pcrEff[rRow], td0Cq[rRow])
-                res[rRow][rar_meanNcopy_Skip] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip[rRow], td0Cq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Plat] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat[rRow], td0Cq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Mean[rRow], td0Cq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Plat_Mean] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Mean[rRow], td0Cq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Out[rRow], td0Cq[rRow])
-                res[rRow][rar_meanNcopy_Skip_Plat_Out] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(meanEff_Skip_Plat_Out[rRow], td0Cq[rRow])
+                if indiv_PCR_Eff[rRow] > 0.0:
+                    res[rRow][rar_indiv_Ncopy] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(indiv_PCR_Eff[rRow], td0Cq[rRow])
+                if mean_PCR_Eff[rRow] > 0.0:
+                    res[rRow][rar_Ncopy] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(mean_PCR_Eff[rRow], td0Cq[rRow])
+
+         #   if td0Cq[rRow] > 0.0:
+          #      print(str(res[rRow][1]) + " - " +  str(res[rRow][rar_Ncopy])  + " - " +  str(td0Cq[rRow]) + " - " +  str(mean_PCR_Eff[rRow]))
  
             res[rRow][rar_amplification] = not vecNoAmplification[rRow]
             res[rRow][rar_baseline_error] = vecBaselineError[rRow]
             res[rRow][rar_instable_baseline] = vecInstableBaseline[rRow]
             res[rRow][rar_plateau] = not vecNoPlateau[rRow]
             res[rRow][rar_noisy_sample] = vecNoisySample[rRow]
-            res[rRow][rar_effOutlier_Skip_Mean] = vecEffOutlier_Skip_Mean[rRow]
-            res[rRow][rar_effOutlier_Skip_Plat_Mean] = vecEffOutlier_Skip_Plat_Mean[rRow]
-            res[rRow][rar_effOutlier_Skip_Out] = vecEffOutlier_Skip_Out[rRow]
-            res[rRow][rar_effOutlier_Skip_Plat_Out] = vecEffOutlier_Skip_Plat_Out[rRow]
+            res[rRow][rar_excl_eff] = vecExclEff[rRow]
             res[rRow][rar_shortLogLinPhase] = vecShortLogLin[rRow]
             res[rRow][rar_CqIsShifting] = vecCtIsShifting[rRow]
             res[rRow][rar_tooLowCqEff] = vecTooLowCqEff[rRow]
@@ -14846,38 +14684,8 @@ class Run:
             exclVal = _cleanErrorString(res[rRow][rar_excl], "amp")
             noteVal = _cleanErrorString(res[rRow][rar_note], "amp")
 
-            ncopy = -1.0
-            N0Val = np.NaN
-            meanEffVal = np.NaN
-            diffMeanEff = False
-            if excludeNoPlateau is False and excludeEfficiency == "include":
-                N0Val = meanNnull_Skip[rRow]
-                meanEffVal = meanEff_Skip[rRow]
-                diffMeanEff = res[rRow][rar_effOutlier_Skip_Mean]
-            if excludeNoPlateau is True and excludeEfficiency == "include":
-                N0Val = meanNnull_Skip_Plat[rRow]
-                meanEffVal = meanEff_Skip_Plat[rRow]
-                diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat_Mean]
-            if excludeNoPlateau is False and excludeEfficiency == "mean":
-                N0Val = meanNnull_Skip_Mean[rRow]
-                meanEffVal = meanEff_Skip_Mean[rRow]
-                diffMeanEff = res[rRow][rar_effOutlier_Skip_Mean]
-            if excludeNoPlateau is True and excludeEfficiency == "mean":
-                N0Val = meanNnull_Skip_Plat_Mean[rRow]
-                meanEffVal = meanEff_Skip_Plat_Mean[rRow]
-                diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat_Mean]
-            if excludeNoPlateau is False and excludeEfficiency == "outlier":
-                N0Val = meanNnull_Skip_Out[rRow]
-                meanEffVal = meanEff_Skip_Out[rRow]
-                diffMeanEff = res[rRow][rar_effOutlier_Skip_Out]
-            if excludeNoPlateau is True and excludeEfficiency == "outlier":
-                N0Val = meanNnull_Skip_Plat_Out[rRow]
-                meanEffVal = meanEff_Skip_Plat_Out[rRow]
-                diffMeanEff = res[rRow][rar_effOutlier_Skip_Plat_Out]
-        
-            if threshold[0] > 0.0:
-                if N0Val > 0.0:
-                    ncopy = copyThreshold * N0Val / threshold[0]
+            ncopy = res[rRow][rar_Ncopy]
+            diffMeanEff = False #  res[rRow][rar_effOutlier_Skip_Plat_Out]
 
             if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                 if ncopy > 0.0:
@@ -14921,7 +14729,7 @@ class Run:
                     else:
                         if excludeEfficiency == "outlier":
                             noteVal += "PCR efficiency outlier;"
-                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
+                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - res[rRow][rar_PCR_eff]
                         if diffFromMean > 0.0:
                             noteVal += "indiv PCR eff is higher than mean PCR eff by "
                             noteVal += "{:.3f}".format(diffFromMean) + ";"
@@ -14973,7 +14781,7 @@ class Run:
         # write out the rdml results #
         ##############################
         # updateRDML = True
-        menJanTres = np.mean(janTres)
+        menJanTres = np.mean(indiv_thres)
         if updateRDML is True:
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
             self["cqDetectionMethod"] = 'automated threshold and baseline settings'
@@ -14982,41 +14790,9 @@ class Run:
             collectedTargetErr = {}
             for rRow in range(0, len(res)):
                 if rdmlElemData[rRow] is not None:
-                    cqVal = np.NaN
-                    N0Val = np.NaN
-                    meanEffVal = np.NaN
-                    stdEffVal = np.NaN
-                    if excludeNoPlateau is False and excludeEfficiency == "include":
-                        cqVal = meanCq_Skip[rRow]
-                        N0Val = meanNnull_Skip[rRow]
-                        meanEffVal = meanEff_Skip[rRow]
-                        stdEffVal = stdEff_Skip[rRow]
-                    if excludeNoPlateau is True and excludeEfficiency == "include":
-                        cqVal = meanCq_Skip_Plat[rRow]
-                        N0Val = meanNnull_Skip_Plat[rRow]
-                        meanEffVal = meanEff_Skip_Plat[rRow]
-                        stdEffVal = stdEff_Skip_Plat[rRow]
-                    if excludeNoPlateau is False and excludeEfficiency == "mean":
-                        cqVal = meanCq_Skip_Mean[rRow]
-                        N0Val = meanNnull_Skip_Mean[rRow]
-                        meanEffVal = meanEff_Skip_Mean[rRow]
-                        stdEffVal = stdEff_Skip_Mean[rRow]
-                    if excludeNoPlateau is True and excludeEfficiency == "mean":
-                        cqVal = meanCq_Skip_Plat_Mean[rRow]
-                        N0Val = meanNnull_Skip_Plat_Mean[rRow]
-                        meanEffVal = meanEff_Skip_Plat_Mean[rRow]
-                        stdEffVal = stdEff_Skip_Plat_Mean[rRow]
-                    if excludeNoPlateau is False and excludeEfficiency == "outlier":
-                        cqVal = meanCq_Skip_Out[rRow]
-                        N0Val = meanNnull_Skip_Out[rRow]
-                        meanEffVal = meanEff_Skip_Out[rRow]
-                        stdEffVal = stdEff_Skip_Out[rRow]
-                    if excludeNoPlateau is True and excludeEfficiency == "outlier":
-                        cqVal = meanCq_Skip_Plat_Out[rRow]
-                        N0Val = meanNnull_Skip_Plat_Out[rRow]
-                        meanEffVal = meanEff_Skip_Plat_Out[rRow]
-                        stdEffVal = stdEff_Skip_Plat_Out[rRow]
-
+                    cqVal = td0Cq[rRow]
+                    meanEffVal = mean_PCR_Eff[rRow]
+                    stdEffVal = mean_PCR_Eff_Err[rRow]
                     if np.isnan(cqVal) or cqVal < 0.0 or cqVal > 1000.0:
                         goodVal = "-1.0"
                     else:
@@ -15025,17 +14801,15 @@ class Run:
                     _change_subelement(rdmlElemData[rRow], "cq", dataXMLelements, goodVal, True, "string")
                     _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
                     if dataVersion in ["1.3", "1.4"]:
-                        goodVal = "-1.0"
-                        if np.isfinite(N0Val):
-                            goodVal = "{:.2e}".format(N0Val)
-                        _change_subelement(rdmlElemData[rRow], "N0", dataXMLelements, goodVal, True, "string")
+                        _change_subelement(rdmlElemData[rRow], "N0", dataXMLelements, "", True, "string")
                         if dataVersion in ["1.4"]:
-                            goodVal = "-1.0"
-                            if np.isfinite(N0Val):
-                                if threshold[0] > 0.0:
-                                    if N0Val > 0.0:
-                                        goodVal = "{:.4f}".format(copyThreshold * N0Val / threshold[0])
-                            _change_subelement(rdmlElemData[rRow], "Ncopy", dataXMLelements, goodVal, True, "string")
+                            goodVal = res[rRow][rar_Ncopy]
+                            if np.isfinite(goodVal):
+                                if goodVal > 0.0:
+                                    goodVal = "{:.4f}".format(goodVal)
+                                    _change_subelement(rdmlElemData[rRow], "Ncopy", dataXMLelements, goodVal, True, "string")
+                                else:
+                                    _change_subelement(rdmlElemData[rRow], "Ncopy", dataXMLelements, "-1.0", True, "string")
                         _change_subelement(rdmlElemData[rRow], "ampEffMet", dataXMLelements, "LinRegPCR", True, "string")
                         if not np.isfinite(meanEffVal):
                             goodVal = "-1.0"
@@ -15086,31 +14860,18 @@ class Run:
             for rRow in range(0, len(res)):
                 for rCol in range(0, len(res[rRow])):
                     if rCol in [rar_amplification, rar_baseline_error, rar_instable_baseline, rar_plateau, rar_noisy_sample,
-                                rar_effOutlier_Skip_Mean, rar_effOutlier_Skip_Plat_Mean, rar_effOutlier_Skip_Out,
-                                rar_effOutlier_Skip_Plat_Out, rar_shortLogLinPhase, rar_CqIsShifting,
+                                rar_excl_eff, rar_shortLogLinPhase, rar_CqIsShifting,
                                 rar_tooLowCqEff, rar_tooLowCqN0, rar_isUsedInWoL]:
                         if res[rRow][rCol]:
                             retCSV += "Yes\t"
                         else:
                             retCSV += "No\t"
-                    elif rCol in [rar_baseline, rar_lower_limit, rar_upper_limit, rar_log_lin_fluorescence,
-                                  rar_indiv_PCR_eff, rar_R2, rar_meanEff_Skip, rar_stdEff_Skip,
-                                  rar_meanEff_Skip_Plat, rar_stdEff_Skip_Plat, rar_meanEff_Skip_Mean,
-                                  rar_stdEff_Skip_Mean, rar_meanEff_Skip_Plat_Mean, rar_stdEff_Skip_Plat_Mean,
-                                  rar_meanEff_Skip_Out, rar_stdEff_Skip_Out, rar_meanEff_Skip_Plat_Out,
-                                  rar_stdEff_Skip_Plat_Out]:
+                    elif rCol in [rar_baseline, rar_lower_limit, rar_upper_limit,
+                                  rar_indiv_PCR_eff, rar_R2, rar_PCR_eff, rar_PCR_eff_err]:
                         retCSV += "{0:0.6f}".format(float(res[rRow][rCol])) + "\t"
-                    elif rCol in [rar_Cq_common, rar_Cq_grp, rar_Cq_Skip, rar_Cq_Skip_Plat,
-                                  rar_Cq_Skip_Mean, rar_Cq_Skip_Plat_Mean, rar_Cq_Skip_Out,
-                                  rar_Cq_Skip_Plat_Out, rar_Ncopy_indiv_eff, rar_meanNcopy_Skip, 
-                                  rar_meanNcopy_Skip_Plat, rar_meanNcopy_Skip_Mean, 
-                                  rar_meanNcopy_Skip_Plat_Mean, rar_meanNcopy_Skip_Out, 
-                                  rar_meanNcopy_Skip_Plat_Out]:
+                    elif rCol in [rar_Cq, rar_indiv_Ncopy, rar_Ncopy]:
                         retCSV += "{0:0.4f}".format(float(res[rRow][rCol])) + "\t"
-                    elif rCol in [rar_N0_indiv_eff, rar_meanN0_Skip, rar_meanN0_Skip_Plat,
-                                  rar_meanN0_Skip_Mean, rar_meanN0_Skip_Plat_Mean,
-                                  rar_meanN0_Skip_Out, rar_meanN0_Skip_Plat_Out]:
-                        retCSV += "{0:0.6e}".format(float(res[rRow][rCol])) + "\t"
+                      # retCSV += "{0:0.6e}".format(float(res[rRow][rCol])) + "\t"
                     else:
                         retCSV += str(res[rRow][rCol]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
