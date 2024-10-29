@@ -2553,7 +2553,7 @@ class Rdml:
             ret.append(hint)
 
         xml_keys = ["description", "documentation", "xRef", "type", "interRunCalibrator",
-                    "quantity", "calibratorSample", "cdnaSynthesisMethod",
+                    "doubleStranded", "quantity", "calibratorSample", "cdnaSynthesisMethod",
                     "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
         exp1 = _get_all_children(self._node, "sample")
         for node1 in exp1:
@@ -3050,6 +3050,17 @@ class Rdml:
             ret.append(hint)
         if hint2 != "":
             ret.append(hint2)
+
+        hint = ""
+        exp1 = _get_all_children(self._node, "sample")
+        for node1 in exp1:
+            hint = ""
+            exp2 = _get_all_children(node1, "doubleStranded")
+            for node2 in exp2:
+                node1.remove(node2)
+                hint = "Migration to v1.3 deleted sample \"doubleStranded\" element."
+        if hint != "":
+            ret.append(hint)
 
         hint = ""
         exp1 = _get_all_children(self._node, "target")
@@ -6138,7 +6149,7 @@ class Sample:
                 return None
             else:
                 return var
-        if key in ["interRunCalibrator", "calibratorSample"]:
+        if key in ["interRunCalibrator", "doubleStranded", "calibratorSample"]:
             return _get_first_child_bool(self._node, key, triple=True)
         if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                    "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
@@ -6208,7 +6219,7 @@ class Sample:
             return
         if key == "description":
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
-        if key in ["interRunCalibrator", "calibratorSample"]:
+        if key in ["interRunCalibrator", "doubleStranded", "calibratorSample"]:
             return _change_subelement(self._node, key, self.xmlkeys(), value, True, "bool")
         if key in ["cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                    "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions"]:
@@ -6334,7 +6345,7 @@ class Sample:
                     "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                     "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
                     "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
-        return ["id", "description", "annotation", "interRunCalibrator", "calibratorSample",
+        return ["id", "description", "annotation", "interRunCalibrator", "doubleStranded", "calibratorSample",
                 "cdnaSynthesisMethod_enzyme", "cdnaSynthesisMethod_primingMethod",
                 "cdnaSynthesisMethod_dnaseTreatment", "cdnaSynthesisMethod_thermalCyclingConditions",
                 "templateQuantity"]
@@ -6356,7 +6367,7 @@ class Sample:
                     "quantity", "calibratorSample", "cdnaSynthesisMethod",
                     "templateRNAQuantity", "templateRNAQuality", "templateDNAQuantity", "templateDNAQuality"]
         return ["description", "documentation", "xRef", "annotation", "type", "interRunCalibrator",
-                "quantity", "calibratorSample", "cdnaSynthesisMethod", "templateQuantity"]
+                "doubleStranded", "quantity", "calibratorSample", "cdnaSynthesisMethod", "templateQuantity"]
 
     def types(self):
         """Returns a list of the types in the xml file.
@@ -6933,6 +6944,8 @@ class Sample:
             data["annotations"] = self.annotations()
         data["types"] = self.types()
         _add_first_child_to_dic(self._node, data, True, "interRunCalibrator")
+        if ver in ["1.4"]:
+            _add_first_child_to_dic(self._node, data, True, "doubleStranded")
         data["quantitys"] = self.quantitys()
         _add_first_child_to_dic(self._node, data, True, "calibratorSample")
         elem = _get_first_child(self._node, "cdnaSynthesisMethod")
@@ -13870,9 +13883,13 @@ class Run:
         dicLU_target_dNTPs = {}
         dicLU_target_fw_len = {}
         dicLU_target_rv_len = {}
+        dicLU_target_probe1_len = {}
+        dicLU_target_probe2_len = {}
         dicLU_target_amp_len = {}
         dicLU_target_fw_conc = {}
         dicLU_target_rv_conc = {}
+        dicLU_target_probe1_conc = {}
+        dicLU_target_probe2_conc = {}
         luTargets = _get_all_children(parRoot, "target")
         for lu_target in luTargets:
             if lu_target.attrib['id'] == "":
@@ -13887,9 +13904,13 @@ class Run:
             dicLU_target_dNTPs[lu_target.attrib['id']] = DEF_DNTP
             dicLU_target_fw_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_rv_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
+            dicLU_target_probe1_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
+            dicLU_target_probe2_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_amp_len[lu_target.attrib['id']] = DEF_AMPLICON_LEN
             dicLU_target_fw_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
             dicLU_target_rv_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
+            dicLU_target_probe1_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
+            dicLU_target_probe2_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
             if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
                 dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
@@ -13912,6 +13933,22 @@ class Run:
                     rvPrimConcTmp = _save_float(_get_first_child_text(rvPrimNode, "oligoConc"))
                     if rvPrimConcTmp != "":
                         dicLU_target_rv_conc[lu_target.attrib['id']] = rvPrimConcTmp
+                probe1PrimNode = _get_first_child(seqNode, "probe1")
+                if probe1PrimNode != None:
+                    probe1PrimLenTmp = len(str(_get_first_child_text(probe1PrimNode, "sequence")))
+                    if probe1PrimLenTmp > 5:
+                        dicLU_target_probe1_len[lu_target.attrib['id']] = float(probe1PrimLenTmp)
+                    probe1PrimConcTmp = _save_float(_get_first_child_text(probe1PrimNode, "oligoConc"))
+                    if probe1PrimConcTmp != "":
+                        dicLU_target_probe1_conc[lu_target.attrib['id']] = probe1PrimConcTmp
+                probe2PrimNode = _get_first_child(seqNode, "probe2")
+                if probe2PrimNode != None:
+                    probe2PrimLenTmp = len(str(_get_first_child_text(probe2PrimNode, "sequence")))
+                    if probe2PrimLenTmp > 5:
+                        dicLU_target_probe2_len[lu_target.attrib['id']] = float(probe2PrimLenTmp)
+                    probe2PrimConcTmp = _save_float(_get_first_child_text(probe2PrimNode, "oligoConc"))
+                    if probe2PrimConcTmp != "":
+                        dicLU_target_probe2_conc[lu_target.attrib['id']] = probe2PrimConcTmp
                 ampPrimNode = _get_first_child(seqNode, "amplicon")
                 if ampPrimNode != None:
                     ampPrimLenTmp = len(str(_get_first_child_text(ampPrimNode, "sequence")))
@@ -13921,12 +13958,7 @@ class Run:
         dicLU_samNucl = {}
         luSamples = _get_all_children(parRoot, "sample")
         for lu_sample in luSamples:
-            lu_Nucl = ""
-            forUnit = _get_first_child(lu_sample, "templateQuantity")
-            if forUnit is not None:
-                lu_Nucl = _get_first_child_text(forUnit, "nucleotide")
-            if lu_Nucl == "":
-                lu_Nucl = "cDNA"
+            lu_Nucl = _string_to_bool(_get_first_child_text(lu_sample, "doubleStranded"), False)
             if lu_sample.attrib['id'] != "":
                 dicLU_samNucl[lu_sample.attrib['id']] = lu_Nucl
 
@@ -13935,9 +13967,23 @@ class Run:
             if res[oRow][rar_sample] != "":
                 if res[oRow][rar_tar] != "":
                     res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][res[oRow][rar_tar]]
-                res[oRow][rar_sample_nucleotide] = dicLU_samNucl[res[oRow][rar_sample]]
+                if dicLU_samNucl[res[oRow][rar_sample]] == True:
+                    res[oRow][rar_sample_nucleotide] = "ds"
+                else:
+                    res[oRow][rar_sample_nucleotide] = "ss"
             if res[oRow][rar_tar] != "":
                 res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
+                res[oRow][rar_vol] = reactVol[oRow]
+                res[oRow][rar_dNTPs] = dicLU_target_dNTPs[res[oRow][rar_tar]]
+                res[oRow][rar_primer_len_for] = dicLU_target_fw_len[res[oRow][rar_tar]]
+                res[oRow][rar_primer_conc_for] = dicLU_target_fw_conc[res[oRow][rar_tar]]
+                res[oRow][rar_primer_len_rev] = dicLU_target_rv_len[res[oRow][rar_tar]]
+                res[oRow][rar_primer_conc_rev] = dicLU_target_rv_conc[res[oRow][rar_tar]]
+                res[oRow][rar_probe1_len] = dicLU_target_probe1_len[res[oRow][rar_tar]]
+                res[oRow][rar_probe1_conc] = dicLU_target_probe1_conc[res[oRow][rar_tar]]
+                res[oRow][rar_probe2_len] = dicLU_target_probe2_len[res[oRow][rar_tar]]
+                res[oRow][rar_probe2_conc] = dicLU_target_probe2_conc[res[oRow][rar_tar]]
+                res[oRow][rar_amplicon_len] = dicLU_target_amp_len[res[oRow][rar_tar]]
 
         if saveRaw:
             rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
@@ -13989,11 +14035,12 @@ class Run:
             limit_oligo = 0.02 * lowerPrimerConc * 0.000000001 * AVOGADRO * 0.000001
             react_limit_string = "primer concentration "
             target_limit[tarID] = limit_oligo
-            limit_dye = 0.1 * 10.4 * dicLU_target_dyeConc[tarID] * 0.000001 * AVOGADRO * 0.000001 / dicLU_target_amp_len[tarID]
-            if limit_dye < target_limit[tarID]:
-                react_limit_string = "dye concentration "
-                target_limit[tarID] = limit_dye
-            bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
+            if dicLU_targets[tarID] == "non-saturating DNA binding dye":
+                limit_dye = 0.1 * 10.4 * dicLU_target_dyeConc[tarID] * 0.000001 * AVOGADRO * 0.000001 / dicLU_target_amp_len[tarID]
+                if limit_dye < target_limit[tarID]:
+                    react_limit_string = "dye concentration "
+                    target_limit[tarID] = limit_dye
+                bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
             limit_dNTPs = 0.01 * 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
             if limit_dNTPs < target_limit[tarID]:
                 react_limit_string = "dNTP concentration "
@@ -14001,6 +14048,10 @@ class Run:
             report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
             report += str(averageVolume) + " &micro;l\n"
         finalData["resultsLinRegPCRReport"] = report
+
+        for oRow in range(0, spFl[0]):
+            if res[oRow][rar_tar] != "":
+                res[oRow][rar_nAmpli] = target_limit[res[oRow][rar_tar]]
 
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
@@ -14657,10 +14708,13 @@ class Run:
             res[rRow][rar_indiv_Ncopy] = -1.0
             res[rRow][rar_Ncopy] = -1.0
             if td0Cq[rRow] > 0.0:
+                ss_fix = 1.0
+                if res[oRow][rar_sample_nucleotide] == "ss":
+                    ss_fix = 0.5
                 if indiv_PCR_Eff[rRow] > 0.0:
-                    res[rRow][rar_indiv_Ncopy] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(indiv_PCR_Eff[rRow], td0Cq[rRow])
+                    res[rRow][rar_indiv_Ncopy] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(indiv_PCR_Eff[rRow], td0Cq[rRow])
                 if mean_PCR_Eff[rRow] > 0.0:
-                    res[rRow][rar_Ncopy] = target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(mean_PCR_Eff[rRow], td0Cq[rRow])
+                    res[rRow][rar_Ncopy] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(mean_PCR_Eff[rRow], td0Cq[rRow])
 
          #   if td0Cq[rRow] > 0.0:
           #      print(str(res[rRow][1]) + " - " +  str(res[rRow][rar_Ncopy])  + " - " +  str(td0Cq[rRow]) + " - " +  str(mean_PCR_Eff[rRow]))
