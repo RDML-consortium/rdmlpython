@@ -14583,13 +14583,13 @@ class Run:
             if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
                 critCqOffset = 0.0
                 if (res[oRow][rar_tar_chemistry] == "labelled reverse primer" and
-                        res[oRow][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
+                        res[oRow][rar_sample_nucleotide] == "ds"):
                     critCqOffset = 1.0
                 if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
-                        res[oRow][rar_sample_nucleotide] in ["DNA", "genomic DNA"]):
+                        res[oRow][rar_sample_nucleotide] == "ds"):
                     critCqOffset = 4.0
                 if (res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and
-                        res[oRow][rar_sample_nucleotide] in ["cDNA", "RNA"]):
+                        res[oRow][rar_sample_nucleotide] == "ss"):
                     critCqOffset = 6.0
                 if (not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0001 and
                         threshold[vecTarget[oRow]] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow])):
