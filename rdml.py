@@ -14049,10 +14049,6 @@ class Run:
             report += str(averageVolume) + " &micro;l\n"
         finalData["resultsLinRegPCRReport"] = report
 
-        for oRow in range(0, spFl[0]):
-            if res[oRow][rar_tar] != "":
-                res[oRow][rar_nAmpli] = target_limit[res[oRow][rar_tar]]
-
         # Initialization of the error vectors
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
@@ -14707,14 +14703,15 @@ class Run:
             res[rRow][rar_Cq] = td0Cq[rRow]
             res[rRow][rar_indiv_Ncopy] = -1.0
             res[rRow][rar_Ncopy] = -1.0
-            if td0Cq[rRow] > 0.0:
-                ss_fix = 1.0
-                if res[oRow][rar_sample_nucleotide] == "ss":
-                    ss_fix = 0.5
+            ss_fix = 1.0
+            if res[rRow][rar_sample_nucleotide] == "ss":
+                ss_fix = 2.0
+            res[rRow][rar_nAmpli] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow]
+            if td0Cq[rRow] > 0.0 and mean_PCR_Eff[rRow] > 1.0:
                 if indiv_PCR_Eff[rRow] > 0.0:
-                    res[rRow][rar_indiv_Ncopy] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(indiv_PCR_Eff[rRow], td0Cq[rRow])
+                    res[rRow][rar_indiv_Ncopy] = res[rRow][rar_nAmpli] / np.power(indiv_PCR_Eff[rRow], td0Cq[rRow])
                 if mean_PCR_Eff[rRow] > 0.0:
-                    res[rRow][rar_Ncopy] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow] / np.power(mean_PCR_Eff[rRow], td0Cq[rRow])
+                    res[rRow][rar_Ncopy] = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0Cq[rRow])
 
          #   if td0Cq[rRow] > 0.0:
           #      print(str(res[rRow][1]) + " - " +  str(res[rRow][rar_Ncopy])  + " - " +  str(td0Cq[rRow]) + " - " +  str(mean_PCR_Eff[rRow]))
