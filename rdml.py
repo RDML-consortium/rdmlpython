@@ -13684,7 +13684,12 @@ class Run:
 				   "probe1 conc",   # 45
 				   "probe2 len",   # 46
 				   "probe2 conc",   # 47
-				   "amplicon len"]]   # 48
+				   "amplicon len",
+                   "del threshold",
+                   "del N0",
+                   "del ncopy",
+                   "del fact"
+                   ]]   # 48
         rar_id = 0
         rar_well = 1
         rar_sample = 2
@@ -13734,6 +13739,10 @@ class Run:
         rar_probe2_len = 46
         rar_probe2_conc = 47
         rar_amplicon_len = 48
+        del_threshold = 49
+        del_N0 = 50
+        del_ncopy = 51
+        del_fact = 52
 
         copyThreshold = _get_copies_threshold()
 
@@ -13837,7 +13846,7 @@ class Run:
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "" ])  # Must match header length
+                            "", "", "", "", "",  "", "", "", "", "", "", "", "" ])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
@@ -13975,6 +13984,7 @@ class Run:
                 res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
                 res[oRow][rar_vol] = reactVol[oRow]
                 res[oRow][rar_dNTPs] = dicLU_target_dNTPs[res[oRow][rar_tar]]
+                res[oRow][rar_dyeConc] = dicLU_target_dyeConc[res[oRow][rar_tar]]
                 res[oRow][rar_primer_len_for] = dicLU_target_fw_len[res[oRow][rar_tar]]
                 res[oRow][rar_primer_conc_for] = dicLU_target_fw_conc[res[oRow][rar_tar]]
                 res[oRow][rar_primer_len_rev] = dicLU_target_rv_len[res[oRow][rar_tar]]
@@ -14041,7 +14051,7 @@ class Run:
                     react_limit_string = "dye concentration "
                     target_limit[tarID] = limit_dye
                 bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
-            limit_dNTPs = 0.01 * 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
+            limit_dNTPs = 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
             if limit_dNTPs < target_limit[tarID]:
                 react_limit_string = "dNTP concentration "
                 target_limit[tarID] = limit_dNTPs
@@ -14084,9 +14094,16 @@ class Run:
         indMeanX = np.zeros(spFl[0], dtype=np.float64)
         indMeanY = np.zeros(spFl[0], dtype=np.float64)
 
+        # Delete
+        nNull = np.zeros(spFl[0], dtype=np.float64)
+        delNcopy = np.zeros(spFl[0], dtype=np.float64)
+        nNull[:] = -1.0
+        delNcopy[:] = np.nan
+
         # Set all to nan
         indMeanX[:] = np.nan
         indMeanY[:] = np.nan
+
 
         # Basic Variables
         pointsInWoL = 4
@@ -14655,6 +14672,21 @@ class Run:
                     mean_PCR_Eff[oRow] = tempMeanEff_Skip
                     mean_PCR_Eff_Err[oRow] = tempStdEff_Skip
 
+                    # Delete
+                    indivCq = -1.0
+                    if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0001 and threshold[tar] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow]):
+                        indivCq = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(indiv_PCR_Eff[oRow])
+
+                    if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0:
+                        if not np.isnan(mean_PCR_Eff[oRow]) and mean_PCR_Eff[oRow] > 1.001:
+                            meanCq = indMeanX[oRow] + (np.log10(threshold[0]) - indMeanY[oRow]) / np.log10(mean_PCR_Eff[oRow])
+
+
+                    if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0 and 0.0 < indivCq < 2 * spFl[1]:
+                        if not np.isnan(mean_PCR_Eff[oRow]) and mean_PCR_Eff[oRow] > 1.001:
+                            nNull[oRow] = threshold[0] / np.power(mean_PCR_Eff[oRow], meanCq)
+
+
                     # Correction of the different chemistries
              #       cqCorrection = 0.0
              #       if res[oRow][rar_tar_chemistry] in ["hydrolysis probe", "labelled reverse primer", "DNA-zyme probe"]:
@@ -14727,6 +14759,44 @@ class Run:
             res[rRow][rar_tooLowCqEff] = vecTooLowCqEff[rRow]
             res[rRow][rar_tooLowCqN0] = vecTooLowCqN0[rRow]
             res[rRow][rar_isUsedInWoL] = vecIsUsedInWoL[rRow]
+
+        # Delete
+            res[rRow][del_threshold] = threshold[0]
+            res[rRow][del_N0] = nNull[rRow]
+
+        mmN0_sum = 0.0
+        mmNcopy_sum = 0.0
+        mmN0_num = 0
+        mmNcopy_num = 0
+        geomeanNo = 1.0
+        geomeanNcopy = 1.0
+        for rRow in range(0, len(res)):
+            if res[rRow][rar_isUsedInWoL]:
+                mmN0_sum += math.log(res[rRow][del_N0])
+                mmNcopy_sum += math.log(res[rRow][rar_Ncopy])
+                mmN0_num += 1
+                mmNcopy_num += 1
+        if mmNcopy_num > 0:
+            geomeanNo = math.exp(mmN0_sum / mmN0_num)
+            geomeanNcopy = math.exp(mmNcopy_sum / mmNcopy_num)
+
+        for rRow in range(0, len(res)):
+            if nNull[rRow] > 0.0:
+                res[rRow][del_ncopy] = nNull[rRow] * geomeanNcopy / geomeanNo
+            else:
+                res[rRow][del_ncopy] = -1.0
+
+            if res[rRow][rar_Ncopy] == res[rRow][del_ncopy]:
+                    res[rRow][del_fact] = 1.0
+            elif res[rRow][rar_Ncopy] <= 0.0:
+                res[rRow][del_fact] = -0.1
+            elif res[rRow][del_ncopy] <= 0.0:
+                res[rRow][del_fact] = -0.2
+            else:
+                if res[rRow][del_ncopy] < res[rRow][rar_Ncopy]:
+                    res[rRow][del_fact] = res[rRow][del_ncopy] / res[rRow][rar_Ncopy]
+                else:
+                    res[rRow][del_fact] = res[rRow][rar_Ncopy] / res[rRow][del_ncopy]
 
         ###################################
         # calculate excl and note strings #
