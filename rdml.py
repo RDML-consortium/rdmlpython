@@ -758,7 +758,7 @@ def _sampleTypeToDics(rootEl):
     return ret
 
 
-def _lrp_linReg(xIn, yUse):
+def _lrp_linReg(adp_cyc_min, fluor):
     """A function which calculates the slope or the intercept by linear regression.
 
     Args:
@@ -769,21 +769,19 @@ def _lrp_linReg(xIn, yUse):
         An array with the slope and intercept.
     """
 
-    counts = np.ones(yUse.shape)
-    xUse = xIn.copy()
-    xUse[np.isnan(yUse)] = 0
-    counts[np.isnan(yUse)] = 0
+    # Create a matrix with the cycle for each rawFluor value
+    spFl = fluor.shape
+    cycles = np.arange(adp_cyc_min, (adp_cyc_min + spFl[1]))
+    cyclesSqared = cycles * cycles
+    cyclesSum = np.sum(cycles)
+    cyclesSqaredSum = np.sum(cyclesSqared)
 
-    cycSqared = xUse * xUse
-    cycFluor = xUse * yUse
-    sumCyc = np.nansum(xUse, axis=1)
-    sumFluor = np.nansum(yUse, axis=1)
-    sumCycSquared = np.nansum(cycSqared, axis=1)
+    cycFluor = cycles * fluor
+    sumFluor = np.nansum(fluor, axis=1)
     sumCycFluor = np.nansum(cycFluor, axis=1)
-    n = np.nansum(counts, axis=1)
 
-    ssx = sumCycSquared - (sumCyc * sumCyc) / n
-    sxy = sumCycFluor - (sumCyc * sumFluor) / n
+    ssx = cyclesSqaredSum - (cyclesSum * cyclesSum) / spFl[1]
+    sxy = sumCycFluor - (cyclesSum * sumFluor) / spFl[1]
 
     return sxy / ssx
     # slope = sxy / ssx
@@ -864,25 +862,14 @@ def _lrp_findStartCyc(fluor, aRow, stopCyc):
 
     startCyc = stopCyc - 1
 
-    # startCyc might be NaN, so shift it to the first value
-    firstNotNaN = 1  # Cycles so +1 to array
-    while np.isnan(fluor[aRow, firstNotNaN - 1]) and firstNotNaN < startCyc:
-        firstNotNaN += 1
-    while startCyc > firstNotNaN and np.isnan(fluor[aRow, startCyc - 1]):
-        startCyc -= 1
-
     # As long as there are no NaN and new values are increasing
-    while (startCyc > firstNotNaN and
+    while (startCyc > 1 and
            stopCyc - startCyc < 11 and
-           not np.isnan(fluor[aRow, startCyc - 2]) and
            fluor[aRow, startCyc - 2] <= fluor[aRow, startCyc - 1]):
         startCyc -= 1
 
     startCycFix = startCyc
-    if (not np.isnan(fluor[aRow, startCyc]) and
-            not np.isnan(fluor[aRow, startCyc - 1]) and
-            not np.isnan(fluor[aRow, stopCyc - 1]) and
-            not np.isnan(fluor[aRow, stopCyc - 2])):
+    if (startCyc > 1 ):
         startStep = np.log10(fluor[aRow, startCyc]) - np.log10(fluor[aRow, startCyc - 1])
         stopStep = np.log10(fluor[aRow, stopCyc - 1]) - np.log10(fluor[aRow, stopCyc - 2])
         if startStep > 1.1 * stopStep:
@@ -13777,18 +13764,19 @@ class Run:
                     cyc = float(_get_first_child_text(adp, "cyc"))
                     adp_cyc_min = min(adp_cyc_min, cyc)
                     adp_cyc_max = max(adp_cyc_max, cyc)
+        # This spanns the matrix from min to max (len = min + max + 1)
+        # Gaps in this matrix will be filled or cause an error
+        # The matrix is guranteed to be with valid values
         adp_cyc_min = int(math.ceil(adp_cyc_min))
         adp_cyc_max = int(math.ceil(adp_cyc_max))
         # print(str(adp_cyc_min) + " - " + str(adp_cyc_max))
 
         # spFl is the shape for all fluorescence numpy data arrays
         # cycle number is arrar pos + 1 - zero is first
-        spFl = (colCount, adp_cyc_max)
+        spFl = (colCount, adp_cyc_max - adp_cyc_min + 1)
+        # print(spFl)
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor <= 0.00000001] = np.nan
-
-        # Create a matrix with the cycle for each rawFluor value
-        vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int64), (spFl[0], 1))
 
         # Initialization of the vecNoAmplification vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool_)
@@ -13849,12 +13837,12 @@ class Run:
                             "", "", "", "", "",  "", "", "", "", "", "", "", "" ])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
-                    cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
+                    cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc"))))
                     fluor = _get_first_child_text(adp, "fluor")
                     if commaConv:
                         noDot = fluor.replace(".", "")
                         fluor = noDot.replace(",", ".")
-                    rawFluor[rowCount, cyc] = float(fluor)
+                    rawFluor[rowCount, cyc - adp_cyc_min] = float(fluor)
                     anyRawData = True
                 rowCount += 1
         averageVolume = devVol
@@ -14075,6 +14063,7 @@ class Run:
 
         # Start and stop cycles of the log lin phase
         stopCyc = np.zeros(spFl[0], dtype=np.int64)
+        IniStopCyc = np.zeros(spFl[0], dtype=np.int64)
         startCyc = np.zeros(spFl[0], dtype=np.int64)
         startCycFix = np.zeros(spFl[0], dtype=np.int64)
 
@@ -14107,7 +14096,13 @@ class Run:
 
         # Basic Variables
         pointsInWoL = 4
-        baseCorFluor = rawFluor.copy()
+
+        #####################
+        # Fill Matrix Gaps  #
+        #####################
+
+
+
 
         ########################
         # Baseline correction  #
@@ -14119,26 +14114,28 @@ class Run:
         ###########################################################################
 
         # Slope calculation per react/target - the intercept is never used for now
+        baseCorFluor = rawFluor.copy()
         rawMod = rawFluor.copy()
+        # print(rawFluor)
 
         # There should be no negative values in uncorrected raw data
         absMinFluor = np.nanmin(rawMod)
+        absMaxFluor = np.nanmax(rawMod)
+        # print(absMaxFluor)
+        # print(absMinFluor)
         if absMinFluor < 0.00000001:
             finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
             finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!"
             vecMinFluor = np.nanmin(rawMod, axis=1)
-            vecMaxFluor = np.nanmax(rawMod)
             for oRow in range(0, spFl[0]):
                 if vecMinFluor[oRow] < 0.00000001:
-                    negShiftBaseline[oRow] = (vecMaxFluor - vecMinFluor[oRow]) / 100.0 - vecMinFluor[oRow]
+                    negShiftBaseline[oRow] = (absMaxFluor - vecMinFluor[oRow]) / 100.0 - vecMinFluor[oRow]
                     for oCol in range(0, spFl[1]):
                         rawFluor[oRow, oCol] += negShiftBaseline[oRow]
             baseCorFluor = rawFluor.copy()
             rawMod = rawFluor.copy()
 
-        rawMod[np.isnan(rawMod)] = 0
-        rawMod[rawMod < 0.00000001] = np.nan
-        slopeAmp = _lrp_linReg(vecCycles, np.log10(rawMod))
+        slopeAmp = _lrp_linReg(adp_cyc_min, np.log10(rawMod))
 
         # Calculate the minimum of fluorescence values per react/target, store it as background
         # and substract it from the raw fluorescence values
@@ -14146,14 +14143,13 @@ class Run:
         vecBackground = 0.99 * vecMinFluor
         vecDefBackgrd = vecBackground.copy()
         minCorFluor = rawMod - vecBackground[:, np.newaxis]
-        minCorFluor[np.isnan(minCorFluor)] = 0
-        minCorFluor[minCorFluor <= 0.00000001] = np.nan
+        # print(vecMinFluor)
+        # print(minCorFluor)
 
         minFluCount = np.ones(minCorFluor.shape, dtype=np.int64)
-        minFluCount[np.isnan(minCorFluor)] = 0
         minFluCountSum = np.sum(minFluCount, axis=1)
-        minSlopeAmp = _lrp_linReg(vecCycles, np.log10(minCorFluor))
-
+        minSlopeAmp = _lrp_linReg(adp_cyc_min, np.log10(minCorFluor))
+        
         for oRow in range(0, spFl[0]):
             # Check to detect the negative slopes and the PCR reactions that have an
             # amplification less than seven the minimum fluorescence
@@ -14188,10 +14184,12 @@ class Run:
 
             if not vecNoAmplification[oRow]:
                 stopCyc[oRow] = _lrp_findStopCyc(minCorFluor, oRow)
+                IniStopCyc[oRow] = stopCyc[oRow]
                 [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(minCorFluor, oRow, stopCyc[oRow])
             else:
                 vecSkipSample[oRow] = True
                 stopCyc[oRow] = minCorFluor.shape[1]
+                IniStopCyc[oRow] = stopCyc[oRow]
                 startCyc[oRow] = 1
                 startCycFix[oRow] = 1
 
@@ -14258,7 +14256,7 @@ class Run:
                 slopeLow = 0.0
                 while True:
                     countTrials += 1
-                    stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
+                    # stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
                     [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(baseCorFluor, oRow, stopCyc[oRow])
                     if stopCyc[oRow] - startCycFix[oRow] > 0:
                         # Calculate a slope for the upper and the lower half between startCycFix and stopCyc
@@ -14307,7 +14305,7 @@ class Run:
                     baseCorFluor[np.isnan(baseCorFluor)] = 0
                     baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
                     # find start and stop of log lin phase
-                    stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
+                    # stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
                     [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(baseCorFluor, oRow, stopCyc[oRow])
 
                     if stopCyc[oRow] - startCycFix[oRow] > 0:
@@ -14357,6 +14355,7 @@ class Run:
                 baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
 
                 # This values are used for the table
+                IniStopCyc[oRow] = spFl[1]
                 stopCyc[oRow] = spFl[1]
                 startCyc[oRow] = spFl[1] + 1
                 startCycFix[oRow] = spFl[1] + 1
@@ -14367,6 +14366,8 @@ class Run:
             if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
                 vecSkipSample[oRow] = True
 
+            if IniStopCyc[oRow] != stopCyc[oRow]:
+                print(res[oRow][rar_well] + ": " + str(IniStopCyc[oRow]) + " - " + str(stopCyc[oRow]))
         vecBackground = vecDefBackgrd
         baselineCorrectedData = baseCorFluor
 
