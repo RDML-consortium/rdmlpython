@@ -869,7 +869,7 @@ def _lrp_findStartCyc(fluor, aRow, stopCyc):
         startCyc -= 1
 
     startCycFix = startCyc
-    if (startCyc > 1 ):
+    if (startCyc > 0):
         startStep = np.log10(fluor[aRow, startCyc]) - np.log10(fluor[aRow, startCyc - 1])
         stopStep = np.log10(fluor[aRow, stopCyc - 1]) - np.log10(fluor[aRow, stopCyc - 2])
         if startStep > 1.1 * stopStep:
