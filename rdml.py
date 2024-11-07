@@ -848,7 +848,7 @@ def _lrp_findStopCyc(fluor, aRow):
     return stopCyc
 
 
-def _lrp_findStartCyc(fluor, aRow, stopCyc):
+def _lrp_findStartCyc(baseCorFluor, oRow, stopCyc):
     """A function which finds the start cycle of the log lin phase in fluor.
 
     Args:
@@ -860,22 +860,22 @@ def _lrp_findStartCyc(fluor, aRow, stopCyc):
         An array [int, int] with the start cycle and the fixed start cycle.
     """
 
-    startCyc = stopCyc - 1
+    FuncStartCyc = stopCyc - 1
 
     # As long as there are no NaN and new values are increasing
-    while (startCyc > 1 and
-           stopCyc - startCyc < 11 and
-           fluor[aRow, startCyc - 2] <= fluor[aRow, startCyc - 1]):
-        startCyc -= 1
+    while (FuncStartCyc > 1 and
+           stopCyc - FuncStartCyc < 11 and
+           baseCorFluor[oRow, FuncStartCyc - 2] <= baseCorFluor[oRow, FuncStartCyc - 1]):
+        FuncStartCyc -= 1
 
-    startCycFix = startCyc
-    if (startCyc > 0):
-        startStep = np.log10(fluor[aRow, startCyc]) - np.log10(fluor[aRow, startCyc - 1])
-        stopStep = np.log10(fluor[aRow, stopCyc - 1]) - np.log10(fluor[aRow, stopCyc - 2])
+    FuncStartCycFix = FuncStartCyc
+    if (FuncStartCyc > 0):
+        startStep = np.log10(baseCorFluor[oRow, FuncStartCyc]) - np.log10(baseCorFluor[oRow, FuncStartCyc - 1])
+        stopStep = np.log10(baseCorFluor[oRow, stopCyc - 1]) - np.log10(baseCorFluor[oRow, stopCyc - 2])
         if startStep > 1.1 * stopStep:
-            startCycFix += 1
+            FuncStartCycFix += 1
 
-    return [startCyc, startCycFix]
+    return [FuncStartCyc, FuncStartCycFix]
 
 
 def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
@@ -892,19 +892,9 @@ def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
     """
 
     # Both start with full range
-    loopStart = [startCycFix[aRow], stopCyc[aRow]]
-    loopStop = [startCycFix[aRow], stopCyc[aRow]]
-
-    # Now find the center ignoring nan
-    while True:
-        loopStart[1] -= 1
-        loopStop[0] += 1
-        while (loopStart[1] - loopStop[0]) > 1 and np.isnan(fluor[aRow, loopStart[1] - 1]):
-            loopStart[1] -= 1
-        while (loopStart[1] - loopStop[0]) > 1 and np.isnan(fluor[aRow, loopStop[1] - 1]):
-            loopStop[0] += 1
-        if (loopStart[1] - loopStop[0]) <= 1:
-            break
+    center = (stopCyc[aRow] + startCycFix[aRow]) / 2.0
+    loopStart = [startCycFix[aRow], int(center + 0.6)]
+    loopStop = [int(center), stopCyc[aRow]]
 
     # basic regression per group
     ssx = [0, 0]
@@ -917,12 +907,11 @@ def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
         sumxy = 0.0
         nincl = 0.0
         for i in range(loopStart[j], loopStop[j] + 1):
-            if not np.isnan(fluor[aRow, i - 1]):
-                sumx += i
-                sumy += np.log10(fluor[aRow, i - 1])
-                sumx2 += i * i
-                sumxy += i * np.log10(fluor[aRow, i - 1])
-                nincl += 1
+            sumx += i
+            sumy += np.log10(fluor[aRow, i - 1])
+            sumx2 += i * i
+            sumxy += i * np.log10(fluor[aRow, i - 1])
+            nincl += 1
         if nincl != 0.0:
             ssx[j] = sumx2 - sumx * sumx / nincl
             sxy[j] = sumxy - sumx * sumy / nincl
@@ -14221,6 +14210,7 @@ class Run:
         ##################################################
         # Main loop : Calculation of the baseline values #
         ##################################################
+        vecBaselineError = np.logical_not(vecNoAmplification)
         # The for loop go through all the react/target table and make calculations one by one
         for oRow in range(0, spFl[0]):
             if verbose:
@@ -14231,22 +14221,10 @@ class Run:
                 #  Make sure baseline is overestimated, without using slope criterion
                 #  increase baseline per cycle till eff > 2 or remaining log lin points < pointsInWoL
                 #  fastest when vecBackground is directly set to 5 point below stopCyc
-                vecBaselineError[oRow] = True
-                start = stopCyc[oRow]
-
-                # Find the first value that is not NaN
-                firstNotNaN = 1  # Cycles so +1 to array
-                while np.isnan(baseCorFluor[oRow, firstNotNaN - 1]) and firstNotNaN < stopCyc[oRow]:
-                    firstNotNaN += 1
-                subtrCount = 5
-                while subtrCount > 0 and start > firstNotNaN:
-                    start -= 1
-                    if not np.isnan(rawFluor[oRow, start - 1]):
-                        subtrCount -= 1
+                start = max(1, stopCyc[oRow] - 5)  # Cycles so +1 to array
 
                 vecBackground[oRow] = 0.99 * rawFluor[oRow, start - 1]
                 baseCorFluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
-                baseCorFluor[np.isnan(baseCorFluor)] = 0
                 baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
                 #  baseline is now certainly too high
 
@@ -14257,7 +14235,25 @@ class Run:
                 while True:
                     countTrials += 1
                     # stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
-                    [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(baseCorFluor, oRow, stopCyc[oRow])
+                    # [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(baseCorFluor, oRow, stopCyc[oRow])
+                    #_lrp_findStartCyc(fluor, aRow, stopCyc):
+                    FuncStartCyc = stopCyc[oRow] - 1
+
+                    # As long as there are no NaN and new values are increasing
+                    while (FuncStartCyc > 1 and
+                        stopCyc[oRow] - FuncStartCyc < 11 and
+                        baseCorFluor[oRow, FuncStartCyc - 2] <= baseCorFluor[oRow, FuncStartCyc - 1]):
+                        FuncStartCyc -= 1
+
+                    FuncStartCycFix = FuncStartCyc
+                    if (FuncStartCyc > 0):
+                        startStep = np.log10(baseCorFluor[oRow, FuncStartCyc]) - np.log10(baseCorFluor[oRow, FuncStartCyc - 1])
+                        stopStep = np.log10(baseCorFluor[oRow, stopCyc[oRow] - 1]) - np.log10(baseCorFluor[oRow, stopCyc[oRow] - 2])
+                        if startStep > 1.1 * stopStep:
+                            FuncStartCycFix += 1
+
+                    [startCyc[oRow], startCycFix[oRow]] = [FuncStartCyc, FuncStartCycFix]
+
                     if stopCyc[oRow] - startCycFix[oRow] > 0:
                         # Calculate a slope for the upper and the lower half between startCycFix and stopCyc
                         [slopeLow, slopeHigh] = _lrp_testSlopes(baseCorFluor, oRow, stopCyc, startCycFix)
@@ -14306,7 +14302,24 @@ class Run:
                     baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
                     # find start and stop of log lin phase
                     # stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
-                    [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(baseCorFluor, oRow, stopCyc[oRow])
+                    # [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc(baseCorFluor, oRow, stopCyc[oRow])
+                    FuncStartCyc = stopCyc[oRow] - 1
+
+                    # As long as there are no NaN and new values are increasing
+                    while (FuncStartCyc > 1 and
+                        stopCyc[oRow] - FuncStartCyc < 11 and
+                        baseCorFluor[oRow, FuncStartCyc - 2] <= baseCorFluor[oRow, FuncStartCyc - 1]):
+                        FuncStartCyc -= 1
+
+                    FuncStartCycFix = FuncStartCyc
+                    if (FuncStartCyc > 0):
+                        startStep = np.log10(baseCorFluor[oRow, FuncStartCyc]) - np.log10(baseCorFluor[oRow, FuncStartCyc - 1])
+                        stopStep = np.log10(baseCorFluor[oRow, stopCyc[oRow] - 1]) - np.log10(baseCorFluor[oRow, stopCyc[oRow] - 2])
+                        if startStep > 1.1 * stopStep:
+                            FuncStartCycFix += 1
+
+                    [startCyc[oRow], startCycFix[oRow]] = [FuncStartCyc, FuncStartCycFix]
+
 
                     if stopCyc[oRow] - startCycFix[oRow] > 0:
                         [slopeLow, slopeHigh] = _lrp_testSlopes(baseCorFluor, oRow, stopCyc, startCycFix)
