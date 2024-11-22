@@ -1020,7 +1020,7 @@ def _lrp_meanPcrEff(tarGroup, vecTarget, pcrEff, vecSkipSample, vecNoPlateau, ve
     return [meanPcrEff, pcrEffVar]
 
 
-def _lrp_startStopInWindow(fluor, row, startCyc, startCycFix, upWin, lowWin):
+def _lrp_startStopInWindow(fluor, row, startCyc, startCycFix, stopCyc, upWin, lowWin):
     """Find the start and the stop of the part of the curve which is inside the window.
 
     Args:
@@ -1040,6 +1040,10 @@ def _lrp_startStopInWindow(fluor, row, startCyc, startCycFix, upWin, lowWin):
 
     if np.isfinite(fluor[row, startCycFix[row] - 1:]).any():
         stopMaxCyc = np.nanargmax(fluor[row, startCycFix[row] - 1:]) + startCycFix[row]
+        # TODO: Why expanding to max?
+        stopMaxCyc = stopCyc[row]
+        #if stopCyc[row] != stopMaxCyc:
+          #  print("STOP issue: " + str(stopCyc[row]) + " vs " + str(stopMaxCyc))
     else:
         return startCyc[row], startCyc[row], True
 
@@ -1087,7 +1091,7 @@ def _lrp_paramInWindow(fluor, aRow, startCyc, startCycFix, stopCyc, upWin, lowWi
         The calculated values: indMeanX, indMeanY, pcrEff, nnulls, ninclu, correl.
     """
 
-    startWinCyc, stopWinCyc, notInWindow = _lrp_startStopInWindow(fluor, aRow, startCyc, startCycFix, upWin, lowWin)
+    startWinCyc, stopWinCyc, notInWindow = _lrp_startStopInWindow(fluor, aRow, startCyc, startCycFix, stopCyc, upWin, lowWin)
 
     sumx = 0.0
     sumy = 0.0
@@ -13290,6 +13294,85 @@ class Run:
             self.removeDigiReactTar(well, vTar)
         return
 
+    def setClasSample(self, vReact, vNewSam):
+        """Changes the sample id for one react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vNewTar: The new target id to change to.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                forId = _get_first_child(react, "sample")
+                if forId is not None:
+                    forId.attrib['id'] = vNewSam
+        return
+
+    def setClasSampleGrp(self, vWells, vNewSam):
+        """Changes the target id for several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vNewTar: The new target id to change to.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setClasSample(well, vNewSam)
+        return
+
+    def setClasTarget(self, vReact, vTar, vNewTar):
+        """Changes the target id for one react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vReact: The reaction id.
+            vTar: The target id.
+            vNewTar: The new target id to change to.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        reacts = _get_all_children(self._node, "react")
+        for react in reacts:
+            if int(react.get('id')) == int(vReact):
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    forId = _get_first_child(react_data, "tar")
+                    if forId is not None:
+                        if forId.attrib['id'] == vTar:
+                            forId.attrib['id'] = vNewTar
+        return
+
+    def setClasTragetGrp(self, vWells, vTar, vNewTar):
+        """Changes the target id for several react/data combination.
+
+        Args:
+            self: The class self parameter.
+            vWells: The a range of wells like "B2-C4".
+            vTar: The target id.
+            vNewTar: The new target id to change to.
+
+        Returns:
+            Nothing, updates RDML data.
+        """
+
+        wells = _wellRangeToList(vWells, self["pcrFormat_columns"])
+        for well in wells:
+            self.setClasTarget(well, vTar, vNewTar)
+        return
+
     def setClasExcl(self, vReact, vTar, vExcl, vAppend):
         """Saves the excl string for one react/data combination.
 
@@ -13777,7 +13860,7 @@ class Run:
         DEF_DYE_CONC = 0.98
         DEF_PRIMER_CONC = 250.0
         DEF_PRIMER_LEN = 20.0
-        DEF_AMPLICON_LEN = 1000.0
+        DEF_AMPLICON_LEN = 100.0
 
         #############################################
         #  Read all data from RDML into the arrays  #
@@ -14211,31 +14294,10 @@ class Run:
             if slopeAmp[oRow] < 0 or minSlopeAmp[oRow] < (np.log10(7.0) / minFluCountSum[oRow]):
                 vecNoAmplification[oRow] = True
 
-            # Get the right positions ignoring nan values
-            posCount = 0
-            posZero = 0
-            posOne = 0
-            posEight = 0
-            posNine = 0
-            for realPos in range(0, spFl[1]):
-                if not np.isnan(minCorFluor[oRow, realPos]):
-                    if posCount == 0:
-                        posZero = realPos
-                    if posCount == 1:
-                        posOne = realPos
-                    if posCount == 8:
-                        posEight = realPos
-                    if posCount == 9:
-                        posNine = realPos
-                    if posCount > 9:
-                        break
-                    posCount += 1
-
             # There must be an increase in fluorescence after the amplification.
-            if ((minCorFluor[oRow, posEight] + minCorFluor[oRow, posNine]) / 2) / \
-                    ((minCorFluor[oRow, posZero] + minCorFluor[oRow, posOne]) / 2) < 2.0:
-                if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, posZero:posNine + 1]) < 7:
-                    vecNoAmplification[oRow] = True
+            # TODO take the min of all
+            if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, 0:10]) < 7:
+                vecNoAmplification[oRow] = True
 
             if not vecNoAmplification[oRow]:
                 # Here we find the stop cycle once and for all
@@ -14500,19 +14562,15 @@ class Run:
 
                     if np.abs(CtShiftUp - CtShiftDown) > 1.0:
                         vecInstableBaseline[oRow] = True
+                        # TODO remove
+                        print("Removed instable baseline in row: " + str(oRow) + ", well: " + res[oRow][rar_well])
                         if excludeInstableBaseline:
                             # TODO remove
-                            #  print("Removed baseline in row: " + str(oRow))
+                            # print("Removed baseline in row: " + str(oRow) + ", well: " + res[oRow][rar_well])
                             vecBaselineError[oRow] = True
                             vecSkipSample[oRow] = True
                             vecCtIsShifting[oRow] = True
-                            vecDefBackgrd[oRow] = 0.99 * vecMinFluor[oRow]
-                            baseCorFluor[oRow] = rawFluor[oRow] - vecDefBackgrd[oRow]
-                            baseCorFluor[np.isnan(baseCorFluor)] = 0
-                            baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
 
-        vecBackground = vecDefBackgrd
-        baselineCorrectedData = baseCorFluor
         vecSkipSample[vecExcludedByUser] = True
         # Update the window
         lastCycMeanMax = _lrp_lastCycMeanMax(baseCorFluor, vecSkipSample, vecNoPlateau)
@@ -14558,7 +14616,7 @@ class Run:
             lowLim = maxLim - foldWidth + 0.0043
             for oRow in range(0, spFl[0]):
                 if not vecSkipSample[oRow]:
-                    startWinCyc, stopWinCyc, _unused = _lrp_startStopInWindow(baseCorFluor, oRow, startCyc, startCycFix, upWin[0], lowWin[0])
+                    startWinCyc, stopWinCyc, _unused = _lrp_startStopInWindow(baseCorFluor, oRow, startCyc, startCycFix, stopCyc, upWin[0], lowWin[0])
                     minStartCyc = startWinCyc - 1
                     # Handle possible NaN
                     while np.isnan(baseCorFluor[oRow, minStartCyc - 1]) and minStartCyc > 1:
