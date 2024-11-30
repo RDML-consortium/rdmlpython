@@ -900,7 +900,7 @@ def _lrp_findStartCyc2(fluor, row, stopCyc):
 
     # As long as there are no NaN and new values are increasing
     while (startCyc > 1 and
-           stopCyc - startCyc < 11 and
+           stopCyc - startCyc < 11 and  # TODO set to 6!
            not np.isnan(fluor[row, startCyc - 2]) and
            fluor[row, startCyc - 2] > 0.0 and
            fluor[row, startCyc - 2] <= fluor[row, startCyc - 1]):
@@ -1039,7 +1039,7 @@ def _lrp_startStopInWindow(fluor, row, startCyc, startCycFix, stopCyc, upWin, lo
     stopWinCyc = 0
 
     if np.isfinite(fluor[row, startCycFix[row] - 1:]).any():
-        stopMaxCyc = np.nanargmax(fluor[row, startCycFix[row] - 1:]) + startCycFix[row]
+        # stopMaxCyc = np.nanargmax(fluor[row, startCycFix[row] - 1:]) + startCycFix[row]
         # TODO: Why expanding to max?
         stopMaxCyc = stopCyc[row]
         #if stopCyc[row] != stopMaxCyc:
@@ -3266,7 +3266,11 @@ class Rdml:
                 for reactNode in reactNodes:
                     lastNodes = _get_all_children(reactNode, "sample")
                     for lastNode in lastNodes:
-                        foundIds[lastNode.attrib['id']] = 0
+                        if lastNode.get('id') == None:
+                            lastNode.attrib['id'] = "__no_sample_provided__"
+                            foundIds["__no_sample_provided__"] = 0
+                        else:
+                            foundIds[lastNode.attrib['id']] = 0
         presentIds = []
         exp = _get_all_children(self._node, "sample")
         for node in exp:
@@ -3276,7 +3280,7 @@ class Rdml:
                 self.new_sample(id=used_id, newposition=0)
                 if rdml_version != '1.3':
                     elem = self.get_sample(byid=used_id)
-                    elem.new_type("opt", targetId=None)
+                    elem.new_type("unkn", targetId=None)
                 mess += "Recreated sample: " + used_id + "\n"
         # Find lost target
         foundIds = {}
@@ -3298,9 +3302,20 @@ class Rdml:
                 for reactNode in reactNodes:
                     dataNodes = _get_all_children(reactNode, "data")
                     for dataNode in dataNodes:
+                        noTarget = True
                         lastNodes = _get_all_children(dataNode, "tar")
                         for lastNode in lastNodes:
-                            foundIds[lastNode.attrib['id']] = 0
+                            if lastNode.get('id') == None:
+                                lastNode.attrib['id'] = "__no_target_provided__"
+                                foundIds["__no_target_provided__"] = 0
+                            else:
+                                foundIds[lastNode.attrib['id']] = 0
+                            noTarget = False
+                        if noTarget:
+                            new_node = et.Element("tar")
+                            new_node.attrib['id'] = "__no_target_provided__"
+                            dataNode.insert(0, new_node)
+                            foundIds["__no_target_provided__"] = 0
                     partNodes = _get_all_children(reactNode, "partitions")
                     for partNode in partNodes:
                         dataNodes = _get_all_children(partNode, "data")
@@ -3328,6 +3343,11 @@ class Rdml:
         exp = _get_all_children(self._node, "target")
         for node in exp:
             presentIds.append(node.attrib['id'])
+        rdTars = self.targets()
+        for rdTar in rdTars:
+            tarType = _get_first_child_text(rdTar._node, "type")
+            if tarType == "":
+                rdTar["type"] = "toi"
         for used_id in foundIds:
             if used_id not in presentIds:
                 self.new_target(id=used_id, type="toi", newposition=0)
@@ -3403,12 +3423,12 @@ class Rdml:
         """
 
         mess = ""
-        foundIds = {}
         count = 0
         allExp = _get_all_children(self._node, "experiment")
         for node in allExp:
             subNodes = _get_all_children(node, "run")
             for subNode in subNodes:
+                foundIds = {}
                 reactNodes = _get_all_children(subNode, "react")
                 for reactNode in reactNodes:
                     tId = reactNode.attrib['id']
@@ -10291,9 +10311,13 @@ class Experiment:
         # Calculate M factor
         mFactor = np.zeros(np.shape(nCopy_geo)[1], dtype=np.float64)
         for col in range(0, np.shape(nCopy_geo)[1]):
-            logRes = np.log2(nCopy_geo[:, col][:, None] / np.delete(nCopy_geo, col, axis=1))
-            stdRes = np.nanstd(logRes, axis=0, ddof=1)
-            mFactor[col] = np.nanmean(stdRes)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                logRes = np.log2(nCopy_geo[:, col][:, None] / np.delete(nCopy_geo, col, axis=1))
+                stdRes = np.nanstd(logRes, axis=0, ddof=1)
+                mFactor[col] = np.nanmean(stdRes)
+                if np.isnan(mFactor[col]):
+                    raise RdmlError('Error: geNorm encountered not sufficient expression values for ' + res["reference"][col] + '.')
         #    print(res["reference"][col])
         #    print(stdRes)
         #    print(mFactor[col])
@@ -14223,6 +14247,19 @@ class Run:
         #####################
         # Fill Matrix Gaps  #
         #####################
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            absMinFluor = np.nanmin(rawFluor)
+            if np.isnan(absMinFluor):
+                raise RdmlError('Error: Fluorescence data have no valid values.')
+            validFloat = np.isfinite(rawFluor)
+            # If a row has no data, use the absolute minimum for all
+            for oRow in range(0, spFl[0]):
+                if not np.any(validFloat[oRow]):
+                    rawFluor[oRow, :] = absMinFluor
+                if not np.all(validFloat[oRow]):
+                    print(rawFluor[oRow])
+                    # TODO fill the gaps
 
 
 
