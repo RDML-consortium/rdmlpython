@@ -14253,17 +14253,67 @@ class Run:
             if np.isnan(absMinFluor):
                 raise RdmlError('Error: Fluorescence data have no valid values.')
             validFloat = np.isfinite(rawFluor)
-            # If a row has no data, use the absolute minimum for all
+            gapInWells = {}
             for oRow in range(0, spFl[0]):
+                # If a row has no data, use the absolute minimum for all
                 if not np.any(validFloat[oRow]):
                     rawFluor[oRow, :] = absMinFluor
                 if not np.all(validFloat[oRow]):
-                    print(rawFluor[oRow])
-                    # TODO fill the gaps
-
-
-
-
+                    # Fill gaps at start with first valid value
+                    if not validFloat[oRow][0]:
+                        lastInvalid = 0
+                        while lastInvalid < len(validFloat[oRow]) - 1:
+                            lastInvalid += 1
+                            if validFloat[oRow][lastInvalid]:
+                                break
+                        rawFluor[oRow, :lastInvalid] = rawFluor[oRow, lastInvalid]
+                        gapInWells[res[oRow][1]] = 0
+                    # Fill gaps at end with last valid value
+                    if not validFloat[oRow][len(validFloat[oRow]) - 1]:
+                        lastInvalid = len(validFloat[oRow])
+                        while lastInvalid > 0:
+                            lastInvalid -= 1
+                            if validFloat[oRow][lastInvalid]:
+                                break
+                        rawFluor[oRow, (lastInvalid + 1):] = rawFluor[oRow, lastInvalid]
+                        gapInWells[res[oRow][1]] = 0
+            # Now only internal gaps are remaining
+            validFloat = np.isfinite(rawFluor)
+            for oRow in range(0, spFl[0]):
+                # If a row has no data, use the absolute minimum for all
+                if not np.any(validFloat[oRow]):
+                    rawFluor[oRow, :] = absMinFluor
+                if not np.all(validFloat[oRow]):
+                    lastValid = 0
+                    gapLen = 0
+                    for pos in range(0,len(validFloat[oRow])):
+                        if validFloat[oRow][pos]:
+                            if gapLen > 0:
+                                startFluor = rawFluor[oRow, lastValid]
+                                endFluor = rawFluor[oRow, pos]
+                                stepFluor = (endFluor - startFluor) / (gapLen + 1)
+                                for fillGap in range(1, gapLen + 1):
+                                    rawFluor[oRow, lastValid + fillGap] = startFluor + fillGap * stepFluor
+                                gapLen = 0
+                            else:
+                                lastValid = pos
+                        else:
+                            gapLen += 1
+                    gapInWells[res[oRow][1]] = 0
+            # This should never happen
+            validFloat = np.isfinite(rawFluor)
+            if not np.any(validFloat):
+                raise RdmlError('Error: Unable to fix all gaps in fluorescence data.')
+            orderGapWells = sorted(list(gapInWells.keys()))
+            if len(orderGapWells) > 0:
+                gapError = "Warning: Extrapolated missing data in well "
+                for pos in range(0, len(orderGapWells)):
+                    gapError += orderGapWells[pos]
+                    if pos < len(orderGapWells) - 1:
+                        gapError += ", "
+                    else:
+                        gapError += ";"
+                print(gapError)
 
         ################################################
         # Calculate first, second and third derivative #

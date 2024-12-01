@@ -1,0 +1,25 @@
+Modifications:
+- Cycle 1 is allways missing
+
+243 - K3 - Cycle 2 missing
+245 - K5 - Cycle 2 missing
+247 - K7 - Cycle 2-4 missing
+249 - K9 - Cycle 2-3 missing
+251 - K11 - Cycle 2-5 missing
+266 - L2 - Cycle 2 missing
+269 - L5 - Cycle 45 missing
+271 - L7 - Cycle 45 missing
+273 - L9 - Cycle 44-45 missing
+275 - L11 - Cycle 42-45 missing
+291 - M3 - Cycle 8 missing
+293 - M5 - Cycle 30 missing
+295 - M7 - Cycle 14-15 missing
+297 - M9 - Cycle 20-21 missing
+315 - N3 - Cycle 17-20 missing
+317 - N5 - Cycle 42-44 missing
+319 - N7 - Cycle 5-9 missing
+321 - N9 - Cycle 5-9 and 31-35 missing
+323 - N11 - Cycle 1-10 and 43-45 missing
+337 - O1 - Cycle 1-8, 20-22 and 44-45 missing
+339 - O3 - Only Cycle 20 present
+343 - O7 - No data present
