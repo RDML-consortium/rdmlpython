@@ -60,8 +60,29 @@ class secondError(RdmlError):
     pass
 
 
+def _add_err(err, sep, text):
+    """Get the var as float or "".
+
+    Args:
+        err: The error string to append to.
+        sep: The seperator used if the string is not empty.
+        text: The text to append.
+
+    Returns:
+        The error string.
+    """
+
+    if err == "":
+        return text
+    else:
+        return err + sep + text
+
+
 def _save_float(var):
     """Get the var as float or "".
+
+    Args:
+        var: The value as float.
 
     Returns:
         The float or "" on error.
@@ -13678,8 +13699,8 @@ class Run:
                         resList[rRow][rCol] = ""
             allData["LinRegPCR_Result_Table"] = json.dumps([header] + resList, cls=NpEncoder)
 
-        if "noRawData" in res:
-            allData["error"] = res["noRawData"]
+        if "error" in res:
+            allData["error"] = res["error"]
 
         if "resultsLinRegPCRReport" in res:
             allData["resultsLinRegPCRReport"] = res["resultsLinRegPCRReport"]
@@ -13759,6 +13780,7 @@ class Run:
 
         if dataVersion not in ["1.4"]:
             raise RdmlError('LinRegPCR requires RDML version >= 1.4. Got v' + dataVersion)
+        err = ""
 
         ##############################
         # Collect the data in arrays #
@@ -14311,9 +14333,7 @@ class Run:
                     gapError += orderGapWells[pos]
                     if pos < len(orderGapWells) - 1:
                         gapError += ", "
-                    else:
-                        gapError += ";"
-                print(gapError)
+                err = _add_err(err, ";", gapError)
 
         ################################################
         # Calculate first, second and third derivative #
@@ -14349,8 +14369,8 @@ class Run:
         # print(absMaxFluor)
         # print(absMinFluor)
         if absMinFluor < 0.00000001:
-            finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
-            finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!"
+            err = _add_err(err, ";", "Error: Fluorescence data have negative values. Use raw data without baseline correction! ")
+            err = _add_err(err, "", "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!")
             vecMinFluor = np.nanmin(rawMod, axis=1)
             for oRow in range(0, spFl[0]):
                 if vecMinFluor[oRow] < 0.00000001:
@@ -15233,6 +15253,9 @@ class Run:
         if saveResultsList:
             finalData["resultsList"] = header + res
 
+        if err != "":
+            finalData["error"] = err
+
         return finalData
 
     def webAppMeltCurveAnalysis(self, normMethod="exponential", fluorSource="normalised",
@@ -15376,8 +15399,8 @@ class Run:
                         resList[rRow][rCol] = ""
             allData["Meltcurve_Result_Table"] = json.dumps(resList, cls=NpEncoder)
 
-        if "noRawData" in res:
-            allData["error"] = res["noRawData"]
+        if "error" in res:
+            allData["error"] = res["error"]
 
         return allData
 
@@ -15430,6 +15453,7 @@ class Run:
 
         if dataVersion == "1.0":
             raise RdmlError('MeltCurveAnalysis requires RDML version > 1.0.')
+        err = ""
 
         ##############################
         # Collect the data in arrays #
@@ -15628,8 +15652,8 @@ class Run:
         # There should be no negative values in uncorrected raw data
         absMinFluor = np.nanmin(rawFluor)
         if absMinFluor < 0.0:
-            finalData["noRawData"] = "Error: Fluorescence data have negative values. Use raw data without baseline correction! "
-            finalData["noRawData"] += "Baseline corrected data not using a constant factor will result in wrong melting curves!"
+            err = _add_err(err, ";", "Error: Fluorescence data have negative values. Use raw data without baseline correction! ")
+            err = _add_err(err, "", "Baseline corrected data not using a constant factor will result in wrong melting curves!")
 
         # Initial smooth of raw data
         smoothFluor = _mca_smooth(tempList, rawFluor)
@@ -16487,6 +16511,10 @@ class Run:
                                      _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, "0.0", True, "string")
                                      _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
             finalData["resultsList"] = resTable
+
+        if err != "":
+            finalData["error"] = err
+
         return finalData
 
 
@@ -16691,8 +16719,8 @@ def main():
                                        saveResultsList=False, saveResultsCSV=cli_saveResultData,
                                        timeRun=cli_timeRun, verbose=cli_verbose)
 
-        if "noRawData" in cli_result:
-            print(cli_result["noRawData"])
+        if "error" in cli_result:
+            print(cli_result["error"])
         if args.resultfile:
             cli_linRegPCR.save(args.resultfile)
         if args.saveRaw:
