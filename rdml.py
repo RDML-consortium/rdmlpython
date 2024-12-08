@@ -2346,9 +2346,9 @@ class Rdml:
         """
 
         data = "<rdml version='1.4' xmlns:rdml='http://www.rdml.org' xmlns='http://www.rdml.org'>\n<dateMade>"
-        data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        data += datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         data += "</dateMade>\n<dateUpdated>"
-        data += datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        data += datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         data += "</dateUpdated>\n</rdml>"
         self.loadXMLString(data)
         return
@@ -2430,7 +2430,7 @@ class Rdml:
         """
 
         elem = _get_or_create_subelement(self._node, "dateUpdated", self.xmlkeys())
-        elem.text = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        elem.text = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         data = et.tostring(self._rdmlData, pretty_print=True)
         _writeFileInRDML(filename, 'rdml_data.xml', data)
 
