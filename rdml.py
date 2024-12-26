@@ -14207,7 +14207,7 @@ class Run:
                 if limit_dye < target_limit[tarID]:
                     react_limit_string = "dye concentration "
                     target_limit[tarID] = limit_dye
-                bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
+            bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
             limit_dNTPs = 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
             if limit_dNTPs < target_limit[tarID]:
                 react_limit_string = "dNTP concentration "
