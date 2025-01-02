@@ -2295,6 +2295,10 @@ def standardCurveStats(data):
                         data[targets[tar]]["std"]["val"].append(stdF)
                         data[targets[tar]]["std"]["str"].append(stdval)
 
+        # Ignore targets without <2 values
+        if len(data[targets[tar]]["std"]["str"]) < 2:
+            continue
+
         # Calculate Min / Max Vals
         maxPosition = len(data[targets[tar]]["std"]["val"]) - 1
         data[targets[tar]]["var_groups"] = len(data[targets[tar]]["raw"])
@@ -2393,6 +2397,7 @@ def standardCurveStats(data):
         # Calculate things based on Cq
         data[targets[tar]]["all_cq"] = []
         data[targets[tar]]["cq_SSwithin"] = 0.0
+        data[targets[tar]]["cq_ss_per_dil"] = {}
         data[targets[tar]]["Cq_F0"] = {}
         cq_check_y = []
         for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
@@ -2410,8 +2415,8 @@ def standardCurveStats(data):
             for pos in range(0, len(data[targets[tar]]["Cq"][concStr])):
                 data[targets[tar]]["Cq_F0"][concStr].append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
                 cq_check_y.append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
-            data[targets[tar]][concStr]["cq_ss_per_dil"] = np.var(data[targets[tar]]["Cq_F0"][concStr], ddof=1) * (len(data[targets[tar]]["Cq_F0"][concStr]) - 1)
-            data[targets[tar]]["cq_SSwithin"] += data[targets[tar]][concStr]["cq_ss_per_dil"]
+            data[targets[tar]]["cq_ss_per_dil"][concStr] = np.var(data[targets[tar]]["Cq_F0"][concStr], ddof=1) * (len(data[targets[tar]]["Cq_F0"][concStr]) - 1)
+            data[targets[tar]]["cq_SSwithin"] += data[targets[tar]]["cq_ss_per_dil"][concStr]
 
         slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], cq_check_y)
         data[targets[tar]]["cq_slope_check"] = slope
@@ -2423,6 +2428,11 @@ def standardCurveStats(data):
         dif_alpha = 0.95
         dif_detect_num = 0
         dif_detect_sum = 0.0
+        data[targets[tar]]["dif_se_yfit"]  = {}
+        data[targets[tar]]["dif_log_upper"]  = {}
+        data[targets[tar]]["dif_log_lower"]  = {}
+        data[targets[tar]]["dif_fold_up"]  = {}
+        data[targets[tar]]["dif_fold_down"]  = {}
         dif_SSx = np.var(np.log10(data[targets[tar]]["all_std"]), ddof=1) * (data[targets[tar]]["var_n"] - 2.0)
         for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
             concStr = data[targets[tar]]["std"]["str"][concPos]
@@ -2430,13 +2440,13 @@ def standardCurveStats(data):
             dif_x_mean = np.mean(np.log10(data[targets[tar]]["std"]["val"]))
             dif_n = len(data[targets[tar]]["scaled_log"][concStr])  # Any n of samples with same conc
             dif_t = -1.0 * scp.t.ppf((1.0 - dif_alpha) / 4.0, dif_n - 1)
-            data[targets[tar]][concStr]["dif_se_yfit"] = data[targets[tar]]["stexy"] * np.power(1.0 / dif_n + np.power(np.log10(concFloat) - dif_x_mean, 2.0) / dif_SSx , 0.5)
-            data[targets[tar]][concStr]["dif_log_upper"] = data[targets[tar]]["mean_log"][concStr] + dif_t * data[targets[tar]][concStr]["dif_se_yfit"]
-            data[targets[tar]][concStr]["dif_log_lower"] = data[targets[tar]]["mean_log"][concStr] - dif_t * data[targets[tar]][concStr]["dif_se_yfit"]
-            data[targets[tar]][concStr]["dif_fold_up"] = np.power(10.0, data[targets[tar]][concStr]["dif_log_upper"]) / np.power(10.0, data[targets[tar]]["mean_log"][concStr])
-            dif_detect_sum += np.log(data[targets[tar]][concStr]["dif_fold_up"])
+            data[targets[tar]]["dif_se_yfit"][concStr] = data[targets[tar]]["stexy"] * np.power(1.0 / dif_n + np.power(np.log10(concFloat) - dif_x_mean, 2.0) / dif_SSx , 0.5)
+            data[targets[tar]]["dif_log_upper"][concStr] = data[targets[tar]]["mean_log"][concStr] + dif_t * data[targets[tar]]["dif_se_yfit"][concStr]
+            data[targets[tar]]["dif_log_lower"][concStr] = data[targets[tar]]["mean_log"][concStr] - dif_t * data[targets[tar]]["dif_se_yfit"][concStr]
+            data[targets[tar]]["dif_fold_up"][concStr] = np.power(10.0, data[targets[tar]]["dif_log_upper"][concStr]) / np.power(10.0, data[targets[tar]]["mean_log"][concStr])
+            dif_detect_sum += np.log(data[targets[tar]]["dif_fold_up"][concStr])
             dif_detect_num += 1
-            data[targets[tar]][concStr]["dif_fold_down"] = np.power(10.0, data[targets[tar]]["mean_log"][concStr]) / np.power(10.0, data[targets[tar]][concStr]["dif_log_lower"])
+            data[targets[tar]]["dif_fold_down"][concStr] = np.power(10.0, data[targets[tar]]["mean_log"][concStr]) / np.power(10.0, data[targets[tar]]["dif_log_lower"][concStr])
 
         data[targets[tar]]["dif_detectable_diff"] = np.exp(dif_detect_sum / dif_detect_num)
 
@@ -10654,14 +10664,18 @@ class Experiment:
             plate: A dictionary with the results per plate
         """
 
+        method="reference"
+        quantUnit="cop"
+
+
         rootPar = self._node.getparent()
         dataVersion = rootPar.get('version')
 
         if dataVersion in ["1.0", "1.1", "1.2", "1.3"]:
             raise RdmlError('Error: RelativeQuantification requires at least RDML version 1.4. After upgrading version run LinRegPCR again.')
 
-        if len(selReferences) < 1:
-            raise RdmlError('Error: RelativeQuantification requires at least one reference gene.')
+       # if len(selReferences) < 1:
+      #      raise RdmlError('Error: RelativeQuantification requires at least one reference gene.')
 
         res = {}
         tarType = {}
@@ -10669,6 +10683,7 @@ class Experiment:
         samAllAnnos = {}
         allAnnoKeys = {}
         overSelAnno = {}
+        allRuns = self.runs()
         if overlapType not in ["samples", "annotation"]:
             raise RdmlError('Error: Unknown overlap type.')
         if overlapType == "annotation":
@@ -10684,6 +10699,8 @@ class Experiment:
         nCopyData = self.getExperimentData()
         pRoot = self._node.getparent()
         transSamTar = _sampleTypeToDics(pRoot)
+
+        reactionVolume = 10.0
 
         # Find the sample annotoation
         samples = _get_all_children(pRoot, "sample")
@@ -10735,6 +10752,183 @@ class Experiment:
             if "id" in target.attrib:
                 tarId = target.attrib['id']
                 tarType[tarId] = _get_first_child_text(target, "type")
+
+        stdCurves = {}
+        vol_sum = 0.0
+        vol_num = 0
+        for tRunA in range(0, len(allRuns)):
+            runA = allRuns[tRunA]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                readVol = _get_first_child_text(react, "vol")
+                if not readVol == "":
+                    try:
+                        readVol = float(readVol)
+                    except ValueError:
+                        pass
+                    else:
+                        if math.isfinite(readVol):
+                            if readVol > 0.0:
+                                vol_sum += readVol
+                                vol_num += 1
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if "id" not in tarId.attrib:
+                        continue
+                    tar = tarId.attrib['id']
+                    stdCurves[tar] = {}
+        if vol_num > 0:
+            meanVol = vol_sum / vol_num
+            if meanVol > 0.0:
+                reactionVolume = meanVol
+
+        # Analyze dilution curves
+        no_standard_found = True
+        all_standards_found = True
+        sampleToQuantity = {}
+        res["absUnit"] = quantUnit
+        std_data = {}
+     #   standardCurveStats(data):
+    # The data are as data{target}{"raw"}{"standard conc as string"}["float, "float"]
+
+
+        # Collect conc of standard samples with the used unit
+        samples = _get_all_children(pRoot, "sample")
+        for currTar in stdCurves:
+            for sample in samples:
+                if "id" in sample.attrib:
+                    samId = sample.attrib['id']
+                    subEles = _get_all_children(sample, "quantity")
+                    for subNode in subEles:
+                        if 'targetId' in subNode.attrib:
+                            if subNode.attrib['targetId'] != currTar:
+                                continue
+                        qUnit = _get_first_child_text(subNode, "unit")
+                        if qUnit != quantUnit:
+                            continue
+                        qValue = _get_first_child_text(subNode, "value")
+                        try:
+                            qValueFloat = float(qValue)
+                        except ValueError:
+                            pass
+                        else:
+                            if math.isfinite(qValueFloat):
+                                if qUnit == "dil":
+                                    if qValueFloat != 0.0:
+                                        qValueFloat = 1.0 / qValueFloat
+                                if currTar not in sampleToQuantity:
+                                    sampleToQuantity[currTar] = {}
+                                sampleToQuantity[currTar][samId] = qValueFloat
+                                std_data[currTar] = {}
+                                std_data[currTar]["raw"] = {}
+                                std_data[currTar]["Cq"] = {}
+
+        # Collect all Data
+        for pRun in range(0, len(allRuns)):
+            runA = allRuns[pRun]
+            reacts = _get_all_children(runA._node, "react")
+            for react in reacts:
+                samId = _get_first_child(react, "sample")
+                if samId is None:
+                    continue
+                if "id" not in samId.attrib:
+                    continue
+                sampleID = samId.attrib['id']
+                react_datas = _get_all_children(react, "data")
+                for react_data in react_datas:
+                    tarId = _get_first_child(react_data, "tar")
+                    if tarId is None:
+                        continue
+                    if "id" not in tarId.attrib:
+                        continue
+                    target = tarId.attrib['id']
+                    if target not in sampleToQuantity:
+                        continue
+                    if sampleID not in sampleToQuantity[target]:
+                        continue
+                    excluded = _get_first_child_text(react_data, "excl")
+                    if excluded != "":
+                        continue
+                    corrFac = _get_first_child_text(react_data, "corrF")
+                    calcCorr = 1.0
+                    if not corrFac == "":
+                        try:
+                            calcCorr = float(corrFac)
+                        except ValueError:
+                            calcCorr = 1.0
+                        if not math.isfinite(calcCorr):
+                            calcCorr = 1.0
+                        if calcCorr > 1.0:
+                            calcCorr = 1.0
+                    plateFac = _get_first_child_text(react_data, "corrP")
+                    calcPlate = 1.0
+                    if not plateFac == "":
+                        try:
+                            calcPlate = float(plateFac)
+                        except ValueError:
+                            calcPlate = 0.0
+                        if not math.isfinite(calcPlate):
+                            calcCorr = 0.0
+                        if calcPlate == 0.0:
+                            calcCorr = 0.0
+                        calcCorr = calcCorr / calcPlate
+                    calcNcopy = _get_first_child_text(react_data, "Ncopy")
+                    cqStr = _get_first_child_text(react_data, "cq")
+                    if calcCorr > 0.0001:
+                        if not calcNcopy == "":
+                            try:
+                                calcNcopy = float(calcNcopy)
+                            except ValueError:
+                                pass
+                            else:
+                                if math.isfinite(calcNcopy):
+                                    if not cqStr == "":
+                                        try:
+                                            cqFloat = float(cqStr)
+                                        except ValueError:
+                                            pass
+                                        else:
+                                            if math.isfinite(cqFloat):
+                                                finalNcopy = calcCorr * calcNcopy
+                                                if finalNcopy > 0.0:
+                                                    volume = reactionVolume
+                                                    react = react_data.getparent()
+                                                    readVol = _get_first_child_text(react, "vol")
+                                                    if not readVol == "":
+                                                        try:
+                                                            readVol = float(readVol)
+                                                        except ValueError:
+                                                            pass
+                                                        else:
+                                                            if math.isfinite(readVol):
+                                                                if readVol > 0.0:
+                                                                    volume = readVol
+
+                                                    standardFix = str(sampleToQuantity[target][sampleID] * volume)
+                                                    # The data are as data{target}{"raw"}{"standard conc as string"}["float, "float"]
+                                                    if standardFix not in std_data[target]["raw"]:
+                                                        std_data[target]["raw"][standardFix] = []
+                                                    if standardFix not in std_data[target]["Cq"]:
+                                                        std_data[target]["Cq"][standardFix] = []
+                                                    std_data[target]["raw"][standardFix].append(calcNcopy * volume)
+                                                    std_data[target]["Cq"][standardFix].append(cqFloat)
+        std_data = standardCurveStats(std_data)
+
+
+
+
+
+
+
+        print(std_data)
+
+
+
+
+
 
         # Mean the technical replicates
         for sample in nCopyData["Ncopy"]:

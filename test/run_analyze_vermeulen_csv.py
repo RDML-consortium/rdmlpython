@@ -63,7 +63,6 @@ if use_results:
                     data[table[startRow][col]]["Cq"] = {}
                 if table[row][2] not in data[table[startRow][col]]["Cq"]:
                     data[table[startRow][col]]["Cq"][table[row][2]] = []
-                    data[table[startRow][col]][table[row][2]] = {}
                 try:
                     vFloat = float(table[row][col])
                 except ValueError:
@@ -566,7 +565,7 @@ for concStr in ["15", "150", "1500", "15000", "150000"]:
     else:
         wv.write("\t\t")
     for tar in range(0, len(targets)):
-        wv.write("{0:0.6f}".format(data[targets[tar]]["STD_" + concStr]["cq_ss_per_dil"]))
+        wv.write("{0:0.6f}".format(data[targets[tar]]["cq_ss_per_dil"]["STD_" + concStr]))
         if tar < len(targets) - 1:
             wv.write("\t")
         else:
@@ -751,7 +750,7 @@ wd.write("t\t" + "{0:0.6f}".format(dif_t) + "\t\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.6f}".format(data[targets[tar]]["STD_" + concStr]["dif_se_yfit"]))
+        wd.write("{0:0.6f}".format(data[targets[tar]]["dif_se_yfit"]["STD_" + concStr]))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
@@ -761,7 +760,7 @@ wd.write("\t\tlog(upper)\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.6f}".format(data[targets[tar]]["STD_" + concStr]["dif_log_upper"]))
+        wd.write("{0:0.6f}".format(data[targets[tar]]["dif_log_upper"]["STD_" + concStr]))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
@@ -770,7 +769,7 @@ wd.write("\t\tlog(lower)\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.6f}".format(data[targets[tar]]["STD_" + concStr]["dif_log_lower"]))
+        wd.write("{0:0.6f}".format(data[targets[tar]]["dif_log_lower"]["STD_" + concStr]))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
@@ -781,7 +780,7 @@ wd.write("\t\tupper\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.3e}".format(np.power(10.0, data[targets[tar]]["STD_" + concStr]["dif_log_upper"])))
+        wd.write("{0:0.3e}".format(np.power(10.0, data[targets[tar]]["dif_log_upper"]["STD_" + concStr])))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
@@ -790,7 +789,7 @@ wd.write("\t\tlower\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.3e}".format(np.power(10.0, data[targets[tar]]["STD_" + concStr]["dif_log_lower"])))
+        wd.write("{0:0.3e}".format(np.power(10.0, data[targets[tar]]["dif_log_lower"]["STD_" + concStr])))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
@@ -808,7 +807,7 @@ wd.write("\t\tfold up\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.6f}".format(data[targets[tar]]["STD_" + concStr]["dif_fold_up"]))
+        wd.write("{0:0.6f}".format(data[targets[tar]]["dif_fold_up"]["STD_" + concStr]))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
@@ -817,7 +816,7 @@ wd.write("\t\tfold down\t" + shortEmptyLine)
 for concStr in ["15", "150", "1500", "15000", "150000"]:
     wd.write("\t\t\t")
     for tar in range(0, len(targets)):
-        wd.write("{0:0.6f}".format(data[targets[tar]]["STD_" + concStr]["dif_fold_down"]))
+        wd.write("{0:0.6f}".format(data[targets[tar]]["dif_fold_down"]["STD_" + concStr]))
         if tar < len(targets) - 1:
             wd.write("\t")
         else:
