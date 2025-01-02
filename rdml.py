@@ -2265,6 +2265,183 @@ def webAppRunStatistics(data, parametric=False, statAlpha=0.05, seperator='\t', 
 
     return runStatistics(goodData, parametric, translateGrp, statAlpha)
 
+def standardCurveStats(data):
+    # The data are as data{target}{"raw"}{"standard conc as string"}["float, "float"]
+    targets = sorted(list(data.keys()))
+
+    for tar in range(0, len(targets)):
+        # Remove negative and 0 values to be log save
+        for stdval in data[targets[tar]]["raw"]:
+            for pos in range(0, len(data[targets[tar]]["raw"][stdval])):
+                if data[targets[tar]]["raw"][stdval][pos] <= 0.0:
+                    del data[targets[tar]]["raw"][stdval][pos]
+
+        # Extract the information about the standard
+        data[targets[tar]]["std"] = {}
+        data[targets[tar]]["std"]["val"] = []
+        data[targets[tar]]["std"]["str"] = []
+        for stdval in data[targets[tar]]["raw"]:
+            stdF = float(re.sub(r"[^0-9\-\.]", "", stdval))
+            if len(data[targets[tar]]["std"]["val"]) == 0:
+                data[targets[tar]]["std"]["val"].append(stdF)
+                data[targets[tar]]["std"]["str"].append(stdval)
+            else:
+                for pos in range(0, len(data[targets[tar]]["std"]["val"])):
+                    if data[targets[tar]]["std"]["val"][pos] > stdF:
+                        data[targets[tar]]["std"]["val"].insert(pos, stdF)
+                        data[targets[tar]]["std"]["str"].insert(pos, stdval)
+                        break
+                    if pos == len(data[targets[tar]]["std"]["val"]) - 1:
+                        data[targets[tar]]["std"]["val"].append(stdF)
+                        data[targets[tar]]["std"]["str"].append(stdval)
+
+        # Calculate Min / Max Vals
+        maxPosition = len(data[targets[tar]]["std"]["val"]) - 1
+        data[targets[tar]]["var_groups"] = len(data[targets[tar]]["raw"])
+        data[targets[tar]]["mean_min"] = np.mean(data[targets[tar]]["raw"][data[targets[tar]]["std"]["str"][0]])
+        data[targets[tar]]["mean_max"] = np.mean(data[targets[tar]]["raw"][data[targets[tar]]["std"]["str"][maxPosition]])
+        data[targets[tar]]["bias_as_ratio"] = data[targets[tar]]["mean_max"] / data[targets[tar]]["mean_min"]
+        data[targets[tar]]["expected_min"] = data[targets[tar]]["std"]["val"][0]
+        data[targets[tar]]["expected_max"] = data[targets[tar]]["std"]["val"][maxPosition]
+        data[targets[tar]]["expected_bias_as_ratio"] = data[targets[tar]]["expected_max"] / data[targets[tar]]["expected_min"]
+
+        # Calulate Log and scaled data
+        data[targets[tar]]["std"]["scaled"] = []
+        data[targets[tar]]["std"]["log"] = []
+        data[targets[tar]]["std"]["scaled_log"] = []
+        for pos in range(0, len(data[targets[tar]]["std"]["val"])):
+            data[targets[tar]]["std"]["scaled"].append(data[targets[tar]]["std"]["val"][pos] / data[targets[tar]]["expected_max"])
+            data[targets[tar]]["std"]["log"].append(np.log10(data[targets[tar]]["std"]["val"][pos]))
+            data[targets[tar]]["std"]["scaled_log"].append(np.log10(data[targets[tar]]["std"]["scaled"][pos]))
+        data[targets[tar]]["scaled"] = {}
+        data[targets[tar]]["log"] = {}
+        data[targets[tar]]["scaled_log"] = {}
+        data[targets[tar]]["all_std"] = []
+        data[targets[tar]]["all_std_scaled_log"] = []
+        data[targets[tar]]["all_data_scaled_log"] = []
+        data[targets[tar]]["variance"] = {}
+        data[targets[tar]]["mean_log"] = {}
+        data[targets[tar]]["SSwithin"] = 0.0
+        for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
+            concStr = data[targets[tar]]["std"]["str"][concPos]
+            concFloat = data[targets[tar]]["std"]["val"][concPos]
+            data[targets[tar]]["scaled"][concStr] = []
+            data[targets[tar]]["log"][concStr] = []
+            data[targets[tar]]["scaled_log"][concStr] = []
+            for pos in range(0, len(data[targets[tar]]["raw"][concStr])):
+                data[targets[tar]]["scaled"][concStr].append(data[targets[tar]]["raw"][concStr][pos] / data[targets[tar]]["mean_max"])
+                data[targets[tar]]["log"][concStr].append(np.log10(data[targets[tar]]["raw"][concStr][pos]))
+                data[targets[tar]]["scaled_log"][concStr].append(np.log10(data[targets[tar]]["scaled"][concStr][pos]))
+
+            if len(data[targets[tar]]["scaled_log"][concStr]) > 1:
+                data[targets[tar]]["variance"][concStr] = np.var(data[targets[tar]]["scaled_log"][concStr], ddof=1)
+                data[targets[tar]]["SSwithin"] += data[targets[tar]]["variance"][concStr] * (len(data[targets[tar]]["scaled_log"][concStr]) - 1.0)
+            else:
+                data[targets[tar]]["variance"][concStr] = -1.0
+            data[targets[tar]]["mean_log"][concStr] = np.mean(data[targets[tar]]["log"][concStr])
+
+            for pos in range(0, len(data[targets[tar]]["scaled_log"][concStr])):
+                data[targets[tar]]["all_std"].append(concFloat)
+                data[targets[tar]]["all_std_scaled_log"].append(np.log10(concFloat / data[targets[tar]]["expected_max"]))
+                data[targets[tar]]["all_data_scaled_log"].append(data[targets[tar]]["scaled_log"][concStr][pos])
+        data[targets[tar]]["var_n"] = len(data[targets[tar]]["all_data_scaled_log"])
+        data[targets[tar]]["scaled_mean_min"] = np.mean(data[targets[tar]]["scaled"][data[targets[tar]]["std"]["str"][0]])
+        data[targets[tar]]["scaled_mean_max"] = np.mean(data[targets[tar]]["scaled"][data[targets[tar]]["std"]["str"][maxPosition]])
+        if data[targets[tar]]["var_n"] > 2:
+            slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], data[targets[tar]]["all_data_scaled_log"])
+            data[targets[tar]]["slope_bias"] = slope
+            data[targets[tar]]["correlation_R"] = r_val
+            data[targets[tar]]["all_variance"] = np.var(data[targets[tar]]["all_data_scaled_log"], ddof=1)
+            data[targets[tar]]["SStotal"] = data[targets[tar]]["all_variance"] * (data[targets[tar]]["var_n"] - 1)
+            data[targets[tar]]["SSbetween"] = data[targets[tar]]["SStotal"] - data[targets[tar]]["SSwithin"]
+            # Calc stexy
+            fit = np.polyfit(data[targets[tar]]["all_std_scaled_log"], data[targets[tar]]["all_data_scaled_log"], deg=1)
+            y_pred = fit[0] * np.asarray(data[targets[tar]]["all_std_scaled_log"]) + fit[1]
+            data[targets[tar]]["SSx"] = np.var(data[targets[tar]]["all_std_scaled_log"], ddof=1) * (data[targets[tar]]["var_n"] - 1.0)
+            data[targets[tar]]["stexy"] = (((np.asarray(data[targets[tar]]["all_data_scaled_log"]) - y_pred) ** 2).sum() / (data[targets[tar]]["var_n"] - 2.0)) ** 0.5
+            data[targets[tar]]["SSres"] = np.power(data[targets[tar]]["stexy"], 2) * (data[targets[tar]]["var_n"] - 2.0)
+            data[targets[tar]]["Sres"] = np.power(data[targets[tar]]["SSres"] / (data[targets[tar]]["var_n"] - 2.0), 0.5)
+            data[targets[tar]]["se_of_slope"] = data[targets[tar]]["Sres"] / np.power(data[targets[tar]]["SSx"], 0.5)
+            data[targets[tar]]["t"] = np.abs(1 - data[targets[tar]]["slope_bias"]) / data[targets[tar]]["se_of_slope"]
+            data[targets[tar]]["p"] = scp.t.sf(data[targets[tar]]["t"], df=(data[targets[tar]]["var_n"] - 2.0)) * 2.0
+            data[targets[tar]]["SSregression"] = data[targets[tar]]["SStotal"] - data[targets[tar]]["SSres"]
+            data[targets[tar]]["SSderivation"] = data[targets[tar]]["SSres"] - data[targets[tar]]["SSwithin"]
+            data[targets[tar]]["MSbetween"] = data[targets[tar]]["SSbetween"] / (data[targets[tar]]["var_groups"] - 1.0)
+            data[targets[tar]]["MSregression"] = data[targets[tar]]["SSregression"] / 1
+            data[targets[tar]]["MSderivation"] = data[targets[tar]]["SSderivation"] / (data[targets[tar]]["var_groups"] - 2.0)
+            data[targets[tar]]["MSwithin"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+        else:
+            data[targets[tar]]["slope_bias"] = -1.0
+            data[targets[tar]]["correlation_R"] = -1.0
+            data[targets[tar]]["all_variance"] = -1.0
+            data[targets[tar]]["SStotal"] = -1.0
+            data[targets[tar]]["SSbetween"] = -1.0
+            data[targets[tar]]["SSx"] = -1.0
+            data[targets[tar]]["stexy"] = -1.0
+            data[targets[tar]]["SSres"] = -1.0
+            data[targets[tar]]["Sres"] = -1.0
+            data[targets[tar]]["se_of_slope"] = -1.0
+            data[targets[tar]]["t"] = -1.0
+            data[targets[tar]]["p"] = -1.0
+            data[targets[tar]]["SSregression"] = -1.0
+            data[targets[tar]]["SSderivation"] = -1.0
+            data[targets[tar]]["MSbetween"] = -1.0
+            data[targets[tar]]["MSregression"] = -1.0
+            data[targets[tar]]["MSderivation"] = -1.0
+            data[targets[tar]]["MSwithin"] = -1.0
+
+        # Calculate things based on Cq
+        data[targets[tar]]["all_cq"] = []
+        data[targets[tar]]["cq_SSwithin"] = 0.0
+        data[targets[tar]]["Cq_F0"] = {}
+        cq_check_y = []
+        for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
+            concStr = data[targets[tar]]["std"]["str"][concPos]
+            for pos in range(0, len(data[targets[tar]]["Cq"][concStr])):
+                data[targets[tar]]["all_cq"].append(data[targets[tar]]["Cq"][concStr][pos])
+        slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], data[targets[tar]]["all_cq"])
+        data[targets[tar]]["cq_slope_bias"] = slope
+        data[targets[tar]]["cq_eff"] = np.power(10, -1.0 / data[targets[tar]]["cq_slope_bias"])
+
+        for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
+            concStr = data[targets[tar]]["std"]["str"][concPos]
+            if concStr not in data[targets[tar]]["Cq_F0"]:
+                data[targets[tar]]["Cq_F0"][concStr] = []
+            for pos in range(0, len(data[targets[tar]]["Cq"][concStr])):
+                data[targets[tar]]["Cq_F0"][concStr].append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
+                cq_check_y.append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
+            data[targets[tar]][concStr]["cq_ss_per_dil"] = np.var(data[targets[tar]]["Cq_F0"][concStr], ddof=1) * (len(data[targets[tar]]["Cq_F0"][concStr]) - 1)
+            data[targets[tar]]["cq_SSwithin"] += data[targets[tar]][concStr]["cq_ss_per_dil"]
+
+        slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], cq_check_y)
+        data[targets[tar]]["cq_slope_check"] = slope
+        data[targets[tar]]["cq_ms_within_cq"] = data[targets[tar]]["cq_SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+        data[targets[tar]]["cq_ms_within_linregpcr"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+        data[targets[tar]]["cq_ms_ratio"] = data[targets[tar]]["cq_ms_within_linregpcr"] / data[targets[tar]]["cq_ms_within_cq"]
+
+        # difference calc
+        dif_alpha = 0.95
+        dif_detect_num = 0
+        dif_detect_sum = 0.0
+        dif_SSx = np.var(np.log10(data[targets[tar]]["all_std"]), ddof=1) * (data[targets[tar]]["var_n"] - 2.0)
+        for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
+            concStr = data[targets[tar]]["std"]["str"][concPos]
+            concFloat = data[targets[tar]]["std"]["val"][concPos]
+            dif_x_mean = np.mean(np.log10(data[targets[tar]]["std"]["val"]))
+            dif_n = len(data[targets[tar]]["scaled_log"][concStr])  # Any n of samples with same conc
+            dif_t = -1.0 * scp.t.ppf((1.0 - dif_alpha) / 4.0, dif_n - 1)
+            data[targets[tar]][concStr]["dif_se_yfit"] = data[targets[tar]]["stexy"] * np.power(1.0 / dif_n + np.power(np.log10(concFloat) - dif_x_mean, 2.0) / dif_SSx , 0.5)
+            data[targets[tar]][concStr]["dif_log_upper"] = data[targets[tar]]["mean_log"][concStr] + dif_t * data[targets[tar]][concStr]["dif_se_yfit"]
+            data[targets[tar]][concStr]["dif_log_lower"] = data[targets[tar]]["mean_log"][concStr] - dif_t * data[targets[tar]][concStr]["dif_se_yfit"]
+            data[targets[tar]][concStr]["dif_fold_up"] = np.power(10.0, data[targets[tar]][concStr]["dif_log_upper"]) / np.power(10.0, data[targets[tar]]["mean_log"][concStr])
+            dif_detect_sum += np.log(data[targets[tar]][concStr]["dif_fold_up"])
+            dif_detect_num += 1
+            data[targets[tar]][concStr]["dif_fold_down"] = np.power(10.0, data[targets[tar]]["mean_log"][concStr]) / np.power(10.0, data[targets[tar]][concStr]["dif_log_lower"])
+
+        data[targets[tar]]["dif_detectable_diff"] = np.exp(dif_detect_sum / dif_detect_num)
+
+    return data
+
 class Rdml:
     """RDML-Python library
     
@@ -10457,7 +10634,7 @@ class Experiment:
 
         return res
 
-    def relative(self, overlapType="samples", selAnnotation="", statsParametric=False, statAlpha=0.05, inclAnnotation= False, selReferences=[], saveResultsCSV=False):
+    def quantify(self, overlapType="samples", selAnnotation="", statsParametric=False, statAlpha=0.05, inclAnnotation= False, selReferences=[], saveResultsCSV=False):
         """Calulates relative expression and returns a json with additional data.
 
         Args:
