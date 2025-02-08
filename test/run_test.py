@@ -14,6 +14,8 @@ sys.path.append(parent_dir)
 
 import rdmlpython as rdml
 
+printExpRun = True
+
 rdml_file = "data_vermeulen_raw.rdml"
 rdml_amp_file = "data_test_amplicon_primer.rdml"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
@@ -167,6 +169,8 @@ for exp in expList:
         print("No runs found!")
         sys.exit(0)
     for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
         res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(startLine, len(resTab)):
@@ -382,6 +386,8 @@ for exp in expList:
         print("No runs found!")
         sys.exit(0)
     for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
         res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(startLine, len(resTab)):

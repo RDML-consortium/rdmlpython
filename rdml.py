@@ -14713,6 +14713,7 @@ class Run:
         maxSD = np.zeros(spFl[0], dtype=np.int64)
         fluorIncrease = np.zeros(spFl[0], dtype=np.float64)
         rawTD0 = -np.ones(spFl[0], dtype=np.float64)
+        rawAmplification = np.zeros(spFl[0], dtype=np.bool_)
 
 
 
@@ -14843,6 +14844,10 @@ class Run:
         rawFlourSD = np.append(tmp2, nanColAdd, axis=1)
         tmp = rawFlourSD - np.roll(rawFlourSD, 1, axis=1)  # Shift to right
         rawFlourTD = tmp[:, 1:] # Cq is +0.5
+        minFluor = np.nanmin(rawFluor, axis=1)
+        absMinFluor = np.nanmin(rawFluor)
+        absMaxFluor = np.nanmax(rawFluor)
+        posFluor = rawFluor + ((absMaxFluor - minFluor) / 100.0 - minFluor)[:, np.newaxis]
 
         ##################################################
         # Calculate everything what is based on raw data #
@@ -14864,22 +14869,24 @@ class Run:
                 if not np.isnan(tempMeanSD) and (tempMeanSD - maxMeanSD) > 0.0:
                     maxMeanSD = tempMeanSD
                     maxSD[row] = cyc
-            if maxSD[row] + 2 >= rawFluor.shape[1]:
+            if maxSD[row] + 2 >= rawFluor.shape[1]:  #TODO: use min
                 maxSD[row] = rawFluor.shape[1]
             # rawMinBySD is the Cq to the left with fluorescence decresing
             rawMinBySD[row] = maxSD[row]
-            while (rawMinBySD[row] > 1 and
-                   rawFluor[row, rawMinBySD[row] - 2] < rawFluor[row, rawMinBySD[row] - 1]):
+            while (rawMinBySD[row] > 1 and rawFluor[row, rawMinBySD[row] - 2] < rawFluor[row, rawMinBySD[row] - 1]):
                 rawMinBySD[row] -= 1
             # fluorIncrease is from rawMinBySd to maxFD
-            fluorIncrease[row] = rawFluor[row, maxFD[row] - 1] / rawFluor[row, rawMinBySD[row] - 1]
+            fluorIncrease[row] = posFluor[row, maxFD[row] - 1] / posFluor[row, rawMinBySD[row] - 1]
             # rawTD0 is calculated
             tempStop = min(rawFluor.shape[1] - 1, maxSD[row] + 2)  # Cycles so +1 to array
             for cyc in reversed(range(rawMinBySD[row], tempStop)):
                 if (rawFlourTD[row, cyc] >= 0.0) and (rawFlourTD[row, cyc + 1] < 0.0):
                     rawTD0[row] = float(cyc) + 1.5 + rawFlourTD[row, cyc] / (rawFlourTD[row, cyc] - rawFlourTD[row, cyc + 1])
                     break
-
+            # Call rawAmplification
+            if fluorIncrease[row] > 2.0:
+                if maxSD[row] - rawMinBySD[row] > 3:
+                    rawAmplification[row] = True
 
         #######################
         # Baseline correction #
@@ -14937,6 +14944,14 @@ class Run:
             # TODO take the min of all
             if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, 0:10]) < 7:
                 vecNoAmplification[oRow] = True
+
+            if vecNoAmplification[oRow] and rawAmplification[oRow]:
+                print("Amplification in " + res[oRow][rar_well])
+                print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+
+            if not vecNoAmplification[oRow] and not rawAmplification[oRow]:
+                print("No amplification in " + res[oRow][rar_well])
+                print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
             if not vecNoAmplification[oRow]:
                 # Here we find the stop cycle once and for all
@@ -15355,7 +15370,7 @@ class Run:
                     high = int(np.ceil(td0_Cq[oRow])) - 1
                     td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
                     break
-        #    print("TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+      #      print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
         # Calc Geomean fluor TD0:
         for tar in range(1, targetsCount):
