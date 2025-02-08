@@ -14708,6 +14708,14 @@ class Run:
         vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool_)
 
         # Start and stop cycles of the log lin phase
+        rawMinBySD = np.zeros(spFl[0], dtype=np.int64)
+        maxFD = np.zeros(spFl[0], dtype=np.int64)
+        maxSD = np.zeros(spFl[0], dtype=np.int64)
+        fluorIncrease = np.zeros(spFl[0], dtype=np.float64)
+        rawTD0 = -np.ones(spFl[0], dtype=np.float64)
+
+
+
         stopCyc = np.zeros(spFl[0], dtype=np.int64)
         IniStopCyc = np.zeros(spFl[0], dtype=np.int64)
         startCyc = np.zeros(spFl[0], dtype=np.int64)
@@ -14835,6 +14843,43 @@ class Run:
         rawFlourSD = np.append(tmp2, nanColAdd, axis=1)
         tmp = rawFlourSD - np.roll(rawFlourSD, 1, axis=1)  # Shift to right
         rawFlourTD = tmp[:, 1:] # Cq is +0.5
+
+        ##################################################
+        # Calculate everything what is based on raw data #
+        ##################################################
+        # maxFD is FD max + 2 if the fluorescence still increases
+        maxFD = np.nanargmax(rawFlourFD, axis=1) + 1  # Cycles so +1 to array
+        for row in range(0, spFl[0]):
+            if maxFD[row] + 2 <= rawFluor.shape[1]:
+                # Only add two cycles if there is an increase
+                if rawFluor[row, maxFD[row] + 1] > rawFluor[row, maxFD[row]] > rawFluor[row, maxFD[row] - 1]:
+                    maxFD[row] += 2
+            else:
+                maxFD[row] = rawFluor.shape[1]
+            maxMeanSD = 0.0
+            # maxSD must be before maxFD
+            maxSD[row] = rawFluor.shape[1]
+            for cyc in range(3, maxFD[row]):
+                tempMeanSD = np.mean(rawFlourSD[row][cyc - 2: cyc + 1])
+                if not np.isnan(tempMeanSD) and (tempMeanSD - maxMeanSD) > 0.0:
+                    maxMeanSD = tempMeanSD
+                    maxSD[row] = cyc
+            if maxSD[row] + 2 >= rawFluor.shape[1]:
+                maxSD[row] = rawFluor.shape[1]
+            # rawMinBySD is the Cq to the left with fluorescence decresing
+            rawMinBySD[row] = maxSD[row]
+            while (rawMinBySD[row] > 1 and
+                   rawFluor[row, rawMinBySD[row] - 2] < rawFluor[row, rawMinBySD[row] - 1]):
+                rawMinBySD[row] -= 1
+            # fluorIncrease is from rawMinBySd to maxFD
+            fluorIncrease[row] = rawFluor[row, maxFD[row] - 1] / rawFluor[row, rawMinBySD[row] - 1]
+            # rawTD0 is calculated
+            tempStop = min(rawFluor.shape[1] - 1, maxSD[row] + 2)  # Cycles so +1 to array
+            for cyc in reversed(range(rawMinBySD[row], tempStop)):
+                if (rawFlourTD[row, cyc] >= 0.0) and (rawFlourTD[row, cyc + 1] < 0.0):
+                    rawTD0[row] = float(cyc) + 1.5 + rawFlourTD[row, cyc] / (rawFlourTD[row, cyc] - rawFlourTD[row, cyc + 1])
+                    break
+
 
         #######################
         # Baseline correction #
@@ -15305,11 +15350,12 @@ class Run:
                 if np.isnan(np.isnan(rawFlourTD[oRow, cyc + 1])):
                     continue
                 if (rawFlourTD[oRow, cyc] >= 0.0) and (rawFlourTD[oRow, cyc + 1] < 0.0):
-                    td0_Cq[oRow] = float(cyc) + 1.5 + rawFlourTD[oRow, cyc] / (rawFlourTD[oRow, cyc] - rawFlourTD[oRow, cyc + 1])
+                    td0_Cq[oRow] = rawTD0[oRow]
                     low = int(np.floor(td0_Cq[oRow])) - 1
                     high = int(np.ceil(td0_Cq[oRow])) - 1
                     td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
                     break
+        #    print("TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
         # Calc Geomean fluor TD0:
         for tar in range(1, targetsCount):
