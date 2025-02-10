@@ -889,7 +889,7 @@ def _lrp_findStartCyc(fluor, row, stopCyc):
     while (startCyc > 1 and
            stopCyc - startCyc < 11 and
            not np.isnan(fluor[row, startCyc - 2]) and
-           fluor[row, startCyc - 2] <= fluor[row, startCyc - 1]):
+           fluor[row, startCyc - 2] < fluor[row, startCyc - 1]):
         startCyc -= 1
 
     startCycFix = startCyc
@@ -924,7 +924,7 @@ def _lrp_findStartCyc2(fluor, row, stopCyc):
            stopCyc - startCyc < 11 and  # TODO set to 6!
            not np.isnan(fluor[row, startCyc - 2]) and
            fluor[row, startCyc - 2] > 0.0 and
-           fluor[row, startCyc - 2] <= fluor[row, startCyc - 1]):
+           fluor[row, startCyc - 2] < fluor[row, startCyc - 1]):
         startCyc -= 1
 
     startCycFix = startCyc
@@ -979,6 +979,112 @@ def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
             slope[j] = -999.9
 
     return [slope[0], slope[1]]
+
+
+def _lrp_testSlopes2(fluor):
+    """Splits the values and calculates a slope for the upper and the lower half.
+
+    Args:
+        fluor: The array with the fluorescence values
+
+    Returns:
+        An array with [slopelow, slopehigh].
+    """
+
+    # Split the list
+    center = len(fluor) / 2.0
+    loopStart = [0, int(center)]
+    loopStop = [int(center - 0.4), len(fluor) - 1]
+
+    # basic regression per section
+    ssx = [0, 0]
+    sxy = [0, 0]
+    slope = [0, 0]
+    for j in range(0, 2):
+        sumx = 0.0
+        sumy = 0.0
+        sumx2 = 0.0
+        sumxy = 0.0
+        nincl = 0.0
+        for i in range(loopStart[j], loopStop[j] + 1):
+            sumx += i
+            sumy += np.log10(fluor[i])
+            sumx2 += i * i
+            sumxy += i * np.log10(fluor[i])
+            nincl += 1
+        if nincl != 0.0:
+            ssx[j] = sumx2 - sumx * sumx / nincl
+            sxy[j] = sumxy - sumx * sumy / nincl
+            slope[j] = sxy[j] / ssx[j]
+        else:
+            slope[j] = -999.9
+
+    return [slope[0], slope[1]]
+
+def _lrp_baseline_corr(fluor, start, maxSD, nCyc):
+    # Initialize start values
+    loopCount = 0
+    pcrEff = -1.0
+    curBase = 0.0
+    # Return error if too much is requested
+    # print("start: " + str(start) + " maxSD: " + str(maxSD) + " nCyc: " + str(nCyc))
+    if maxSD < 3:
+        return [loopCount, curBase, pcrEff, False]
+    if nCyc < 4:
+        return [loopCount, curBase, pcrEff, False]
+    if maxSD - start < nCyc:
+        return [loopCount, curBase, pcrEff, False]
+    selSection = fluor[maxSD - nCyc - 1:maxSD - 1]
+    # This is the max basline
+    maxBase = fluor[maxSD - nCyc - 1]
+    if fluor[maxSD - nCyc - 1] < 0.0:
+        curBase = fluor[maxSD - nCyc - 1] * 1.01
+    else:
+        curBase = fluor[maxSD - nCyc - 1] * 0.99
+    # Initial corretion to avoid negative values
+    minSection = selSection - curBase
+    step = minSection[0] * 0.1
+    if minSection[0] < 0:
+        return [loopCount, curBase, pcrEff, True]
+    loopCount = 1000
+    # Step Up first
+    failed_first = False
+    for loop in range (0, 1000):
+        if maxBase <= curBase:
+            return [loopCount, curBase, pcrEff, True]
+        # Calculate lower and upper slope
+        resInc = _lrp_testSlopes2(minSection)
+        if resInc[0] > resInc[1]:
+            break
+        else:
+            # print("overstep")
+            curBase += step
+        minSection = selSection - curBase
+
+    for loop in range (0, 1000):
+        if minSection[0] < 0:
+            return [loopCount, curBase, pcrEff, True]
+        # Calculate lower and upper slope
+        resInc = _lrp_testSlopes2(minSection)
+        # Test if it is OK
+        # print(str(loop) + " Base: " + str(curBase) + " Step: " + str(step) + " Low: " + str(resInc[0]) + " High: " + str(resInc[1]) )
+        # print(minSection)
+        if (np.abs(resInc[0] - resInc[1]) < 0.00001):
+            pcrEff = np.power(10, resInc[1])
+            loopCount = loop
+            break
+        # Make a step
+        if resInc[0] > resInc[1]:
+            curBase -= step
+        else:
+            # print("overstep")
+            curBase += 2.0 * step
+            step *= 0.5
+        minSection = selSection - curBase
+    # print("St: " + str(start) + " Se: " + str(maxSD - nCyc) + " Sp: " + str(maxSD) + " Eh: " + str(pcrEff))
+    # print(selSection)
+    # slope, intercept, r_value, p_value, std_err = scp.stats.linregress(range(maxSD - nCyc, maxSD), minSection)
+    return [loopCount, curBase, pcrEff, False]
 
 
 def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
@@ -14715,6 +14821,8 @@ class Run:
         rawTD0 = -np.ones(spFl[0], dtype=np.float64)
         rawAmplification = np.zeros(spFl[0], dtype=np.bool_)
 
+        indiPcrEffNeu = -np.ones(spFl[0], dtype=np.float64)
+        backgroundNew = -np.ones(spFl[0], dtype=np.float64)
 
 
         stopCyc = np.zeros(spFl[0], dtype=np.int64)
@@ -14842,12 +14950,17 @@ class Run:
         tmp = rawFlourFD - np.roll(rawFlourFD, 1, axis=1)  # Shift to right
         tmp2 = np.append(nanColAdd, tmp[:, 1:], axis=1)
         rawFlourSD = np.append(tmp2, nanColAdd, axis=1)
-        tmp = rawFlourSD - np.roll(rawFlourSD, 1, axis=1)  # Shift to right
+        # SD is used as fluorescence mean of 3 cycles
+        meanFlourSD = np.append(np.append(nanColAdd, (rawFlourSD[:, 0:-2] + rawFlourSD[:, 1:-1] + rawFlourSD[:, 2:]) / 3.0, axis=1), nanColAdd, axis=1)
+        # TD is based on the mean SD
+        tmp = meanFlourSD - np.roll(meanFlourSD, 1, axis=1)  # Shift to right
         rawFlourTD = tmp[:, 1:] # Cq is +0.5
-        minFluor = np.nanmin(rawFluor, axis=1)
+
+
+        maxBase = np.nanmin(rawFluor, axis=1)
         absMinFluor = np.nanmin(rawFluor)
         absMaxFluor = np.nanmax(rawFluor)
-        posFluor = rawFluor + ((absMaxFluor - minFluor) / 100.0 - minFluor)[:, np.newaxis]
+        posFluor = rawFluor + ((absMaxFluor - maxBase) / 100.0 - maxBase)[:, np.newaxis]
 
         ##################################################
         # Calculate everything what is based on raw data #
@@ -14855,7 +14968,7 @@ class Run:
         # maxFD is FD max + 2 if the fluorescence still increases
         maxFD = np.nanargmax(rawFlourFD, axis=1) + 1  # Cycles so +1 to array
         for row in range(0, spFl[0]):
-            if maxFD[row] + 2 <= rawFluor.shape[1]:
+            if maxFD[row] <= rawFluor.shape[1] - 2:
                 # Only add two cycles if there is an increase
                 if rawFluor[row, maxFD[row] + 1] > rawFluor[row, maxFD[row]] > rawFluor[row, maxFD[row] - 1]:
                     maxFD[row] += 2
@@ -14865,15 +14978,14 @@ class Run:
             # maxSD must be before maxFD
             maxSD[row] = rawFluor.shape[1]
             for cyc in range(3, maxFD[row]):
-                tempMeanSD = np.mean(rawFlourSD[row][cyc - 2: cyc + 1])
-                if not np.isnan(tempMeanSD) and (tempMeanSD - maxMeanSD) > 0.0:
-                    maxMeanSD = tempMeanSD
+                if not np.isnan(meanFlourSD[row, cyc - 1]) and (meanFlourSD[row, cyc - 1] - maxMeanSD) > 0.0:
+                    maxMeanSD = meanFlourSD[row, cyc - 1]
                     maxSD[row] = cyc
-            if maxSD[row] + 2 >= rawFluor.shape[1]:  #TODO: use min
+            if maxSD[row] + 2 >= rawFluor.shape[1]:
                 maxSD[row] = rawFluor.shape[1]
             # rawMinBySD is the Cq to the left with fluorescence decresing
             rawMinBySD[row] = maxSD[row]
-            while (rawMinBySD[row] > 1 and rawFluor[row, rawMinBySD[row] - 2] < rawFluor[row, rawMinBySD[row] - 1]):
+            while (rawMinBySD[row] > 3 and rawFluor[row, rawMinBySD[row] - 2] < rawFluor[row, rawMinBySD[row] - 1]):
                 rawMinBySD[row] -= 1
             # fluorIncrease is from rawMinBySd to maxFD
             fluorIncrease[row] = posFluor[row, maxFD[row] - 1] / posFluor[row, rawMinBySD[row] - 1]
@@ -14884,9 +14996,24 @@ class Run:
                     rawTD0[row] = float(cyc) + 1.5 + rawFlourTD[row, cyc] / (rawFlourTD[row, cyc] - rawFlourTD[row, cyc + 1])
                     break
             # Call rawAmplification
-            if fluorIncrease[row] > 2.0:
+            if fluorIncrease[row] > 5.0:
                 if maxSD[row] - rawMinBySD[row] > 3:
                     rawAmplification[row] = True
+
+
+        ######################################################
+        # Baseline correction and PCR efficiency calculation #
+        ######################################################
+        for row in range(0, spFl[0]):
+            linLogLen = min(9, maxSD[row] - rawMinBySD[row])
+         #   linLogLen2 = min(9, int(rawTD0[row]) - rawMinBySD[row])
+            baseResults = _lrp_baseline_corr(rawFluor[row], rawMinBySD[row] + 1, maxSD[row] + 1, linLogLen)
+         #   baseResults2 = _lrp_baseline_corr(rawFluor[row], rawMinBySD[row] + 1, int(rawTD0[row]), linLogLen2)
+            backgroundNew[row] = baseResults[1]
+            indiPcrEffNeu[row] = baseResults[2]
+
+           # print(str(maxSD[row] + 1) + " - " + str(int(rawTD0[row])))
+         #   print(str(baseResults[2]) + " - " + str(baseResults2[2]))
 
         #######################
         # Baseline correction #
@@ -14896,6 +15023,8 @@ class Run:
         ###########################################################################
         # First quality check : Is there enough amplification during the reaction #
         ###########################################################################
+
+        ffocuss = "xxx"
 
         # Slope calculation per react/target - the intercept is never used for now
         baseCorFluor = rawFluor.copy()
@@ -14945,13 +15074,17 @@ class Run:
             if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, 0:10]) < 7:
                 vecNoAmplification[oRow] = True
 
-            if vecNoAmplification[oRow] and rawAmplification[oRow]:
-                print("Amplification in " + res[oRow][rar_well])
-                print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+            if maxSD[oRow] - rawMinBySD[oRow] > 3:
+                if maxSD[oRow] < rawTD0[oRow] - 1:
+                    print(res[oRow][rar_well] + "  Inc: " + str(fluorIncrease[oRow]) + "  Start: " + str(rawMinBySD[oRow]) + "  Stop: " + str(maxSD[oRow]) + "  TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
-            if not vecNoAmplification[oRow] and not rawAmplification[oRow]:
-                print("No amplification in " + res[oRow][rar_well])
-                print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+    #        if vecNoAmplification[oRow] and rawAmplification[oRow]:
+   #             print("Amplification in " + res[oRow][rar_well])
+  #              print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+#
+ #           if not vecNoAmplification[oRow] and not rawAmplification[oRow]:
+ #               print("No amplification in " + res[oRow][rar_well])
+#                print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
             if not vecNoAmplification[oRow]:
                 # Here we find the stop cycle once and for all
@@ -15100,6 +15233,14 @@ class Run:
 
                     if stopCyc[oRow] - startCycFix[oRow] > 1:
                         [slopeLow, slopeHigh] = _lrp_testSlopes(baseCorFluor, oRow, stopCyc, startCycFix)
+                        if 0: # res[oRow][rar_well] == ffocuss:
+                            print(oRow)
+                            resInc = _lrp_testSlopes2(baseCorFluor[oRow, startCycFix[oRow] - 1:stopCyc[oRow]])
+                            print(resInc)
+                            print("F2 Start: " +  str(startCycFix[oRow]) + " Stop: " + str(stopCyc[oRow]) + " Base: " + str(vecBackground[oRow]) + " Low: " + str(slopeLow) + " High: " + str(slopeHigh))
+                            print(baseCorFluor[oRow, startCycFix[oRow] - 1:stopCyc[oRow] - 1])
+                            print(rawFluor[oRow, startCycFix[oRow] - 1:stopCyc[oRow] - 1])
+                            print("\n\n")
                         curSlopeDiff = np.abs(slopeLow - slopeHigh)
                         if (slopeLow - slopeHigh) > 0.0:
                             curSignDiff = 1
@@ -15125,6 +15266,10 @@ class Run:
                             (np.abs(curSlopeDiff) < 0.0001) or
                             (slopeHigh < math.log10(1.2)) or
                             (countTrials > 1000)):
+             #           if startCyc[oRow] != rawMinBySD[oRow]:
+              #              print(" Well: " + res[oRow][rar_well] + "  " + "SStrat: " + str(startCyc[oRow]) + "  Max: " + str(rawMinBySD[oRow]) + "  Len: " + str(stopCyc[oRow] - rawMinBySD[oRow]) )
+             #           if res[oRow][rar_well] == ffocuss:
+              #              print("found")
                         break
 
                 if curSlopeDiff < 0.0001:
@@ -15138,7 +15283,11 @@ class Run:
                 if baseCorFluor[oRow, stopCyc[oRow] - 1] / baseCorFluor[oRow, startCycFix[oRow] - 1] < loglinlen:
                     vecShortLogLin[oRow] = True
 
-                indiv_PCR_Eff[oRow] = np.power(10, lastSlope)
+             #   indiv_PCR_Eff[oRow] = indiPcrEffNeu[oRow]  # indiPcrEffNeu[oRow]  # np.power(10, lastSlope)
+              #  vecBackground[oRow] = backgroundNew[oRow]
+
+                if res[oRow][rar_well] == ffocuss:
+                    print("BG: " + str(vecBackground[oRow]) + "  EFFF: " + str(indiv_PCR_Eff[oRow]))
 
             if vecNoAmplification[oRow] or vecBaselineError[oRow]:
                 vecSkipSample[oRow] = True
@@ -15166,7 +15315,11 @@ class Run:
         vecBackground = vecDefBackgrd
         baselineCorrectedData = baseCorFluor
 
-        
+        for oRow in range(0, spFl[0]):
+            if abs(indiv_PCR_Eff[oRow] - indiPcrEffNeu[oRow]) > 0.1:
+      #          print(" Well: " + res[oRow][rar_well] + "  " +str(indiv_PCR_Eff[oRow]) + " - " + str(indiPcrEffNeu[oRow]) + "  " +str(abs(indiv_PCR_Eff[oRow] - indiPcrEffNeu[oRow])))
+                pass
+
 
         # Check if cq values are stable with a modified baseline
         checkFluor = np.zeros(spFl, dtype=np.float64)
@@ -15370,7 +15523,7 @@ class Run:
                     high = int(np.ceil(td0_Cq[oRow])) - 1
                     td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
                     break
-      #      print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+    #        print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
         # Calc Geomean fluor TD0:
         for tar in range(1, targetsCount):

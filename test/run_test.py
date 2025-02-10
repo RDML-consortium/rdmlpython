@@ -369,9 +369,9 @@ print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 print("\n######################\n### Test Vermeulen ###\n######################")
 # Time the test
 startTime = time.time()
-rd = rdml.Rdml(rdml_file)
+rdd = rdml.Rdml(rdml_file)
 
-expList = rd.experiments()
+expList = rdd.experiments()
 print("  The Test will run for 2 Minutes.")
 if len(expList) < 1:
     print("No experiments found!")
@@ -417,13 +417,12 @@ printNice("Sum Reactions: ", curDa["reactionDataSum"], laDa["reactionDataSum"], 
 
             
 ww.close()
-rd.save("temp_vermeulen_linregpcr.rdml")
+rdd.save("temp_vermeulen_linregpcr.rdml")
 endTime = time.time()
 runTime = endTime - startTime
 runMin = math.floor(runTime / 60.0)
 runSec = runTime - runMin* 60.0
 print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
-print("Calculating statistics: \"data_vermeulen_raw.rdml\"")
 json_object = json.dumps(curDa, indent=4)
 with open(out_json, "w") as outfile:
     outfile.write(json_object)
