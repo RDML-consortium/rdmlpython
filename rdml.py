@@ -1021,49 +1021,103 @@ def _lrp_testSlopes2(fluor):
 
     return [slope[0], slope[1]]
 
-def _lrp_baseline_corr(fluor, start, maxSD, nCyc):
+def _lrp_baseline_corr(fluor, start, stop):
+    # start and maxSD in Cycles, so +1 to array.
     # Initialize start values
     loopCount = 0
     pcrEff = -1.0
     curBase = 0.0
-    # Return error if too much is requested
-    # print("start: " + str(start) + " maxSD: " + str(maxSD) + " nCyc: " + str(nCyc))
-    if maxSD < 3:
-        return [loopCount, curBase, pcrEff, False]
-    if nCyc < 4:
-        return [loopCount, curBase, pcrEff, False]
-    if maxSD - start < nCyc:
-        return [loopCount, curBase, pcrEff, False]
-    selSection = fluor[maxSD - nCyc - 1:maxSD - 1]
+    # At minimum 4 cycles are required
+    if stop < 4:
+        return [loopCount, curBase, pcrEff, False, "stop < 4", []]
+    # At maximum 9 cycles should be inluded
+    start = max(start, stop - 9 + 1)
+    # Now check that 4 cycles are left
+    if stop - start + 1 < 4:
+        return [loopCount, curBase, pcrEff, False, "stop - start + 1 < 4", []]
+    selSection = fluor[start - 1:stop]
+    # Check if the baseline is within the range
+    resInc = _lrp_testSlopes2(selSection)
+    if resInc[0] > resInc[1] :
+        return [loopCount, curBase, pcrEff, False, "failed max", []]
+    testSelection = selSection - fluor[start - 1] + 0.00000001
+    resInc = _lrp_testSlopes2(testSelection)
+    if resInc[0] < resInc[1] :
+        return [loopCount, curBase, pcrEff, False, "failed zero", []]
+    # Half the area and continue search in the good part
+    span = fluor[start - 1] * 0.5
+    step = span * 0.5
+    currentSection = selSection - span
+    for loop in range (0, 100):
+        resInc = _lrp_testSlopes2(currentSection)
+        if (np.abs(resInc[0] - resInc[1]) < 0.00001):
+            pcrEff = np.power(10, resInc[1])
+            loopCount = loop
+            return [loopCount, curBase, pcrEff, True, "+++", fluor[start - 1:stop]]
+        if resInc[0] > resInc[1]:
+            span -= step
+        else:
+            span += step
+        step *= 0.5
+        currentSection = selSection - span
+
+    return [loopCount, curBase, pcrEff, False, "No basline found", []]
+
     # This is the max basline
-    maxBase = fluor[maxSD - nCyc - 1]
-    if fluor[maxSD - nCyc - 1] < 0.0:
-        curBase = fluor[maxSD - nCyc - 1] * 1.01
+    maxBase = fluor[start - 1]
+    
+    if fluor[start - 1] < 0.0:
+        curBase = fluor[start - 1] * 1.01
     else:
-        curBase = fluor[maxSD - nCyc - 1] * 0.99
+        curBase = fluor[start - 1] * 0.99
     # Initial corretion to avoid negative values
     minSection = selSection - curBase
-    step = minSection[0] * 0.1
-    if minSection[0] < 0:
-        return [loopCount, curBase, pcrEff, True]
+    bbbb = (minSection[2] - minSection[0]) / 50.0
+    step = (minSection[2] - minSection[0]) / 50.0
+    print(str(fluor[start - 1]) + " -- " + str(step))
+    currentSection = selSection - fluor[start - 1] + step
+    print(currentSection)
+    resInc = _lrp_testSlopes2(currentSection)
+    print(str(resInc[0]) + " < " + str(resInc[1]) + " = " + str(resInc[0] < resInc[1]))
+    currentSection = selSection - step
+    print(currentSection)
+    resInc = _lrp_testSlopes2(currentSection)
+    print(str(resInc[0]) + " > " + str(resInc[1]) + " = " + str(resInc[0] > resInc[1]))
+
+
+    # TODO: Maybe out, should not happen
+    if minSection[0] <= 0:
+        return [loopCount, curBase, pcrEff, True, "xxx", []]
     loopCount = 1000
     # Step Up first
     failed_first = False
+    bigStep = 0
     for loop in range (0, 1000):
         if maxBase <= curBase:
-            return [loopCount, curBase, pcrEff, True]
+            return [loopCount, curBase, pcrEff, True, "max", []]
+        if minSection[0] <= 0:
+            return [loopCount, curBase, pcrEff, True, "out", []]
         # Calculate lower and upper slope
         resInc = _lrp_testSlopes2(minSection)
         if resInc[0] > resInc[1]:
             break
         else:
-            # print("overstep")
+     #       print( "overstep " + str(minSection[0]) + " " + str())
             curBase += step
+            bigStep += 1
+            if bigStep > 10:
+                bigStep = 0
+           #     curBase -= 2.0 * step
+           #     step *= 2.0
+
         minSection = selSection - curBase
+   #     if loop > 1100:
+     #       print(fluor[start])
+     #       print("Hi " + str(step) + " " + str(bbbb) + " " + str(minSection))
 
     for loop in range (0, 1000):
-        if minSection[0] < 0:
-            return [loopCount, curBase, pcrEff, True]
+        if minSection[0] <= 0:
+            return [loopCount, curBase, pcrEff, True, "out", []]
         # Calculate lower and upper slope
         resInc = _lrp_testSlopes2(minSection)
         # Test if it is OK
@@ -1072,7 +1126,8 @@ def _lrp_baseline_corr(fluor, start, maxSD, nCyc):
         if (np.abs(resInc[0] - resInc[1]) < 0.00001):
             pcrEff = np.power(10, resInc[1])
             loopCount = loop
-            break
+      #      print("Loop: " + str(loopCount))
+            return [loopCount, curBase, pcrEff, False, "+++", fluor[start - 1:stop]]
         # Make a step
         if resInc[0] > resInc[1]:
             curBase -= step
@@ -1081,10 +1136,12 @@ def _lrp_baseline_corr(fluor, start, maxSD, nCyc):
             curBase += 2.0 * step
             step *= 0.5
         minSection = selSection - curBase
+       #  print("Lo " + str(minSection))
     # print("St: " + str(start) + " Se: " + str(maxSD - nCyc) + " Sp: " + str(maxSD) + " Eh: " + str(pcrEff))
     # print(selSection)
     # slope, intercept, r_value, p_value, std_err = scp.stats.linregress(range(maxSD - nCyc, maxSD), minSection)
-    return [loopCount, curBase, pcrEff, False]
+ #   print("Loop: " + str(loopCount))
+    return [loopCount, curBase, pcrEff, False, "No basline found", []]
 
 
 def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
@@ -14815,11 +14872,12 @@ class Run:
 
         # Start and stop cycles of the log lin phase
         rawMinBySD = np.zeros(spFl[0], dtype=np.int64)
+        rawMaxBySD = np.zeros(spFl[0], dtype=np.int64)
         maxFD = np.zeros(spFl[0], dtype=np.int64)
         maxSD = np.zeros(spFl[0], dtype=np.int64)
         fluorIncrease = np.zeros(spFl[0], dtype=np.float64)
         rawTD0 = -np.ones(spFl[0], dtype=np.float64)
-        rawAmplification = np.zeros(spFl[0], dtype=np.bool_)
+        check_four_cyc_inc_TD0 = np.zeros(spFl[0], dtype=np.bool_)
 
         indiPcrEffNeu = -np.ones(spFl[0], dtype=np.float64)
         backgroundNew = -np.ones(spFl[0], dtype=np.float64)
@@ -14965,6 +15023,7 @@ class Run:
         ##################################################
         # Calculate everything what is based on raw data #
         ##################################################
+        vecMinFluor = np.nanmin(rawFluor, axis=1)
         # maxFD is FD max + 2 if the fluorescence still increases
         maxFD = np.nanargmax(rawFlourFD, axis=1) + 1  # Cycles so +1 to array
         for row in range(0, spFl[0]):
@@ -14987,33 +15046,90 @@ class Run:
             rawMinBySD[row] = maxSD[row]
             while (rawMinBySD[row] > 3 and rawFluor[row, rawMinBySD[row] - 2] < rawFluor[row, rawMinBySD[row] - 1]):
                 rawMinBySD[row] -= 1
-            # fluorIncrease is from rawMinBySd to maxFD
-            fluorIncrease[row] = posFluor[row, maxFD[row] - 1] / posFluor[row, rawMinBySD[row] - 1]
+            # rawMaxBySD is the Cq to the right with fluorescence ascending
+            rawMaxBySD[row] = maxSD[row]
+            while (rawMaxBySD[row] < rawFluor.shape[1] and rawFluor[row, rawMaxBySD[row] - 1] < rawFluor[row, rawMaxBySD[row]]):
+                rawMaxBySD[row] += 1
             # rawTD0 is calculated
             tempStop = min(rawFluor.shape[1] - 1, maxSD[row] + 2)  # Cycles so +1 to array
+            tempStop = min(tempStop, rawMaxBySD[row] - 1)  # Cycles so +1 to array
             for cyc in reversed(range(rawMinBySD[row], tempStop)):
                 if (rawFlourTD[row, cyc] >= 0.0) and (rawFlourTD[row, cyc + 1] < 0.0):
                     rawTD0[row] = float(cyc) + 1.5 + rawFlourTD[row, cyc] / (rawFlourTD[row, cyc] - rawFlourTD[row, cyc + 1])
                     break
             # Call rawAmplification
-            if fluorIncrease[row] > 5.0:
-                if maxSD[row] - rawMinBySD[row] > 3:
-                    rawAmplification[row] = True
+            if int(rawTD0[row]) - rawMinBySD[row] + 1 > 3:
+                check_four_cyc_inc_TD0[row] = True
+        #    else:
+        #        rawTD0[row] = -1.0
 
+        ########################################
+        # Correct negative fluorescence values #
+        ########################################
+        posFluor = rawFluor.copy()
+        # There should be no negative values in uncorrected raw data
+        absMinFluor = np.nanmin(rawFluor)
+        absMaxFluor = np.nanmax(rawFluor)
+        if absMinFluor < 0.00000001:
+            err = _add_err(err, ";", "Error: Fluorescence data have negative values. Use raw data without baseline correction! ")
+            err = _add_err(err, "", "Baseline corrected data not using a constant factor will result in wrong PCR efficiencies!")
+            vecMinFluor = np.nanmin(rawFluor, axis=1)
+            for row in range(0, spFl[0]):
+                if vecMinFluor[row] < 0.00000001:
+                    negShiftBaseline[row] = (absMaxFluor - vecMinFluor[row]) / 100.0 - vecMinFluor[row]
+                    for col in range(0, spFl[1]):
+                        posFluor[row, col] += negShiftBaseline[row]
 
         ######################################################
         # Baseline correction and PCR efficiency calculation #
         ######################################################
+        bbbaerr = []
+        dddddd = []
+        backgroundNew = np.nanmin(posFluor, axis=1) * 0.99
         for row in range(0, spFl[0]):
-            linLogLen = min(9, maxSD[row] - rawMinBySD[row])
-         #   linLogLen2 = min(9, int(rawTD0[row]) - rawMinBySD[row])
-            baseResults = _lrp_baseline_corr(rawFluor[row], rawMinBySD[row] + 1, maxSD[row] + 1, linLogLen)
-         #   baseResults2 = _lrp_baseline_corr(rawFluor[row], rawMinBySD[row] + 1, int(rawTD0[row]), linLogLen2)
-            backgroundNew[row] = baseResults[1]
-            indiPcrEffNeu[row] = baseResults[2]
+            if not check_four_cyc_inc_TD0[row]:
+                bbbaerr.append("")
+                dddddd.append("") 
+            else:
 
-           # print(str(maxSD[row] + 1) + " - " + str(int(rawTD0[row])))
+             #   print(res[row][rar_well] + "   " + str(row))
+            #  baseResults = _lrp_baseline_corr(rawFluor[row], rawMinBySD[row] + 1, maxSD[row])
+                baseResults = _lrp_baseline_corr(posFluor[row], rawMinBySD[row] + 1, int(rawTD0[row]))
+                backgroundNew[row] = baseResults[1]
+                indiPcrEffNeu[row] = baseResults[2]
+                bbbaerr.append(baseResults[4])
+                dddddd.append(baseResults[5])
+
+
+                if baseResults[4] not in ["+++"]:
+                    print("XXX " + res[row][rar_well] + "  " + baseResults[4])
+      #      if row > 10:
+      #          break
+
+        #    print(str(maxSD[row] + 1) + " - " + str(int(rawTD0[row])))
+        #    print(str(rawMinBySD[row] + 1) + " - " + str(int(rawTD0[row])) +  " - " + str(linLogLen2) +  " - "  + str(int(rawTD0[row]) - (rawMinBySD[row] + 1)))
+         #   print(baseResults2[4])
          #   print(str(baseResults[2]) + " - " + str(baseResults2[2]))
+
+        if True:
+            pTab = [["run", header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl], "start", "end", "TD0", "TD0 end", "4cycInc", "BG", "Err"]]
+            for oRow in range(0, spFl[0]):
+                pTab.append([self["id"] , res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl], rawMinBySD[oRow], maxSD[oRow], rawTD0[oRow], int(rawTD0[oRow]),
+                             check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], bbbaerr[oRow]])
+                for bla in dddddd[oRow]:
+                    pTab[oRow + 1].append(str(bla))
+            
+            ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_td0.csv", "w")
+            for row in range(0, len(pTab)):
+                for col in range(0, len(pTab[row])):
+                    ww.write(str(pTab[row][col]) + "\t")
+                ww.write("\n")
+            ww.close()
+
+
+
+
+
 
         #######################
         # Baseline correction #
