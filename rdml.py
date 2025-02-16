@@ -1045,9 +1045,9 @@ def _lrp_baseline_corr(fluor, start, stop):
     if resInc[0] < resInc[1] :
         return [loopCount, curBase, pcrEff, False, "failed zero", []]
     # Half the area and continue search in the good part
-    span = fluor[start - 1] * 0.5
-    step = span * 0.5
-    currentSection = selSection - span
+    curBase = fluor[start - 1] * 0.5
+    step = curBase * 0.5
+    currentSection = selSection - curBase
     for loop in range (0, 100):
         resInc = _lrp_testSlopes2(currentSection)
         if (np.abs(resInc[0] - resInc[1]) < 0.00001):
@@ -1055,11 +1055,11 @@ def _lrp_baseline_corr(fluor, start, stop):
             loopCount = loop
             return [loopCount, curBase, pcrEff, True, "+++", fluor[start - 1:stop]]
         if resInc[0] > resInc[1]:
-            span -= step
+            curBase -= step
         else:
-            span += step
+            curBase += step
         step *= 0.5
-        currentSection = selSection - span
+        currentSection = selSection - curBase
 
     return [loopCount, curBase, pcrEff, False, "No basline found", []]
 
@@ -15048,7 +15048,7 @@ class Run:
                 rawMinBySD[row] -= 1
             # rawMaxBySD is the Cq to the right with fluorescence ascending
             rawMaxBySD[row] = maxSD[row]
-            while (rawMaxBySD[row] < rawFluor.shape[1] and rawFluor[row, rawMaxBySD[row] - 1] < rawFluor[row, rawMaxBySD[row]]):
+            if (rawMaxBySD[row] < rawFluor.shape[1] and rawFluor[row, rawMaxBySD[row] - 1] < rawFluor[row, rawMaxBySD[row]]):
                 rawMaxBySD[row] += 1
             # rawTD0 is calculated
             tempStop = min(rawFluor.shape[1] - 1, maxSD[row] + 2)  # Cycles so +1 to array
@@ -15095,14 +15095,25 @@ class Run:
              #   print(res[row][rar_well] + "   " + str(row))
             #  baseResults = _lrp_baseline_corr(rawFluor[row], rawMinBySD[row] + 1, maxSD[row])
                 baseResults = _lrp_baseline_corr(posFluor[row], rawMinBySD[row] + 1, int(rawTD0[row]))
-                backgroundNew[row] = baseResults[1]
+                if baseResults[1] > 0.0:
+                    backgroundNew[row] = baseResults[1]
                 indiPcrEffNeu[row] = baseResults[2]
                 bbbaerr.append(baseResults[4])
                 dddddd.append(baseResults[5])
 
-
                 if baseResults[4] not in ["+++"]:
                     print("XXX " + res[row][rar_well] + "  " + baseResults[4])
+
+        baselineCorrectedData = posFluor - backgroundNew[:, np.newaxis]
+
+        for row in range(0, spFl[0]):
+            if check_four_cyc_inc_TD0[row]:
+                low = int(np.floor(rawTD0[row])) - 1
+                high = int(np.ceil(rawTD0[row])) - 1
+                td0_fluor[row] = np.power(10, np.log10(baselineCorrectedData[row, low]) + (np.log10(baselineCorrectedData[row, high]) - np.log10(baselineCorrectedData[row, low])) * (rawTD0[row] - np.floor(rawTD0[row] - 1)))
+
+
+
       #      if row > 10:
       #          break
 
@@ -15112,12 +15123,29 @@ class Run:
          #   print(str(baseResults[2]) + " - " + str(baseResults2[2]))
 
         if True:
-            pTab = [["run", header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl], "start", "end", "TD0", "TD0 end", "4cycInc", "BG", "Err"]]
+            saveTD0 = {}
+            saveTD0fluor = {}
+            eff_perTarget = {}
+            pTab = [["run", header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl], "start", "end", "TD0", "TD0 fluor", "TD0 end", "4cycInc", "BG", "Err", "PCR Eff"]]
             for oRow in range(0, spFl[0]):
-                pTab.append([self["id"] , res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl], rawMinBySD[oRow], maxSD[oRow], rawTD0[oRow], int(rawTD0[oRow]),
-                             check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], bbbaerr[oRow]])
+                pTab.append([self["id"] , res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl], rawMinBySD[oRow], maxSD[oRow], rawTD0[oRow], 
+                             td0_fluor[oRow], int(rawTD0[oRow]), check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], bbbaerr[oRow], indiPcrEffNeu[oRow]])
+                if bbbaerr[oRow] == "+++":
+                    if res[oRow][rar_tar] not in eff_perTarget:
+                        eff_perTarget[res[oRow][rar_tar]] = {}
+                        eff_perTarget[res[oRow][rar_tar]]["raw"] = []
+                    eff_perTarget[res[oRow][rar_tar]]["raw"].append(indiPcrEffNeu[oRow])
+                    if res[oRow][rar_tar] not in saveTD0:
+                        saveTD0[res[oRow][rar_tar]] = {}
+                        saveTD0[res[oRow][rar_tar]]["raw"] = []
+                        saveTD0fluor[res[oRow][rar_tar]] = {}
+                        saveTD0fluor[res[oRow][rar_tar]]["raw"] = []
+                    saveTD0[res[oRow][rar_tar]]["raw"].append(rawTD0[oRow])
+                    saveTD0fluor[res[oRow][rar_tar]]["raw"].append(td0_fluor[oRow])
+
                 for bla in dddddd[oRow]:
                     pTab[oRow + 1].append(str(bla))
+                
             
             ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_td0.csv", "w")
             for row in range(0, len(pTab)):
@@ -15125,6 +15153,39 @@ class Run:
                     ww.write(str(pTab[row][col]) + "\t")
                 ww.write("\n")
             ww.close()
+
+            eff_orddr = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", 
+                         "FSTL_1_L_412", "FSTL_1_M_398", "FSTL_1_P_820", "FSTL_1_A_047 SF", "FSTL_1_D_105 SF", "FSTL_1_E_097 SF", "FSTL_1_F_109 SF", "FSTL_1_H_201 SF", 
+                         "FSTL_1_I_204 SF", "FSTL_1_K_219 SF", "FSTL_1_*_259 SF", "FSTL_1_L_412 SF", "FSTL_1_M_398 SF", "FSTL_1_P_820 SF", "FSTL_1_T_770 SF", "FSTL_1_F_109 LC", 
+                         "FSTL_1_H_201 LC", "FSTL_1_I_204 LC", "FSTL_1_K_219 LC", "FSTL_1_M_398 LC", "FSTL_1_O_417 LC", "FSTL_1_O_417 SF", "FSTL_1_P_820 LC"]
+            
+            effDiutions = {"FSTL_1_*_259": 1.931, "FSTL_1_*_259 SF": 1.9044, "FSTL_1_A_047": 1.9705, "FSTL_1_A_047 SF": 1.9836, "FSTL_1_B_042": 1.956, "FSTL_1_D_105": 1.9327, 
+                        "FSTL_1_D_105 SF": 1.9765, "FSTL_1_E_097": 1.9604, "FSTL_1_E_097 SF": 1.9456, "FSTL_1_F_109": 1.9253, "FSTL_1_F_109 LC": 2.1111, "FSTL_1_F_109 SF": 1.9012, 
+                        "FSTL_1_H_201": 1.8712, "FSTL_1_H_201 LC": 1.9652, "FSTL_1_H_201 SF": 1.8351, "FSTL_1_I_204": 1.9444, "FSTL_1_I_204 LC": 1.9291, "FSTL_1_I_204 SF": 1.9129, 
+                        "FSTL_1_K_219": 1.9418, "FSTL_1_K_219 LC": 1.9682, "FSTL_1_K_219 SF": 1.9061, "FSTL_1_L_412": 1.874, "FSTL_1_L_412 SF": 1.858, "FSTL_1_M_398": 2.2317, 
+                        "FSTL_1_M_398 LC": 1.9586, "FSTL_1_M_398 SF": 1.8453, "FSTL_1_O_417 LC": 1.9948, "FSTL_1_O_417 SF": 1.871, "FSTL_1_P_820": 2.0972, "FSTL_1_P_820 LC": 1.8312, 
+                        "FSTL_1_P_820 SF": 1.7665, "FSTL_1_T_770 SF": 1.7915}
+            
+            for tar in eff_perTarget:
+                eff_perTarget[tar]["mean"] = np.mean(eff_perTarget[tar]["raw"])
+                eff_perTarget[tar]["std"] = np.std(eff_perTarget[tar]["raw"], ddof=1)
+            for tar in saveTD0:
+                saveTD0[tar]["mean"] = np.mean(saveTD0[tar]["raw"])
+                saveTD0[tar]["std"] = np.std(saveTD0[tar]["raw"], ddof=1)
+                saveTD0fluor[tar]["mean"] = np.mean(saveTD0fluor[tar]["raw"])
+                saveTD0fluor[tar]["std"] = np.std(saveTD0fluor[tar]["raw"], ddof=1)
+
+            for tar in saveTD0:
+                if tar in saveTD0:
+                    print(tar + " " + "{:.4f}".format(saveTD0[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0[tar]["std"]) + ") " + "{:.4f}".format(saveTD0fluor[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0fluor[tar]["std"]) + ")")
+
+
+            for tar in eff_orddr:
+                dil = -1.0
+                if tar in effDiutions:
+                    dil = effDiutions[tar]
+                if tar in eff_perTarget:
+                    print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + " " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")")
 
 
 
