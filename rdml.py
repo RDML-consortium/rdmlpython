@@ -14808,11 +14808,13 @@ class Run:
         vecTarget[vecTarget <= 0] = -1
         targetsCount = 1
         tarWinLookup = {}
+        tarReverseLookup = {}
         usedTargets = {}
         for oRow in range(0, spFl[0]):
             usedTargets[res[oRow][rar_tar]] = 1.0
             if res[oRow][rar_tar] not in tarWinLookup:
                 tarWinLookup[res[oRow][rar_tar]] = targetsCount
+                tarReverseLookup[targetsCount] = res[oRow][rar_tar]
                 targetsCount += 1
             vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
         upWin = np.zeros(targetsCount, dtype=np.float64)
@@ -14893,6 +14895,8 @@ class Run:
         # Initialization of the PCR efficiency vectors
         indiv_thres = np.zeros(spFl[0], dtype=np.float64)
         indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
+        rec_fix_ind_PCR_Eff = -np.ones(spFl[0], dtype=np.float64)
+        rec_raw_ind_PCR_Eff = -np.ones(spFl[0], dtype=np.float64)
         mean_PCR_Eff = np.zeros(spFl[0], dtype=np.float64)
         mean_PCR_Eff_Err = np.zeros(spFl[0], dtype=np.float64)
 
@@ -15060,8 +15064,42 @@ class Run:
             # Call rawAmplification
             if int(rawTD0[row]) - rawMinBySD[row] + 1 > 3:
                 check_four_cyc_inc_TD0[row] = True
-        #    else:
+            else:
+                vecSkipSample[row] = True
         #        rawTD0[row] = -1.0
+
+
+        # calulate raw data back
+        reconstr_FD = np.cumsum(np.append(np.zeros((spFl[0], 1), dtype=np.float64), rawFlourSD[:,1:-1], axis=1), axis=1)
+        mean_rec_FD = np.mean(reconstr_FD[:,:rawMinBySD[row]], axis=1)
+        reconstr_fix_FD = reconstr_FD - mean_rec_FD[:, np.newaxis]
+        reconstr_fix_raw = np.cumsum(np.append(np.zeros((spFl[0], 1), dtype=np.float64), reconstr_fix_FD, axis=1), axis=1)
+
+        posReconstr_fix_raw = reconstr_fix_raw.copy()
+        # There should be no negative values in uncorrected raw data
+        absMinFluor = np.nanmin(posReconstr_fix_raw)
+        absMaxFluor = np.nanmax(posReconstr_fix_raw)
+        if absMinFluor < 0.00000001:
+            vecMinFluor = np.nanmin(posReconstr_fix_raw, axis=1)
+            for row in range(0, spFl[0]):
+                if vecMinFluor[row] < 0.00000001:
+                    negShiftBaseline[row] = (absMaxFluor - vecMinFluor[row]) / 100.0 - vecMinFluor[row]
+                    for col in range(0, spFl[1]):
+                        posReconstr_fix_raw[row, col] += negShiftBaseline[row]
+
+
+        for row in range(0, spFl[0]):
+            baseResults2 = _lrp_baseline_corr(posReconstr_fix_raw[row], rawMinBySD[row] + 1, int(rawTD0[row]))
+
+            if baseResults2[1] > 0.0:
+                rec_fix_ind_PCR_Eff[row] = baseResults2[2]
+
+
+
+
+
+
+
 
         ########################################
         # Correct negative fluorescence values #
@@ -15103,6 +15141,8 @@ class Run:
 
                 if baseResults[4] not in ["+++"]:
                     print("XXX " + res[row][rar_well] + "  " + baseResults[4])
+                    vecBaselineError[row] = True
+                    vecSkipSample[row] = True
 
         baselineCorrectedData = posFluor - backgroundNew[:, np.newaxis]
 
@@ -15122,19 +15162,45 @@ class Run:
          #   print(baseResults2[4])
          #   print(str(baseResults[2]) + " - " + str(baseResults2[2]))
 
+
+        effDiutions = {"FSTL_1_*_259": 1.931, "FSTL_1_*_259 SF": 1.9044, "FSTL_1_A_047": 1.9705, "FSTL_1_A_047 SF": 1.9836, "FSTL_1_B_042": 1.956, "FSTL_1_D_105": 1.9327, 
+                    "FSTL_1_D_105 SF": 1.9765, "FSTL_1_E_097": 1.9604, "FSTL_1_E_097 SF": 1.9456, "FSTL_1_F_109": 1.9253, "FSTL_1_F_109 LC": 2.1111, "FSTL_1_F_109 SF": 1.9012, 
+                    "FSTL_1_H_201": 1.8712, "FSTL_1_H_201 LC": 1.9652, "FSTL_1_H_201 SF": 1.8351, "FSTL_1_I_204": 1.9444, "FSTL_1_I_204 LC": 1.9291, "FSTL_1_I_204 SF": 1.9129, 
+                    "FSTL_1_K_219": 1.9418, "FSTL_1_K_219 LC": 1.9682, "FSTL_1_K_219 SF": 1.9061, "FSTL_1_L_412": 1.874, "FSTL_1_L_412 SF": 1.858, "FSTL_1_M_398": 2.2317, 
+                    "FSTL_1_M_398 LC": 1.9586, "FSTL_1_M_398 SF": 1.8453, "FSTL_1_O_417 LC": 1.9948, "FSTL_1_O_417 SF": 1.871, "FSTL_1_P_820": 2.0972, "FSTL_1_P_820 LC": 1.8312, 
+                    "FSTL_1_P_820 SF": 1.7665, "FSTL_1_T_770 SF": 1.7915}
+
+        eff_orddr = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", 
+                        "FSTL_1_L_412", "FSTL_1_M_398", "FSTL_1_P_820", "FSTL_1_A_047 SF", "FSTL_1_D_105 SF", "FSTL_1_E_097 SF", "FSTL_1_F_109 SF", "FSTL_1_H_201 SF", 
+                        "FSTL_1_I_204 SF", "FSTL_1_K_219 SF", "FSTL_1_*_259 SF", "FSTL_1_L_412 SF", "FSTL_1_M_398 SF", "FSTL_1_P_820 SF", "FSTL_1_T_770 SF", "FSTL_1_F_109 LC", 
+                        "FSTL_1_H_201 LC", "FSTL_1_I_204 LC", "FSTL_1_K_219 LC", "FSTL_1_M_398 LC", "FSTL_1_O_417 LC", "FSTL_1_O_417 SF", "FSTL_1_P_820 LC"]
+        
+
+
+
         if True:
             saveTD0 = {}
             saveTD0fluor = {}
             eff_perTarget = {}
-            pTab = [["run", header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl], "start", "end", "TD0", "TD0 fluor", "TD0 end", "4cycInc", "BG", "Err", "PCR Eff"]]
+            rec_fix_perTarget = {}
+            
+            pTab = [["run", header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl], "start", "end", "TD0", "TD0 fluor", "TD0 end", "4cycInc", "BG", "Err", "Dilution Eff", "indiv PCR Eff", "rec raw PCR Eff", "rec fix PCR Eff"]]
             for oRow in range(0, spFl[0]):
+                dilStd = ""
+                if res[oRow][rar_tar] in effDiutions:
+                    dilStd = str(effDiutions[res[oRow][rar_tar]])
                 pTab.append([self["id"] , res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl], rawMinBySD[oRow], maxSD[oRow], rawTD0[oRow], 
-                             td0_fluor[oRow], int(rawTD0[oRow]), check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], bbbaerr[oRow], indiPcrEffNeu[oRow]])
+                             td0_fluor[oRow], int(rawTD0[oRow]), check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], bbbaerr[oRow], dilStd, indiPcrEffNeu[oRow], rec_raw_ind_PCR_Eff[oRow], rec_fix_ind_PCR_Eff[oRow]])
                 if bbbaerr[oRow] == "+++":
                     if res[oRow][rar_tar] not in eff_perTarget:
                         eff_perTarget[res[oRow][rar_tar]] = {}
                         eff_perTarget[res[oRow][rar_tar]]["raw"] = []
+                        rec_fix_perTarget[res[oRow][rar_tar]] = {}
+                        rec_fix_perTarget[res[oRow][rar_tar]]["raw"] = []
                     eff_perTarget[res[oRow][rar_tar]]["raw"].append(indiPcrEffNeu[oRow])
+                    if rec_fix_ind_PCR_Eff[oRow] > 0:
+                        rec_fix_perTarget[res[oRow][rar_tar]]["raw"].append(rec_fix_ind_PCR_Eff[oRow])
+
                     if res[oRow][rar_tar] not in saveTD0:
                         saveTD0[res[oRow][rar_tar]] = {}
                         saveTD0[res[oRow][rar_tar]]["raw"] = []
@@ -15143,8 +15209,8 @@ class Run:
                     saveTD0[res[oRow][rar_tar]]["raw"].append(rawTD0[oRow])
                     saveTD0fluor[res[oRow][rar_tar]]["raw"].append(td0_fluor[oRow])
 
-                for bla in dddddd[oRow]:
-                    pTab[oRow + 1].append(str(bla))
+          #      for bla in dddddd[oRow]:
+           #         pTab[oRow + 1].append(str(bla))
                 
             
             ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_td0.csv", "w")
@@ -15154,30 +15220,21 @@ class Run:
                 ww.write("\n")
             ww.close()
 
-            eff_orddr = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", 
-                         "FSTL_1_L_412", "FSTL_1_M_398", "FSTL_1_P_820", "FSTL_1_A_047 SF", "FSTL_1_D_105 SF", "FSTL_1_E_097 SF", "FSTL_1_F_109 SF", "FSTL_1_H_201 SF", 
-                         "FSTL_1_I_204 SF", "FSTL_1_K_219 SF", "FSTL_1_*_259 SF", "FSTL_1_L_412 SF", "FSTL_1_M_398 SF", "FSTL_1_P_820 SF", "FSTL_1_T_770 SF", "FSTL_1_F_109 LC", 
-                         "FSTL_1_H_201 LC", "FSTL_1_I_204 LC", "FSTL_1_K_219 LC", "FSTL_1_M_398 LC", "FSTL_1_O_417 LC", "FSTL_1_O_417 SF", "FSTL_1_P_820 LC"]
-            
-            effDiutions = {"FSTL_1_*_259": 1.931, "FSTL_1_*_259 SF": 1.9044, "FSTL_1_A_047": 1.9705, "FSTL_1_A_047 SF": 1.9836, "FSTL_1_B_042": 1.956, "FSTL_1_D_105": 1.9327, 
-                        "FSTL_1_D_105 SF": 1.9765, "FSTL_1_E_097": 1.9604, "FSTL_1_E_097 SF": 1.9456, "FSTL_1_F_109": 1.9253, "FSTL_1_F_109 LC": 2.1111, "FSTL_1_F_109 SF": 1.9012, 
-                        "FSTL_1_H_201": 1.8712, "FSTL_1_H_201 LC": 1.9652, "FSTL_1_H_201 SF": 1.8351, "FSTL_1_I_204": 1.9444, "FSTL_1_I_204 LC": 1.9291, "FSTL_1_I_204 SF": 1.9129, 
-                        "FSTL_1_K_219": 1.9418, "FSTL_1_K_219 LC": 1.9682, "FSTL_1_K_219 SF": 1.9061, "FSTL_1_L_412": 1.874, "FSTL_1_L_412 SF": 1.858, "FSTL_1_M_398": 2.2317, 
-                        "FSTL_1_M_398 LC": 1.9586, "FSTL_1_M_398 SF": 1.8453, "FSTL_1_O_417 LC": 1.9948, "FSTL_1_O_417 SF": 1.871, "FSTL_1_P_820": 2.0972, "FSTL_1_P_820 LC": 1.8312, 
-                        "FSTL_1_P_820 SF": 1.7665, "FSTL_1_T_770 SF": 1.7915}
-            
             for tar in eff_perTarget:
                 eff_perTarget[tar]["mean"] = np.mean(eff_perTarget[tar]["raw"])
                 eff_perTarget[tar]["std"] = np.std(eff_perTarget[tar]["raw"], ddof=1)
+                rec_fix_perTarget[tar]["mean"] = np.mean(rec_fix_perTarget[tar]["raw"])
+                rec_fix_perTarget[tar]["std"] = np.std(rec_fix_perTarget[tar]["raw"], ddof=1)
             for tar in saveTD0:
                 saveTD0[tar]["mean"] = np.mean(saveTD0[tar]["raw"])
                 saveTD0[tar]["std"] = np.std(saveTD0[tar]["raw"], ddof=1)
                 saveTD0fluor[tar]["mean"] = np.mean(saveTD0fluor[tar]["raw"])
                 saveTD0fluor[tar]["std"] = np.std(saveTD0fluor[tar]["raw"], ddof=1)
 
-            for tar in saveTD0:
-                if tar in saveTD0:
-                    print(tar + " " + "{:.4f}".format(saveTD0[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0[tar]["std"]) + ") " + "{:.4f}".format(saveTD0fluor[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0fluor[tar]["std"]) + ")")
+            if 0:
+                for tar in saveTD0:
+                    if tar in saveTD0:
+                        print(tar + " " + "{:.4f}".format(saveTD0[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0[tar]["std"]) + ") " + "{:.4f}".format(saveTD0fluor[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0fluor[tar]["std"]) + ")")
 
 
             for tar in eff_orddr:
@@ -15185,7 +15242,8 @@ class Run:
                 if tar in effDiutions:
                     dil = effDiutions[tar]
                 if tar in eff_perTarget:
-                    print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + " " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")")
+                    print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + "   " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")"
+                          + "   " + "{:.4f}".format(rec_fix_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(rec_fix_perTarget[tar]["std"]) + ")")
 
 
 
@@ -15328,174 +15386,14 @@ class Run:
         upWin[0] = 0.1 * lastCycMeanMax
         lowWin[0] = 0.1 * lastCycMeanMax / 16.0
 
-        ##################################################
-        # Main loop : Calculation of the baseline values #
-        ##################################################
-        vecBaselineError = np.logical_not(vecNoAmplification)
-        # The for loop go through all the react/target table and make calculations one by one
-        for oRow in range(0, spFl[0]):
-            if verbose:
-                print('React: ' + str(oRow) + " Pos: " + res[oRow][0] + " Well: " + res[oRow][1])
-            # If there is a "no amplification" error, there is no baseline value calculated and it is automatically the
-            # minimum fluorescence value assigned as baseline value for the considered reaction :
-            if not vecNoAmplification[oRow]:
-                #  Make sure baseline is overestimated, without using slope criterion
-                #  increase baseline per cycle till eff > 2 or remaining log lin points < pointsInWoL
-                #  fastest when vecBackground is directly set to 5 point below stopCyc
-                start = max(1, stopCyc[oRow] - 5)  # Cycles so +1 to array
+        
 
-                vecBackground[oRow] = 0.99 * rawFluor[oRow, start - 1]
-                baseCorFluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
-                baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
-                #  baseline is now certainly too high
+        # Write over
+        vecBackground = backgroundNew
+        baseCorFluor = baselineCorrectedData
+        indiv_PCR_Eff = indiPcrEffNeu
+        meanTarEff = {}
 
-                #  1. extend line downwards from stopCyc[] till slopeLow < slopeHigh of vecBackground[] < vecMinFluor[]
-                countTrials = 0
-                slopeHigh = 0.0
-                slopeLow = 0.0
-                while True:
-                    countTrials += 1
-                    # stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
-                    [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc2(baseCorFluor, oRow, stopCyc[oRow])
-
-                    if stopCyc[oRow] - startCycFix[oRow] > 1:
-                        # Calculate a slope for the upper and the lower half between startCycFix and stopCyc
-                        [slopeLow, slopeHigh] = _lrp_testSlopes(baseCorFluor, oRow, stopCyc, startCycFix)
-                        vecDefBackgrd[oRow] = vecBackground[oRow]
-                    else:
-                        break
-
-                    if slopeLow >= slopeHigh:
-                        vecBackground[oRow] *= 0.99
-                        baseCorFluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
-                        baseCorFluor[np.isnan(baseCorFluor)] = 0
-                        baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
-
-                    if (slopeLow < slopeHigh or
-                            slopeHigh < math.log10(1.2) or
-                            vecBackground[oRow] <= 0.0 or  # was < 0.95 * vecMinFluor[oRow]
-                            countTrials > 1000):
-                        break
-
-                if slopeLow < slopeHigh:
-                    vecBaselineError[oRow] = False
-
-                # 2. fine tune slope of total line
-                stepVal = 0.005 * vecBackground[oRow]
-                baseStep = 1.0
-                countTrials = 0
-                trialsToShift = 0
-                curSlopeDiff = 10
-                curSignDiff = 0
-                SlopeHasShifted = False
-                lastSlope = -1.0
-                while True:
-                    countTrials += 1
-                    trialsToShift += 1
-                    if trialsToShift > 10 and not SlopeHasShifted:
-                        baseStep *= 2
-                        trialsToShift = 0
-
-                    lastSignDiff = curSignDiff
-                    lastSlopeDiff = curSlopeDiff
-                    vecDefBackgrd[oRow] = vecBackground[oRow]
-                    lastSlope = slopeHigh
-                    # apply baseline
-                    baseCorFluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
-                    baseCorFluor[np.isnan(baseCorFluor)] = 0
-                    baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
-                    # find start and stop of log lin phase
-                    # stopCyc[oRow] = _lrp_findStopCyc(baseCorFluor, oRow)
-                    [startCyc[oRow], startCycFix[oRow]] = _lrp_findStartCyc2(baseCorFluor, oRow, stopCyc[oRow])
-
-                    if stopCyc[oRow] - startCycFix[oRow] > 1:
-                        [slopeLow, slopeHigh] = _lrp_testSlopes(baseCorFluor, oRow, stopCyc, startCycFix)
-                        if 0: # res[oRow][rar_well] == ffocuss:
-                            print(oRow)
-                            resInc = _lrp_testSlopes2(baseCorFluor[oRow, startCycFix[oRow] - 1:stopCyc[oRow]])
-                            print(resInc)
-                            print("F2 Start: " +  str(startCycFix[oRow]) + " Stop: " + str(stopCyc[oRow]) + " Base: " + str(vecBackground[oRow]) + " Low: " + str(slopeLow) + " High: " + str(slopeHigh))
-                            print(baseCorFluor[oRow, startCycFix[oRow] - 1:stopCyc[oRow] - 1])
-                            print(rawFluor[oRow, startCycFix[oRow] - 1:stopCyc[oRow] - 1])
-                            print("\n\n")
-                        curSlopeDiff = np.abs(slopeLow - slopeHigh)
-                        if (slopeLow - slopeHigh) > 0.0:
-                            curSignDiff = 1
-                        else:
-                            curSignDiff = -1
-
-                        # start with baseline that is too low: slopeLow is low
-                        if slopeLow < slopeHigh:
-                            # increase baseline
-                            vecBackground[oRow] += baseStep * stepVal
-                        else:
-                            # crossed right baseline
-                            # go two steps back
-                            vecBackground[oRow] -= baseStep * stepVal * 2
-                            # decrease stepsize
-                            baseStep /= 2
-                            SlopeHasShifted = True
-                    else:
-                        break
-
-                    if (((np.abs(curSlopeDiff - lastSlopeDiff) < 0.00001) and
-                            (curSignDiff == lastSignDiff) and SlopeHasShifted) or
-                            (np.abs(curSlopeDiff) < 0.0001) or
-                            (slopeHigh < math.log10(1.2)) or
-                            (countTrials > 1000)):
-             #           if startCyc[oRow] != rawMinBySD[oRow]:
-              #              print(" Well: " + res[oRow][rar_well] + "  " + "SStrat: " + str(startCyc[oRow]) + "  Max: " + str(rawMinBySD[oRow]) + "  Len: " + str(stopCyc[oRow] - rawMinBySD[oRow]) )
-             #           if res[oRow][rar_well] == ffocuss:
-              #              print("found")
-                        break
-
-                if curSlopeDiff < 0.0001:
-                    vecBaselineError[oRow] = False
-                else:
-                    vecSkipSample[oRow] = True
-       #             print("not managed: " + str(oRow) + " " + str(vecBaselineError[oRow]) + " " + str(curSlopeDiff)) 
-
-                # 3: skip sample when fluor[stopCyc]/fluor[startCyc] < 20
-                loglinlen = 20.0  # RelaxLogLinLengthRG in Pascal may choose 10.0
-                if baseCorFluor[oRow, stopCyc[oRow] - 1] / baseCorFluor[oRow, startCycFix[oRow] - 1] < loglinlen:
-                    vecShortLogLin[oRow] = True
-
-             #   indiv_PCR_Eff[oRow] = indiPcrEffNeu[oRow]  # indiPcrEffNeu[oRow]  # np.power(10, lastSlope)
-              #  vecBackground[oRow] = backgroundNew[oRow]
-
-                if res[oRow][rar_well] == ffocuss:
-                    print("BG: " + str(vecBackground[oRow]) + "  EFFF: " + str(indiv_PCR_Eff[oRow]))
-
-            if vecNoAmplification[oRow] or vecBaselineError[oRow]:
-                vecSkipSample[oRow] = True
-                vecDefBackgrd[oRow] = 0.99 * vecMinFluor[oRow]
-                baseCorFluor[oRow] = rawFluor[oRow] - vecDefBackgrd[oRow]
-                baseCorFluor[np.isnan(baseCorFluor)] = 0
-                baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
-
-                # This values are used for the table
-                IniStopCyc[oRow] = spFl[1]
-                stopCyc[oRow] = spFl[1]
-                startCyc[oRow] = spFl[1] + 1
-                startCycFix[oRow] = spFl[1] + 1
-
-                indiv_PCR_Eff[oRow] = np.nan
-
-            # Negative controls should not be part of the mean calculations
-            if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
-                vecSkipSample[oRow] = True
-
-            if IniStopCyc[oRow] != stopCyc[oRow]:
-                print(res[oRow][rar_well] + ": " + str(IniStopCyc[oRow]) + " - " + str(stopCyc[oRow]))
-  #          if startCyc[oRow] - iniStart[oRow] != 0.0:
- #               print(" Well: " + res[oRow][rar_well] + "  " + str(iniStart[oRow]) + " - " + str(startCyc[oRow]) + ": " + str(startCyc[oRow] - iniStart[oRow]))
-        vecBackground = vecDefBackgrd
-        baselineCorrectedData = baseCorFluor
-
-        for oRow in range(0, spFl[0]):
-            if abs(indiv_PCR_Eff[oRow] - indiPcrEffNeu[oRow]) > 0.1:
-      #          print(" Well: " + res[oRow][rar_well] + "  " +str(indiv_PCR_Eff[oRow]) + " - " + str(indiPcrEffNeu[oRow]) + "  " +str(abs(indiv_PCR_Eff[oRow] - indiPcrEffNeu[oRow])))
-                pass
 
 
         # Check if cq values are stable with a modified baseline
@@ -15832,6 +15730,7 @@ class Run:
                 if tar == vecTarget[oRow]:
                     mean_PCR_Eff[oRow] = tempMeanEff_Skip
                     mean_PCR_Eff_Err[oRow] = tempStdEff_Skip
+                    meanTarEff[tarReverseLookup[tar]] = tempMeanEff_Skip
 
                     # Delete
                     if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0001 and threshold[tar] > 0.0001 and not (vecNoAmplification[oRow] or vecBaselineError[oRow]):
@@ -15867,6 +15766,16 @@ class Run:
               #      if not np.isnan(indiv_PCR_Eff[oRow]) and indiv_PCR_Eff[oRow] > 1.0 and 0.0 < indivCq[oRow] < 2 * spFl[1]:
               #          if not np.isnan(mean_PCR_Eff[oRow]) and mean_PCR_Eff[oRow] > 1.001:
                #             meanNnull_Skip[oRow] = threshold[0] / np.power(mean_PCR_Eff[oRow], meanCq_Skip[oRow])
+
+        if 1:
+            for tar in eff_orddr:
+                dil = -1.0
+                if tar in effDiutions:
+                    dil = effDiutions[tar]
+                if tar in eff_perTarget:
+                    print(tar + " " + "{:.4f}".format(dil) + "   " + "{:.4f}".format(meanTarEff[tar]) + "    " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")"
+                          + "   " + "{:.4f}".format(rec_fix_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(rec_fix_perTarget[tar]["std"]) + ")")
+
 
 
         #########################
