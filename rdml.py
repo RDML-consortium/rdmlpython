@@ -15024,27 +15024,36 @@ class Run:
         # Do the baseline correction
         baselineCorrectedData = posFluor - vecBackground[:, np.newaxis]
 
-        # TODO: Remove
-        backgroundNew = vecBackground.copy()
-
-
-
+        # Calculate the baseline corrected fluorescence for the TD0
         for row in range(0, spFl[0]):
             if check_four_cyc_inc_TD0[row]:
                 low = int(np.floor(rawTD0[row])) - 1
                 high = int(np.ceil(rawTD0[row])) - 1
                 td0_fluor[row] = np.power(10, np.log10(baselineCorrectedData[row, low]) + (np.log10(baselineCorrectedData[row, high]) - np.log10(baselineCorrectedData[row, low])) * (rawTD0[row] - np.floor(rawTD0[row] - 1)))
 
+        # Calulate plateau baseline ratio
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            meanPlateau = np.nanmean(baselineCorrectedData[:, -5:], axis=1)
+
+        if saveBaslineCorr:
+            rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
+            for oCol in range(0, spFl[1]):
+                rawTable[0].append(oCol + 1)
+            for oRow in range(0, spFl[0]):
+                rawTable.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
+                for oCol in range(0, spFl[1]):
+                    rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
+            finalData["baselineCorrectedData"] = rawTable
 
 
-      #      if row > 10:
-      #          break
 
-        #    print(str(maxSD[row] + 1) + " - " + str(int(rawTD0[row])))
-        #    print(str(rawMinBySD[row] + 1) + " - " + str(int(rawTD0[row])) +  " - " + str(linLogLen2) +  " - "  + str(int(rawTD0[row]) - (rawMinBySD[row] + 1)))
-         #   print(baseResults2[4])
-         #   print(str(baseResults[2]) + " - " + str(baseResults2[2]))
 
+
+
+        # TODO: Remove
+        backgroundNew = vecBackground.copy()
+        saveEff = indiv_PCR_Eff.copy()
 
         effDiutions = {"FSTL_1_*_259": 1.931, "FSTL_1_*_259 SF": 1.9044, "FSTL_1_A_047": 1.9705, "FSTL_1_A_047 SF": 1.9836, "FSTL_1_B_042": 1.956, "FSTL_1_D_105": 1.9327, 
                     "FSTL_1_D_105 SF": 1.9765, "FSTL_1_E_097": 1.9604, "FSTL_1_E_097 SF": 1.9456, "FSTL_1_F_109": 1.9253, "FSTL_1_F_109 LC": 2.1111, "FSTL_1_F_109 SF": 1.9012, 
@@ -15073,13 +15082,13 @@ class Run:
                 if res[oRow][rar_tar] in effDiutions:
                     dilStd = str(effDiutions[res[oRow][rar_tar]])
                 pTab.append([self["id"] , res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl], rawMinBySD[oRow], maxSD[oRow], rawTD0[oRow], 
-                             td0_fluor[oRow], int(rawTD0[oRow]), check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], baselineError[oRow], dilStd, indiPcrEffNeu[oRow]])
+                             td0_fluor[oRow], int(rawTD0[oRow]), check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], baselineError[oRow], dilStd, indiv_PCR_Eff[oRow]])
                 if baselineError[oRow] == 0:
                     if res[oRow][rar_tar] not in eff_perTarget:
                         eff_perTarget[res[oRow][rar_tar]] = {}
                         eff_perTarget[res[oRow][rar_tar]]["raw"] = []
 
-                    eff_perTarget[res[oRow][rar_tar]]["raw"].append(indiPcrEffNeu[oRow])
+                    eff_perTarget[res[oRow][rar_tar]]["raw"].append(indiv_PCR_Eff[oRow])
 
                     if res[oRow][rar_tar] not in saveTD0:
                         saveTD0[res[oRow][rar_tar]] = {}
@@ -15124,7 +15133,7 @@ class Run:
                         print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + "   " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")")
 
 
-
+         #   print("--------------------------")
 
 
 
@@ -15169,18 +15178,6 @@ class Run:
             # TODO take the min of all
             if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, 0:10]) < 7:
                 vecNoAmplification[oRow] = True
-
-            if maxSD[oRow] - rawMinBySD[oRow] > 3:
-                if maxSD[oRow] < rawTD0[oRow] - 1:
-                    print(res[oRow][rar_well] + "  Inc: " + str(fluorIncrease[oRow]) + "  Start: " + str(rawMinBySD[oRow]) + "  Stop: " + str(maxSD[oRow]) + "  TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
-
-    #        if vecNoAmplification[oRow] and rawAmplification[oRow]:
-   #             print("Amplification in " + res[oRow][rar_well])
-  #              print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
-#
- #           if not vecNoAmplification[oRow] and not rawAmplification[oRow]:
- #               print("No amplification in " + res[oRow][rar_well])
-#                print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
             if not vecNoAmplification[oRow]:
                 IniStopCyc[oRow] = stopCyc[oRow] = maxSD[oRow]
@@ -15301,20 +15298,7 @@ class Run:
                         vecNoisySample[oRow] = True
                         vecSkipSample[oRow] = True
 
-        # Calulate plateau baseline ratio
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            meanPlateau = np.nanmean(baselineCorrectedData[:, -5:], axis=1)
 
-        if saveBaslineCorr:
-            rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
-            for oCol in range(0, spFl[1]):
-                rawTable[0].append(oCol + 1)
-            for oRow in range(0, spFl[0]):
-                rawTable.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
-                for oCol in range(0, spFl[1]):
-                    rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
-            finalData["baselineCorrectedData"] = rawTable
 
         if timeRun:
             stop_time = datetime.datetime.now() - start_time
@@ -15372,6 +15356,77 @@ class Run:
                     td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
                     break
     #        print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
+
+        # Without window of lineartity
+       # indiv_PCR_Eff = saveEff
+
+
+        if True:
+            saveTD0 = {}
+            saveTD0fluor = {}
+            eff_perTarget = {}
+
+
+            pTab = [["run", header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl], "start", "end", "TD0", "TD0 fluor", "TD0 end", "4cycInc", "BG", "Baseline Err", "Dilution Eff", "indiv PCR Eff"]]
+            for oRow in range(0, spFl[0]):
+                dilStd = ""
+                if res[oRow][rar_tar] in effDiutions:
+                    dilStd = str(effDiutions[res[oRow][rar_tar]])
+                pTab.append([self["id"] , res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl], rawMinBySD[oRow], maxSD[oRow], rawTD0[oRow], 
+                             td0_fluor[oRow], int(rawTD0[oRow]), check_four_cyc_inc_TD0[oRow], backgroundNew[oRow], baselineError[oRow], dilStd, indiPcrEffNeu[oRow]])
+                if baselineError[oRow] == 0:
+                    if res[oRow][rar_tar] not in eff_perTarget:
+                        eff_perTarget[res[oRow][rar_tar]] = {}
+                        eff_perTarget[res[oRow][rar_tar]]["raw"] = []
+
+                    eff_perTarget[res[oRow][rar_tar]]["raw"].append(indiPcrEffNeu[oRow])
+
+                    if res[oRow][rar_tar] not in saveTD0:
+                        saveTD0[res[oRow][rar_tar]] = {}
+                        saveTD0[res[oRow][rar_tar]]["raw"] = []
+                        saveTD0fluor[res[oRow][rar_tar]] = {}
+                        saveTD0fluor[res[oRow][rar_tar]]["raw"] = []
+                    saveTD0[res[oRow][rar_tar]]["raw"].append(rawTD0[oRow])
+                    saveTD0fluor[res[oRow][rar_tar]]["raw"].append(td0_fluor[oRow])
+
+          #      for bla in dddddd[oRow]:
+           #         pTab[oRow + 1].append(str(bla))
+                
+            
+            ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_td0.csv", "w")
+            for row in range(0, len(pTab)):
+                for col in range(0, len(pTab[row])):
+                    ww.write(str(pTab[row][col]) + "\t")
+                ww.write("\n")
+            ww.close()
+
+            for tar in eff_perTarget:
+                eff_perTarget[tar]["mean"] = np.mean(eff_perTarget[tar]["raw"])
+                eff_perTarget[tar]["std"] = np.std(eff_perTarget[tar]["raw"], ddof=1)
+            for tar in saveTD0:
+                saveTD0[tar]["mean"] = np.mean(saveTD0[tar]["raw"])
+                saveTD0[tar]["std"] = np.std(saveTD0[tar]["raw"], ddof=1)
+                saveTD0fluor[tar]["mean"] = np.mean(saveTD0fluor[tar]["raw"])
+                saveTD0fluor[tar]["std"] = np.std(saveTD0fluor[tar]["raw"], ddof=1)
+
+            if 0:
+                for tar in saveTD0:
+                    if tar in saveTD0:
+                        print(tar + " " + "{:.4f}".format(saveTD0[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0[tar]["std"]) + ") " + "{:.4f}".format(saveTD0fluor[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0fluor[tar]["std"]) + ")")
+
+
+            for tar in eff_orddr:
+                dil = -1.0
+                if tar in effDiutions:
+                    dil = effDiutions[tar]
+                if tar in eff_perTarget:
+                    if 0:
+                        print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + "   " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")")
+
+
+
+
+
 
         # Calc Geomean fluor TD0:
         for tar in range(1, targetsCount):
@@ -15573,18 +15628,18 @@ class Run:
             res[rRow][rar_PCR_eff_err] = mean_PCR_Eff_Err[rRow]
 
             res[rRow][rar_threshold] = indiv_thres[rRow]
-            res[rRow][rar_Cq] = td0_Cq[rRow]
+            res[rRow][rar_Cq] = rawTD0[rRow]
             res[rRow][rar_indiv_Ncopy] = -1.0
             res[rRow][rar_Ncopy] = -1.0
             ss_fix = 1.0
             if res[rRow][rar_sample_nucleotide] == "ss":
                 ss_fix = 2.0
             res[rRow][rar_nAmpli] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow]
-            if td0_Cq[rRow] > 0.0 and mean_PCR_Eff[rRow] > 1.0:
-                if indiv_PCR_Eff[rRow] > 0.0:
-                    res[rRow][rar_indiv_Ncopy] = res[rRow][rar_nAmpli] / np.power(indiv_PCR_Eff[rRow], td0_Cq[rRow])
-                if mean_PCR_Eff[rRow] > 0.0:
-                    res[rRow][rar_Ncopy] = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0_Cq[rRow])
+            if rawTD0[rRow] > 0.0:
+                if 2.3 > indiv_PCR_Eff[rRow] > 1.0:
+                    res[rRow][rar_indiv_Ncopy] = res[rRow][rar_nAmpli] / np.power(indiv_PCR_Eff[rRow], rawTD0[rRow])
+                if 2.3 > mean_PCR_Eff[rRow] > 1.0:
+                    res[rRow][rar_Ncopy] = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], rawTD0[rRow])
 
          #   if td0_Cq[rRow] > 0.0:
           #      print(str(res[rRow][1]) + " - " +  str(res[rRow][rar_Ncopy])  + " - " +  str(td0_Cq[rRow]) + " - " +  str(mean_PCR_Eff[rRow]))
@@ -15694,7 +15749,7 @@ class Run:
             res[rRow].append(xxCq)  # 4
             res[rRow].append(indivCq[rRow])  # 5
             res[rRow].append(meanCq[rRow])  # 6
-            res[rRow].append(td0_Cq[rRow])  # 7
+            res[rRow].append(rawTD0[rRow])  # 7
             res[rRow].append(td0_fluor[rRow])  # 8
             res[rRow].append(td0_mean_thres[rRow])  # 9
             xLast = -1
@@ -15755,8 +15810,8 @@ class Run:
             else:
                 res[rRow].append(-1.0)
 
-            if indiv_PCR_Eff[rRow] > 0.0 and td0_Cq[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(indiv_PCR_Eff[rRow], td0_Cq[rRow])
+            if indiv_PCR_Eff[rRow] > 0.0 and rawTD0[rRow] > 0.0:
+                xxCopy = res[rRow][rar_nAmpli] / np.power(indiv_PCR_Eff[rRow], rawTD0[rRow])
                 res[rRow].append(xxCopy)  # 21
             else:
                 res[rRow].append(-1.0)
@@ -15776,8 +15831,8 @@ class Run:
             else:
                 res[rRow].append(-1.0)
 
-            if mean_PCR_Eff[rRow] > 0.0 and td0_Cq[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0_Cq[rRow])
+            if mean_PCR_Eff[rRow] > 0.0 and rawTD0[rRow] > 0.0:
+                xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], rawTD0[rRow])
                 res[rRow].append(xxCopy)  # 25
             else:
                 res[rRow].append(-1.0)
@@ -15911,7 +15966,7 @@ class Run:
             collectedTargetErr = {}
             for rRow in range(0, len(res)):
                 if rdmlElemData[rRow] is not None:
-                    cqVal = td0_Cq[rRow]
+                    cqVal = rawTD0[rRow]
                     meanEffVal = mean_PCR_Eff[rRow]
                     stdEffVal = mean_PCR_Eff_Err[rRow]
                     if np.isnan(cqVal) or cqVal < 0.0 or cqVal > 1000.0:
