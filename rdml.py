@@ -15610,12 +15610,21 @@ class Run:
                     "FSTL_1_M_398 LC": 1.9586, "FSTL_1_M_398 SF": 1.8453, "FSTL_1_O_417 LC": 1.9948, "FSTL_1_O_417 SF": 1.871, "FSTL_1_P_820": 2.0972, "FSTL_1_P_820 LC": 1.8312, 
                     "FSTL_1_P_820 SF": 1.7665, "FSTL_1_T_770 SF": 1.7915}
 
-        eff_orddr = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", 
-                        "FSTL_1_L_412", "FSTL_1_M_398", "FSTL_1_P_820", "FSTL_1_A_047 SF", "FSTL_1_D_105 SF", "FSTL_1_E_097 SF", "FSTL_1_F_109 SF", "FSTL_1_H_201 SF", 
-                        "FSTL_1_I_204 SF", "FSTL_1_K_219 SF", "FSTL_1_*_259 SF", "FSTL_1_L_412 SF", "FSTL_1_M_398 SF", "FSTL_1_P_820 SF", "FSTL_1_T_770 SF", "FSTL_1_F_109 LC", 
-                        "FSTL_1_H_201 LC", "FSTL_1_I_204 LC", "FSTL_1_K_219 LC", "FSTL_1_M_398 LC", "FSTL_1_O_417 LC", "FSTL_1_O_417 SF", "FSTL_1_P_820 LC"]
+        eff_orddr = ["FSTL_1_A_047 100nM", "FSTL_1_A_047", "FSTL_1_A_047 750nM", "FSTL_1_B_042 100nM", "FSTL_1_B_042", "FSTL_1_B_042 750nM", "FSTL_1_D_105 100nM", "FSTL_1_D_105", "FSTL_1_D_105 750nM", 
+                     "FSTL_1_E_097 100nM", "FSTL_1_E_097", "FSTL_1_E_097 750nM", "FSTL_1_F_109 100nM", "FSTL_1_F_109", "FSTL_1_F_109 750nM", "FSTL_1_H_201 100nM", "FSTL_1_H_201", "FSTL_1_H_201 750nM", 
+                     "FSTL_1_I_204 100nM", "FSTL_1_I_204", "FSTL_1_I_204 750nM", "FSTL_1_K_219 100nM", "FSTL_1_K_219", "FSTL_1_K_219 750nM", "FSTL_1_*_259 100nM", "FSTL_1_*_259", "FSTL_1_*_259 750nM", 
+                     "FSTL_1_L_412 100nM", "FSTL_1_L_412", "FSTL_1_L_412 750nM", "FSTL_1_M_398 100nM", "FSTL_1_M_398", "FSTL_1_M_398 750nM", "FSTL_1_P_820 100nM", "FSTL_1_P_820", "FSTL_1_P_820 750nM", 
+                     "FSTL_1_A_047 100nM SF", "FSTL_1_A_047 SF", "FSTL_1_A_047 750nM SF", "FSTL_1_D_105 100nM SF", "FSTL_1_D_105 SF", "FSTL_1_D_105 750nM SF", 
+                     "FSTL_1_E_097 100nM SF", "FSTL_1_E_097 SF", "FSTL_1_E_097 750nM SF", "FSTL_1_F_109 100nM SF", "FSTL_1_F_109 SF", "FSTL_1_F_109 750nM SF", 
+                     "FSTL_1_H_201 100nM SF", "FSTL_1_H_201 SF", "FSTL_1_H_201 750nM SF", "FSTL_1_I_204 100nM SF", "FSTL_1_I_204 SF", "FSTL_1_I_204 750nM SF", 
+                     "FSTL_1_K_219 100nM SF", "FSTL_1_K_219 SF", "FSTL_1_K_219 750nM SF", "FSTL_1_*_259 100nM SF", "FSTL_1_*_259 SF", "FSTL_1_*_259 750nM SF", 
+                     "FSTL_1_L_412 100nM SF", "FSTL_1_L_412 SF", "FSTL_1_L_412 750nM SF", "FSTL_1_M_398 100nM SF", "FSTL_1_M_398 SF", "FSTL_1_M_398 750nM SF", 
+                     "FSTL_1_P_820 100nM SF", "FSTL_1_P_820 SF", "FSTL_1_P_820 750nM SF", "FSTL_1_T_770 100nM SF", "FSTL_1_T_770 SF", "FSTL_1_T_770 750nM SF", 
+                     "FSTL_1_F_109 100nM LC", "FSTL_1_F_109 LC", "FSTL_1_F_109 750nM LC", "FSTL_1_H_201 100nM LC", "FSTL_1_H_201 LC", "FSTL_1_H_201 750nM LC", 
+                     "FSTL_1_I_204 100nM LC", "FSTL_1_I_204 LC", "FSTL_1_I_204 750nM LC", "FSTL_1_K_219 100nM LC", "FSTL_1_K_219 LC", "FSTL_1_K_219 750nM LC", 
+                     "FSTL_1_M_398 100nM LC", "FSTL_1_M_398 LC", "FSTL_1_M_398 750nM LC", "FSTL_1_O_417 100nM LC", "FSTL_1_O_417 LC", "FSTL_1_O_417 750nM LC", 
+                     "FSTL_1_O_417 100nM SF", "FSTL_1_O_417 SF", "FSTL_1_O_417 750nM SF", "FSTL_1_P_820 100nM LC", "FSTL_1_P_820 LC", "FSTL_1_P_820 750nM LC"]
         
-
 
 
         if True:
