@@ -15499,6 +15499,36 @@ class Run:
                             vecExclEff[oRow] = True
                 pcreff_Skip[vecExclEff] = np.nan
 
+                if 0:
+                    with warnings.catch_warnings():
+                        print(pcreff_indiv_Skip)
+                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        pcreffMedian_Skip = np.nanmedian(pcreff_indiv_Skip)
+                    for oRow in range(0, spFl[0]):
+                        if tar == vecTarget[oRow]:
+                            if not np.isnan(indiv_PCR_Eff[oRow]):
+                                print(str(pcreffMedian_Skip - pcrEfficiencyExl) + " " + str(indiv_PCR_Eff[oRow]) + " " + str(pcreffMedian_Skip + pcrEfficiencyExl))
+                                if (np.isnan(pcreffMedian_Skip) or
+                                        not (pcreffMedian_Skip - pcrEfficiencyExl <= indiv_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
+                                    vecExclIndivEff[oRow] = True
+                                    print("Removed")
+                    pcreff_indiv_Skip[vecExclIndivEff] = np.nan
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    pcreffMedian_Skip = np.nanmedian(pcreff_indiv_Skip)
+                for oRow in range(0, spFl[0]):
+                    if tar is None or tar == vecTarget[oRow]:
+                        if not np.isnan(indiv_PCR_Eff[oRow]):
+                            if (np.isnan(pcreffMedian_Skip) or
+                                    not (pcreffMedian_Skip - pcrEfficiencyExl <= indiv_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
+                                vecExclIndivEff[oRow] = True
+                            else:
+                                vecExclIndivEff[oRow] = False
+                        else:
+                            vecExclIndivEff[oRow] = True
+                pcreff_indiv_Skip[vecExclIndivEff] = np.nan
+
             if excludeEfficiency == "outlier":
                 vecExclEff[_lrp_removeOutlier(pcreff_Skip, vecNoPlateau)] = True
                 vecExclIndivEff[_lrp_removeOutlier(pcreff_indiv_Skip, vecNoPlateau)] = True
@@ -15683,8 +15713,8 @@ class Run:
                     slope, intercept, r_value, p_value, std_err = scp.stats.linregress(range(start - 1, stop), baselineCorrectedData[row][start - 1:stop])
                     eff_perTarget[res[row][rar_tar]]["r2"].append(r_value)
 
-                    for count in range(0, stop - start - 1):
-                        selSection = baselineCorrectedData[row][stop - count - 3 : stop -count]
+                    for count in range(0, stop - start - 2):
+                        selSection = baselineCorrectedData[row][stop - count - 4 : stop -count]
                         eff = np.power(10, _lrp_testSlopes3(selSection))
                         eff_arr.append(eff)
                     meaneff = np.mean(eff_arr)
@@ -15724,8 +15754,8 @@ class Run:
             ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_efficency.csv", "w")
             ww.write("Target\t" + "Sample\t" + "Well\t" + "Dilution Efficiency\t" + "WoL Efficiency\t" + "Mean Curve Efficiency\t" + "Out Indiv Eff\t" +
                      "Out WoL Eff\t" + "Outlier Individ\t" + "Outlier WoL\t" + "Skip Sample\t" + "R^2\t" + "Individ Eff\t" + "\t" + "Mean Window Eff\t" + "\t")
-            for col in range(0, 8):
-                ww.write(str(col) + " - " + str(col + 3))
+            for col in range(0, 7):
+                ww.write(str(col) + " - " + str(col + 4))
                 ww.write("\t")
             ww.write("\n")
             for tar in eff_orddr:
