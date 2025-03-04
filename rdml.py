@@ -14465,7 +14465,7 @@ class Run:
         DEF_VOL_96 = 20.0
         DEF_VOL_384 = 10.0
         DEF_DNTP = 200.0
-        DEF_DYE_CONC = 0.98
+        DEF_DYE_CONC = 98.0
         DEF_PRIMER_CONC = 250.0
         DEF_PRIMER_LEN = 20.0
         DEF_AMPLICON_LEN = 100.0
@@ -14602,7 +14602,7 @@ class Run:
             if dyeConcVal != "":
                 dicLU_dye_conc[lu_dye.attrib['id']] = dyeConcVal
             dicLU_dye_dNTPs[lu_dye.attrib['id']] = DEF_DNTP
-            lu_dNTPs = _get_first_child_text(lu_dye, "dyeConc")
+            lu_dNTPs = _get_first_child_text(lu_dye, "dNTPs")
             dyeConcDNTPs = _save_float(lu_dNTPs)
             if dyeConcDNTPs != "":
                 dicLU_dye_dNTPs[lu_dye.attrib['id']] = dyeConcDNTPs
@@ -14748,7 +14748,7 @@ class Run:
         target_limit = {}
         for lu_dye in luDyes:
             report = "The dye \"" + lu_dye.attrib['id'] +"\" is a " + dicLU_dyes[lu_dye.attrib['id']] + " with "
-            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " &micro;M (&micro;mol/l) dye and "
+            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " nM (nanomol/l) dye and "
             report += str(dicLU_dye_dNTPs[lu_dye.attrib['id']]) + " &micro;M (&micro;mol/l) dNTPs.\n"
         for tarID in usedTargets:
             report += "The target \"" + tarID +"\" has a " + str(int(dicLU_target_fw_len[tarID]))
@@ -14767,7 +14767,7 @@ class Run:
             react_limit_string = "primer concentration "
             target_limit[tarID] = limit_oligo
             if dicLU_targets[tarID] == "non-saturating DNA binding dye":
-                limit_dye = 0.1 * 10.4 * dicLU_target_dyeConc[tarID] * 0.000001 * AVOGADRO * 0.000001 / dicLU_target_amp_len[tarID]
+                limit_dye = 1.0 * 10.4 * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
                 if limit_dye < target_limit[tarID]:
                     react_limit_string = "dye concentration "
                     target_limit[tarID] = limit_dye
@@ -14778,6 +14778,7 @@ class Run:
                 target_limit[tarID] = limit_dNTPs
             report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
             report += str(averageVolume) + " &micro;l\n"
+            print(tarID + ": " + react_limit_string + " conc: " + str(dicLU_target_dyeConc[tarID]) + " limit: " + str(target_limit[tarID]))  
         finalData["resultsLinRegPCRReport"] = report
 
         # Initialization of the error vectors
@@ -15327,8 +15328,6 @@ class Run:
                     break
     #        print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
-        # Without window of lineartity
-       # indiv_PCR_Eff = saveEff
 
 
 
@@ -15373,7 +15372,7 @@ class Run:
 
 
         # Use WOL or not 
-        # WoL_PCR_Eff = indiv_PCR_Eff
+        WoL_PCR_Eff = indiv_PCR_Eff
 
 
         # Calc Geomean fluor TD0:
@@ -15540,6 +15539,8 @@ class Run:
                 tempMeanEff_Skip = np.nanmean(pcreff_Skip)
                 tempMeanIndiEff_Skip = np.nanmean(pcreff_indiv_Skip)
                 tempStdEff_Skip = np.nanstd(pcreff_Skip)
+                
+                print(tarReverseLookup[tar] + " " + str(tempMeanEff_Skip) + " - " + str(tempMeanIndiEff_Skip))
 
             for oRow in range(0, spFl[0]):
                 if tar == vecTarget[oRow]:
