@@ -15279,129 +15279,130 @@ class Run:
         # Calculation of the Window of Linearity (WOL) per target #
         ###########################################################
 
-        # Set a starting window for all groups
-        for tar in range(1, targetsCount):
-            upWin[tar] = upWin[0]
-            lowWin[tar] = lowWin[0]
+        if 0:
+            # Set a starting window for all groups
+            for tar in range(1, targetsCount):
+                upWin[tar] = upWin[0]
+                lowWin[tar] = lowWin[0]
 
-        for oRow in range(0, spFl[0]):
-            if vecNoAmplification[oRow] or vecBaselineError[oRow] or stopCyc[oRow] == spFl[1]:
-                vecNoPlateau[oRow] = True
-            else:
-                vecNoPlateau[oRow] = False
-
-        for tar in range(1, targetsCount):
-            indMeanX, indMeanY, WoL_PCR_Eff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(baseCorFluor, tar, vecTarget, pointsInWoL,
-                                                                                                                       indMeanX, indMeanY, WoL_PCR_Eff, nNulls, nInclu,
-                                                                                                                       correl, upWin, lowWin, maxFluorTotal,
-                                                                                                                       minFluorTotal, stopCyc, startCyc, startCycFix, threshold,
-                                                                                                                       vecNoAmplification, vecBaselineError,
-                                                                                                                       vecSkipSample, vecNoPlateau, vecShortLogLin,
-                                                                                                                       vecIsUsedInWoL)
-            indMeanX, indMeanY, WoL_PCR_Eff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _lrp_assignNoPlateau(baseCorFluor, tar, vecTarget,
-                                                                                                                                              pointsInWoL, indMeanX, indMeanY,
-                                                                                                                                              WoL_PCR_Eff, nNulls, nInclu, correl,
-                                                                                                                                              upWin, lowWin, maxFluorTotal,
-                                                                                                                                              minFluorTotal, stopCyc, startCyc, startCycFix,
-                                                                                                                                              threshold, vecNoAmplification,
-                                                                                                                                              vecBaselineError, vecSkipSample,
-                                                                                                                                              vecNoPlateau, vecShortLogLin,
-                                                                                                                                              vecIsUsedInWoL)
-
-        for oRow in range(0, spFl[0]):
-            stopTmp = stopCyc[oRow] + 2
-            maxLen = len(rawFlourTD[oRow])
-            if maxLen < stopTmp + 1:
-                stopTmp = maxLen - 1
-            for cyc in reversed(range(startCyc[oRow], stopTmp)):
-              #  if oRow in [242, 277]:
-              #      print(str(stopTmp) + " - " + str(cyc) + " - "  + str(rawFlourTD[oRow, cyc]) + " - " + str(rawFlourTD[oRow, cyc + 1]) + " - " )
-                if np.isnan(np.isnan(rawFlourTD[oRow, cyc])):
-                    continue
-                if np.isnan(np.isnan(rawFlourTD[oRow, cyc + 1])):
-                    continue
-                if (rawFlourTD[oRow, cyc] >= 0.0) and (rawFlourTD[oRow, cyc + 1] < 0.0):
-                    td0_Cq[oRow] = rawTD0[oRow]
-                    low = int(np.floor(td0_Cq[oRow])) - 1
-                    high = int(np.ceil(td0_Cq[oRow])) - 1
-                    td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
-                    break
-    #        print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
-
-
-
-
-          #      for bla in dddddd[oRow]:
-           #         pTab[oRow + 1].append(str(bla))
-                
-            if 0:
-                ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_td0.csv", "w")
-                for row in range(0, len(pTab)):
-                    for col in range(0, len(pTab[row])):
-                        ww.write(str(pTab[row][col]) + "\t")
-                    ww.write("\n")
-                ww.close()
-
-                for tar in eff_perTarget:
-                    print(tar)
-                    for pos in range(0, len(eff_perTarget[tar]["raw"])):
-                        print("  " + str(eff_perTarget[tar]["raw"][pos]) + "  " + str(eff_wol_perTarget[tar]["raw"][pos]) + "  " + str(corel_perTarget[tar]["raw"][pos]))
-                    eff_perTarget[tar]["mean"] = np.mean(eff_perTarget[tar]["raw"])
-                    eff_perTarget[tar]["std"] = np.std(eff_perTarget[tar]["raw"], ddof=1)
-                    eff_wol_perTarget[tar]["mean"] = np.mean(eff_wol_perTarget[tar]["raw"])
-                    eff_wol_perTarget[tar]["std"] = np.std(eff_wol_perTarget[tar]["raw"], ddof=1)
-                for tar in saveTD0:
-                    saveTD0[tar]["mean"] = np.mean(saveTD0[tar]["raw"])
-                    saveTD0[tar]["std"] = np.std(saveTD0[tar]["raw"], ddof=1)
-                    saveTD0fluor[tar]["mean"] = np.mean(saveTD0fluor[tar]["raw"])
-                    saveTD0fluor[tar]["std"] = np.std(saveTD0fluor[tar]["raw"], ddof=1)
-
-            if 0:
-                for tar in saveTD0:
-                    if tar in saveTD0:
-                        print(tar + " " + "{:.4f}".format(saveTD0[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0[tar]["std"]) + ") " + "{:.4f}".format(saveTD0fluor[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0fluor[tar]["std"]) + ")")
-
-            if 0:
-                for tar in eff_orddr:
-                    dil = -1.0
-                    if tar in effDiutions:
-                        dil = effDiutions[tar]
-                    if tar in eff_perTarget:
-                        print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + "   " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")" 
-                                + "   " + "{:.4f}".format(eff_wol_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_wol_perTarget[tar]["std"]) + ")")
-
-
-        # Use WOL or not 
-        WoL_PCR_Eff = indiv_PCR_Eff
-
-
-        # Calc Geomean fluor TD0:
-        for tar in range(1, targetsCount):
-            fff_num = 0
-            fff_sum = 0.0
-            fff_res = -1.0
             for oRow in range(0, spFl[0]):
-                if res[oRow][rar_sample_type] not in ["std", "pos", "unkn"]:
-                    continue
-                if vecTarget[oRow] == tar:
-                    if td0_fluor[oRow] > 0.0:
-                        fff_num += 1
-                        fff_sum += td0_fluor[oRow]  # math.log(td0_fluor[oRow])
-            if fff_num > 0:
-                fff_res = fff_sum / fff_num  # math.exp(fff_sum / fff_num)
+                if vecNoAmplification[oRow] or vecBaselineError[oRow] or stopCyc[oRow] == spFl[1]:
+                    vecNoPlateau[oRow] = True
+                else:
+                    vecNoPlateau[oRow] = False
+
+            for tar in range(1, targetsCount):
+                indMeanX, indMeanY, WoL_PCR_Eff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL = _lrp_setWoL(baseCorFluor, tar, vecTarget, pointsInWoL,
+                                                                                                                        indMeanX, indMeanY, WoL_PCR_Eff, nNulls, nInclu,
+                                                                                                                        correl, upWin, lowWin, maxFluorTotal,
+                                                                                                                        minFluorTotal, stopCyc, startCyc, startCycFix, threshold,
+                                                                                                                        vecNoAmplification, vecBaselineError,
+                                                                                                                        vecSkipSample, vecNoPlateau, vecShortLogLin,
+                                                                                                                        vecIsUsedInWoL)
+                indMeanX, indMeanY, WoL_PCR_Eff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau = _lrp_assignNoPlateau(baseCorFluor, tar, vecTarget,
+                                                                                                                                                pointsInWoL, indMeanX, indMeanY,
+                                                                                                                                                WoL_PCR_Eff, nNulls, nInclu, correl,
+                                                                                                                                                upWin, lowWin, maxFluorTotal,
+                                                                                                                                                minFluorTotal, stopCyc, startCyc, startCycFix,
+                                                                                                                                                threshold, vecNoAmplification,
+                                                                                                                                                vecBaselineError, vecSkipSample,
+                                                                                                                                                vecNoPlateau, vecShortLogLin,
+                                                                                                                                                vecIsUsedInWoL)
+
             for oRow in range(0, spFl[0]):
-                if vecTarget[oRow] == tar:
-                    td0_mean_thres[oRow] = fff_res
+                stopTmp = stopCyc[oRow] + 2
+                maxLen = len(rawFlourTD[oRow])
+                if maxLen < stopTmp + 1:
+                    stopTmp = maxLen - 1
+                for cyc in reversed(range(startCyc[oRow], stopTmp)):
+                #  if oRow in [242, 277]:
+                #      print(str(stopTmp) + " - " + str(cyc) + " - "  + str(rawFlourTD[oRow, cyc]) + " - " + str(rawFlourTD[oRow, cyc + 1]) + " - " )
+                    if np.isnan(np.isnan(rawFlourTD[oRow, cyc])):
+                        continue
+                    if np.isnan(np.isnan(rawFlourTD[oRow, cyc + 1])):
+                        continue
+                    if (rawFlourTD[oRow, cyc] >= 0.0) and (rawFlourTD[oRow, cyc + 1] < 0.0):
+                        td0_Cq[oRow] = rawTD0[oRow]
+                        low = int(np.floor(td0_Cq[oRow])) - 1
+                        high = int(np.ceil(td0_Cq[oRow])) - 1
+                        td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
+                        break
+        #        print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
-        # TODO: Fix this
-        for oRow in range(0, spFl[0]):
-            if td0_mean_thres[oRow] > 0.0:
-                td0_indiCq[oRow] = indMeanX[oRow] + (np.log10(td0_mean_thres[oRow]) - indMeanY[oRow]) / np.log10(WoL_PCR_Eff[oRow])  # td0_indiCq[oRow]  td0_Cq[oRow]
 
-        # TODO Maybe an error
-    #   for oRow in range(0, spFl[0]):
-      #      if not vecNoAmplification[oRow] and td0_indiCq[oRow] < 0.0:
-      #          print("TD0 not found: " + str(oRow) + " Well: " + res[oRow][rar_well] + " Base: " + str(vecBaselineError[oRow]))
+
+
+            #      for bla in dddddd[oRow]:
+            #         pTab[oRow + 1].append(str(bla))
+                    
+                if 0:
+                    ww = open("/home/untergasser/code/rdml/tools/server/rdmlpython/test/temp_td0.csv", "w")
+                    for row in range(0, len(pTab)):
+                        for col in range(0, len(pTab[row])):
+                            ww.write(str(pTab[row][col]) + "\t")
+                        ww.write("\n")
+                    ww.close()
+
+                    for tar in eff_perTarget:
+                        print(tar)
+                        for pos in range(0, len(eff_perTarget[tar]["raw"])):
+                            print("  " + str(eff_perTarget[tar]["raw"][pos]) + "  " + str(eff_wol_perTarget[tar]["raw"][pos]) + "  " + str(corel_perTarget[tar]["raw"][pos]))
+                        eff_perTarget[tar]["mean"] = np.mean(eff_perTarget[tar]["raw"])
+                        eff_perTarget[tar]["std"] = np.std(eff_perTarget[tar]["raw"], ddof=1)
+                        eff_wol_perTarget[tar]["mean"] = np.mean(eff_wol_perTarget[tar]["raw"])
+                        eff_wol_perTarget[tar]["std"] = np.std(eff_wol_perTarget[tar]["raw"], ddof=1)
+                    for tar in saveTD0:
+                        saveTD0[tar]["mean"] = np.mean(saveTD0[tar]["raw"])
+                        saveTD0[tar]["std"] = np.std(saveTD0[tar]["raw"], ddof=1)
+                        saveTD0fluor[tar]["mean"] = np.mean(saveTD0fluor[tar]["raw"])
+                        saveTD0fluor[tar]["std"] = np.std(saveTD0fluor[tar]["raw"], ddof=1)
+
+                if 0:
+                    for tar in saveTD0:
+                        if tar in saveTD0:
+                            print(tar + " " + "{:.4f}".format(saveTD0[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0[tar]["std"]) + ") " + "{:.4f}".format(saveTD0fluor[tar]["mean"]) + " (" + "{:.4f}".format(saveTD0fluor[tar]["std"]) + ")")
+
+                if 0:
+                    for tar in eff_orddr:
+                        dil = -1.0
+                        if tar in effDiutions:
+                            dil = effDiutions[tar]
+                        if tar in eff_perTarget:
+                            print(tar + " " + "{:.4f}".format(dil) + " " + "{:.4f}".format(dil - eff_perTarget[tar]["mean"]) + "   " + "{:.4f}".format(eff_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_perTarget[tar]["std"]) + ")" 
+                                    + "   " + "{:.4f}".format(eff_wol_perTarget[tar]["mean"]) + " (" + "{:.4f}".format(eff_wol_perTarget[tar]["std"]) + ")")
+            # Calc Geomean fluor TD0:
+            for tar in range(1, targetsCount):
+                fff_num = 0
+                fff_sum = 0.0
+                fff_res = -1.0
+                for oRow in range(0, spFl[0]):
+                    if res[oRow][rar_sample_type] not in ["std", "pos", "unkn"]:
+                        continue
+                    if vecTarget[oRow] == tar:
+                        if td0_fluor[oRow] > 0.0:
+                            fff_num += 1
+                            fff_sum += td0_fluor[oRow]  # math.log(td0_fluor[oRow])
+                if fff_num > 0:
+                    fff_res = fff_sum / fff_num  # math.exp(fff_sum / fff_num)
+                for oRow in range(0, spFl[0]):
+                    if vecTarget[oRow] == tar:
+                        td0_mean_thres[oRow] = fff_res
+
+            # TODO: Fix this
+            for oRow in range(0, spFl[0]):
+                if td0_mean_thres[oRow] > 0.0:
+                    td0_indiCq[oRow] = indMeanX[oRow] + (np.log10(td0_mean_thres[oRow]) - indMeanY[oRow]) / np.log10(WoL_PCR_Eff[oRow])  # td0_indiCq[oRow]  td0_Cq[oRow]
+
+            # TODO Maybe an error
+        #   for oRow in range(0, spFl[0]):
+        #      if not vecNoAmplification[oRow] and td0_indiCq[oRow] < 0.0:
+        #          print("TD0 not found: " + str(oRow) + " Well: " + res[oRow][rar_well] + " Base: " + str(vecBaselineError[oRow]))
+
+        else:
+            # Use WOL or not 
+            WoL_PCR_Eff = indiv_PCR_Eff
+
+
 
         # Median values calculation
         vecSkipSample_Plat = vecSkipSample.copy()
@@ -15913,161 +15914,162 @@ class Run:
                     res[rRow][del_fact] = res[rRow][rar_Ncopy] / res[rRow][del_ncopy]
 
 
-        # Jans Columns
-        header[0].append("0: mean efficiency")
-        header[0].append("1: baseline value")
-        header[0].append("2: individual efficiency")
-        header[0].append("3: threshold value (as set by RDML 1")
-        header[0].append("4: Cq value as crossing point between fluorescence curve and threshold (3)")
-        header[0].append("5: Cq value as crossing point between the line fitted to the curve with individual efficiency and threshold (3)")
-        header[0].append("6: Cq value as crossing point between the line fitted to the curve with the average efficiency and threshold (3)")
-        header[0].append("7: TD0 calculated as the zero-crossing in the third derivative that is closest to the maximum in the second derivative")
-        header[0].append("8: Fluorescence at TD0, calculated by interpolation on the observed fluorescence curve")
-        header[0].append("9: Threshold calculated as average fluorescence at TD0 (column 8)")
-        header[0].append("10: TD0 value as crossing point between fluorescence curve and threshold 9")
-        header[0].append("11: TD0 value as crossing point between the line fitted with individual efficiency to the curve and threshold 9")
-        header[0].append("12: TD0 value as crossing point between the line fitted with the average efficiency to the curve and  threshold 9")
-        header[0].append("13: average fluorescence values at plateau level (5 cycles, excluding the last cycle)")
-        header[0].append("14: standard deviation of plateau fluorescence")
-        header[0].append("15: N0 based on individual efficiency (column 2), threshold (column 3) and Cq from column 4")
-        header[0].append("16: N0 based on individual efficiency (column 2), threshold (column 3) and Cq from column 5")
-        header[0].append("17: N0 based on individual efficiency (column 2), threshold (column 3) and Cq from column 6")
-        header[0].append("18: N0 based on average efficiency (0), threshold and Cq from column 4")
-        header[0].append("19: N0 based on average efficiency (0), threshold and Cq from column 5")
-        header[0].append("20: N0 based on average efficiency (0), threshold and Cq from column 6")
-        header[0].append("21: Ncopy based on TD0 from column 7 and individual efficiency (column 2)")
-        header[0].append("22: Ncopy based on TD0 from column 10 and individual efficiency (column 2)")
-        header[0].append("23: Ncopy based on TD0 from column 11 and individual efficiency (column 2)")
-        header[0].append("24: Ncopy based on TD0 from column 12 and individual efficiency (column 2)")
-        header[0].append("25: Ncopy based on TD0 from column 7 and average efficiency (column 0)")
-        header[0].append("26: Ncopy based on TD0 from column 10 and average efficiency (column 0)")
-        header[0].append("27: Ncopy based on TD0 from column 11 and average efficiency (column 0)")
-        header[0].append("28: Ncopy based on TD0 from column 12 and average efficiency (column 0)")
+        if 0:
+            # Jans Columns
+            header[0].append("0: mean efficiency")
+            header[0].append("1: baseline value")
+            header[0].append("2: individual efficiency")
+            header[0].append("3: threshold value (as set by RDML 1")
+            header[0].append("4: Cq value as crossing point between fluorescence curve and threshold (3)")
+            header[0].append("5: Cq value as crossing point between the line fitted to the curve with individual efficiency and threshold (3)")
+            header[0].append("6: Cq value as crossing point between the line fitted to the curve with the average efficiency and threshold (3)")
+            header[0].append("7: TD0 calculated as the zero-crossing in the third derivative that is closest to the maximum in the second derivative")
+            header[0].append("8: Fluorescence at TD0, calculated by interpolation on the observed fluorescence curve")
+            header[0].append("9: Threshold calculated as average fluorescence at TD0 (column 8)")
+            header[0].append("10: TD0 value as crossing point between fluorescence curve and threshold 9")
+            header[0].append("11: TD0 value as crossing point between the line fitted with individual efficiency to the curve and threshold 9")
+            header[0].append("12: TD0 value as crossing point between the line fitted with the average efficiency to the curve and  threshold 9")
+            header[0].append("13: average fluorescence values at plateau level (5 cycles, excluding the last cycle)")
+            header[0].append("14: standard deviation of plateau fluorescence")
+            header[0].append("15: N0 based on individual efficiency (column 2), threshold (column 3) and Cq from column 4")
+            header[0].append("16: N0 based on individual efficiency (column 2), threshold (column 3) and Cq from column 5")
+            header[0].append("17: N0 based on individual efficiency (column 2), threshold (column 3) and Cq from column 6")
+            header[0].append("18: N0 based on average efficiency (0), threshold and Cq from column 4")
+            header[0].append("19: N0 based on average efficiency (0), threshold and Cq from column 5")
+            header[0].append("20: N0 based on average efficiency (0), threshold and Cq from column 6")
+            header[0].append("21: Ncopy based on TD0 from column 7 and individual efficiency (column 2)")
+            header[0].append("22: Ncopy based on TD0 from column 10 and individual efficiency (column 2)")
+            header[0].append("23: Ncopy based on TD0 from column 11 and individual efficiency (column 2)")
+            header[0].append("24: Ncopy based on TD0 from column 12 and individual efficiency (column 2)")
+            header[0].append("25: Ncopy based on TD0 from column 7 and average efficiency (column 0)")
+            header[0].append("26: Ncopy based on TD0 from column 10 and average efficiency (column 0)")
+            header[0].append("27: Ncopy based on TD0 from column 11 and average efficiency (column 0)")
+            header[0].append("28: Ncopy based on TD0 from column 12 and average efficiency (column 0)")
 
 
-        for rRow in range(0, len(res)):
-            res[rRow].append(mean_PCR_Eff[rRow])  # 0
-            res[rRow].append(res[rRow][rar_baseline])  # 1
-            res[rRow].append(res[rRow][rar_indiv_PCR_eff])  # 2
-            res[rRow].append(threshold[0])  # 3
-            xLast = -1
-            xOver = 0
-            for cyci in range(1, len(baselineCorrectedData[rRow])):
-                xLast += 1
-                xOver += 1
-                if baselineCorrectedData[rRow, cyci] > threshold[0]:
-                    break
-            xxInc = np.log10(baselineCorrectedData[rRow, xOver]) - np.log10(baselineCorrectedData[rRow, xLast])
-            xxBase = np.log10(threshold[0]) - np.log10(baselineCorrectedData[rRow, xLast])
-            if xxInc > 0.0:
-                xxCq = 1.0 + xLast + xxBase / xxInc
-            else:
-                xxCq = 1.0 + xLast
-            res[rRow].append(xxCq)  # 4
-            res[rRow].append(indivCq[rRow])  # 5
-            res[rRow].append(meanCq[rRow])  # 6
-            res[rRow].append(rawTD0[rRow])  # 7
-            res[rRow].append(td0_fluor[rRow])  # 8
-            res[rRow].append(td0_mean_thres[rRow])  # 9
-            xLast = -1
-            xOver = 0
-            for cyci in range(1, len(baselineCorrectedData[rRow])):
-                xLast += 1
-                xOver += 1
-                if baselineCorrectedData[rRow, cyci] > td0_mean_thres[rRow]:
-                    break
-            xxInc = np.log10(baselineCorrectedData[rRow, xOver]) - np.log10(baselineCorrectedData[rRow, xLast])
-            if td0_mean_thres[rRow] > 0.0 and baselineCorrectedData[rRow, xLast] > 0.0:
-                xxBase = np.log10(td0_mean_thres[rRow]) - np.log10(baselineCorrectedData[rRow, xLast])
-            else:
-                xxBase = -1.0
-            if xxInc > 0.0:
-                xxTD0 = 1.0 + xLast + xxBase / xxInc
-            else:
-                xxTD0 = 1.0 + xLast
-            res[rRow].append(xxTD0)  # 10
-            res[rRow].append(td0_indiCq[rRow])  # 11
-            if td0_mean_thres[rRow] > 0.0 and mean_PCR_Eff[rRow] > 0.0:
-                td0_meanCq[rRow] = indMeanX[rRow] + (np.log10(td0_mean_thres[rRow]) - indMeanY[rRow]) / np.log10(mean_PCR_Eff[rRow])
-            else:
-                td0_meanCq[rRow] = -1.0
-            res[rRow].append(td0_meanCq[rRow])  # 12
-            xxFluorLen = len(baselineCorrectedData[rRow])
-            xxPlatLast = baselineCorrectedData[rRow, xxFluorLen - 6 : xxFluorLen - 1]
-            res[rRow].append(np.mean(xxPlatLast))  # 13
-            res[rRow].append(np.std(xxPlatLast))  # 14
-            if res[rRow][rar_indiv_PCR_eff] > 0.0 and xxCq > 0.0:
-                xxnNull = threshold[0] / np.power(res[rRow][rar_indiv_PCR_eff], xxCq)
-                res[rRow].append(xxnNull)  # 15
-            else:
-                res[rRow].append(-1.0)
-            if res[rRow][rar_indiv_PCR_eff] > 0.0 and indivCq[rRow] > 0.0:
-                xxnNull = threshold[0] / np.power(res[rRow][rar_indiv_PCR_eff], indivCq[rRow])
-                res[rRow].append(xxnNull)  # 16
-            else:
-                res[rRow].append(-1.0)
-            if res[rRow][rar_indiv_PCR_eff] > 0.0 and meanCq[rRow] > 0.0:
-                xxnNull = threshold[0] / np.power(res[rRow][rar_indiv_PCR_eff], meanCq[rRow])
-                res[rRow].append(xxnNull)  # 17
-            else:
-                res[rRow].append(-1.0)
-            if mean_PCR_Eff[rRow] > 0.0 and 100 > xxCq > 0.0:
-                xxnNull = threshold[0] / np.power(mean_PCR_Eff[rRow], xxCq)
-                res[rRow].append(xxnNull)  # 18
-            else:
-                res[rRow].append(-1.0)
-            if mean_PCR_Eff[rRow] > 0.0 and 100 > indivCq[rRow] > 0.0:
-                xxnNull = threshold[0] / np.power(mean_PCR_Eff[rRow], indivCq[rRow])
-                res[rRow].append(xxnNull)  # 19
-            else:
-                res[rRow].append(-1.0)
-            if mean_PCR_Eff[rRow] > 0.0 and 100 > meanCq[rRow] > 0.0:
-                xxnNull = threshold[0] / np.power(mean_PCR_Eff[rRow], meanCq[rRow])
-                res[rRow].append(xxnNull)  # 20
-            else:
-                res[rRow].append(-1.0)
+            for rRow in range(0, len(res)):
+                res[rRow].append(mean_PCR_Eff[rRow])  # 0
+                res[rRow].append(res[rRow][rar_baseline])  # 1
+                res[rRow].append(res[rRow][rar_indiv_PCR_eff])  # 2
+                res[rRow].append(threshold[0])  # 3
+                xLast = -1
+                xOver = 0
+                for cyci in range(1, len(baselineCorrectedData[rRow])):
+                    xLast += 1
+                    xOver += 1
+                    if baselineCorrectedData[rRow, cyci] > threshold[0]:
+                        break
+                xxInc = np.log10(baselineCorrectedData[rRow, xOver]) - np.log10(baselineCorrectedData[rRow, xLast])
+                xxBase = np.log10(threshold[0]) - np.log10(baselineCorrectedData[rRow, xLast])
+                if xxInc > 0.0:
+                    xxCq = 1.0 + xLast + xxBase / xxInc
+                else:
+                    xxCq = 1.0 + xLast
+                res[rRow].append(xxCq)  # 4
+                res[rRow].append(indivCq[rRow])  # 5
+                res[rRow].append(meanCq[rRow])  # 6
+                res[rRow].append(rawTD0[rRow])  # 7
+                res[rRow].append(td0_fluor[rRow])  # 8
+                res[rRow].append(td0_mean_thres[rRow])  # 9
+                xLast = -1
+                xOver = 0
+                for cyci in range(1, len(baselineCorrectedData[rRow])):
+                    xLast += 1
+                    xOver += 1
+                    if baselineCorrectedData[rRow, cyci] > td0_mean_thres[rRow]:
+                        break
+                xxInc = np.log10(baselineCorrectedData[rRow, xOver]) - np.log10(baselineCorrectedData[rRow, xLast])
+                if td0_mean_thres[rRow] > 0.0 and baselineCorrectedData[rRow, xLast] > 0.0:
+                    xxBase = np.log10(td0_mean_thres[rRow]) - np.log10(baselineCorrectedData[rRow, xLast])
+                else:
+                    xxBase = -1.0
+                if xxInc > 0.0:
+                    xxTD0 = 1.0 + xLast + xxBase / xxInc
+                else:
+                    xxTD0 = 1.0 + xLast
+                res[rRow].append(xxTD0)  # 10
+                res[rRow].append(td0_indiCq[rRow])  # 11
+                if td0_mean_thres[rRow] > 0.0 and mean_PCR_Eff[rRow] > 0.0:
+                    td0_meanCq[rRow] = indMeanX[rRow] + (np.log10(td0_mean_thres[rRow]) - indMeanY[rRow]) / np.log10(mean_PCR_Eff[rRow])
+                else:
+                    td0_meanCq[rRow] = -1.0
+                res[rRow].append(td0_meanCq[rRow])  # 12
+                xxFluorLen = len(baselineCorrectedData[rRow])
+                xxPlatLast = baselineCorrectedData[rRow, xxFluorLen - 6 : xxFluorLen - 1]
+                res[rRow].append(np.mean(xxPlatLast))  # 13
+                res[rRow].append(np.std(xxPlatLast))  # 14
+                if res[rRow][rar_indiv_PCR_eff] > 0.0 and xxCq > 0.0:
+                    xxnNull = threshold[0] / np.power(res[rRow][rar_indiv_PCR_eff], xxCq)
+                    res[rRow].append(xxnNull)  # 15
+                else:
+                    res[rRow].append(-1.0)
+                if res[rRow][rar_indiv_PCR_eff] > 0.0 and indivCq[rRow] > 0.0:
+                    xxnNull = threshold[0] / np.power(res[rRow][rar_indiv_PCR_eff], indivCq[rRow])
+                    res[rRow].append(xxnNull)  # 16
+                else:
+                    res[rRow].append(-1.0)
+                if res[rRow][rar_indiv_PCR_eff] > 0.0 and meanCq[rRow] > 0.0:
+                    xxnNull = threshold[0] / np.power(res[rRow][rar_indiv_PCR_eff], meanCq[rRow])
+                    res[rRow].append(xxnNull)  # 17
+                else:
+                    res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and 100 > xxCq > 0.0:
+                    xxnNull = threshold[0] / np.power(mean_PCR_Eff[rRow], xxCq)
+                    res[rRow].append(xxnNull)  # 18
+                else:
+                    res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and 100 > indivCq[rRow] > 0.0:
+                    xxnNull = threshold[0] / np.power(mean_PCR_Eff[rRow], indivCq[rRow])
+                    res[rRow].append(xxnNull)  # 19
+                else:
+                    res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and 100 > meanCq[rRow] > 0.0:
+                    xxnNull = threshold[0] / np.power(mean_PCR_Eff[rRow], meanCq[rRow])
+                    res[rRow].append(xxnNull)  # 20
+                else:
+                    res[rRow].append(-1.0)
 
-            if WoL_PCR_Eff[rRow] > 0.0 and rawTD0[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], rawTD0[rRow])
-                res[rRow].append(xxCopy)  # 21
-            else:
-                res[rRow].append(-1.0)
-            if WoL_PCR_Eff[rRow] > 0.0 and 100 > xxTD0 > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], xxTD0)
-                res[rRow].append(xxCopy)  # 22
-            else:
-                res[rRow].append(-1.0)
-            if WoL_PCR_Eff[rRow] > 0.0 and td0_indiCq[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], td0_indiCq[rRow])
-                res[rRow].append(xxCopy)  # 23
-            else:
-                res[rRow].append(-1.0)
-            if WoL_PCR_Eff[rRow] > 0.0 and td0_meanCq[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], td0_meanCq[rRow])
-                res[rRow].append(xxCopy)  # 24
-            else:
-                res[rRow].append(-1.0)
+                if WoL_PCR_Eff[rRow] > 0.0 and rawTD0[rRow] > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], rawTD0[rRow])
+                    res[rRow].append(xxCopy)  # 21
+                else:
+                    res[rRow].append(-1.0)
+                if WoL_PCR_Eff[rRow] > 0.0 and 100 > xxTD0 > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], xxTD0)
+                    res[rRow].append(xxCopy)  # 22
+                else:
+                    res[rRow].append(-1.0)
+                if WoL_PCR_Eff[rRow] > 0.0 and td0_indiCq[rRow] > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], td0_indiCq[rRow])
+                    res[rRow].append(xxCopy)  # 23
+                else:
+                    res[rRow].append(-1.0)
+                if WoL_PCR_Eff[rRow] > 0.0 and td0_meanCq[rRow] > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], td0_meanCq[rRow])
+                    res[rRow].append(xxCopy)  # 24
+                else:
+                    res[rRow].append(-1.0)
 
-            if mean_PCR_Eff[rRow] > 0.0 and rawTD0[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], rawTD0[rRow])
-                res[rRow].append(xxCopy)  # 25
-            else:
-                res[rRow].append(-1.0)
-            if mean_PCR_Eff[rRow] > 0.0 and 100 > xxTD0 > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], xxTD0)
-                res[rRow].append(xxCopy)  # 26
-            else:
-                res[rRow].append(-1.0)
-            if mean_PCR_Eff[rRow] > 0.0 and td0_indiCq[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0_indiCq[rRow])
-                res[rRow].append(xxCopy)  # 27
-            else:
-                res[rRow].append(-1.0)
-            if mean_PCR_Eff[rRow] > 0.0 and td0_meanCq[rRow] > 0.0:
-                xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0_meanCq[rRow])
-                res[rRow].append(xxCopy)  # 28
-            else:
-                res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and rawTD0[rRow] > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], rawTD0[rRow])
+                    res[rRow].append(xxCopy)  # 25
+                else:
+                    res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and 100 > xxTD0 > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], xxTD0)
+                    res[rRow].append(xxCopy)  # 26
+                else:
+                    res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and td0_indiCq[rRow] > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0_indiCq[rRow])
+                    res[rRow].append(xxCopy)  # 27
+                else:
+                    res[rRow].append(-1.0)
+                if mean_PCR_Eff[rRow] > 0.0 and td0_meanCq[rRow] > 0.0:
+                    xxCopy = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], td0_meanCq[rRow])
+                    res[rRow].append(xxCopy)  # 28
+                else:
+                    res[rRow].append(-1.0)
 
 
         ###################################
