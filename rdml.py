@@ -1032,11 +1032,6 @@ def _lrp_testSlopes3(fluor):
         An array with [slopelow, slopehigh].
     """
 
-    # Split the list
-    center = len(fluor) / 2.0
-    loopStart = 0
-    loopStop = len(fluor)
-
     # basic regression per section
     ssx = 0.0
     sxy = 0.0
@@ -1046,24 +1041,38 @@ def _lrp_testSlopes3(fluor):
     sumy = 0.0
     sumx2 = 0.0
     sumxy = 0.0
+    sumy2 = 0.0
     nincl = 0.0
-    for i in range(loopStart, loopStop):
+    for i in range(0, len(fluor)):
         sumx += i
         sumy += np.log10(fluor[i])
         sumx2 += i * i
         sumxy += i * np.log10(fluor[i])
+        sumy2 += np.log10(fluor[i]) * np.log10(fluor[i])
         nincl += 1
+
     if nincl != 0.0:
         ssx = sumx2 - sumx * sumx / nincl
+        ssy = sumy2 - sumy * sumy / nincl
         sxy = sumxy - sumx * sumy / nincl
         slope = sxy / ssx
+        interc = sumy / nincl - slope * sumx / nincl
+        correl = sxy / np.sqrt(ssx * ssy)
+        indMeanX = sumx / nincl
+        indMeanY = np.power(10, sumy / nincl)
+        pcrEff = np.power(10, slope)
+        nnulls = np.power(10, interc)
+
     else:
         slope = -999.9
+        interc = -999.9
+        pcrEff = -999.9
+        indMeanX = -999.9
+        indMeanY = -999.9
+        correl = -999.9
+        nnulls = -999.9
 
-    return slope
-
-
-
+    return [slope, interc, pcrEff, indMeanX, indMeanY, correl, nnulls]
 
 
 def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
@@ -2514,23 +2523,36 @@ def standardCurveStats(data, noCq=False):
                     data[targets[tar]]["all_cq"].append(data[targets[tar]]["Cq"][concStr][pos])
             slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], data[targets[tar]]["all_cq"])
             data[targets[tar]]["cq_slope_bias"] = slope
-            data[targets[tar]]["cq_eff"] = np.power(10, -1.0 / data[targets[tar]]["cq_slope_bias"])
+            if slope > 0.0:
+                data[targets[tar]]["cq_eff"] = np.power(10, -1.0 / data[targets[tar]]["cq_slope_bias"])
+            else:
+                data[targets[tar]]["cq_eff"] = -1.0
 
             for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
                 concStr = data[targets[tar]]["std"]["str"][concPos]
                 if concStr not in data[targets[tar]]["Cq_F0"]:
                     data[targets[tar]]["Cq_F0"][concStr] = []
                 for pos in range(0, len(data[targets[tar]]["Cq"][concStr])):
-                    data[targets[tar]]["Cq_F0"][concStr].append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
-                    cq_check_y.append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
+                    if data[targets[tar]]["cq_eff"] > 0.0:
+                        data[targets[tar]]["Cq_F0"][concStr].append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
+                        cq_check_y.append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
+                    else:
+                        data[targets[tar]]["Cq_F0"][concStr].append(-1.0)
+                        cq_check_y.append(-1.0)
                 data[targets[tar]]["cq_ss_per_dil"][concStr] = np.var(data[targets[tar]]["Cq_F0"][concStr], ddof=1) * (len(data[targets[tar]]["Cq_F0"][concStr]) - 1)
                 data[targets[tar]]["cq_SSwithin"] += data[targets[tar]]["cq_ss_per_dil"][concStr]
 
             slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], cq_check_y)
-            data[targets[tar]]["cq_slope_check"] = slope
-            data[targets[tar]]["cq_ms_within_cq"] = data[targets[tar]]["cq_SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
-            data[targets[tar]]["cq_ms_within_linregpcr"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
-            data[targets[tar]]["cq_ms_ratio"] = data[targets[tar]]["cq_ms_within_linregpcr"] / data[targets[tar]]["cq_ms_within_cq"]
+            if slope > 0.0:
+                data[targets[tar]]["cq_slope_check"] = slope
+                data[targets[tar]]["cq_ms_within_cq"] = data[targets[tar]]["cq_SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+                data[targets[tar]]["cq_ms_within_linregpcr"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+                data[targets[tar]]["cq_ms_ratio"] = data[targets[tar]]["cq_ms_within_linregpcr"] / data[targets[tar]]["cq_ms_within_cq"]
+            else:
+                data[targets[tar]]["cq_slope_check"] = -1.0
+                data[targets[tar]]["cq_ms_within_cq"] = -1.0
+                data[targets[tar]]["cq_ms_within_linregpcr"] = -1.0
+                data[targets[tar]]["cq_ms_ratio"] = -1.0
 
         # difference calc
         dif_alpha = 0.95
@@ -14402,7 +14424,10 @@ class Run:
                    "del threshold",
                    "del N0",
                    "del ncopy",
-                   "del fact"
+                   "del fact",
+                   "indiv PCR eff x",
+                   "indiv PCR eff y",
+                   "indiv PCR eff r2"
                    ]]   # 48
         rar_id = 0
         rar_well = 1
@@ -14422,6 +14447,9 @@ class Run:
         rar_stop_log = 15
         rar_n_included = 16
         rar_indiv_PCR_eff = 17
+        rar_indiv_PCR_Eff_r2 = 55
+        rar_indiv_PCR_eff_x = 53
+        rar_indiv_PCR_eff_y = 54
         rar_R2 = 18
         rar_PCR_eff = 19
         rar_PCR_eff_err = 20
@@ -14467,6 +14495,7 @@ class Run:
         DEF_DNTP = 200.0
         DEF_DYE_CONC = 98.0
         DEF_PRIMER_CONC = 250.0
+        DEF_PROBE_CONC = -1.0
         DEF_PRIMER_LEN = 20.0
         DEF_AMPLICON_LEN = 100.0
 
@@ -14565,7 +14594,8 @@ class Run:
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", "", "", "", "" ])  # Must match header length
+                            "", "", "", "", "",  "", "", "", "", "", 
+                            "", "", "", "", "",  "" ])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc"))))
@@ -14637,8 +14667,8 @@ class Run:
             dicLU_target_amp_len[lu_target.attrib['id']] = DEF_AMPLICON_LEN
             dicLU_target_fw_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
             dicLU_target_rv_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
-            dicLU_target_probe1_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
-            dicLU_target_probe2_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
+            dicLU_target_probe1_conc[lu_target.attrib['id']] = DEF_PROBE_CONC
+            dicLU_target_probe2_conc[lu_target.attrib['id']] = DEF_PROBE_CONC
             if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
                 dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
@@ -14771,6 +14801,17 @@ class Run:
                 if limit_dye < target_limit[tarID]:
                     react_limit_string = "dye concentration "
                     target_limit[tarID] = limit_dye
+            min_probe = -1.0
+            if dicLU_target_probe1_conc[tarID] > 0.0:
+                min_probe = dicLU_target_probe1_conc[tarID]
+            if dicLU_target_probe2_conc[tarID] > 0.0:
+                if dicLU_target_probe2_conc[tarID] < dicLU_target_probe1_conc[tarID]:
+                    min_probe = dicLU_target_probe2_conc[tarID]
+            if min_probe > 0.0:
+                limit_probe = 0.02 * min_probe * 0.000000001 * AVOGADRO * 0.000001
+                if limit_probe < target_limit[tarID]:
+                    react_limit_string = "probe concentration "
+                    target_limit[tarID] = limit_probe
             bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
             limit_dNTPs = 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
             if limit_dNTPs < target_limit[tarID]:
@@ -14812,10 +14853,16 @@ class Run:
         baselineLoopCount = np.zeros(spFl[0], dtype=np.float64)
         baselineError = np.zeros(spFl[0], dtype=np.int64)
         indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_x = -np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_y = -np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_r2 = -np.ones(spFl[0], dtype=np.float64)
 
 
         backgroundNew = -np.ones(spFl[0], dtype=np.float64)
 
+        logStart = np.zeros(spFl[0], dtype=np.int64)
+        logStop = np.zeros(spFl[0], dtype=np.int64)
+        logIncl = np.zeros(spFl[0], dtype=np.int64)
 
         stopCyc = np.zeros(spFl[0], dtype=np.int64)
         IniStopCyc = np.zeros(spFl[0], dtype=np.int64)
@@ -15022,6 +15069,9 @@ class Run:
         # Set a background for failing samples
         vecBackground = np.nanmin(posFluor, axis=1) * 0.99
         for row in range(0, spFl[0]):
+            logStart[row] = rawMinBySD[row]
+            logIncl[row] = -1.0
+            logStop[row] = -1.0
             # start and maxSD in Cycles, so +1 to array.
             # Initialize start values
             curBase = 0.0
@@ -15037,6 +15087,8 @@ class Run:
             if stop - start + 1 < 4:
                 baselineError[row] = 2
                 continue
+            logIncl[row] = stop - start + 1
+            logStop[row] = stop
             selSection = posFluor[row][start - 1:stop]
             # Check if the baseline is within the range
             resInc = _lrp_testSlopes2(selSection)
@@ -15056,7 +15108,11 @@ class Run:
                 resInc = _lrp_testSlopes2(currentSection)
                 if (np.abs(resInc[0] - resInc[1]) < 0.00001):
                     vecBackground[row] = curBase
-                    indiv_PCR_Eff[row] = np.power(10, resInc[1])
+                    baselineFinalRes = _lrp_testSlopes3(currentSection)
+                    indiv_PCR_Eff[row] = baselineFinalRes[2]
+                    indiv_PCR_Eff_x[row] = baselineFinalRes[3] + start
+                    indiv_PCR_Eff_y[row] = baselineFinalRes[4]
+                    indiv_PCR_Eff_r2[row] = baselineFinalRes[5] * baselineFinalRes[5]
                     baselineLoopCount[row] = loop
                     baselineError[row] = 0
                     break
@@ -15075,7 +15131,7 @@ class Run:
             if check_four_cyc_inc_TD0[row]:
                 low = int(np.floor(rawTD0[row])) - 1
                 high = int(np.ceil(rawTD0[row])) - 1
-                td0_fluor[row] = np.power(10, np.log10(baselineCorrectedData[row, low]) + (np.log10(baselineCorrectedData[row, high]) - np.log10(baselineCorrectedData[row, low])) * (rawTD0[row] - np.floor(rawTD0[row] - 1)))
+                td0_fluor[row] = np.power(10, np.log10(baselineCorrectedData[row, low]) + (np.log10(baselineCorrectedData[row, high]) - np.log10(baselineCorrectedData[row, low])) * (rawTD0[row] - np.floor(rawTD0[row])))
 
         # Calulate plateau baseline ratio
         with warnings.catch_warnings():
@@ -15309,24 +15365,24 @@ class Run:
                                                                                                                                                 vecNoPlateau, vecShortLogLin,
                                                                                                                                                 vecIsUsedInWoL)
 
-            for oRow in range(0, spFl[0]):
-                stopTmp = stopCyc[oRow] + 2
-                maxLen = len(rawFlourTD[oRow])
-                if maxLen < stopTmp + 1:
-                    stopTmp = maxLen - 1
-                for cyc in reversed(range(startCyc[oRow], stopTmp)):
+          #  for oRow in range(0, spFl[0]):
+           #     stopTmp = stopCyc[oRow] + 2
+         #       maxLen = len(rawFlourTD[oRow])
+        #        if maxLen < stopTmp + 1:
+         #           stopTmp = maxLen - 1
+       #         for cyc in reversed(range(startCyc[oRow], stopTmp)):
                 #  if oRow in [242, 277]:
                 #      print(str(stopTmp) + " - " + str(cyc) + " - "  + str(rawFlourTD[oRow, cyc]) + " - " + str(rawFlourTD[oRow, cyc + 1]) + " - " )
-                    if np.isnan(np.isnan(rawFlourTD[oRow, cyc])):
-                        continue
-                    if np.isnan(np.isnan(rawFlourTD[oRow, cyc + 1])):
-                        continue
-                    if (rawFlourTD[oRow, cyc] >= 0.0) and (rawFlourTD[oRow, cyc + 1] < 0.0):
-                        td0_Cq[oRow] = rawTD0[oRow]
-                        low = int(np.floor(td0_Cq[oRow])) - 1
-                        high = int(np.ceil(td0_Cq[oRow])) - 1
-                        td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
-                        break
+                  #  if np.isnan(np.isnan(rawFlourTD[oRow, cyc])):
+                 #       continue
+                #    if np.isnan(np.isnan(rawFlourTD[oRow, cyc + 1])):
+               #         continue
+              #      if (rawFlourTD[oRow, cyc] >= 0.0) and (rawFlourTD[oRow, cyc + 1] < 0.0):
+             #           td0_Cq[oRow] = rawTD0[oRow]
+                #        low = int(np.floor(td0_Cq[oRow])) - 1
+               #         high = int(np.ceil(td0_Cq[oRow])) - 1
+              #          td0_fluor[oRow] = np.power(10, np.log10(baselineCorrectedData[oRow, low]) + ( np.log10(baselineCorrectedData[oRow, high]) - np.log10(baselineCorrectedData[oRow, low])) * (td0_Cq[oRow] - np.floor(td0_Cq[oRow])))
+             #           break
         #        print(res[oRow][rar_well] + " Inc: " + str(fluorIncrease[oRow]) + " Start: " + str(rawMinBySD[oRow]) + " Stop: " + str(maxSD[oRow]) + " TD0: " + str(rawTD0[oRow]) + " - " + str(td0_Cq[oRow]))
 
 
@@ -15713,12 +15769,12 @@ class Run:
                     eff_arr = []
 
                     slope, intercept, r_value, p_value, std_err = scp.stats.linregress(range(start - 1, stop), baselineCorrectedData[row][start - 1:stop])
-                    eff_perTarget[res[row][rar_tar]]["r2"].append(r_value)
+                    eff_perTarget[res[row][rar_tar]]["r2"].append(r_value * r_value)
 
                     for count in range(0, stop - start - 2):
                         selSection = baselineCorrectedData[row][stop - count - 4 : stop -count]
-                        eff = np.power(10, _lrp_testSlopes3(selSection))
-                        eff_arr.append(eff)
+                        eff_raw = _lrp_testSlopes3(selSection)
+                        eff_arr.append(eff_raw[2])
                     meaneff = np.mean(eff_arr)
                     diffmean = eff_arr - meaneff
                     sumDiff = np.sum(np.abs(diffmean)) / len(diffmean)
@@ -15836,16 +15892,16 @@ class Run:
             res[rRow][rar_lower_limit] = lowWin[vecTarget[rRow]]
             res[rRow][rar_upper_limit] = upWin[vecTarget[rRow]]
 
-            res[rRow][rar_n_log] = stopCyc[rRow] - startCycFix[rRow] + 1
-            res[rRow][rar_stop_log] = stopCyc[rRow]
-            res[rRow][rar_n_included] = nInclu[rRow]
+            res[rRow][rar_n_log] = logStop[rRow] - logStart[rRow] + 1
+            res[rRow][rar_stop_log] = logStop[rRow]
+            res[rRow][rar_n_included] = logIncl[rRow]
 
             res[rRow][rar_indiv_PCR_eff] = indiv_PCR_Eff[rRow]
             res[rRow][rar_R2] = correl[rRow] * correl[rRow]
             res[rRow][rar_PCR_eff] = mean_PCR_Eff[rRow]
             res[rRow][rar_PCR_eff_err] = mean_PCR_Eff_Err[rRow]
 
-            res[rRow][rar_threshold] = indiv_thres[rRow]
+            res[rRow][rar_threshold] = td0_fluor[rRow]
             res[rRow][rar_Cq] = rawTD0[rRow]
             res[rRow][rar_indiv_Ncopy] = -1.0
             res[rRow][rar_Ncopy] = -1.0
@@ -15912,6 +15968,9 @@ class Run:
                     res[rRow][del_fact] = res[rRow][del_ncopy] / res[rRow][rar_Ncopy]
                 else:
                     res[rRow][del_fact] = res[rRow][rar_Ncopy] / res[rRow][del_ncopy]
+            res[rRow][rar_indiv_PCR_eff_x] = indiv_PCR_Eff_x[rRow]
+            res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]
+            res[rRow][rar_indiv_PCR_Eff_r2] = indiv_PCR_Eff_r2[rRow]
 
 
         if 0:
