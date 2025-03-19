@@ -997,29 +997,123 @@ def _lrp_testSlopes2(fluor):
     loopStop = [int(center - 0.4), len(fluor) - 1]
 
     # basic regression per section
-    ssx = [0, 0]
-    sxy = [0, 0]
-    slope = [0, 0]
+    ssx = [0.0, 0.0]
+    ssy = [0.0, 0.0]
+    sxy = [0.0, 0.0]
+    slope = [0.0, 0.0]
+    correl = [0.0, 0.0]
     for j in range(0, 2):
         sumx = 0.0
         sumy = 0.0
         sumx2 = 0.0
         sumxy = 0.0
+        sumy2 = 0.0
         nincl = 0.0
         for i in range(loopStart[j], loopStop[j] + 1):
             sumx += i
             sumy += np.log10(fluor[i])
             sumx2 += i * i
             sumxy += i * np.log10(fluor[i])
+            sumy2 += np.log10(fluor[i]) * np.log10(fluor[i])
             nincl += 1
         if nincl != 0.0:
             ssx[j] = sumx2 - sumx * sumx / nincl
+            ssy[j] = sumy2 - sumy * sumy / nincl
             sxy[j] = sumxy - sumx * sumy / nincl
             slope[j] = sxy[j] / ssx[j]
+            correl[j] = sxy[j] / np.sqrt(ssx[j] * ssy[j])
         else:
             slope[j] = -999.9
 
-    return [slope[0], slope[1]]
+    ssx = 0.0
+    sxy = 0.0
+    slopei = 0.0
+
+    sumx = 0.0
+    sumy = 0.0
+    sumx2 = 0.0
+    sumxy = 0.0
+    sumy2 = 0.0
+    nincl = 0.0
+    for i in range(0, len(fluor)):
+        sumx += i
+        sumy += np.log10(fluor[i])
+        sumx2 += i * i
+        sumxy += i * np.log10(fluor[i])
+        sumy2 += np.log10(fluor[i]) * np.log10(fluor[i])
+        nincl += 1
+
+    if nincl != 0.0:
+        ssx = sumx2 - sumx * sumx / nincl
+        ssy = sumy2 - sumy * sumy / nincl
+        sxy = sumxy - sumx * sumy / nincl
+        slopei = sxy / ssx
+        interc = sumy / nincl - slopei * sumx / nincl
+        correll = sxy / np.sqrt(ssx * ssy)
+        indMeanX = sumx / nincl
+        indMeanY = np.power(10, sumy / nincl)
+        pcrEff = np.power(10, slopei)
+        nnulls = np.power(10, interc)
+
+    else:
+        slopei = -999.9
+        interc = -999.9
+        pcrEff = -999.9
+        indMeanX = -999.9
+        indMeanY = -999.9
+        correll = -999.9
+        nnulls = -999.9
+
+    diffArr = np.zeros(10, dtype=np.float64)
+
+    stringP = ""
+    stringBest = ""
+    stringDiff = ""
+    for i in range(0, len(fluor)):
+        stringP += str(np.log10(fluor[i])) + "\t"
+        stringBest += str(interc + slopei * i) + "\t"
+        diffArr[i] = np.log10(fluor[i]) - interc - slopei * i
+        stringDiff += str(diffArr[i]) + "\t"
+    tail = 0.0
+    center = 0.0
+    if len(fluor) < 4:
+        print("Alarm 3")
+    if len(fluor) > 9:
+        print("Alarm 10")
+#    print(stringP)
+ #   print(stringBest)
+  #  print(stringDiff)
+    if len(fluor) == 4:
+        tail = diffArr[0] + diffArr[3]
+        center = diffArr[1] + diffArr[2]
+    if len(fluor) == 5:
+        tail = diffArr[0] + diffArr[4] + 1.5 * (diffArr[1] + diffArr[3])
+        center = diffArr[2] + 0.5 * (diffArr[1] + diffArr[3])
+    if len(fluor) == 6:
+        tail = diffArr[0] + diffArr[5] + 0.5 * (diffArr[1] + diffArr[4])
+        center = diffArr[2] + diffArr[3] + 0.5 * (diffArr[1] + diffArr[4])
+    if len(fluor) == 7:
+        tail = diffArr[0] + diffArr[7] + 1.5 * (diffArr[1] + diffArr[5])
+        center = diffArr[2] + diffArr[3] + diffArr[4] + 0.5 * (diffArr[1] + diffArr[5])
+    if len(fluor) == 8:
+        tail = diffArr[0] + diffArr[1] + diffArr[6] + diffArr[7]
+        center = diffArr[2] + diffArr[3] + diffArr[4] + diffArr[5]
+    if len(fluor) == 9:
+        tail = diffArr[0] + diffArr[1] + diffArr[7] + diffArr[8] + 0.5 * (diffArr[2] + diffArr[6])
+        center = diffArr[3] + diffArr[4] + diffArr[5] + 1.5 * (diffArr[2] + diffArr[6])
+    
+    sss = "-"
+    if slope[0] > slope[1]:
+        sss = "+"
+    
+    print(str(np.power(10, slope[0])) + " -- " +  str(np.power(10, slope[1])) + " -- " +  str(np.power(10, slopei)) + " -- " +  str(np.power(10, slopei) - np.power(10, slope[0])) + " dd " +  str(np.power(10, slopei) - np.power(10, slope[1])) + "   " + sss  + " x " +  str(correl[0])  + " x " +  str(correl[1]) )
+    zzz = slope[1]
+    if center < 0.0:
+        zzz -= 0.01
+    else:
+        zzz += 0.01
+
+    return [slope[0], slope[1], correl[0], correl[1]]
 
 
 def _lrp_testSlopes3(fluor):
@@ -2421,7 +2515,7 @@ def standardCurveStats(data, noCq=False):
         data[targets[tar]]["expected_max"] = data[targets[tar]]["std"]["val"][maxPosition]
         data[targets[tar]]["expected_bias_as_ratio"] = data[targets[tar]]["expected_max"] / data[targets[tar]]["expected_min"]
 
-       # Ignore targets without <2 values
+       # Ignore targets without <3 values
         if len(data[targets[tar]]["std"]["str"]) < 2:
             continue
 
@@ -2523,7 +2617,7 @@ def standardCurveStats(data, noCq=False):
                     data[targets[tar]]["all_cq"].append(data[targets[tar]]["Cq"][concStr][pos])
             slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], data[targets[tar]]["all_cq"])
             data[targets[tar]]["cq_slope_bias"] = slope
-            if slope > 0.0:
+            if slope != 0.0:
                 data[targets[tar]]["cq_eff"] = np.power(10, -1.0 / data[targets[tar]]["cq_slope_bias"])
             else:
                 data[targets[tar]]["cq_eff"] = -1.0
@@ -2543,7 +2637,7 @@ def standardCurveStats(data, noCq=False):
                 data[targets[tar]]["cq_SSwithin"] += data[targets[tar]]["cq_ss_per_dil"][concStr]
 
             slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], cq_check_y)
-            if slope > 0.0:
+            if slope != 0.0:
                 data[targets[tar]]["cq_slope_check"] = slope
                 data[targets[tar]]["cq_ms_within_cq"] = data[targets[tar]]["cq_SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
                 data[targets[tar]]["cq_ms_within_linregpcr"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
@@ -14427,6 +14521,8 @@ class Run:
                    "del fact",
                    "indiv PCR eff x",
                    "indiv PCR eff y",
+                   "indiv PCR eff L",
+                   "indiv PCR eff H",
                    "indiv PCR eff r2"
                    ]]   # 48
         rar_id = 0
@@ -14447,7 +14543,7 @@ class Run:
         rar_stop_log = 15
         rar_n_included = 16
         rar_indiv_PCR_eff = 17
-        rar_indiv_PCR_Eff_r2 = 55
+        rar_indiv_PCR_Eff_r2 = 57
         rar_indiv_PCR_eff_x = 53
         rar_indiv_PCR_eff_y = 54
         rar_R2 = 18
@@ -14485,6 +14581,8 @@ class Run:
         del_N0 = 50
         del_ncopy = 51
         del_fact = 52
+        rar_indiv_PCR_eff_L = 55
+        rar_indiv_PCR_eff_H = 56
 
         copyThreshold = _get_copies_threshold()
 
@@ -14595,7 +14693,7 @@ class Run:
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "", 
-                            "", "", "", "", "",  "" ])  # Must match header length
+                            "", "", "", "", "",  "", "", "" ])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc"))))
@@ -14819,7 +14917,7 @@ class Run:
                 target_limit[tarID] = limit_dNTPs
             report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
             report += str(averageVolume) + " &micro;l\n"
-            print(tarID + ": " + react_limit_string + " conc: " + str(dicLU_target_dyeConc[tarID]) + " limit: " + str(target_limit[tarID]))  
+        #    print(tarID + ": " + react_limit_string + " conc: " + str(dicLU_target_dyeConc[tarID]) + " limit: " + str(target_limit[tarID]))  
         finalData["resultsLinRegPCRReport"] = report
 
         # Initialization of the error vectors
@@ -14856,6 +14954,9 @@ class Run:
         indiv_PCR_Eff_x = -np.ones(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_y = -np.ones(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_r2 = -np.ones(spFl[0], dtype=np.float64)
+
+        indiv_PCR_Eff_H = np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_L = np.ones(spFl[0], dtype=np.float64)
 
 
         backgroundNew = -np.ones(spFl[0], dtype=np.float64)
@@ -15104,24 +15205,62 @@ class Run:
             curBase = posFluor[row][start - 1] * 0.5
             step = curBase * 0.5
             currentSection = selSection - curBase
-            for loop in range (0, 100):
+          #  print("xxx")
+            lastCorrel = 0.0
+            lastBase = 0.0
+            lastStep = 0.0
+            for loop in range (0, 50):
                 resInc = _lrp_testSlopes2(currentSection)
-                if (np.abs(resInc[0] - resInc[1]) < 0.00001):
+              #  print("Base: " + str(curBase))
+                if (np.abs(resInc[0] - resInc[1]) < 0.00001): # or (lastCorrel > resInc[2]):
                     vecBackground[row] = curBase
+                    indiv_PCR_Eff_H[row] = np.power(10, resInc[1])
+                    indiv_PCR_Eff_L[row] = np.power(10, resInc[0])
                     baselineFinalRes = _lrp_testSlopes3(currentSection)
-                    indiv_PCR_Eff[row] = baselineFinalRes[2]
+                    indiv_PCR_Eff[row] = np.power(10, resInc[1])  # baselineFinalRes[2]  # np.power(10, resInc[1])
                     indiv_PCR_Eff_x[row] = baselineFinalRes[3] + start
                     indiv_PCR_Eff_y[row] = baselineFinalRes[4]
                     indiv_PCR_Eff_r2[row] = baselineFinalRes[5] * baselineFinalRes[5]
                     baselineLoopCount[row] = loop
                     baselineError[row] = 0
                     break
+                lastBase = curBase
+                lastStep = step
                 if resInc[0] > resInc[1]:
                     curBase -= step
                 else:
                     curBase += step
                 step *= 0.5
                 currentSection = selSection - curBase
+                lastCorrel = resInc[2]
+            print("FFFF")
+        #    for loop in range (0, 20):
+        #        currentSection = selSection - lastBase - step + 0.1 * loop * step
+       #         resInc = _lrp_testSlopes2(currentSection)
+        #        print("Base: " + str(curBase))
+
+         #   print("bbb")
+        #    selSection = posFluor[row][start - 1:stop]
+       #     curBase = posFluor[row][start - 1] * 0.5
+        #    step = curBase * 0.5
+        #    currentSection = selSection - curBase
+
+         #   for loop in range (0, 50):
+         #       tempSelection = selSection - (curBase - step)
+          #      resIncM = _lrp_testSlopes2(tempSelection)
+           #     print("Base: " + str(curBase - step))
+          #      tempSelection = selSection - (curBase + step)
+        #        resIncP = _lrp_testSlopes2(tempSelection)
+           #     print("Base: " + str(curBase + step))
+         #       if resIncM > resIncP:
+          #          curBase -= step
+           #     else:
+          #          curBase += step
+           #     step *= 0.5
+          #      currentSection = selSection - curBase                   
+#
+
+
 
         # Do the baseline correction
         baselineCorrectedData = posFluor - vecBackground[:, np.newaxis]
@@ -15970,6 +16109,8 @@ class Run:
                     res[rRow][del_fact] = res[rRow][rar_Ncopy] / res[rRow][del_ncopy]
             res[rRow][rar_indiv_PCR_eff_x] = indiv_PCR_Eff_x[rRow]
             res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]
+            res[rRow][rar_indiv_PCR_eff_L] = indiv_PCR_Eff_L[rRow]
+            res[rRow][rar_indiv_PCR_eff_H] = indiv_PCR_Eff_H[rRow]
             res[rRow][rar_indiv_PCR_Eff_r2] = indiv_PCR_Eff_r2[rRow]
 
 
