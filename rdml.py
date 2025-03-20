@@ -1106,7 +1106,7 @@ def _lrp_testSlopes2(fluor):
     if slope[0] > slope[1]:
         sss = "+"
     
-    print(str(np.power(10, slope[0])) + " -- " +  str(np.power(10, slope[1])) + " -- " +  str(np.power(10, slopei)) + " -- " +  str(np.power(10, slopei) - np.power(10, slope[0])) + " dd " +  str(np.power(10, slopei) - np.power(10, slope[1])) + "   " + sss  + " x " +  str(correl[0])  + " x " +  str(correl[1]) )
+    # print(str(np.power(10, slope[0])) + " -- " +  str(np.power(10, slope[1])) + " -- " +  str(np.power(10, slopei)) + " -- " +  str(np.power(10, slopei) - np.power(10, slope[0])) + " dd " +  str(np.power(10, slopei) - np.power(10, slope[1])) + "   " + sss  + " x " +  str(correl[0])  + " x " +  str(correl[1]) )
     zzz = slope[1]
     if center < 0.0:
         zzz -= 0.01
@@ -14472,6 +14472,8 @@ class Run:
                    "sample type",  # 3
                    "sample nucleotide",  # 4
                    "target",   # 5
+                                # Target Type!!
+                                # dye !!!
                    "target chemistry",  # 6
                    "excluded",   # 7
                    "note",   # 8
@@ -15233,7 +15235,7 @@ class Run:
                 step *= 0.5
                 currentSection = selSection - curBase
                 lastCorrel = resInc[2]
-            print("FFFF")
+           # print("FFFF")
         #    for loop in range (0, 20):
         #        currentSection = selSection - lastBase - step + 0.1 * loop * step
        #         resInc = _lrp_testSlopes2(currentSection)

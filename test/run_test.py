@@ -8,6 +8,7 @@ import json
 import sys
 import time
 import math
+import numpy as np
 
 parent_dir = os.path.abspath(os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir), os.pardir))
 sys.path.append(parent_dir)
@@ -61,12 +62,17 @@ def printPrimerTable(tars, mix, cur, sav):
     for col in printConc:
         res += col.ljust(20)
     print(res)
+    colCurSum = np.zeros([len(primConc), len(tars)], dtype=np.float64)
+    colSavSum = np.zeros([len(primConc), len(tars)], dtype=np.float64)
+    roNum = 0
     for row in tars:
         res = row.ljust(20)
         count = 0
         for col in primConc:
             keyVal = row.replace(" ", "_") + col + mix + datOut[count]
             if keyVal in cur and keyVal in sav:
+                colCurSum[count][roNum] = cur[keyVal]
+                colSavSum[count][roNum] = sav[keyVal]
                 direct = cur[keyVal] - sav[keyVal]
                 diff = abs(cur[keyVal] - sav[keyVal])
                 if diff > prec[count]:
@@ -90,6 +96,62 @@ def printPrimerTable(tars, mix, cur, sav):
                 res += "".ljust(20)
             count += 1
         print(res)
+        roNum += 1
+    res = "Mean".ljust(20)
+    count = 0
+    for col in primConc:
+        keyVal = row.replace(" ", "_") + col + mix + datOut[count]
+        meanCur = np.mean(colCurSum[count])
+        meanSav = np.mean(colSavSum[count])
+        direct = meanCur - meanSav
+        diff = abs(meanCur - meanSav)
+        if diff > prec[count]:
+            if direct > 0.0:
+                res +=  '\033[44m'
+            else:
+                res +=  '\033[41m'
+        if prin[count] == 0:
+            res += "{:8.0f}".format(meanCur) + " (" + "{:8.0f}".format(meanSav) + ") "
+        elif prin[count] == 1:
+            res += "{:8.1f}".format(meanCur) + " (" + "{:8.1f}".format(meanSav) + ") "
+        elif prin[count] == 2:
+            res += "{:8.2f}".format(meanCur) + " (" + "{:8.2f}".format(meanSav) + ") "
+        elif prin[count] == 3:
+            res += "{:8.3f}".format(meanCur) + " (" + "{:8.3f}".format(meanSav) + ") "
+        else:
+            res += "{:8.5f}".format(meanCur) + " (" + "{:8.5f}".format(meanSav) + ") "
+        if diff > prec[count]:
+            res +=  '\033[0m'
+        count += 1
+    print(res)
+    res = "STD".ljust(20)
+    count = 0
+    for col in primConc:
+        keyVal = row.replace(" ", "_") + col + mix + datOut[count]
+        meanCur = np.std(colCurSum[count])
+        meanSav = np.std(colSavSum[count])
+        direct = meanCur - meanSav
+        diff = abs(meanCur - meanSav)
+        if diff > prec[count]:
+            if direct > 0.0:
+                res +=  '\033[44m'
+            else:
+                res +=  '\033[41m'
+        if prin[count] == 0:
+            res += "{:8.0f}".format(meanCur) + " (" + "{:8.0f}".format(meanSav) + ") "
+        elif prin[count] == 1:
+            res += "{:8.1f}".format(meanCur) + " (" + "{:8.1f}".format(meanSav) + ") "
+        elif prin[count] == 2:
+            res += "{:8.2f}".format(meanCur) + " (" + "{:8.2f}".format(meanSav) + ") "
+        elif prin[count] == 3:
+            res += "{:8.3f}".format(meanCur) + " (" + "{:8.3f}".format(meanSav) + ") "
+        else:
+            res += "{:8.5f}".format(meanCur) + " (" + "{:8.5f}".format(meanSav) + ") "
+        if diff > prec[count]:
+            res +=  '\033[0m'
+        count += 1
+    print(res)
+
 
 def printCVTable(tars, mix, cur, sav):
     print("".ljust(20) + "mean CV".ljust(20))
@@ -116,11 +178,16 @@ def printTable(rows, cols, prec, prin, cur, sav):
     for col in cols:
         res += col.ljust(20)
     print(res)
+    colCurSum = np.zeros([len(cols), len(rows)], dtype=np.float64)
+    colSavSum = np.zeros([len(cols), len(rows)], dtype=np.float64)
+    roNum = 0
     for row in rows:
         res = row.ljust(20)
         count = 0
         for col in cols:
             keyVal = row.replace(" ", "_") + "_" + col
+            colCurSum[count][roNum] = cur[keyVal]
+            colSavSum[count][roNum] = sav[keyVal]
             direct = cur[keyVal] - sav[keyVal]
             diff = abs(cur[keyVal] - sav[keyVal])
             if diff > prec[count]:
@@ -142,6 +209,59 @@ def printTable(rows, cols, prec, prin, cur, sav):
                 res +=  '\033[0m'
             count += 1
         print(res)
+        roNum += 1
+    res = "Mean".ljust(20)
+    count = 0
+    for col in cols:
+        meanCur = np.mean(colCurSum[count])
+        meanSav = np.mean(colSavSum[count])
+        direct = meanCur - meanSav
+        diff = abs(meanCur - meanSav)
+        if diff > prec[count]:
+            if direct > 0.0:
+                res +=  '\033[44m'
+            else:
+                res +=  '\033[41m'
+        if prin[count] == 0:
+            res += "{:8.0f}".format(meanCur) + " (" + "{:8.0f}".format(meanSav) + ") "
+        elif prin[count] == 1:
+            res += "{:8.1f}".format(meanCur) + " (" + "{:8.1f}".format(meanSav) + ") "
+        elif prin[count] == 2:
+            res += "{:8.2f}".format(meanCur) + " (" + "{:8.2f}".format(meanSav) + ") "
+        elif prin[count] == 3:
+            res += "{:8.3f}".format(meanCur) + " (" + "{:8.3f}".format(meanSav) + ") "
+        else:
+            res += "{:8.5f}".format(meanCur) + " (" + "{:8.5f}".format(meanSav) + ") "
+        if diff > prec[count]:
+            res +=  '\033[0m'
+        count += 1
+    print(res)
+    res = "STD".ljust(20)
+    count = 0
+    for col in cols:
+        meanCur = np.std(colCurSum[count])
+        meanSav = np.std(colSavSum[count])
+        direct = meanCur - meanSav
+        diff = abs(meanCur - meanSav)
+        if diff > prec[count]:
+            if direct > 0.0:
+                res +=  '\033[44m'
+            else:
+                res +=  '\033[41m'
+        if prin[count] == 0:
+            res += "{:8.0f}".format(meanCur) + " (" + "{:8.0f}".format(meanSav) + ") "
+        elif prin[count] == 1:
+            res += "{:8.1f}".format(meanCur) + " (" + "{:8.1f}".format(meanSav) + ") "
+        elif prin[count] == 2:
+            res += "{:8.2f}".format(meanCur) + " (" + "{:8.2f}".format(meanSav) + ") "
+        elif prin[count] == 3:
+            res += "{:8.3f}".format(meanCur) + " (" + "{:8.3f}".format(meanSav) + ") "
+        else:
+            res += "{:8.5f}".format(meanCur) + " (" + "{:8.5f}".format(meanSav) + ") "
+        if diff > prec[count]:
+            res +=  '\033[0m'
+        count += 1
+    print(res)
 
 laDa = {}
 curDa = {}
@@ -163,6 +283,7 @@ ww = open(out_amp_file, "w")
 startLine = 0
 reactionDataTrue = 0
 reactionDataFalse = 0
+linRegRes = {}
 for exp in expList:
     runList = exp.runs()
     if len(runList) < 1:
@@ -188,6 +309,20 @@ for exp in expList:
             if startLine == 1:
                 if resTab[tabRow][3] in ["unkn", "std"]:
                     if float(resTab[tabRow][vermeulenNcopyCol]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][5] not in linRegRes[exp["id"]][run["id"]]:  # Target
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["PCR Eff indiv"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["Ncopy indiv"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["TD0"] = []
+                        
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["PCR Eff indiv"].append(resTab[tabRow][17])  # individual PCR Efficiency
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["Ncopy indiv"].append(resTab[tabRow][23])  # individual Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["TD0"].append(resTab[tabRow][22])  # TD0
+
                         reactionDataTrue += 1
                     else:
                         reactionDataFalse += 1
@@ -211,7 +346,7 @@ for exp in expList:
             tar_roche.append(tar + " 750nM")
             tar_sensi.append(tar + " 750nM SF")
             tar_lc.append(tar + " 750nM LC")
-        for ele in ["FSTL_1_O_417 100nM", "FSTL_1_O_417", "FSTL_1_O_417 750nM"]:
+        for ele in ["FSTL_1_O_417 100nM", "FSTL_1_O_417", "FSTL_1_O_417 750nM", "FSTL_1_M_398 100nM", "FSTL_1_P_820 100nM","FSTL_1_M_398", "FSTL_1_P_820","FSTL_1_M_398 750nM", "FSTL_1_P_820 750nM"]:
             tar_roche.remove(ele)
         for ele in ["FSTL_1_D_105 100nM SF", "FSTL_1_M_398 100nM SF", "FSTL_1_O_417 100nM SF", 
                     "FSTL_1_D_105 SF", "FSTL_1_M_398 SF", "FSTL_1_O_417 SF", "FSTL_1_D_105 750nM SF", 
@@ -253,6 +388,147 @@ for exp in expList:
         printPrimerTable(tars, "_SF", curDa, laDa)
         print("\nLC-Green:")
         printPrimerTable(tars, "_LC", curDa, laDa)
+        
+        print("\nRoche PCR efficiencies:")
+        doTD0 = False
+        xe = exp["id"]
+        xr = "P1 - Primer Conc - Roche"
+        for tar in tar_roche:
+            if tar not in linRegRes[xe][xr]:
+                continue
+            keyValmean = tar.replace(" ", "_") + "_PCR_eff_mean"
+            keyValstd = tar.replace(" ", "_") + "_PCR_eff_std"
+            lin = tar.ljust(22)
+            linTD0 = tar.ljust(22)
+            linNcopy = tar.ljust(22)
+            cur_mean = np.mean(linRegRes[xe][xr][tar]["PCR Eff indiv"])
+            curDa[keyValmean] = cur_mean
+            cur_std = np.std(linRegRes[xe][xr][tar]["PCR Eff indiv"])
+            curDa[keyValstd] = cur_std
+            for pos in range(0, 7):
+                if pos < len(linRegRes[xe][xr][tar]["TD0"]):
+                    linTD0 +=  "{:10.2f}".format(linRegRes[xe][xr][tar]["TD0"][pos])
+                else:
+                    linTD0 += "          "
+                if pos < len(linRegRes[xe][xr][tar]["Ncopy indiv"]):
+                    linNcopy +=  "{:10.2f}".format(linRegRes[xe][xr][tar]["Ncopy indiv"][pos])
+                else:
+                    linNcopy += "          "
+                if pos < len(linRegRes[xe][xr][tar]["PCR Eff indiv"]):
+                    lin +=  "{:10.6f}".format(linRegRes[xe][xr][tar]["PCR Eff indiv"][pos])
+                else:
+                    lin += "          "
+            if keyValmean in laDa:
+                if abs(cur_mean - laDa[keyValmean]) > 0.00001:
+                    lin +=  "\033[44m"
+            lin +=  "  {:10.6f}".format(cur_mean)
+            if keyValmean in laDa:
+                lin +=  " ({:10.6f})".format(laDa[keyValmean])
+                if abs(cur_mean - laDa[keyValmean]) > 0.00001:
+                    lin +=  "\033[0m"
+            else:
+                lin += " (         )"
+            if keyValstd in laDa:
+                if abs(cur_std - laDa[keyValstd]) > 0.00001:
+                    if cur_std - laDa[keyValstd] > 0.0:
+                        lin +=  "\033[41m"
+                    else:
+                        lin +=  "\033[44m"
+            lin +=  "  {:10.6f}".format(cur_std)
+            if keyValstd in laDa:
+                lin +=  " ({:10.6f})".format(laDa[keyValstd])
+                if abs(cur_std - laDa[keyValstd]) > 0.00001:
+                    lin +=  "\033[0m"
+            else:
+                lin += " (         )"
+            if doTD0:
+                print(linTD0)
+                print(linNcopy)
+            print(lin)
+
+        print("\nSensi PCR efficiencies:")
+        xr = "P5 - Primer Conc - SensiFast"
+        for tar in tar_sensi:
+            if tar not in linRegRes[xe][xr]:
+                continue
+            keyValmean = tar.replace(" ", "_") + "_PCR_eff_mean"
+            keyValstd = tar.replace(" ", "_") + "_PCR_eff_std"
+            lin = tar.ljust(22)
+            cur_mean = np.mean(linRegRes[xe][xr][tar]["PCR Eff indiv"])
+            curDa[keyValmean] = cur_mean
+            cur_std = np.std(linRegRes[xe][xr][tar]["PCR Eff indiv"])
+            curDa[keyValstd] = cur_std
+            for pos in range(0, 7):
+                if pos < len(linRegRes[xe][xr][tar]["PCR Eff indiv"]):
+                    lin +=  "{:10.6f}".format(linRegRes[xe][xr][tar]["PCR Eff indiv"][pos])
+                else:
+                    lin += "          "
+            if keyValmean in laDa:
+                if abs(cur_mean - laDa[keyValmean]) > 0.00001:
+                    lin +=  "\033[44m"
+            lin +=  "  {:10.6f}".format(cur_mean)
+            if keyValmean in laDa:
+                lin +=  " ({:10.6f})".format(laDa[keyValmean])
+                if abs(cur_mean - laDa[keyValmean]) > 0.00001:
+                    lin +=  "\033[0m"
+            else:
+                lin += " (         )"
+            if keyValstd in laDa:
+                if abs(cur_std - laDa[keyValstd]) > 0.00001:
+                    if cur_std - laDa[keyValstd] > 0.0:
+                        lin +=  "\033[41m"
+                    else:
+                        lin +=  "\033[44m"
+            lin +=  "  {:10.6f}".format(cur_std)
+            if keyValstd in laDa:
+                lin +=  " ({:10.6f})".format(laDa[keyValstd])
+                if abs(cur_std - laDa[keyValstd]) > 0.00001:
+                    lin +=  "\033[0m"
+            else:
+                lin += " (         )"
+            print(lin)
+
+        print("\nLC-Green PCR efficiencies:")
+        xr = "P2 - Primer Conc - LC Green"
+        for tar in tar_lc:
+            if tar not in linRegRes[xe][xr]:
+                continue
+            keyValmean = tar.replace(" ", "_") + "_PCR_eff_mean"
+            keyValstd = tar.replace(" ", "_") + "_PCR_eff_std"
+            lin = tar.ljust(22)
+            cur_mean = np.mean(linRegRes[xe][xr][tar]["PCR Eff indiv"])
+            curDa[keyValmean] = cur_mean
+            cur_std = np.std(linRegRes[xe][xr][tar]["PCR Eff indiv"])
+            curDa[keyValstd] = cur_std
+            for pos in range(0, 7):
+                if pos < len(linRegRes[xe][xr][tar]["PCR Eff indiv"]):
+                    lin +=  "{:10.6f}".format(linRegRes[xe][xr][tar]["PCR Eff indiv"][pos])
+                else:
+                    lin += "          "
+            if keyValmean in laDa:
+                if abs(cur_mean - laDa[keyValmean]) > 0.00001:
+                    lin +=  "\033[44m"
+            lin +=  "  {:10.6f}".format(cur_mean)
+            if keyValmean in laDa:
+                lin +=  " ({:10.6f})".format(laDa[keyValmean])
+                if abs(cur_mean - laDa[keyValmean]) > 0.00001:
+                    lin +=  "\033[0m"
+            else:
+                lin += " (         )"
+            if keyValstd in laDa:
+                if abs(cur_std - laDa[keyValstd]) > 0.00001:
+                    if cur_std - laDa[keyValstd] > 0.0:
+                        lin +=  "\033[41m"
+                    else:
+                        lin +=  "\033[44m"
+            lin +=  "  {:10.6f}".format(cur_std)
+            if keyValstd in laDa:
+                lin +=  " ({:10.6f})".format(laDa[keyValstd])
+                if abs(cur_std - laDa[keyValstd]) > 0.00001:
+                    lin +=  "\033[0m"
+            else:
+                lin += " (         )"
+            print(lin)
     
 
     if exp["id"] == "DNA Dilution - AMC":
@@ -268,7 +544,7 @@ for exp in expList:
         print_a = [3, 3, 0, 0, 0, 0, 0, 0]
         print_b = [5, 5, 5, 5, 5]
         tar_roche = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_H_201", 
-                     "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", "FSTL_1_L_412", "FSTL_1_M_398", "FSTL_1_P_820"]
+                     "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", "FSTL_1_L_412"] # , "FSTL_1_M_398", "FSTL_1_P_820"]
         tar_sensi = ["FSTL_1_A_047 SF", "FSTL_1_D_105 SF", "FSTL_1_E_097 SF", "FSTL_1_F_109 SF", "FSTL_1_H_201 SF",
                      "FSTL_1_I_204 SF", "FSTL_1_K_219 SF", "FSTL_1_*_259 SF", "FSTL_1_L_412 SF", "FSTL_1_M_398 SF",
                      "FSTL_1_O_417 SF", "FSTL_1_P_820 SF", "FSTL_1_T_770 SF"]
