@@ -2633,8 +2633,9 @@ def standardCurveStats(data, noCq=False):
                     else:
                         data[targets[tar]]["Cq_F0"][concStr].append(-1.0)
                         cq_check_y.append(-1.0)
-                data[targets[tar]]["cq_ss_per_dil"][concStr] = np.var(data[targets[tar]]["Cq_F0"][concStr], ddof=1) * (len(data[targets[tar]]["Cq_F0"][concStr]) - 1)
-                data[targets[tar]]["cq_SSwithin"] += data[targets[tar]]["cq_ss_per_dil"][concStr]
+                if len(data[targets[tar]]["Cq_F0"][concStr]) > 1:
+                    data[targets[tar]]["cq_ss_per_dil"][concStr] = np.var(data[targets[tar]]["Cq_F0"][concStr], ddof=1) * (len(data[targets[tar]]["Cq_F0"][concStr]) - 1)
+                    data[targets[tar]]["cq_SSwithin"] += data[targets[tar]]["cq_ss_per_dil"][concStr]
 
             slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], cq_check_y)
             if slope != 0.0:
@@ -14896,8 +14897,10 @@ class Run:
             limit_oligo = 0.02 * lowerPrimerConc * 0.000000001 * AVOGADRO * 0.000001
             react_limit_string = "primer concentration "
             target_limit[tarID] = limit_oligo
+     #       print(tarID + " Primer Limit: " + "{:12.0f}".format(limit_oligo))
             if dicLU_targets[tarID] == "non-saturating DNA binding dye":
                 limit_dye = 1.0 * 10.4 * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
+     #           print(tarID + " Dye Limit:    " + "{:12.0f}".format(limit_dye))
                 if limit_dye < target_limit[tarID]:
                     react_limit_string = "dye concentration "
                     target_limit[tarID] = limit_dye
@@ -15179,7 +15182,8 @@ class Run:
             # Initialize start values
             curBase = 0.0
             baselineError[row] = 5
-            stop = int(rawTD0[row])
+            stop = int(rawTD0[row] - 0.5)  # int(rawTD0[row] + 0.5) # maxSD[row] ??
+
             # At minimum 4 cycles are required
             if stop < 4:
                 baselineError[row] = 1
@@ -15738,7 +15742,7 @@ class Run:
                 tempMeanIndiEff_Skip = np.nanmean(pcreff_indiv_Skip)
                 tempStdEff_Skip = np.nanstd(pcreff_Skip)
                 
-                print(tarReverseLookup[tar] + " " + str(tempMeanEff_Skip) + " - " + str(tempMeanIndiEff_Skip))
+               # print(tarReverseLookup[tar] + " " + str(tempMeanEff_Skip) + " - " + str(tempMeanIndiEff_Skip))
 
             for oRow in range(0, spFl[0]):
                 if tar == vecTarget[oRow]:
@@ -15856,7 +15860,7 @@ class Run:
         
 
 
-        if True:
+        if False:
             saveTD0 = {}
             saveTD0fluor = {}
             eff_perTarget = {}
@@ -15896,7 +15900,7 @@ class Run:
 
                     eff_perTarget[res[row][rar_tar]]["raw"].append(indiv_PCR_Eff[row])
 
-                    stop = int(rawTD0[row])
+                    stop = int(rawTD0[row] - 0.5)
                     # At minimum 4 cycles are required
                     if stop < 4:
                         baselineError[row] = 1
