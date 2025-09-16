@@ -10,21 +10,40 @@ import time
 import math
 import numpy as np
 
-parent_dir = os.path.abspath(os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir), os.pardir))
-sys.path.append(parent_dir)
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
+library_dir = os.path.abspath(os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir), os.pardir))
+sys.path.append(library_dir)
 
 import rdmlpython as rdml
 
 printExpRun = True
 
-rdml_file = "data_vermeulen_raw.rdml"
-rdml_amp_file = "data_test_amplicon_primer.rdml"
+rdml_file = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_raw.rdml")
+rdml_mach_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine.rdml")
+rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_primer_mix.rdml")
 out_amp_file = "temp_amplicon_primer_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
 out_json = "temp_test.json"
 
 vermeulenNcopyCol = 24
+
+def saveCSV(arr, fil):
+    outF = open(fil, "w")
+    for row in range(0, len(arr)):
+        for col in range(0, len(arr[row])):
+            outF.write(str(arr[row][col]) + "\t")
+        outF.write("\n")
+    outF.write("\n")
+    outF.close()
+
+
+def saveNum(store, ele):
+    if ele not in store:
+        return -1.0
+    else:
+        return store[ele]
+
 
 def stringNice(text, orgVal, storeVal, dist, dir, prec):
     aa = ""
@@ -44,8 +63,10 @@ def stringNice(text, orgVal, storeVal, dist, dir, prec):
         return(aa + text + str(orgVal) + " (" + str(storeVal) + ")" + bb)
     return ""
 
+
 def printNice(text, orgVal, storeVal, dist, dir, prec):
     print(stringNice(text, orgVal, storeVal, dist, dir, prec))
+
 
 def printPrimerTable(tars, mix, cur, sav):
     primConc = ["_100nM", "", "_750nM", "_100nM", "", "_750nM"]
@@ -54,11 +75,11 @@ def printPrimerTable(tars, mix, cur, sav):
     printDat = ["mean", "mean", "mean", "CV", "CV", "CV"]
     prec = [1.0, 1.0, 1.0, 0.01, 0.01, 0.01]
     prin = [0,0,0,5,5,5]
-    res = "".ljust(20)
+    res = "copies".ljust(20)
     for col in printDat:
         res += col.ljust(20)
     print(res)
-    res = "exp: 1200".ljust(20)
+    res = "exp: 1500".ljust(20)
     for col in printConc:
         res += col.ljust(20)
     print(res)
@@ -74,6 +95,8 @@ def printPrimerTable(tars, mix, cur, sav):
             keyVal = row.replace(" ", "_") + col + mix + datOut[count]
             if keyVal in cur and keyVal in sav:
                 colCurSum[count][roNum] = cur[keyVal]
+                if keyVal not in sav:
+                    continue
                 colSavSum[count][roNum] = sav[keyVal]
                 direct = cur[keyVal] - sav[keyVal]
                 diff = abs(cur[keyVal] - sav[keyVal])
@@ -104,6 +127,8 @@ def printPrimerTable(tars, mix, cur, sav):
     for col in primConc:
         keyVal = row.replace(" ", "_") + col + mix + datOut[count]
         meanCur = np.nanmean(colCurSum[count])
+        if keyVal not in colSavSum:
+            continue
         meanSav = np.nanmean(colSavSum[count])
         direct = meanCur - meanSav
         diff = abs(meanCur - meanSav)
@@ -130,6 +155,8 @@ def printPrimerTable(tars, mix, cur, sav):
     count = 0
     for col in primConc:
         keyVal = row.replace(" ", "_") + col + mix + datOut[count]
+        if keyVal not in colSavSum:
+            continue
         cvCur = np.nanstd(colCurSum[count]) / np.nanmean(colCurSum[count])
         cvSav = np.nanstd(colSavSum[count]) / np.nanmean(colSavSum[count])
         direct = cvCur - cvSav
@@ -165,6 +192,7 @@ def printCVTable(tars, mix, cur, sav):
         else:
             res += "".ljust(20)
         print(res)
+
 
 def printTable(rows, cols, prec, prin, cur, sav):
     res = "".ljust(20)
@@ -268,12 +296,147 @@ def printTable(rows, cols, prec, prin, cur, sav):
             res += "{:8.3f}".format(eff_diff_cur) + " (" + "{:8.3f}".format(eff_diff_sav) + ") "
             print(res)
 
+
 laDa = {}
 curDa = {}
 
 with open(in_json, 'r') as openfile:
     laDa = json.load(openfile)
 
+
+print("\n#######################\n### Technical Tests ###\n#######################")
+
+print("Test: Fill Matrix Gaps:")
+
+os.system('python3 ' + os.path.join(library_dir, "rdmlpython/rdml.py") +  
+          ' -lrp ' + os.path.join(parent_dir, "experiments/technical/matrix_gaps.rdml") +
+          ' -e "Experiment 1"' +
+          ' -r "Run 1"' +
+          ' --pcrEfficiencyExl 0.05' +
+          ' --excludeNoPlateau' +
+          ' --excludeEfficiency "outlier"' +
+          ' --ignoreExclusion' +
+          ' --saveRaw ' + os.path.join(parent_dir, "test/temp_matrix_gaps_raw_data.tsv") +
+          ' --saveBaslineCorr ' + os.path.join(parent_dir, "test/temp_matrix_gaps_baseline_corrected.tsv") +
+          ' --saveResults ' + os.path.join(parent_dir, "test/temp_matrix_gaps_results.tsv"))
+
+os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
+          os.path.join(parent_dir, "test/temp_matrix_gaps_raw_data.tsv") + ' ' + 
+          os.path.join(parent_dir, "test/matrix_gaps_raw_data.tsv") + ' ' + 
+          '"Test 1 - raw data" 20 N Y')
+os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
+          os.path.join(parent_dir, "test/temp_matrix_gaps_baseline_corrected.tsv") + ' ' + 
+          os.path.join(parent_dir, "test/matrix_gaps_baseline_corrected.tsv") + ' ' + 
+          '"Test 1 - baseline corrected data" 20 N Y')
+os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
+          os.path.join(parent_dir, "test/temp_matrix_gaps_results.tsv") + ' ' + 
+          os.path.join(parent_dir, "test/matrix_gaps_results.tsv") + ' ' + 
+          '"Test 1 - results" 20 N Y')
+
+
+print("\n################################\n### Test Machine and Volumes ###\n################################")
+# Time the test
+startTime = time.time()
+rd = rdml.Rdml(rdml_mach_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+                if resTab[tabRow][3] in ["unkn", "std"]:
+                    if float(resTab[tabRow][vermeulenNcopyCol]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][5] not in linRegRes[exp["id"]][run["id"]]: # Target
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]] = {}
+                        if resTab[tabRow][5] not in colTar:
+                            colTar.append(resTab[tabRow][5])
+                        if resTab[tabRow][2] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]:  # Sample
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]][resTab[tabRow][2]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]][resTab[tabRow][2]]["Ncopy"] = []
+                        
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]][resTab[tabRow][2]]["Ncopy"].append(resTab[tabRow][24])  # Ncopy
+
+        for tar in colTar:
+            for sam in linRegRes[exp["id"]][run["id"]][tar]:
+                linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy"])
+
+curDa["Test_Vol_AMC_384_05"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 5ul"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_10"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_20"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 20ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_05"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 5ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_10"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1-STD"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_20"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 20ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_10"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 10ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_20"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1-STD"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_40"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 40ul"]["Ncopy mean"]
+
+print("\nAMC Amsterdam NL - 384 Wells")
+print("  5ul - 0.5ng/ul -  750 copies: " + "{:6.1f}".format(curDa["Test_Vol_AMC_384_05"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_05")) + ")" )
+print(" 10ul - 0.5ng/ul - 1500 copies: " + "{:6.1f}".format(curDa["Test_Vol_AMC_384_10"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_10")) + ")" )
+print(" 20ul - 0.5ng/ul - 3000 copies: " + "{:6.1f}".format(curDa["Test_Vol_AMC_384_20"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_20")) + ")" )
+print("\nEMBL Heidelberg DE - 384 Wells")
+print("  5ul - 0.5ng/ul -  750 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_384_05"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_05")) + ")" )
+print(" 10ul - 0.5ng/ul - 1500 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_384_10"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_10")) + ")" )
+print(" 20ul - 0.5ng/ul - 3000 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_384_20"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_20")) + ")" )
+print("\nEMBL Heidelberg DE - 96 Wells")
+print(" 10ul - 0.5ng/ul - 1500 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_96_10"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_10")) + ")" )
+print(" 20ul - 0.5ng/ul - 3000 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_96_20"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_20")) + ")" )
+print(" 40ul - 0.5ng/ul - 6000 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_96_40"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_40")) + ")" )
+
+curDa["Test_Vol_AMC_384_c0.2"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 0.2ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_c0.5"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_c1"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 1ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_c2"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 2ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_c4"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 4ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_AMC_384_c8"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 8ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_c0.2"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 0.2ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_c0.5"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1-STD"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_c1"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 1ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_c2"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 2ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_384_c4"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 4ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_c0.2"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["gDNA 0.2ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_c0.5"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1-STD"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_c1"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["gDNA 1ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_c2"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["gDNA 2ng/ul"]["Ncopy mean"]
+curDa["Test_Vol_EMBL_96_c4"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["gDNA 4ng/ul"]["Ncopy mean"]
+
+print("\nAMC Amsterdam NL - 384 Wells")
+print(" 10ul - 0.2ng/ul -   600 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c0.2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c0.2")) + ")" )
+print(" 10ul - 0.5ng/ul -  1500 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c0.5"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c0.5")) + ")" )
+print(" 10ul - 1.0ng/ul -  3000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c1"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c1")) + ")" )
+print(" 10ul - 2.0ng/ul -  6000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c2")) + ")" )
+print(" 10ul - 4.0ng/ul - 12000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c4"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c4")) + ")" )
+print(" 10ul - 8.0ng/ul - 24000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c8"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c8")) + ")" )
+print("\nEMBL Heidelberg DE - 384 Wells")
+print(" 10ul - 0.2ng/ul -   600 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c0.2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c0.2")) + ")" )
+print(" 10ul - 0.5ng/ul -  1500 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c0.5"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c0.5")) + ")" )
+print(" 10ul - 1.0ng/ul -  3000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c1"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c1")) + ")" )
+print(" 10ul - 2.0ng/ul -  6000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c2")) + ")" )
+print(" 10ul - 4.0ng/ul - 12000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c4"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c4")) + ")" )
+print("\nEMBL Heidelberg DE - 96 Wells")
+print(" 20ul - 0.2ng/ul -  1200 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c0.2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c0.2")) + ")" )
+print(" 20ul - 0.5ng/ul -  3000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c0.5"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c0.5")) + ")" )
+print(" 20ul - 1.0ng/ul -  6000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c1"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c1")) + ")" )
+print(" 20ul - 2.0ng/ul - 12000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c2")) + ")" )
+print(" 20ul - 4.0ng/ul - 24000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c4"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c4")) + ")" )
 
 print("\n#############################\n### Test Primer Dilutions ###\n#############################")
 # Time the test
@@ -543,7 +706,6 @@ for exp in expList:
             else:
                 lin += " (         )"
             print(lin)
-    
 
     if exp["id"] == "DNA Dilution - AMC":
         quant = exp.quantify()
@@ -662,7 +824,7 @@ startTime = time.time()
 rdd = rdml.Rdml(rdml_file)
 
 expList = rdd.experiments()
-print("  The Test will run for 2 Minutes.")
+print("  The Test will run for up to 2 Minutes.")
 if len(expList) < 1:
     print("No experiments found!")
     sys.exit(0)
@@ -717,6 +879,6 @@ json_object = json.dumps(curDa, indent=4)
 with open(out_json, "w") as outfile:
     outfile.write(json_object)
 print(" ")
-os.system("python3 run_analyze_vermeulen_csv.py")
-os.system("python3 run_analyze_vermeulen_compare.py")
+os.system("python3 vermeulen_analyze_csv.py")
+os.system("python3 vermeulen_analyze_compare.py")
 sys.exit(0)

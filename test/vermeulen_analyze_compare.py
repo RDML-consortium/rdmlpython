@@ -13,11 +13,13 @@ import csv
 import numpy as np
 import scipy.stats as scp
 
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
+
 head = ["Standard-Cq", "LinRegPCR (old)", "5PSM", "FPK-PCR", "LRE-Emax", "LRE-E100", "Cy0", "MAK2", "DART", "4PLM", "PCR-Miner", "RDML-Tools"]
 
 startPos = 0
 data = []
-with open("data_vermeulen_methods_results.csv", newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -67,7 +69,7 @@ bias_std = np.std(data, axis=1, ddof=1)
 
 startPos = 3
 data = []
-with open("data_vermeulen_methods_results.csv", newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -105,7 +107,7 @@ linearity_std = np.std(data, axis=1, ddof=1)
 
 startPos = 4
 data = []
-with open("data_vermeulen_methods_results.csv", newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -143,7 +145,7 @@ precision_std = np.std(data, axis=1, ddof=1)
 
 startPos = 5
 data = []
-with open("data_vermeulen_methods_results.csv", newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -226,4 +228,4 @@ for pos in range(0, len(resi)):
                                            + "{:8.5f}".format(linearity_mean[lookUp[pos]]) + " (" + "{:8.5f}".format(linearity_std[lookUp[pos]]) + ") (" + "{:2.0f}".format(res2[lookUp[pos]][1]) + ")    " 
                                            + "{:8.5f}".format(precision_mean[lookUp[pos]]) + " (" + "{:8.5f}".format(precision_std[lookUp[pos]]) + ") (" + "{:2.0f}".format(res2[lookUp[pos]][2]) + ")    " 
                                            + "{:8.5f}".format(resolution_mean[lookUp[pos]]) + " (" + "{:8.5f}".format(resolution_std[lookUp[pos]]) + ") (" + "{:2.0f}".format(res2[lookUp[pos]][3]) + ")       " 
-                                           + "{:5.2f}".format(finMean[lookUp[pos]]) + bb)
+                                           + "{:5.2f}".format(fin2Mean[lookUp[pos]]) + bb)

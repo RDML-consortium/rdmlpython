@@ -19,9 +19,9 @@ sys.path.append(parent_dir)
 import rdmlpython as rdml
 
 
-##########################################################################################
-###  This script runs the equvalent calculations as the excel of the paper supplement  ###
-##########################################################################################
+###########################################################################################
+###  This script runs the equivalent calculations as the excel of the paper supplement  ###
+###########################################################################################
 
 use_results = False  # True - results from paper, False - use output form run_analyze_vermeulen_rdml.py
 set_method = 0  # 0 - Standard-Cq, 1 - LinRegPCR, 2 - 5PSM, 3 - FPK-PCR, 4 - LRE-Emax, 5 - LRE-E100, 6 - Cy0, 7 - MAK2, 8 - DART, 9 - 4PLM, 10 - PCR-Miner

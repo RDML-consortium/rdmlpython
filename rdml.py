@@ -11166,6 +11166,7 @@ class Experiment:
             res["dil_std"][tar]["reproducibility"] = std_data[tar]["MSwithin"]
             res["dil_std"][tar]["ms_within_linregpcr"] = std_data[tar]["cq_ms_within_linregpcr"]
             res["dil_std"][tar]["ratio"] = std_data[tar]["cq_ms_ratio"]
+            print(std_data[tar]["dif_detectable_diff"])
             res["dil_std"][tar]["detectable_diff"] = std_data[tar]["dif_detectable_diff"]
 
         # Scale the samples if requested
@@ -14332,6 +14333,10 @@ class Run:
         """
 
         allData = self.getreactjson()
+
+        # print("RDML-Command:\nPCR-Eff: " +str(pcrEfficiencyExl) + "\nUp-Tar: " +str(updateTargetEfficiency) + "\nUp-RDML: " +str(updateRDML) + 
+        #       "\nNo-Plat: " +str(excludeNoPlateau) + "\nExcl-Eff: " +str(excludeEfficiency) + "\nInst-Base: " +str(excludeInstableBaseline))
+
         res = self.linRegPCR(pcrEfficiencyExl=pcrEfficiencyExl,
                              updateTargetEfficiency=updateTargetEfficiency,
                              updateRDML=updateRDML,
@@ -14594,7 +14599,7 @@ class Run:
         DEF_VOL_96 = 20.0
         DEF_VOL_384 = 10.0
         DEF_DNTP = 200.0
-        DEF_DYE_CONC = 98.0
+        DEF_DYE_CONC = 400.0
         DEF_PRIMER_CONC = 250.0
         DEF_PROBE_CONC = -1.0
         DEF_PRIMER_LEN = 20.0
@@ -14894,16 +14899,16 @@ class Run:
             lowerPrimerConc = dicLU_target_fw_conc[tarID]
             if dicLU_target_rv_conc[tarID] < lowerPrimerConc:
                 lowerPrimerConc = dicLU_target_rv_conc[tarID]
-            limit_oligo = 0.02 * lowerPrimerConc * 0.000000001 * AVOGADRO * 0.000001
+            limit_oligo = 0.04 * lowerPrimerConc * 0.000000001 * AVOGADRO * 0.000001
             react_limit_string = "primer concentration "
             target_limit[tarID] = limit_oligo
      #       print(tarID + " Primer Limit: " + "{:12.0f}".format(limit_oligo))
             if dicLU_targets[tarID] == "non-saturating DNA binding dye":
-                limit_dye = 1.0 * 10.4 * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
+                limit_dye = 1.5 * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
      #           print(tarID + " Dye Limit:    " + "{:12.0f}".format(limit_dye))
-                if limit_dye < target_limit[tarID]:
-                    react_limit_string = "dye concentration "
-                    target_limit[tarID] = limit_dye
+            #    if limit_dye < target_limit[tarID]:
+                react_limit_string = "dye concentration "
+                target_limit[tarID] = limit_dye
             min_probe = -1.0
             if dicLU_target_probe1_conc[tarID] > 0.0:
                 min_probe = dicLU_target_probe1_conc[tarID]
@@ -14958,6 +14963,7 @@ class Run:
         indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_x = -np.ones(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_y = -np.ones(spFl[0], dtype=np.float64)
+        indiv_nNull = np.zeros(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_r2 = -np.ones(spFl[0], dtype=np.float64)
 
         indiv_PCR_Eff_H = np.ones(spFl[0], dtype=np.float64)
@@ -15227,6 +15233,7 @@ class Run:
                     indiv_PCR_Eff_x[row] = baselineFinalRes[3] + start
                     indiv_PCR_Eff_y[row] = baselineFinalRes[4]
                     indiv_PCR_Eff_r2[row] = baselineFinalRes[5] * baselineFinalRes[5]
+                    indiv_nNull[row] =  baselineFinalRes[6]
                     baselineLoopCount[row] = loop
                     baselineError[row] = 0
                     break
@@ -16077,7 +16084,7 @@ class Run:
 
         # Delete
             res[rRow][del_threshold] = threshold[0]
-            res[rRow][del_N0] = nNull[rRow]
+            res[rRow][del_N0] = indiv_nNull[rRow]
 
         mmN0_sum = 0.0
         mmNcopy_sum = 0.0
