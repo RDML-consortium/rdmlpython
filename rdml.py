@@ -3564,10 +3564,10 @@ class Rdml:
         hint = ""
         hint2 = ""
         for node1 in exp1:
-            exp2 = _get_all_children(node1, "dNTPs")
+            exp2 = _get_all_children(node1, "nCopyFact")
             for node2 in exp2:
                 node1.remove(node2)
-                hint = "Migration to v1.3 deleted dye \"dNTPs\" elements."
+                hint = "Migration to v1.3 deleted dye \"nCopyFact\" elements."
             exp2b = _get_all_children(node1, "dyeConc")
             for node2 in exp2b:
                 node1.remove(node2)
@@ -6474,7 +6474,7 @@ class Dye:
 
         if key == "id":
             return self._node.get('id')
-        if key in ["description", "dyeChemistry", "dNTPs", "dyeConc"]:
+        if key in ["description", "dyeChemistry", "nCopyFact", "dyeConc"]:
             var = _get_first_child_text(self._node, key)
             if var == "":
                 return None
@@ -6511,7 +6511,7 @@ class Dye:
             if key == "dyeChemistry":
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         if ver in ["1.4"]:
-            if key in ["dNTPs", "dyeConc"]:
+            if key in ["nCopyFact", "dyeConc"]:
                 return _change_subelement(self._node, key, self.xmlkeys(), value, True, "string")
         raise KeyError
 
@@ -6554,7 +6554,7 @@ class Dye:
             A list of the key strings.
         """
 
-        return ["id", "description", "dyeChemistry", "dNTPs", "dyeConc"]
+        return ["id", "description", "dyeChemistry", "nCopyFact", "dyeConc"]
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -6583,7 +6583,7 @@ class Dye:
         }
         _add_first_child_to_dic(self._node, data, True, "description")
         _add_first_child_to_dic(self._node, data, True, "dyeChemistry")
-        _add_first_child_to_dic(self._node, data, True, "dNTPs")
+        _add_first_child_to_dic(self._node, data, True, "nCopyFact")
         _add_first_child_to_dic(self._node, data, True, "dyeConc")
         return data
 
@@ -14512,7 +14512,7 @@ class Run:
                    "used for W-o-L setting",   # 35
                    "nAmpli",   # 36
 				   "vol",   # 37
-				   "dNTPs",   # 38
+				   "nCopyFact",   # 38
 				   "dyeConc",   # 39
 				   "primer len for",   # 40
 				   "primer conc for",   # 41
@@ -14574,7 +14574,7 @@ class Run:
         rar_isUsedInWoL = 35
         rar_nAmpli = 36
         rar_vol = 37
-        rar_dNTPs = 38
+        rar_nCopyFact = 38
         rar_dyeConc = 39
         rar_primer_len_for = 40
         rar_primer_conc_for = 41
@@ -14598,8 +14598,11 @@ class Run:
         AVOGADRO = 6.02214076e23
         DEF_VOL_96 = 20.0
         DEF_VOL_384 = 10.0
-        DEF_DNTP = 200.0
-        DEF_DYE_CONC = 400.0
+        DEF_DYE_SYBR_CONC = 400.0
+        DEF_DYE_EVA_CONC = 1250.0
+        DEF_NCOPYFACT_SYBR = 1.5
+        DEF_NCOPYFACT_PROBE = 0.10
+        DEF_NCOPYFACT_EVA = 0.04
         DEF_PRIMER_CONC = 250.0
         DEF_PROBE_CONC = -1.0
         DEF_PRIMER_LEN = 20.0
@@ -14724,27 +14727,37 @@ class Run:
 
         dicLU_dyes = {}
         dicLU_dye_conc = {}
-        dicLU_dye_dNTPs = {}
+        dicLU_dye_nCopyFact = {}
         luDyes = _get_all_children(parRoot, "dye")
         for lu_dye in luDyes:
+            if lu_dye.attrib['id'] == "":
+                continue
             lu_chemistry = _get_first_child_text(lu_dye, "dyeChemistry")
             if lu_chemistry == "":
                 lu_chemistry = "non-saturating DNA binding dye"
-            if lu_dye.attrib['id'] != "":
-                dicLU_dyes[lu_dye.attrib['id']] = lu_chemistry
-            dicLU_dye_conc[lu_dye.attrib['id']] = DEF_DYE_CONC
+            defnCopyFact = DEF_NCOPYFACT_SYBR
+            defDyConc = DEF_DYE_SYBR_CONC
+            if lu_chemistry == "saturating DNA binding dye":
+                defnCopyFact = DEF_NCOPYFACT_EVA
+                defDyConc = DEF_DYE_EVA_CONC
+            if lu_chemistry == "hybridization probe":
+                defnCopyFact = DEF_NCOPYFACT_PROBE
+            if lu_chemistry == "hydrolysis probe":
+                defnCopyFact = DEF_NCOPYFACT_PROBE
+            dicLU_dyes[lu_dye.attrib['id']] = lu_chemistry
+            dicLU_dye_nCopyFact[lu_dye.attrib['id']] = defnCopyFact
+            lu_nCopyFact = _get_first_child_text(lu_dye, "nCopyFact")
+            dye_nCopyFact = _save_float(lu_nCopyFact)
+            if dye_nCopyFact != "":
+                dicLU_dye_nCopyFact[lu_dye.attrib['id']] = dye_nCopyFact
+            dicLU_dye_conc[lu_dye.attrib['id']] = defDyConc
             lu_dyeConc = _get_first_child_text(lu_dye, "dyeConc")
             dyeConcVal = _save_float(lu_dyeConc)
             if dyeConcVal != "":
                 dicLU_dye_conc[lu_dye.attrib['id']] = dyeConcVal
-            dicLU_dye_dNTPs[lu_dye.attrib['id']] = DEF_DNTP
-            lu_dNTPs = _get_first_child_text(lu_dye, "dNTPs")
-            dyeConcDNTPs = _save_float(lu_dNTPs)
-            if dyeConcDNTPs != "":
-                dicLU_dye_dNTPs[lu_dye.attrib['id']] = dyeConcDNTPs
         dicLU_targets = {}
         dicLU_target_dyeConc = {}
-        dicLU_target_dNTPs = {}
+        dicLU_target_nCopyFact = {}
         dicLU_target_fw_len = {}
         dicLU_target_rv_len = {}
         dicLU_target_probe1_len = {}
@@ -14764,8 +14777,8 @@ class Run:
                 if forId.attrib['id'] != "":
                     lu_dyeId = forId.attrib['id']
             dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
-            dicLU_target_dyeConc[lu_target.attrib['id']] = DEF_DYE_CONC
-            dicLU_target_dNTPs[lu_target.attrib['id']] = DEF_DNTP
+            dicLU_target_dyeConc[lu_target.attrib['id']] = DEF_DYE_SYBR_CONC
+            dicLU_target_nCopyFact[lu_target.attrib['id']] = DEF_NCOPYFACT_SYBR
             dicLU_target_fw_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_rv_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_probe1_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
@@ -14778,7 +14791,7 @@ class Run:
             if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
                 dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
-                dicLU_target_dNTPs[lu_target.attrib['id']] = dicLU_dye_dNTPs[lu_dyeId]
+                dicLU_target_nCopyFact[lu_target.attrib['id']] = dicLU_dye_nCopyFact[lu_dyeId]
             seqNode = _get_first_child(lu_target, "sequences")
             if seqNode != None:
                 fwPrimNode = _get_first_child(seqNode, "forwardPrimer")
@@ -14838,7 +14851,7 @@ class Run:
             if res[oRow][rar_tar] != "":
                 res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
                 res[oRow][rar_vol] = reactVol[oRow]
-                res[oRow][rar_dNTPs] = dicLU_target_dNTPs[res[oRow][rar_tar]]
+                res[oRow][rar_nCopyFact] = dicLU_target_nCopyFact[res[oRow][rar_tar]]
                 res[oRow][rar_dyeConc] = dicLU_target_dyeConc[res[oRow][rar_tar]]
                 res[oRow][rar_primer_len_for] = dicLU_target_fw_len[res[oRow][rar_tar]]
                 res[oRow][rar_primer_conc_for] = dicLU_target_fw_conc[res[oRow][rar_tar]]
@@ -14884,8 +14897,8 @@ class Run:
         target_limit = {}
         for lu_dye in luDyes:
             report = "The dye \"" + lu_dye.attrib['id'] +"\" is a " + dicLU_dyes[lu_dye.attrib['id']] + " with "
-            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " nM (nanomol/l) dye and "
-            report += str(dicLU_dye_dNTPs[lu_dye.attrib['id']]) + " &micro;M (&micro;mol/l) dNTPs.\n"
+            report += str(dicLU_dye_conc[lu_dye.attrib['id']]) + " nM (nanomol/l) dye using "
+            report += str(dicLU_dye_nCopyFact[lu_dye.attrib['id']]) + " nCopy factor.\n"
         for tarID in usedTargets:
             report += "The target \"" + tarID +"\" has a " + str(int(dicLU_target_fw_len[tarID]))
             report += "bp forward primer in " + str(dicLU_target_fw_conc[tarID]) + " nM (nmol/l or "
@@ -14899,41 +14912,17 @@ class Run:
             lowerPrimerConc = dicLU_target_fw_conc[tarID]
             if dicLU_target_rv_conc[tarID] < lowerPrimerConc:
                 lowerPrimerConc = dicLU_target_rv_conc[tarID]
-            limit_oligo = 0.04 * lowerPrimerConc * 0.000000001 * AVOGADRO * 0.000001
+            target_limit[tarID]  = dicLU_target_nCopyFact[tarID] * lowerPrimerConc * AVOGADRO * 1e-15
             react_limit_string = "primer concentration "
-            target_limit[tarID] = limit_oligo
-     #       print(tarID + " Primer Limit: " + "{:12.0f}".format(limit_oligo))
             if dicLU_targets[tarID] == "non-saturating DNA binding dye":
-                limit_dye = 1.5 * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
-     #           print(tarID + " Dye Limit:    " + "{:12.0f}".format(limit_dye))
-            #    if limit_dye < target_limit[tarID]:
+                target_limit[tarID] = dicLU_target_nCopyFact[tarID] * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
                 react_limit_string = "dye concentration "
-                target_limit[tarID] = limit_dye
             min_probe = -1.0
-            if dicLU_target_probe1_conc[tarID] > 0.0:
-                min_probe = dicLU_target_probe1_conc[tarID]
-            if dicLU_target_probe2_conc[tarID] > 0.0:
-                if dicLU_target_probe2_conc[tarID] < dicLU_target_probe1_conc[tarID]:
-                    min_probe = dicLU_target_probe2_conc[tarID]
-            if min_probe > 0.0:
-                limit_probe = 0.02 * min_probe * 0.000000001 * AVOGADRO * 0.000001
-                if limit_probe < target_limit[tarID]:
-                    react_limit_string = "probe concentration "
-                    target_limit[tarID] = limit_probe
-            bp_per_amplicon = 2.0 * dicLU_target_amp_len[tarID] - dicLU_target_fw_len[tarID] - dicLU_target_rv_len[tarID]
-            limit_dNTPs = 4 * dicLU_target_dNTPs[tarID] * 0.000001 * AVOGADRO * 0.000001 / bp_per_amplicon
-            if limit_dNTPs < target_limit[tarID]:
-                react_limit_string = "dNTP concentration "
-                target_limit[tarID] = limit_dNTPs
             report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
             report += str(averageVolume) + " &micro;l\n"
-        #    print(tarID + ": " + react_limit_string + " conc: " + str(dicLU_target_dyeConc[tarID]) + " limit: " + str(target_limit[tarID]))  
         finalData["resultsLinRegPCRReport"] = report
 
         # Initialization of the error vectors
-
-
-
         vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
         vecInstableBaseline = np.zeros(spFl[0], dtype=np.bool_)
