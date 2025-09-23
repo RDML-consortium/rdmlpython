@@ -317,21 +317,26 @@ os.system('python3 ' + os.path.join(library_dir, "rdmlpython/rdml.py") +
           ' --excludeEfficiency "outlier"' +
           ' --ignoreExclusion' +
           ' --saveRaw ' + os.path.join(parent_dir, "test/temp_matrix_gaps_raw_data.tsv") +
+          ' --saveRawFixed ' + os.path.join(parent_dir, "test/temp_matrix_gaps_raw_fixed_data.tsv") +
           ' --saveBaslineCorr ' + os.path.join(parent_dir, "test/temp_matrix_gaps_baseline_corrected.tsv") +
           ' --saveResults ' + os.path.join(parent_dir, "test/temp_matrix_gaps_results.tsv"))
 
 os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
           os.path.join(parent_dir, "test/temp_matrix_gaps_raw_data.tsv") + ' ' + 
           os.path.join(parent_dir, "test/matrix_gaps_raw_data.tsv") + ' ' + 
-          '"Test 1 - raw data" 20 N Y')
+          '"Matrix Gaps - test raw data" 20 N Y')
+os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
+          os.path.join(parent_dir, "test/temp_matrix_gaps_raw_fixed_data.tsv") + ' ' + 
+          os.path.join(parent_dir, "test/matrix_gaps_raw_fixed_data.tsv") + ' ' + 
+          '"Matrix Gaps - test fixed raw data" 20 N Y')
 os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
           os.path.join(parent_dir, "test/temp_matrix_gaps_baseline_corrected.tsv") + ' ' + 
           os.path.join(parent_dir, "test/matrix_gaps_baseline_corrected.tsv") + ' ' + 
-          '"Test 1 - baseline corrected data" 20 N Y')
+          '"Matrix Gaps - test baseline corrected data" 20 N Y')
 os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' + 
           os.path.join(parent_dir, "test/temp_matrix_gaps_results.tsv") + ' ' + 
           os.path.join(parent_dir, "test/matrix_gaps_results.tsv") + ' ' + 
-          '"Test 1 - results" 20 N Y')
+          '"Matrix Gaps - test results" 20 N Y')
 
 
 print("\n################################\n### Test Machine and Volumes ###\n################################")

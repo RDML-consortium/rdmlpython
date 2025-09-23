@@ -14344,6 +14344,7 @@ class Run:
                              excludeEfficiency=excludeEfficiency,
                              excludeInstableBaseline=excludeInstableBaseline,
                              saveRaw=False,
+                             saveRawFixed=False,
                              saveBaslineCorr=True,
                              saveResultsList=True,
                              saveResultsCSV=False,
@@ -14394,8 +14395,8 @@ class Run:
     def linRegPCR(self, pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=False,
                   excludeNoPlateau=True, excludeEfficiency="outlier",
                   excludeInstableBaseline=True, commaConv=False, ignoreExclusion=False,
-                  saveRaw=False, saveBaslineCorr=False, saveResultsList=False, saveResultsCSV=False,
-                  verbose=False):
+                  saveRaw=False, saveRawFixed=False, saveBaslineCorr=False, saveResultsList=False,
+                  saveResultsCSV=False, verbose=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -14406,9 +14407,9 @@ class Run:
             excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
             excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
             excludeInstableBaseline: If true, instable baselines give a baseline error.
-            commaConv: If true, convert comma separator to dot.
             ignoreExclusion: If true, ignore the RDML exclusion strings.
             saveRaw: If true, no raw values are given in the returned data
+            saveRawFixed: If true, no fixed raw values are given in the returned data
             saveBaslineCorr: If true, no baseline corrected values are given in the returned data
             saveResultsList: If true, return a 2d array object.
             saveResultsCSV: If true, return a csv string.
@@ -14439,12 +14440,12 @@ class Run:
             raise RdmlError('LinRegPCR excludeNoPlateau parameter must be True or False.')
         if type(excludeInstableBaseline) != bool:
             raise RdmlError('LinRegPCR excludeInstableBaseline parameter must be True or False.')
-        if type(commaConv) != bool:
-            raise RdmlError('LinRegPCR commaConv parameter must be True or False.')
         if type(ignoreExclusion) != bool:
             raise RdmlError('LinRegPCR ignoreExclusion parameter must be True or False.')
         if type(saveRaw) != bool:
             raise RdmlError('LinRegPCR saveRaw parameter must be True or False.')
+        if type(saveRawFixed) != bool:
+            raise RdmlError('LinRegPCR saveRawFixed parameter must be True or False.')
         if type(saveBaslineCorr) != bool:
             raise RdmlError('LinRegPCR saveBaslineCorr parameter must be True or False.')
         if type(saveResultsList) != bool:
@@ -14483,8 +14484,8 @@ class Run:
                    "baseline",   # 9
                    "plateau",   # 10
                    "plateau / baseline",   # 11
-                   "lower limit",   # 12
-                   "upper limit",   # 13
+                   "lower limit",   # 12  ####
+                   "upper limit",   # 13 ####
                    "n in log phase",   # 14
                    "last log cycle",   # 15
                    "n included",   # 16
@@ -14498,15 +14499,15 @@ class Run:
                    "Ncopy",   # 24
                    "amplification",   # 25
                    "baseline error",   # 26
-                   "instable baseline",   # 27
+                   "instable baseline",   # 27  ###
                    "plateau",   # 28
-                   "noisy sample",   # 29
+                   "noisy sample",   # 29   ###
                    "excl PCR efficiency",   # 30
-                   "short log lin phase",   # 31
-                   "Cq is shifting",   # 32
-                   "too low Cq eff",   # 33
-                   "too low Cq N0",   # 34
-                   "used for W-o-L setting",   # 35
+                   "short log lin phase",   # 31   ####
+                   "Cq is shifting",   # 32   ###
+                   "too low Cq eff",   # 33    ###
+                   "too low Cq N0",   # 34   ###
+                   "used for W-o-L setting",   # 35  ###
                    "nAmpli",   # 36
 				   "vol",   # 37
 				   "nCopyFact",   # 38
@@ -14519,7 +14520,7 @@ class Run:
 				   "probe1 conc",   # 45
 				   "probe2 len",   # 46
 				   "probe2 conc",   # 47
-				   "amplicon len",
+				   "amplicon len",  # 48
                    "del threshold",
                    "del N0",
                    "del ncopy",
@@ -14601,7 +14602,7 @@ class Run:
         DEF_NCOPYFACT_PROBE = 0.10
         DEF_NCOPYFACT_EVA = 0.04
         DEF_PRIMER_CONC = 250.0
-        DEF_PROBE_CONC = -1.0
+        DEF_PROBE_CONC = 100.0
         DEF_PRIMER_LEN = 20.0
         DEF_AMPLICON_LEN = 100.0
 
@@ -14626,7 +14627,7 @@ class Run:
                     cyc = float(_get_first_child_text(adp, "cyc"))
                     adp_cyc_min = min(adp_cyc_min, cyc)
                     adp_cyc_max = max(adp_cyc_max, cyc)
-        # This spanns the matrix from min to max (len = min + max + 1)
+        # This spanns the matrix from min to max (len = max - min + 1)
         # Gaps in this matrix will be filled or cause an error
         # The matrix is guranteed to be with valid values
         adp_cyc_min = int(math.ceil(adp_cyc_min))
@@ -14634,17 +14635,17 @@ class Run:
         if adp_cyc_min < 1:
             raise RdmlError('adp cycles must be >= 1.')
 
-        # print(str(adp_cyc_min) + " - " + str(adp_cyc_max))
+        adp_cyc_min = 1
 
         # spFl is the shape for all fluorescence numpy data arrays
         # cycle number is arrar pos + 1 - zero is first
         spFl = (colCount, adp_cyc_max - adp_cyc_min + 1)
         spNum = np.arange(0, colCount)
-        # print(spFl)
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor <= 0.00000001] = np.nan
 
-        # Initialization of the vecNoAmplification vector
+        # Initialization of the vecSkipSample and vecExcludedByUser vector
+        vecExludeMeanPCREff = np.zeros(spFl[0], dtype=np.bool_)
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool_)
         rdmlElemData = []
 
@@ -14688,8 +14689,10 @@ class Run:
                     excl = _get_first_child_text(react_data, "excl")
                     excl = _cleanErrorString(excl, "amp")
                     excl = re.sub(r'^;|;$', '', excl)
+                # Any text in excl means do not use this reaction
                 if not excl == "":
                     vecExcludedByUser[rowCount] = True
+                    vecExludeMeanPCREff[rowCount] = True
 
                 noteVal = _get_first_child_text(react_data, "note")
                 noteVal = _cleanErrorString(noteVal, "amp")
@@ -14706,12 +14709,10 @@ class Run:
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc"))))
                     fluor = _get_first_child_text(adp, "fluor")
-                    if commaConv:
-                        noDot = fluor.replace(".", "")
-                        fluor = noDot.replace(",", ".")
                     rawFluor[rowCount, cyc - adp_cyc_min] = float(fluor)
                     anyRawData = True
                 rowCount += 1
+        # Calculate the default volume for this plate
         averageVolume = devVol
         if volNum > 0:
             averageVolume = volSum / float(volNum)
@@ -14722,6 +14723,7 @@ class Run:
         parExp = self._node.getparent()
         parRoot = parExp.getparent()
 
+        # Read all required information of the dyes
         dicLU_dyes = {}
         dicLU_dye_conc = {}
         dicLU_dye_nCopyFact = {}
@@ -14729,6 +14731,7 @@ class Run:
         for lu_dye in luDyes:
             if lu_dye.attrib['id'] == "":
                 continue
+            # default is SYBR Green
             lu_chemistry = _get_first_child_text(lu_dye, "dyeChemistry")
             if lu_chemistry == "":
                 lu_chemistry = "non-saturating DNA binding dye"
@@ -14752,6 +14755,8 @@ class Run:
             dyeConcVal = _save_float(lu_dyeConc)
             if dyeConcVal != "":
                 dicLU_dye_conc[lu_dye.attrib['id']] = dyeConcVal
+
+        # Now gather the information bound to the target, supplemented by the dye
         dicLU_targets = {}
         dicLU_target_dyeConc = {}
         dicLU_target_nCopyFact = {}
@@ -14773,9 +14778,11 @@ class Run:
             if forId is not None:
                 if forId.attrib['id'] != "":
                     lu_dyeId = forId.attrib['id']
+            # default is SYBR Green
             dicLU_targets[lu_target.attrib['id']] = "non-saturating DNA binding dye"
             dicLU_target_dyeConc[lu_target.attrib['id']] = DEF_DYE_SYBR_CONC
             dicLU_target_nCopyFact[lu_target.attrib['id']] = DEF_NCOPYFACT_SYBR
+
             dicLU_target_fw_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_rv_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_probe1_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
@@ -14783,12 +14790,14 @@ class Run:
             dicLU_target_amp_len[lu_target.attrib['id']] = DEF_AMPLICON_LEN
             dicLU_target_fw_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
             dicLU_target_rv_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
-            dicLU_target_probe1_conc[lu_target.attrib['id']] = DEF_PROBE_CONC
-            dicLU_target_probe2_conc[lu_target.attrib['id']] = DEF_PROBE_CONC
+            dicLU_target_probe1_conc[lu_target.attrib['id']] = -1.0
+            dicLU_target_probe2_conc[lu_target.attrib['id']] = -1.0
+            # Overwrite if it is provided by dye
             if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
                 dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
                 dicLU_target_nCopyFact[lu_target.attrib['id']] = dicLU_dye_nCopyFact[lu_dyeId]
+            # Read in length of sequences of primers, probes and amplicons
             seqNode = _get_first_child(lu_target, "sequences")
             if seqNode != None:
                 fwPrimNode = _get_first_child(seqNode, "forwardPrimer")
@@ -14812,6 +14821,7 @@ class Run:
                     probe1PrimLenTmp = len(str(_get_first_child_text(probe1PrimNode, "sequence")))
                     if probe1PrimLenTmp > 5:
                         dicLU_target_probe1_len[lu_target.attrib['id']] = float(probe1PrimLenTmp)
+                        dicLU_target_probe1_conc[lu_target.attrib['id']] = DEF_PROBE_CONC
                     probe1PrimConcTmp = _save_float(_get_first_child_text(probe1PrimNode, "oligoConc"))
                     if probe1PrimConcTmp != "":
                         dicLU_target_probe1_conc[lu_target.attrib['id']] = probe1PrimConcTmp
@@ -14820,6 +14830,7 @@ class Run:
                     probe2PrimLenTmp = len(str(_get_first_child_text(probe2PrimNode, "sequence")))
                     if probe2PrimLenTmp > 5:
                         dicLU_target_probe2_len[lu_target.attrib['id']] = float(probe2PrimLenTmp)
+                        dicLU_target_probe2_conc[lu_target.attrib['id']] = DEF_PROBE_CONC
                     probe2PrimConcTmp = _save_float(_get_first_child_text(probe2PrimNode, "oligoConc"))
                     if probe2PrimConcTmp != "":
                         dicLU_target_probe2_conc[lu_target.attrib['id']] = probe2PrimConcTmp
@@ -14829,6 +14840,7 @@ class Run:
                     if ampPrimLenTmp > 30:
                         dicLU_target_amp_len[lu_target.attrib['id']] = float(ampPrimLenTmp)
 
+        # Gather sample ds/ss information
         dicLU_samNucl = {}
         luSamples = _get_all_children(parRoot, "sample")
         for lu_sample in luSamples:
@@ -14837,37 +14849,37 @@ class Run:
                 dicLU_samNucl[lu_sample.attrib['id']] = lu_Nucl
 
         # Update the table with dictionary help
-        for oRow in range(0, spFl[0]):
-            if res[oRow][rar_sample] != "":
-                if res[oRow][rar_tar] != "":
-                    res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][res[oRow][rar_tar]]
-                if dicLU_samNucl[res[oRow][rar_sample]] == True:
-                    res[oRow][rar_sample_nucleotide] = "ds"
+        for row in range(0, spFl[0]):
+            if res[row][rar_sample] != "":
+                if res[row][rar_tar] != "":
+                    res[row][rar_sample_type] = transSamTar[res[row][rar_sample]][res[row][rar_tar]]
+                if dicLU_samNucl[res[row][rar_sample]] == True:
+                    res[row][rar_sample_nucleotide] = "ds"
                 else:
-                    res[oRow][rar_sample_nucleotide] = "ss"
-            if res[oRow][rar_tar] != "":
-                res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
-                res[oRow][rar_vol] = reactVol[oRow]
-                res[oRow][rar_nCopyFact] = dicLU_target_nCopyFact[res[oRow][rar_tar]]
-                res[oRow][rar_dyeConc] = dicLU_target_dyeConc[res[oRow][rar_tar]]
-                res[oRow][rar_primer_len_for] = dicLU_target_fw_len[res[oRow][rar_tar]]
-                res[oRow][rar_primer_conc_for] = dicLU_target_fw_conc[res[oRow][rar_tar]]
-                res[oRow][rar_primer_len_rev] = dicLU_target_rv_len[res[oRow][rar_tar]]
-                res[oRow][rar_primer_conc_rev] = dicLU_target_rv_conc[res[oRow][rar_tar]]
-                res[oRow][rar_probe1_len] = dicLU_target_probe1_len[res[oRow][rar_tar]]
-                res[oRow][rar_probe1_conc] = dicLU_target_probe1_conc[res[oRow][rar_tar]]
-                res[oRow][rar_probe2_len] = dicLU_target_probe2_len[res[oRow][rar_tar]]
-                res[oRow][rar_probe2_conc] = dicLU_target_probe2_conc[res[oRow][rar_tar]]
-                res[oRow][rar_amplicon_len] = dicLU_target_amp_len[res[oRow][rar_tar]]
+                    res[row][rar_sample_nucleotide] = "ss"
+            if res[row][rar_tar] != "":
+                res[row][rar_tar_chemistry] = dicLU_targets[res[row][rar_tar]]
+                res[row][rar_vol] = reactVol[row]
+                res[row][rar_nCopyFact] = dicLU_target_nCopyFact[res[row][rar_tar]]
+                res[row][rar_dyeConc] = dicLU_target_dyeConc[res[row][rar_tar]]
+                res[row][rar_primer_len_for] = dicLU_target_fw_len[res[row][rar_tar]]
+                res[row][rar_primer_conc_for] = dicLU_target_fw_conc[res[row][rar_tar]]
+                res[row][rar_primer_len_rev] = dicLU_target_rv_len[res[row][rar_tar]]
+                res[row][rar_primer_conc_rev] = dicLU_target_rv_conc[res[row][rar_tar]]
+                res[row][rar_probe1_len] = dicLU_target_probe1_len[res[row][rar_tar]]
+                res[row][rar_probe1_conc] = dicLU_target_probe1_conc[res[row][rar_tar]]
+                res[row][rar_probe2_len] = dicLU_target_probe2_len[res[row][rar_tar]]
+                res[row][rar_probe2_conc] = dicLU_target_probe2_conc[res[row][rar_tar]]
+                res[row][rar_amplicon_len] = dicLU_target_amp_len[res[row][rar_tar]]
 
         if saveRaw:
             rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
-            for oCol in range(0, spFl[1]):
-                rawTable[0].append(oCol + 1)
-            for oRow in range(0, spFl[0]):
-                rawTable.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
-                for oCol in range(0, spFl[1]):
-                    rawTable[oRow + 1].append(float(rawFluor[oRow, oCol]))
+            for col in range(0, spFl[1]):
+                rawTable[0].append(col + 1)
+            for row in range(0, spFl[0]):
+                rawTable.append([res[row][rar_id], res[row][rar_well], res[row][rar_sample], res[row][rar_tar], res[row][rar_excl]])
+                for col in range(0, spFl[1]):
+                    rawTable[row + 1].append(float(rawFluor[row, col]))
             finalData["rawData"] = rawTable
 
         # Count the targets and create the target variables
@@ -14878,15 +14890,13 @@ class Run:
         tarWinLookup = {}
         tarReverseLookup = {}
         usedTargets = {}
-        for oRow in range(0, spFl[0]):
-            usedTargets[res[oRow][rar_tar]] = 1.0
-            if res[oRow][rar_tar] not in tarWinLookup:
-                tarWinLookup[res[oRow][rar_tar]] = targetsCount
-                tarReverseLookup[targetsCount] = res[oRow][rar_tar]
+        for row in range(0, spFl[0]):
+            usedTargets[res[row][rar_tar]] = 1.0
+            if res[row][rar_tar] not in tarWinLookup:
+                tarWinLookup[res[row][rar_tar]] = targetsCount
+                tarReverseLookup[targetsCount] = res[row][rar_tar]
                 targetsCount += 1
-            vecTarget[oRow] = tarWinLookup[res[oRow][rar_tar]]
-        upWin = np.zeros(targetsCount, dtype=np.float64)
-        lowWin = np.zeros(targetsCount, dtype=np.float64)
+            vecTarget[row] = tarWinLookup[res[row][rar_tar]]
         threshold = np.ones(targetsCount, dtype=np.float64)
 
         # Calculate a report of the supplied data and the limiting factor
@@ -14905,16 +14915,18 @@ class Run:
             report += str(dicLU_target_rv_conc[tarID] * averageVolume / 1000.0) + " pmol in "
             report += str(averageVolume) + " &micro;l) resulting in an amplicon of "
             report += str(int(dicLU_target_amp_len[tarID])) + "bp. The exponential phase starts to be limited by "
+
             # Calculate the limits for each factor
             lowerPrimerConc = dicLU_target_fw_conc[tarID]
             if dicLU_target_rv_conc[tarID] < lowerPrimerConc:
                 lowerPrimerConc = dicLU_target_rv_conc[tarID]
             target_limit[tarID]  = dicLU_target_nCopyFact[tarID] * lowerPrimerConc * AVOGADRO * 1e-15
             react_limit_string = "primer concentration "
+
             if dicLU_targets[tarID] == "non-saturating DNA binding dye":
                 target_limit[tarID] = dicLU_target_nCopyFact[tarID] * dicLU_target_dyeConc[tarID] * AVOGADRO * 1e-15 / dicLU_target_amp_len[tarID]
                 react_limit_string = "dye concentration "
-            min_probe = -1.0
+
             report += react_limit_string + "at " + "{:.3e}".format(int(target_limit[tarID] * averageVolume)) + " copies in "
             report += str(averageVolume) + " &micro;l\n"
         finalData["resultsLinRegPCRReport"] = report
@@ -14926,7 +14938,6 @@ class Run:
         vecInstableBaseline = np.zeros(spFl[0], dtype=np.bool_)
         vecNoPlateau = np.zeros(spFl[0], dtype=np.bool_)
         vecNoisySample = np.zeros(spFl[0], dtype=np.bool_)
-        vecSkipSample = np.zeros(spFl[0], dtype=np.bool_)
         vecShortLogLin = np.zeros(spFl[0], dtype=np.bool_)
         vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool_)
         vecExclEff = np.zeros(spFl[0], dtype=np.bool_)
@@ -14986,7 +14997,7 @@ class Run:
         td0_Cq = -np.ones(spFl[0], dtype=np.float64)
         td0_indiCq = -np.ones(spFl[0], dtype=np.float64)
         td0_meanCq = -np.ones(spFl[0], dtype=np.float64)
-        td0_fluor = -np.ones(spFl[0], dtype=np.float64)
+        
 
         nNulls = np.ones(spFl[0], dtype=np.float64)
         nInclu = np.zeros(spFl[0], dtype=np.int64)
@@ -15015,52 +15026,52 @@ class Run:
                 raise RdmlError('Error: Fluorescence data have no valid values.')
             validFloat = np.isfinite(rawFluor)
             gapInWells = {}
-            for oRow in range(0, spFl[0]):
+            for row in range(0, spFl[0]):
                 # If a row has no data, use the absolute minimum for all
-                if not np.any(validFloat[oRow]):
-                    rawFluor[oRow, :] = absMinFluor
-                if not np.all(validFloat[oRow]):
+                if not np.any(validFloat[row]):
+                    rawFluor[row, :] = absMinFluor
+                if not np.all(validFloat[row]):
                     # Fill gaps at start with first valid value
-                    if not validFloat[oRow][0]:
+                    if not validFloat[row][0]:
                         lastInvalid = 0
-                        while lastInvalid < len(validFloat[oRow]) - 1:
+                        while lastInvalid < len(validFloat[row]) - 1:
                             lastInvalid += 1
-                            if validFloat[oRow][lastInvalid]:
+                            if validFloat[row][lastInvalid]:
                                 break
-                        rawFluor[oRow, :lastInvalid] = rawFluor[oRow, lastInvalid]
-                        gapInWells[res[oRow][1]] = 0
+                        rawFluor[row, :lastInvalid] = rawFluor[row, lastInvalid]
+                        gapInWells[res[row][1]] = 0
                     # Fill gaps at end with last valid value
-                    if not validFloat[oRow][len(validFloat[oRow]) - 1]:
-                        lastInvalid = len(validFloat[oRow])
+                    if not validFloat[row][len(validFloat[row]) - 1]:
+                        lastInvalid = len(validFloat[row])
                         while lastInvalid > 0:
                             lastInvalid -= 1
-                            if validFloat[oRow][lastInvalid]:
+                            if validFloat[row][lastInvalid]:
                                 break
-                        rawFluor[oRow, (lastInvalid + 1):] = rawFluor[oRow, lastInvalid]
-                        gapInWells[res[oRow][1]] = 0
+                        rawFluor[row, (lastInvalid + 1):] = rawFluor[row, lastInvalid]
+                        gapInWells[res[row][1]] = 0
             # Now only internal gaps are remaining
             validFloat = np.isfinite(rawFluor)
-            for oRow in range(0, spFl[0]):
+            for row in range(0, spFl[0]):
                 # If a row has no data, use the absolute minimum for all
-                if not np.any(validFloat[oRow]):
-                    rawFluor[oRow, :] = absMinFluor
-                if not np.all(validFloat[oRow]):
+                if not np.any(validFloat[row]):
+                    rawFluor[row, :] = absMinFluor
+                if not np.all(validFloat[row]):
                     lastValid = 0
                     gapLen = 0
-                    for pos in range(0,len(validFloat[oRow])):
-                        if validFloat[oRow][pos]:
+                    for pos in range(0,len(validFloat[row])):
+                        if validFloat[row][pos]:
                             if gapLen > 0:
-                                startFluor = rawFluor[oRow, lastValid]
-                                endFluor = rawFluor[oRow, pos]
+                                startFluor = rawFluor[row, lastValid]
+                                endFluor = rawFluor[row, pos]
                                 stepFluor = (endFluor - startFluor) / (gapLen + 1)
                                 for fillGap in range(1, gapLen + 1):
-                                    rawFluor[oRow, lastValid + fillGap] = startFluor + fillGap * stepFluor
+                                    rawFluor[row, lastValid + fillGap] = startFluor + fillGap * stepFluor
                                 gapLen = 0
                             else:
                                 lastValid = pos
                         else:
                             gapLen += 1
-                    gapInWells[res[oRow][1]] = 0
+                    gapInWells[res[row][1]] = 0
             # This should never happen
             validFloat = np.isfinite(rawFluor)
             if not np.any(validFloat):
@@ -15073,6 +15084,16 @@ class Run:
                     if pos < len(orderGapWells) - 1:
                         gapError += ", "
                 err = _add_err(err, ";", gapError)
+        
+        if saveRawFixed:
+            rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
+            for col in range(0, spFl[1]):
+                rawTable[0].append(col + 1)
+            for row in range(0, spFl[0]):
+                rawTable.append([res[row][rar_id], res[row][rar_well], res[row][rar_sample], res[row][rar_tar], res[row][rar_excl]])
+                for col in range(0, spFl[1]):
+                    rawTable[row + 1].append(float(rawFluor[row, col]))
+            finalData["rawDataFixed"] = rawTable
 
         ################################################
         # Calculate first, second and third derivative #
@@ -15134,12 +15155,11 @@ class Run:
                 if (rawFlourTD[row, cyc] >= 0.0) and (rawFlourTD[row, cyc + 1] < 0.0):
                     rawTD0[row] = float(cyc) + 1.5 + rawFlourTD[row, cyc] / (rawFlourTD[row, cyc] - rawFlourTD[row, cyc + 1])
                     break
-            # Call rawAmplification
+            # Score the success in arrays
             if int(rawTD0[row]) - rawMinBySD[row] + 1 > 3:
                 check_four_cyc_inc_TD0[row] = True
             else:
-                vecSkipSample[row] = True
-        #        rawTD0[row] = -1.0
+                vecExludeMeanPCREff[row] = True
 
         ########################################
         # Correct negative fluorescence values #
@@ -15226,6 +15246,7 @@ class Run:
         baselineCorrectedData = posFluor - vecBackground[:, np.newaxis]
 
         # Calculate the baseline corrected fluorescence for the TD0
+        td0_fluor = -np.ones(spFl[0], dtype=np.float64)
         for row in range(0, spFl[0]):
             if check_four_cyc_inc_TD0[row]:
                 low = int(np.floor(rawTD0[row])) - 1
@@ -15239,28 +15260,30 @@ class Run:
 
         if saveBaslineCorr:
             rawTable = [[header[0][rar_id], header[0][rar_well], header[0][rar_sample], header[0][rar_tar], header[0][rar_excl]]]
-            for oCol in range(0, spFl[1]):
-                rawTable[0].append(oCol + 1)
-            for oRow in range(0, spFl[0]):
-                rawTable.append([res[oRow][rar_id], res[oRow][rar_well], res[oRow][rar_sample], res[oRow][rar_tar], res[oRow][rar_excl]])
-                for oCol in range(0, spFl[1]):
-                    rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
+            for col in range(0, spFl[1]):
+                rawTable[0].append(col + 1)
+            for row in range(0, spFl[0]):
+                rawTable.append([res[row][rar_id], res[row][rar_well], res[row][rar_sample], res[row][rar_tar], res[row][rar_excl]])
+                for col in range(0, spFl[1]):
+                    rawTable[row + 1].append(float(baselineCorrectedData[row, col]))
             finalData["baselineCorrectedData"] = rawTable
-
 
         # Negative controls should not be part of the mean calculations
         for row in range(0, spFl[0]):
             if res[row][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
-                vecSkipSample[row] = True
+                vecExludeMeanPCREff[row] = True
 
         ###########################################################################
         # First quality check : Is there enough amplification during the reaction #
         ###########################################################################
+        # Amplification is TRUE if fluorescence increase the four cycles before TD0 
+        # and an PCR efficiency > 1.4 is present.
         for row in range(0, spFl[0]):
             if check_four_cyc_inc_TD0[row]:
                 if indiv_PCR_Eff[row] > 1.4:
                     vecAmplification[row] = True
-                   # vecSkipSample[oRow] = True
+                   # vecExludeMeanPCREff[row] = True
+
 
 
 
@@ -15304,29 +15327,13 @@ class Run:
             if not vecNoAmplification[oRow]:
                 IniStopCyc[oRow] = stopCyc[oRow] = maxSD[oRow]
             else:
-                vecSkipSample[oRow] = True
+                vecExludeMeanPCREff[oRow] = True
                 stopCyc[oRow] = minCorFluor.shape[1]
                 IniStopCyc[oRow] = stopCyc[oRow]
 
 
 
             # Get the positions ignoring nan values
-            posCount = 0
-            posMinOne = 0
-            posMinTwo = 0
-            for realPos in range(stopCyc[oRow] - 2, 0, -1):
-                if not np.isnan(minCorFluor[oRow, realPos - 1]):
-                    if posCount == 0:
-                        posMinOne = realPos + 1
-                    if posCount > 0:
-                        posMinTwo = realPos + 1
-                        break
-                    posCount += 1
-
-            if not (minCorFluor[oRow, stopCyc[oRow] - 1] > minCorFluor[oRow, posMinOne - 1] > minCorFluor[oRow, posMinTwo - 1]):
-                vecNoAmplification[oRow] = True
-                vecSkipSample[oRow] = True
-
             if vecNoAmplification[oRow] or vecBaselineError[oRow] or stopCyc[oRow] == minCorFluor.shape[1]:
                 vecNoPlateau[oRow] = True
 
@@ -15339,7 +15346,7 @@ class Run:
         meanTarEff = {}
 
 
-        vecSkipSample[vecExcludedByUser] = True
+        vecExludeMeanPCREff[vecExcludedByUser] = True
 
         ###########################################################
         # Calculation of the Window of Linearity (WOL) per target #
@@ -15350,14 +15357,14 @@ class Run:
 
 
         # Median values calculation
-        vecSkipSample_Plat = vecSkipSample.copy()
+        vecSkipSample_Plat = vecExludeMeanPCREff.copy()
         vecSkipSample_Plat[vecNoPlateau] = True
 
         # Common threshold calculation
         comThreshSum = 0.0
         comThreshNum = 0
         for oRow in range(0, spFl[0]):
-            if not vecSkipSample[oRow]:
+            if not vecExludeMeanPCREff[oRow]:
                 if not vecNoAmplification[oRow]:
                     if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
                         comThreshSum += math.log(threshold[vecTarget[oRow]])
@@ -15375,13 +15382,13 @@ class Run:
             # Calculating all choices takes less time then to recalculate
             pcreff_Skip = WoL_PCR_Eff.copy()
             pcreff_Skip[vecTooLowCqEff] = np.nan
-            pcreff_Skip[vecSkipSample] = np.nan
+            pcreff_Skip[vecExludeMeanPCREff] = np.nan
             pcreff_Skip[pcreff_NoNaN < 1.001] = np.nan
             pcreff_Skip[~(vecTarget == tar)] = np.nan
 
             pcreff_indiv_Skip = indiv_PCR_Eff.copy()
             pcreff_indiv_Skip[vecTooLowCqEff] = np.nan
-            pcreff_indiv_Skip[vecSkipSample] = np.nan
+            pcreff_indiv_Skip[vecExludeMeanPCREff] = np.nan
             pcreff_indiv_Skip[pcreff_NoNaN < 1.001] = np.nan
             pcreff_indiv_Skip[~(vecTarget == tar)] = np.nan
 
@@ -17045,6 +17052,8 @@ def main():
     parser.add_argument('--ignoreExclusion', action='store_true', help='LinRegPCR: ignore the exclusion field')
     parser.add_argument('--saveRaw', metavar="raw_data.csv",
                         help='LinRegPCR & MeltCurveAnalysis: output file for raw (unmodified) data')
+    parser.add_argument('--saveRawFixed', metavar="raw_fixed_data.csv",
+                        help='LinRegPCR & MeltCurveAnalysis: output file for fixed raw (unmodified) data')
     parser.add_argument('--saveBaslineCorr', metavar="baseline_corrected.csv",
                         help='LinRegPCR: output file for baseline corrected data')
     parser.add_argument('-mca', '--meltCurveAnalysis', metavar="data.rdml", dest='meltCurveAnalysis',
@@ -17182,6 +17191,7 @@ def main():
         cli_verbose = False
         cli_saveRDML = False
         cli_saveRawData = False
+        cli_saveRawFixedData = False
         cli_saveBaselineData = False
         cli_saveResultData = False
 
@@ -17205,6 +17215,8 @@ def main():
             cli_saveRDML = True
         if args.saveRaw:
             cli_saveRawData = True
+        if args.saveRawFixed:
+            cli_saveRawFixedData = True
         if args.saveBaslineCorr:
             cli_saveBaselineData = True
         if args.saveResults:
@@ -17214,7 +17226,7 @@ def main():
                                        excludeNoPlateau=cli_excludeNoPlateau, excludeEfficiency=cli_excludeEfficiency,
                                        excludeInstableBaseline=cli_excludeInstableBaseline,
                                        commaConv=cli_commaConv, ignoreExclusion=cli_ignoreExclusion,
-                                       saveRaw=cli_saveRawData, saveBaslineCorr=cli_saveBaselineData,
+                                       saveRaw=cli_saveRawData, saveRawFixed=cli_saveRawFixedData, saveBaslineCorr=cli_saveBaselineData,
                                        saveResultsList=False, saveResultsCSV=cli_saveResultData,
                                        verbose=cli_verbose)
 
@@ -17227,6 +17239,18 @@ def main():
                 with open(args.saveRaw, "w") as cli_f:
                     cli_ResStr = ""
                     for cli_row in cli_result["rawData"]:
+                        for cli_col in cli_row:
+                            if type(cli_col) is float:
+                                cli_ResStr += "{0:0.3f}".format(cli_col) + "\t"
+                            else:
+                                cli_ResStr += str(cli_col) + "\t"
+                        cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
+                    cli_f.write(cli_ResStr)
+        if args.saveRawFixed:
+            if "rawData" in cli_result:
+                with open(args.saveRawFixed, "w") as cli_f:
+                    cli_ResStr = ""
+                    for cli_row in cli_result["rawDataFixed"]:
                         for cli_col in cli_row:
                             if type(cli_col) is float:
                                 cli_ResStr += "{0:0.3f}".format(cli_col) + "\t"
