@@ -14320,119 +14320,90 @@ class Run:
                    "sample type",  # 3
                    "sample nucleotide",  # 4
                    "target",   # 5
-                                # Target Type!!
-                                # dye !!!
-                   "target chemistry",  # 6
-                   "excluded",   # 7
-                   "note",   # 8
-                   "baseline",   # 9
-                   "plateau",   # 10
-                   "plateau / baseline",   # 11
-                   "lower limit",   # 12  ####
-                   "upper limit",   # 13 ####
+                   "target type",  # 6       
+                   "target dye",  #7
+                   "target chemistry",  # 8
+                   "excluded",   # 9
+                   "note",   # 10
+                   "baseline",   # 11
+                   "plateau",   # 12
+                   "plateau / baseline",   # 13
                    "n in log phase",   # 14
-                   "last log cycle",   # 15
-                   "n included",   # 16
-                   "indiv PCR eff",   # 17
-                   "R2",   # 18
-                   "PCR eff",   # 19
-                   "standard error of PCR eff",   # 20
-                   "threshold",  # 21
-                   "Cq",   # 22
-                   "indiv Ncopy",   # 23
-                   "Ncopy",   # 24
-                   "amplification",   # 25
-                   "baseline error",   # 26
-                   "instable baseline",   # 27  ###
-                   "plateau",   # 28
-                   "noisy sample",   # 29   ###
+                   "n included",   # 15
+                   "last log cycle",   # 16
+                   "indiv PCR eff x",  # 17
+                   "indiv PCR eff y",  # 18                
+                   "indiv PCR eff",   # 19
+                   "R2",   # 20
+                   "PCR eff",   # 21
+                   "standard error of PCR eff",   # 22
+                   "TD0 fluorescence",  # 23
+                   "TD0",   # 24
+                   "indiv Ncopy",   # 25
+                   "Ncopy",   # 26
+                   "amplification",   # 27
+                   "baseline error",   # 28
+                   "plateau",   # 29
                    "excl PCR efficiency",   # 30
-                   "short log lin phase",   # 31   ####
-                   "Cq is shifting",   # 32   ###
-                   "too low Cq eff",   # 33    ###
-                   "too low Cq N0",   # 34   ###
-                   "used for W-o-L setting",   # 35  ###
-                   "nAmpli",   # 36
-				   "vol",   # 37
-				   "nCopyFact",   # 38
-				   "dyeConc",   # 39
-				   "primer len for",   # 40
-				   "primer conc for",   # 41
-				   "primer len rev",   # 42
-				   "primer conc rev",   # 43
-				   "probe1 len",   # 44
-				   "probe1 conc",   # 45
-				   "probe2 len",   # 46
-				   "probe2 conc",   # 47
-				   "amplicon len",  # 48
-                   "del threshold",
-                   "del N0",
-                   "del ncopy",
-                   "del fact",
-                   "indiv PCR eff x",
-                   "indiv PCR eff y",
-                   "indiv PCR eff L",
-                   "indiv PCR eff H",
-                   "indiv PCR eff r2"
-                   ]]   # 48
+                   "used for mean PCR efficiency",   # 31
+                   "nAmpli",   # 32
+                   "vol",   # 33
+                   "nCopyFact",   # 34
+                   "dyeConc",   # 35
+                   "primer len for",   # 36
+                   "primer conc for",   # 37
+                   "primer len rev",   # 38
+                   "primer conc rev",   # 39
+                   "probe1 len",   # 40
+                   "probe1 conc",   # 41
+                   "probe2 len",   # 42
+                   "probe2 conc",   # 43
+                   "amplicon len"]]   # 44
         rar_id = 0
         rar_well = 1
         rar_sample = 2
         rar_sample_type = 3
         rar_sample_nucleotide = 4
         rar_tar = 5
-        rar_tar_chemistry = 6
-        rar_excl = 7
-        rar_note = 8
-        rar_baseline = 9
-        rar_plat_val = 10
-        rar_plat_base = 11
-        rar_lower_limit = 12
-        rar_upper_limit = 13
+        rar_tar_type = 6
+        rar_tar_dye = 7
+        rar_tar_chemistry = 8
+        rar_excl = 9
+        rar_note = 10
+        rar_baseline = 11
+        rar_plat_val = 12
+        rar_plat_base = 13
         rar_n_log = 14
-        rar_stop_log = 15
-        rar_n_included = 16
-        rar_indiv_PCR_eff = 17
-        rar_indiv_PCR_Eff_r2 = 57
-        rar_indiv_PCR_eff_x = 53
-        rar_indiv_PCR_eff_y = 54
-        rar_R2 = 18
-        rar_PCR_eff = 19
-        rar_PCR_eff_err = 20
-        rar_threshold = 21
-        rar_Cq = 22
-        rar_indiv_Ncopy = 23
-        rar_Ncopy = 24
-        rar_amplification = 25
-        rar_baseline_error = 26
-        rar_instable_baseline = 27
-        rar_plateau = 28
-        rar_noisy_sample = 29
+        rar_n_included = 15
+        rar_stop_log = 16
+        rar_indiv_PCR_eff_x = 17
+        rar_indiv_PCR_eff_y = 18
+        rar_indiv_PCR_eff = 19
+        rar_R2 = 20
+        rar_PCR_eff = 21
+        rar_PCR_eff_err = 22
+        rar_TD0_fluor = 23
+        rar_TD0 = 24
+        rar_indiv_Ncopy = 25
+        rar_Ncopy = 26
+        rar_amplification = 27
+        rar_baseline_error = 28
+        rar_plateau = 29
         rar_excl_eff = 30
-        rar_shortLogLinPhase = 31
-        rar_CqIsShifting = 32
-        rar_tooLowCqEff = 33
-        rar_tooLowCqN0 = 34
-        rar_isUsedForMeanPCREff = 35
-        rar_nAmpli = 36
-        rar_vol = 37
-        rar_nCopyFact = 38
-        rar_dyeConc = 39
-        rar_primer_len_for = 40
-        rar_primer_conc_for = 41
-        rar_primer_len_rev = 42
-        rar_primer_conc_rev = 43
-        rar_probe1_len = 44
-        rar_probe1_conc = 45
-        rar_probe2_len = 46
-        rar_probe2_conc = 47
-        rar_amplicon_len = 48
-        del_threshold = 49
-        del_N0 = 50
-        del_ncopy = 51
-        del_fact = 52
-        rar_indiv_PCR_eff_L = 55
-        rar_indiv_PCR_eff_H = 56
+        rar_isUsedForMeanPCREff = 31
+        rar_nAmpli = 32
+        rar_vol = 33
+        rar_nCopyFact = 34
+        rar_dyeConc = 35
+        rar_primer_len_for = 36
+        rar_primer_conc_for = 37
+        rar_primer_len_rev = 38
+        rar_primer_conc_rev = 39
+        rar_probe1_len = 40
+        rar_probe1_conc = 41
+        rar_probe2_len = 42
+        rar_probe2_conc = 43
+        rar_amplicon_len = 44
 
         # Constand default values
         AVOGADRO = 6.02214076e23
@@ -14541,12 +14512,11 @@ class Run:
                 noteVal = re.sub(r'^;|;$', '', noteVal)
                 # To update the RDML data later
                 rdmlElemData.append(react_data)
-                res.append([posId, pWell, sample, "",  "",  target, "", excl, noteVal, "",
+                res.append([posId, pWell, sample, "",  "",  target, "", "", "", excl,
+                            noteVal, "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
                             "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", "",
-                            "", "", "", "", "",  "", "", "", "", "", 
-                            "", "", "", "", "",  "", "", "" ])  # Must match header length
+                            "", "", "", "", ""   ])  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
                     cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc"))))
@@ -14600,6 +14570,8 @@ class Run:
 
         # Now gather the information bound to the target, supplemented by the dye
         dicLU_targets = {}
+        dicLU_target_type = {}
+        dicLU_target_dyeID = {}
         dicLU_target_dyeConc = {}
         dicLU_target_nCopyFact = {}
         dicLU_target_fw_len = {}
@@ -14615,6 +14587,10 @@ class Run:
         for lu_target in luTargets:
             if lu_target.attrib['id'] == "":
                 continue
+            lu_tarType = _get_first_child_text(lu_target, "type") 
+            if lu_tarType == "":
+                lu_tarType = "toi"
+            dicLU_target_type[lu_target.attrib['id']] = lu_tarType
             forId = _get_first_child(lu_target, "dyeId")
             lu_dyeId = ""
             if forId is not None:
@@ -14627,8 +14603,8 @@ class Run:
 
             dicLU_target_fw_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
             dicLU_target_rv_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
-            dicLU_target_probe1_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
-            dicLU_target_probe2_len[lu_target.attrib['id']] = DEF_PRIMER_LEN
+            dicLU_target_probe1_len[lu_target.attrib['id']] = -1.0
+            dicLU_target_probe2_len[lu_target.attrib['id']] = -1.0
             dicLU_target_amp_len[lu_target.attrib['id']] = DEF_AMPLICON_LEN
             dicLU_target_fw_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
             dicLU_target_rv_conc[lu_target.attrib['id']] = DEF_PRIMER_CONC
@@ -14637,6 +14613,7 @@ class Run:
             # Overwrite if it is provided by dye
             if lu_dyeId != "" and lu_dyeId in dicLU_dyes:
                 dicLU_targets[lu_target.attrib['id']] = dicLU_dyes[lu_dyeId]
+                dicLU_target_dyeID[lu_target.attrib['id']] = lu_dyeId
                 dicLU_target_dyeConc[lu_target.attrib['id']] = dicLU_dye_conc[lu_dyeId]
                 dicLU_target_nCopyFact[lu_target.attrib['id']] = dicLU_dye_nCopyFact[lu_dyeId]
             # Read in length of sequences of primers, probes and amplicons
@@ -14700,6 +14677,8 @@ class Run:
                 else:
                     res[row][rar_sample_nucleotide] = "ss"
             if res[row][rar_tar] != "":
+                res[row][rar_tar_type] = dicLU_target_type[res[row][rar_tar]]
+                res[row][rar_tar_dye] = dicLU_target_dyeID[res[row][rar_tar]]
                 res[row][rar_tar_chemistry] = dicLU_targets[res[row][rar_tar]]
                 res[row][rar_vol] = reactVol[row]
                 res[row][rar_nCopyFact] = dicLU_target_nCopyFact[res[row][rar_tar]]
@@ -14952,7 +14931,6 @@ class Run:
         logStart = np.zeros(spFl[0], dtype=np.int64)
         logStop = -np.ones(spFl[0], dtype=np.int64)
         logIncl = -np.ones(spFl[0], dtype=np.int64)
-        usedStart = -np.ones(spFl[0], dtype=np.int64)
         indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_x = -np.ones(spFl[0], dtype=np.float64)
         indiv_PCR_Eff_y = -np.ones(spFl[0], dtype=np.float64)
@@ -14982,7 +14960,6 @@ class Run:
                 baselineError[row] = 2
                 continue
             logIncl[row] = stop - start + 1
-            usedStart[row] = start
             logStop[row] = stop
             selSection = posFluor[row][start - 1:stop]
             # Check if the baseline is within the range
@@ -15086,7 +15063,6 @@ class Run:
         vecExclPCREff = np.zeros(spFl[0], dtype=np.bool_)
         mean_PCR_Eff = np.zeros(spFl[0], dtype=np.float64)
         mean_PCR_Eff_Err = np.zeros(spFl[0], dtype=np.float64)
-        correl = np.zeros(spFl[0], dtype=np.float64)
 
         # Median values calculation
         calc_mean_PCR_Eff = indiv_PCR_Eff.copy()
@@ -15190,20 +15166,18 @@ class Run:
                 res[rRow][rar_plat_base] = meanPlateau[rRow] / res[rRow][rar_baseline]
             else:
                 res[rRow][rar_plat_base] = 0.0
-            res[rRow][rar_lower_limit] = usedStart[row]
-            res[rRow][rar_upper_limit] = logStop[rRow]
-
+            res[rRow][rar_indiv_PCR_eff_x] = indiv_PCR_Eff_x[rRow]
+            res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]
             res[rRow][rar_n_log] = logStop[rRow] - logStart[rRow] + 1
             res[rRow][rar_stop_log] = logStop[rRow]
             res[rRow][rar_n_included] = logIncl[rRow]
-
             res[rRow][rar_indiv_PCR_eff] = indiv_PCR_Eff[rRow]
-            res[rRow][rar_R2] = correl[rRow] * correl[rRow]
+            res[rRow][rar_R2] = indiv_PCR_Eff_r2[rRow]
             res[rRow][rar_PCR_eff] = mean_PCR_Eff[rRow]
             res[rRow][rar_PCR_eff_err] = mean_PCR_Eff_Err[rRow]
 
-            res[rRow][rar_threshold] = td0_fluor[rRow]
-            res[rRow][rar_Cq] = rawTD0[rRow]
+            res[rRow][rar_TD0_fluor] = td0_fluor[rRow]
+            res[rRow][rar_TD0] = rawTD0[rRow]
             res[rRow][rar_indiv_Ncopy] = -1.0
             res[rRow][rar_Ncopy] = -1.0
             ss_fix = 1.0
@@ -15221,22 +15195,9 @@ class Run:
  
             res[rRow][rar_amplification] = vecAmplification[rRow]
             res[rRow][rar_baseline_error] = baselineError[rRow]
-            res[rRow][rar_instable_baseline] = False  # TODO: Removw
             res[rRow][rar_plateau] = not vecNoPlateau[rRow]
-            res[rRow][rar_noisy_sample] = False  # TODO: Removw
             res[rRow][rar_excl_eff] = vecExclPCREff[rRow]
-            res[rRow][rar_shortLogLinPhase] = False  # TODO: Removw
-            res[rRow][rar_CqIsShifting] = False  # TODO: Removw
-            res[rRow][rar_tooLowCqEff] = False  # TODO: Removw
-            res[rRow][rar_tooLowCqN0] = False  # TODO: Removw
             res[rRow][rar_isUsedForMeanPCREff] = not vecExludeMeanPCREff[rRow]
-
-
-            res[rRow][rar_indiv_PCR_eff_x] = indiv_PCR_Eff_x[rRow]
-            res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]  # TODO: Needed?
-            res[rRow][rar_indiv_PCR_eff_L] = indiv_PCR_Eff_L[rRow]
-            res[rRow][rar_indiv_PCR_eff_H] = indiv_PCR_Eff_H[rRow]
-            res[rRow][rar_indiv_PCR_Eff_r2] = indiv_PCR_Eff_r2[rRow]
 
         ###################################
         # calculate excl and note strings #
@@ -15246,18 +15207,16 @@ class Run:
             noteVal = _cleanErrorString(res[rRow][rar_note], "amp")
 
             ncopy = res[rRow][rar_Ncopy]
-            diffMeanEff = False #  res[rRow][rar_effOutlier_Skip_Plat_Out]
+            meanEffVal = mean_PCR_Eff[rRow]
 
             if res[rRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt"]:
                 if ncopy > 0.0:
                     exclVal += "amplification in negative control;"
-                    if res[rRow][rar_baseline_error]:
-                        exclVal += "baseline error;"
                 else:
                     if res[rRow][rar_amplification]:
                         exclVal += "amplification in negative control;"
-                    if res[rRow][rar_baseline_error]:
-                        exclVal += "baseline error;"
+                if res[rRow][rar_baseline_error]:
+                    noteVal += "baseline error;"
                 if res[rRow][rar_plateau]:
                     noteVal += "plateau in negative control;"
 
@@ -15268,13 +15227,9 @@ class Run:
                     if not res[rRow][rar_amplification]:
                         exclVal += "no amplification in positive control;"
                 if res[rRow][rar_baseline_error]:
-                    exclVal += "baseline error in positive control;"
-                if res[rRow][rar_instable_baseline]:
-                    exclVal += "instable baseline in positive control;"
+                    noteVal += "baseline error in positive control;"
                 if not res[rRow][rar_plateau]:
                     noteVal += "no plateau in positive control;"
-                if res[rRow][rar_noisy_sample]:
-                    noteVal += "noisy sample in positive control;"
 
                 if ncopy > 100000000.0:
                     noteVal += "Ncopy > 100 Mio;"
@@ -15284,31 +15239,28 @@ class Run:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
-                if diffMeanEff:
-                    if not np.isfinite(res[rRow][rar_indiv_PCR_eff]):
+                if excludeEfficiency in ["outlier", "mean"]:
+                    if not np.isfinite(res[rRow][rar_indiv_PCR_eff]) or res[rRow][rar_indiv_PCR_eff] < 1.0:
                         noteVal += "no indiv PCR eff can be calculated;"
                     else:
                         if excludeEfficiency == "outlier":
                             noteVal += "PCR efficiency outlier;"
-                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - res[rRow][rar_PCR_eff]
-                        if diffFromMean > 0.0:
-                            noteVal += "indiv PCR eff is higher than mean PCR eff by "
-                            noteVal += "{:.3f}".format(diffFromMean) + ";"
-                        else:
-                            noteVal += "indiv PCR eff is lower than mean PCR eff by "
-                            noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
+                        if excludeEfficiency == "mean":
+                            diffFromMean = res[rRow][rar_indiv_PCR_eff] - res[rRow][rar_PCR_eff]
+                            if diffFromMean > 0.0:
+                                noteVal += "indiv PCR eff is higher than mean PCR eff by "
+                                noteVal += "{:.3f}".format(diffFromMean) + ";"
+                            else:
+                                noteVal += "indiv PCR eff is lower than mean PCR eff by "
+                                noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
             if res[rRow][rar_sample_type] in ["unkn"]:
                 if not res[rRow][rar_amplification]:
                     noteVal += "no amplification;"
                 if res[rRow][rar_baseline_error]:
                     noteVal += "baseline error;"
-                if res[rRow][rar_instable_baseline]:
-                    noteVal += "instable baseline;"
                 if not res[rRow][rar_plateau]:
                     noteVal += "no plateau;"
-                if res[rRow][rar_noisy_sample]:
-                    noteVal += "noisy sample;"
 
                 if ncopy > 100000000.0:
                     noteVal += "Ncopy > 100 Mio;"
@@ -15318,19 +15270,20 @@ class Run:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
-                if diffMeanEff:
-                    if not np.isfinite(res[rRow][rar_indiv_PCR_eff]):
+                if excludeEfficiency in ["outlier", "mean"]:
+                    if not np.isfinite(res[rRow][rar_indiv_PCR_eff]) or res[rRow][rar_indiv_PCR_eff] < 1.0:
                         noteVal += "no indiv PCR eff can be calculated;"
                     else:
                         if excludeEfficiency == "outlier":
                             noteVal += "PCR efficiency outlier;"
-                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
-                        if diffFromMean > 0.0:
-                            noteVal += "indiv PCR eff is higher than mean PCR eff by "
-                            noteVal += "{:.3f}".format(diffFromMean) + ";"
-                        else:
-                            noteVal += "indiv PCR eff is lower than mean PCR eff by "
-                            noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
+                        if excludeEfficiency == "mean":
+                            diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
+                            if diffFromMean > 0.0:
+                                noteVal += "indiv PCR eff is higher than mean PCR eff by "
+                                noteVal += "{:.3f}".format(diffFromMean) + ";"
+                            else:
+                                noteVal += "indiv PCR eff is lower than mean PCR eff by "
+                                noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
             # Write back
             exclVal = re.sub(r'^;|;$', '', exclVal)
@@ -15415,17 +15368,14 @@ class Run:
 
             for rRow in range(0, len(res)):
                 for rCol in range(0, len(res[rRow])):
-                    if rCol in [rar_amplification, rar_baseline_error, rar_instable_baseline, rar_plateau, rar_noisy_sample,
-                                rar_excl_eff, rar_shortLogLinPhase, rar_CqIsShifting,
-                                rar_tooLowCqEff, rar_tooLowCqN0, rar_isUsedForMeanPCREff]:
+                    if rCol in [rar_amplification, rar_plateau, rar_excl_eff, rar_isUsedForMeanPCREff]:
                         if res[rRow][rCol]:
                             retCSV += "Yes\t"
                         else:
                             retCSV += "No\t"
-                    elif rCol in [rar_baseline, rar_lower_limit, rar_upper_limit,
-                                  rar_indiv_PCR_eff, rar_R2, rar_PCR_eff, rar_PCR_eff_err]:
+                    elif rCol in [rar_baseline, rar_indiv_PCR_eff, rar_R2, rar_PCR_eff, rar_PCR_eff_err]:
                         retCSV += "{0:0.6f}".format(float(res[rRow][rCol])) + "\t"
-                    elif rCol in [rar_Cq, rar_indiv_Ncopy, rar_Ncopy]:
+                    elif rCol in [rar_TD0, rar_indiv_Ncopy, rar_Ncopy]:
                         retCSV += "{0:0.4f}".format(float(res[rRow][rCol])) + "\t"
                       # retCSV += "{0:0.6e}".format(float(res[rRow][rCol])) + "\t"
                     else:

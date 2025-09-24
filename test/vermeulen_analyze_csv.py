@@ -37,6 +37,52 @@ wd = open(out_file_diff, "w")
 data = {}
 noCq = False
 
+rar_id = 0
+rar_well = 1
+rar_sample = 2
+rar_sample_type = 3
+rar_sample_nucleotide = 4
+rar_tar = 5
+rar_tar_type = 6
+rar_tar_dye = 7
+rar_tar_chemistry = 8
+rar_excl = 9
+rar_note = 10
+rar_baseline = 11
+rar_plat_val = 12
+rar_plat_base = 13
+rar_n_log = 14
+rar_n_included = 15
+rar_stop_log = 16
+rar_indiv_PCR_eff_x = 17
+rar_indiv_PCR_eff_y = 18
+rar_indiv_PCR_eff = 19
+rar_R2 = 20
+rar_PCR_eff = 21
+rar_PCR_eff_err = 22
+rar_TD0_fluor = 23
+rar_TD0 = 24
+rar_indiv_Ncopy = 25
+rar_Ncopy = 26
+rar_amplification = 27
+rar_baseline_error = 28
+rar_plateau = 29
+rar_excl_eff = 30
+rar_isUsedForMeanPCREff = 31
+rar_nAmpli = 32
+rar_vol = 33
+rar_nCopyFact = 34
+rar_dyeConc = 35
+rar_primer_len_for = 36
+rar_primer_conc_for = 37
+rar_primer_len_rev = 38
+rar_primer_conc_rev = 39
+rar_probe1_len = 40
+rar_probe1_conc = 41
+rar_probe2_len = 42
+rar_probe2_conc = 43
+rar_amplicon_len = 44
+
 if use_results:
     with open("data_vermeulen_methods_quant.csv", newline='') as tfile:
         table = list(csv.reader(tfile, delimiter=";"))
@@ -92,7 +138,7 @@ if use_results:
 
 else:
     noCq = True
-    col = 26
+    col = rar_Ncopy + 2
     genes = ["AHCY", "AKR1C1", "ARHGEF7", "BIRC5", "CAMTA1", "CAMTA2", "CD44", "CDCA5", "CDH5", "CDKN3", 
              "CLSTN1", "CPSG3", "DDC", "DPYSL3", "ECEL1", "ELAVL4", "EPB41L3", "EPHA5", "EPN2", "FYN", 
              "GNB1", "HIVEP2", "HMBS", "HPRT1", "IGSF4", "INPP1", "MAP2K4", "MAP7", "MAPT", "MCM2", 
@@ -106,25 +152,25 @@ else:
         for row in range(1, len(table)):
             if table[row][0] != "biomarker_set":
                 continue
-            geneName = table[row][7].split("_")
+            geneName = table[row][rar_tar + 2].split("_")
             if geneName[0] not in genes:
                 continue
-            if table[row][4] not in sampes:
+            if table[row][rar_sample + 2] not in sampes:
                 continue
             if geneName[0] not in data:
                     data[geneName[0]] = {}
                     data[geneName[0]]["raw"] = {}
-            if table[row][4] not in data[geneName[0]]["raw"]:
-                data[geneName[0]]["raw"][table[row][4]] = []
+            if table[row][rar_sample + 2] not in data[geneName[0]]["raw"]:
+                data[geneName[0]]["raw"][table[row][rar_sample + 2]] = []
             try:
                 vFloat = float(table[row][col])
             except ValueError:
-                print("Error " + str(geneName[0]) + " " + str(table[row][4]) + " : " + table[row][col])
+                print("Error " + str(geneName[0]) + " " + str(table[row][rar_sample + 2]) + " : " + table[row][col])
             else:
                 if math.isfinite(vFloat):
-                    data[geneName[0]]["raw"][table[row][4]].append(vFloat)
+                    data[geneName[0]]["raw"][table[row][rar_sample + 2]].append(vFloat)
                 else:
-                    print("Error " + str(geneName[0]) + " " + str(table[row][4]) + " : " + table[row][col])
+                    print("Error " + str(geneName[0]) + " " + str(table[row][rar_sample + 2]) + " : " + table[row][col])
 
 targets = sorted(list(data.keys()))
 

@@ -28,6 +28,55 @@ out_json = "temp_test.json"
 
 vermeulenNcopyCol = 24
 
+rar_id = 0
+rar_well = 1
+rar_sample = 2
+rar_sample_type = 3
+rar_sample_nucleotide = 4
+rar_tar = 5
+rar_tar_type = 6
+rar_tar_dye = 7
+rar_tar_chemistry = 8
+rar_excl = 9
+rar_note = 10
+rar_baseline = 11
+rar_plat_val = 12
+rar_plat_base = 13
+rar_n_log = 14
+rar_n_included = 15
+rar_stop_log = 16
+rar_indiv_PCR_eff_x = 17
+rar_indiv_PCR_eff_y = 18
+rar_indiv_PCR_eff = 19
+rar_R2 = 20
+rar_PCR_eff = 21
+rar_PCR_eff_err = 22
+rar_TD0_fluor = 23
+rar_TD0 = 24
+rar_indiv_Ncopy = 25
+rar_Ncopy = 26
+rar_amplification = 27
+rar_baseline_error = 28
+rar_plateau = 29
+rar_excl_eff = 30
+rar_isUsedForMeanPCREff = 31
+rar_nAmpli = 32
+rar_vol = 33
+rar_nCopyFact = 34
+rar_dyeConc = 35
+rar_primer_len_for = 36
+rar_primer_conc_for = 37
+rar_primer_len_rev = 38
+rar_primer_conc_rev = 39
+rar_probe1_len = 40
+rar_probe1_conc = 41
+rar_probe2_len = 42
+rar_probe2_conc = 43
+rar_amplicon_len = 44
+
+
+
+
 def saveCSV(arr, fil):
     outF = open(fil, "w")
     for row in range(0, len(arr)):
@@ -366,21 +415,21 @@ for exp in expList:
         res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
-                if resTab[tabRow][3] in ["unkn", "std"]:
-                    if float(resTab[tabRow][vermeulenNcopyCol]) > 5.0:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
                         if exp["id"] not in linRegRes:
                             linRegRes[exp["id"]] = {}
                         if run["id"] not in linRegRes[exp["id"]]:
                             linRegRes[exp["id"]][run["id"]] = {}
-                        if resTab[tabRow][5] not in linRegRes[exp["id"]][run["id"]]: # Target
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]] = {}
-                        if resTab[tabRow][5] not in colTar:
-                            colTar.append(resTab[tabRow][5])
-                        if resTab[tabRow][2] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]:  # Sample
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]][resTab[tabRow][2]] = {}
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]][resTab[tabRow][2]]["Ncopy"] = []
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                        if resTab[tabRow][rar_tar] not in colTar:
+                            colTar.append(resTab[tabRow][rar_tar])
+                        if resTab[tabRow][rar_sample] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]:  # Sample
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"] = []
                         
-                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]][resTab[tabRow][2]]["Ncopy"].append(resTab[tabRow][24])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
 
         for tar in colTar:
             for sam in linRegRes[exp["id"]][run["id"]][tar]:
@@ -483,21 +532,21 @@ for exp in expList:
                 else:
                     ww.write(outCell + "\n")
             if startLine == 1:
-                if resTab[tabRow][3] in ["unkn", "std"]:
-                    if float(resTab[tabRow][vermeulenNcopyCol]) > 5.0:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
                         if exp["id"] not in linRegRes:
                             linRegRes[exp["id"]] = {}
                         if run["id"] not in linRegRes[exp["id"]]:
                             linRegRes[exp["id"]][run["id"]] = {}
-                        if resTab[tabRow][5] not in linRegRes[exp["id"]][run["id"]]:  # Target
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]] = {}
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["PCR Eff indiv"] = []
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["Ncopy indiv"] = []
-                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["TD0"] = []
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCR Eff indiv"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy indiv"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
                         
-                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["PCR Eff indiv"].append(resTab[tabRow][17])  # individual PCR Efficiency
-                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["Ncopy indiv"].append(resTab[tabRow][23])  # individual Ncopy
-                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][5]]["TD0"].append(resTab[tabRow][22])  # TD0
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCR Eff indiv"].append(resTab[tabRow][rar_indiv_PCR_eff])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy indiv"].append(resTab[tabRow][rar_indiv_Ncopy])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])
 
                         reactionDataTrue += 1
                     else:
@@ -863,8 +912,8 @@ for exp in expList:
                 else:
                     ww.write(outCell + "\n")
             if startLine == 1:
-                if resTab[tabRow][3] in ["unkn", "std"]:
-                    if float(resTab[tabRow][vermeulenNcopyCol]) > 5.0:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
                         reactionDataTrue += 1
                     else:
                         reactionDataFalse += 1
@@ -875,7 +924,7 @@ curDa["reactionDataSum"] = reactionDataFalse + reactionDataTrue
 printNice("Failing Reactions: ", curDa["reactionDataFalse"], laDa["reactionDataFalse"], 1, "-" , 0)
 printNice("Sum Reactions: ", curDa["reactionDataSum"], laDa["reactionDataSum"], 1, "+", 0)
 
-            
+
 ww.close()
 rdd.save("temp_vermeulen_linregpcr.rdml")
 endTime = time.time()
