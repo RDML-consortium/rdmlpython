@@ -1025,94 +1025,6 @@ def _lrp_testSlopes2(fluor):
         else:
             slope[j] = -999.9
 
-    ssx = 0.0
-    sxy = 0.0
-    slopei = 0.0
-
-    sumx = 0.0
-    sumy = 0.0
-    sumx2 = 0.0
-    sumxy = 0.0
-    sumy2 = 0.0
-    nincl = 0.0
-    for i in range(0, len(fluor)):
-        sumx += i
-        sumy += np.log10(fluor[i])
-        sumx2 += i * i
-        sumxy += i * np.log10(fluor[i])
-        sumy2 += np.log10(fluor[i]) * np.log10(fluor[i])
-        nincl += 1
-
-    if nincl != 0.0:
-        ssx = sumx2 - sumx * sumx / nincl
-        ssy = sumy2 - sumy * sumy / nincl
-        sxy = sumxy - sumx * sumy / nincl
-        slopei = sxy / ssx
-        interc = sumy / nincl - slopei * sumx / nincl
-        correll = sxy / np.sqrt(ssx * ssy)
-        indMeanX = sumx / nincl
-        indMeanY = np.power(10, sumy / nincl)
-        pcrEff = np.power(10, slopei)
-        nnulls = np.power(10, interc)
-
-    else:
-        slopei = -999.9
-        interc = -999.9
-        pcrEff = -999.9
-        indMeanX = -999.9
-        indMeanY = -999.9
-        correll = -999.9
-        nnulls = -999.9
-
-    diffArr = np.zeros(10, dtype=np.float64)
-
-    stringP = ""
-    stringBest = ""
-    stringDiff = ""
-    for i in range(0, len(fluor)):
-        stringP += str(np.log10(fluor[i])) + "\t"
-        stringBest += str(interc + slopei * i) + "\t"
-        diffArr[i] = np.log10(fluor[i]) - interc - slopei * i
-        stringDiff += str(diffArr[i]) + "\t"
-    tail = 0.0
-    center = 0.0
-    if len(fluor) < 4:
-        print("Alarm 3")
-    if len(fluor) > 9:
-        print("Alarm 10")
-#    print(stringP)
- #   print(stringBest)
-  #  print(stringDiff)
-    if len(fluor) == 4:
-        tail = diffArr[0] + diffArr[3]
-        center = diffArr[1] + diffArr[2]
-    if len(fluor) == 5:
-        tail = diffArr[0] + diffArr[4] + 1.5 * (diffArr[1] + diffArr[3])
-        center = diffArr[2] + 0.5 * (diffArr[1] + diffArr[3])
-    if len(fluor) == 6:
-        tail = diffArr[0] + diffArr[5] + 0.5 * (diffArr[1] + diffArr[4])
-        center = diffArr[2] + diffArr[3] + 0.5 * (diffArr[1] + diffArr[4])
-    if len(fluor) == 7:
-        tail = diffArr[0] + diffArr[7] + 1.5 * (diffArr[1] + diffArr[5])
-        center = diffArr[2] + diffArr[3] + diffArr[4] + 0.5 * (diffArr[1] + diffArr[5])
-    if len(fluor) == 8:
-        tail = diffArr[0] + diffArr[1] + diffArr[6] + diffArr[7]
-        center = diffArr[2] + diffArr[3] + diffArr[4] + diffArr[5]
-    if len(fluor) == 9:
-        tail = diffArr[0] + diffArr[1] + diffArr[7] + diffArr[8] + 0.5 * (diffArr[2] + diffArr[6])
-        center = diffArr[3] + diffArr[4] + diffArr[5] + 1.5 * (diffArr[2] + diffArr[6])
-    
-    sss = "-"
-    if slope[0] > slope[1]:
-        sss = "+"
-    
-    # print(str(np.power(10, slope[0])) + " -- " +  str(np.power(10, slope[1])) + " -- " +  str(np.power(10, slopei)) + " -- " +  str(np.power(10, slopei) - np.power(10, slope[0])) + " dd " +  str(np.power(10, slopei) - np.power(10, slope[1])) + "   " + sss  + " x " +  str(correl[0])  + " x " +  str(correl[1]) )
-    zzz = slope[1]
-    if center < 0.0:
-        zzz -= 0.01
-    else:
-        zzz += 0.01
-
     return [slope[0], slope[1], correl[0], correl[1]]
 
 
@@ -14968,8 +14880,6 @@ class Run:
         indiv_PCR_Eff_L = np.ones(spFl[0], dtype=np.float64)
 
 
-        backgroundNew = -np.ones(spFl[0], dtype=np.float64)
-
         logStart = np.zeros(spFl[0], dtype=np.int64)
         logStop = np.zeros(spFl[0], dtype=np.int64)
         logIncl = np.zeros(spFl[0], dtype=np.int64)
@@ -15282,196 +15192,83 @@ class Run:
             if check_four_cyc_inc_TD0[row]:
                 if indiv_PCR_Eff[row] > 1.4:
                     vecAmplification[row] = True
-                   # vecExludeMeanPCREff[row] = True
+            if vecAmplification[row] == False:
+               # vecExludeMeanPCREff[row] = True
+               pass
+
+        # Calculate the no plateau reactions
+        # TODO: Implement again
+
+        # vecNoPlateau
 
 
 
 
 
         # TODO: Remove
-        backgroundNew = vecBackground.copy()
         WoL_PCR_Eff = indiv_PCR_Eff.copy()
-
-
-
-
-
-
-        # Slope calculation per react/target - the intercept is never used for now
-        rawMod = posFluor.copy()
-        # print(rawFluor)
-
-        slopeAmp = _lrp_linReg(adp_cyc_min, np.log10(rawMod))
-
-        # Calculate the minimum of fluorescence values per react/target, store it as background
-        # and substract it from the raw fluorescence values
-        vecMinFluor = np.nanmin(rawMod, axis=1)
-        vecBackground = 0.99 * vecMinFluor
-        minCorFluor = rawMod - vecBackground[:, np.newaxis]
-
-        minFluCount = np.ones(minCorFluor.shape, dtype=np.int64)
-        minFluCountSum = np.sum(minFluCount, axis=1)
-        minSlopeAmp = _lrp_linReg(adp_cyc_min, np.log10(minCorFluor))
-        
-        for oRow in range(0, spFl[0]):
-            # Check to detect the negative slopes and the PCR reactions that have an
-            # amplification less than seven the minimum fluorescence
-            if slopeAmp[oRow] < 0 or minSlopeAmp[oRow] < (np.log10(7.0) / minFluCountSum[oRow]):
-                vecNoAmplification[oRow] = True
-
-            # There must be an increase in fluorescence after the amplification.
-            # TODO take the min of all
-            if minCorFluor[oRow, -1] / np.nanmean(minCorFluor[oRow, 0:10]) < 7:
-                vecNoAmplification[oRow] = True
-
-            if not vecNoAmplification[oRow]:
-                IniStopCyc[oRow] = stopCyc[oRow] = maxSD[oRow]
-            else:
-                vecExludeMeanPCREff[oRow] = True
-                stopCyc[oRow] = minCorFluor.shape[1]
-                IniStopCyc[oRow] = stopCyc[oRow]
-
-
-
-            # Get the positions ignoring nan values
-            if vecNoAmplification[oRow] or vecBaselineError[oRow] or stopCyc[oRow] == minCorFluor.shape[1]:
-                vecNoPlateau[oRow] = True
-
-        for row in range(0, spFl[0]):
-            if vecAmplification[row] == vecNoAmplification[row]:
-                print("APMISSUE: " + str(row) + " AMP: " + str(vecAmplification[row]) )
-
-        # Write over
-        vecBackground = backgroundNew
         meanTarEff = {}
+        for row in range(0, spFl[0]):
+            vecNoAmplification[row] = not vecAmplification[row]
 
 
-        vecExludeMeanPCREff[vecExcludedByUser] = True
-
-        ###########################################################
-        # Calculation of the Window of Linearity (WOL) per target #
-        ###########################################################
-
-        WoL_PCR_Eff = indiv_PCR_Eff
 
 
+
+
+
+        #####################################################
+        # Calculation of the mean PCR efficiency per target #
+        #####################################################
+        # Remove no plateau if requested
+        if excludeNoPlateau is True:
+            vecExludeMeanPCREff[vecNoPlateau] = True
 
         # Median values calculation
-        vecSkipSample_Plat = vecExludeMeanPCREff.copy()
-        vecSkipSample_Plat[vecNoPlateau] = True
+        calc_mean_PCR_Eff = indiv_PCR_Eff.copy()
+        calc_mean_PCR_Eff_noNAN = indiv_PCR_Eff.copy()
 
-        # Common threshold calculation
-        comThreshSum = 0.0
-        comThreshNum = 0
-        for oRow in range(0, spFl[0]):
-            if not vecExludeMeanPCREff[oRow]:
-                if not vecNoAmplification[oRow]:
-                    if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
-                        comThreshSum += math.log(threshold[vecTarget[oRow]])
-                        comThreshNum += 1
-        if comThreshNum > 0:
-            threshold[0] = math.exp(comThreshSum / comThreshNum)
-        else:
-            logThreshold = np.log10(threshold[1:])
-            threshold[0] = np.power(10, np.mean(logThreshold))
+        # Remove the bad ones
+        calc_mean_PCR_Eff[vecExludeMeanPCREff] = np.nan
 
+        # Remove PCR efficiency < 1.2 and nan
+        calc_mean_PCR_Eff_noNAN[np.isnan(indiv_PCR_Eff)] = 0.0
+        calc_mean_PCR_Eff[calc_mean_PCR_Eff_noNAN < 1.001] = np.nan  # TODO: 1.2
 
-        pcreff_NoNaN = WoL_PCR_Eff.copy()
-        pcreff_NoNaN[np.isnan(WoL_PCR_Eff)] = 0.0
+        # Mean PCR efficiency is calculated by target
         for tar in range(1, targetsCount):
-            # Calculating all choices takes less time then to recalculate
-            pcreff_Skip = WoL_PCR_Eff.copy()
-            pcreff_Skip[vecTooLowCqEff] = np.nan
-            pcreff_Skip[vecExludeMeanPCREff] = np.nan
-            pcreff_Skip[pcreff_NoNaN < 1.001] = np.nan
-            pcreff_Skip[~(vecTarget == tar)] = np.nan
-
-            pcreff_indiv_Skip = indiv_PCR_Eff.copy()
-            pcreff_indiv_Skip[vecTooLowCqEff] = np.nan
-            pcreff_indiv_Skip[vecExludeMeanPCREff] = np.nan
-            pcreff_indiv_Skip[pcreff_NoNaN < 1.001] = np.nan
-            pcreff_indiv_Skip[~(vecTarget == tar)] = np.nan
-
-            if excludeNoPlateau is True:
-                pcreff_Skip[vecNoPlateau] = np.nan
+            tar_mean_PCR_Eff = calc_mean_PCR_Eff.copy()
+            tar_mean_PCR_Eff[~(vecTarget == tar)] = np.nan
 
             if excludeEfficiency == "mean":
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=RuntimeWarning)
-                    pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
-                for oRow in range(0, spFl[0]):
-                    if tar == vecTarget[oRow]:
-                        if not np.isnan(WoL_PCR_Eff[oRow]):
-                            if (np.isnan(pcreffMedian_Skip) or
-                                    not (pcreffMedian_Skip - pcrEfficiencyExl <= WoL_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                                vecExclEff[oRow] = True
-                pcreff_Skip[vecExclEff] = np.nan
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    pcreffMedian_Skip = np.nanmedian(pcreff_Skip)
-                for oRow in range(0, spFl[0]):
-                    if tar is None or tar == vecTarget[oRow]:
-                        if not np.isnan(WoL_PCR_Eff[oRow]):
-                            if (np.isnan(pcreffMedian_Skip) or
-                                    not (pcreffMedian_Skip - pcrEfficiencyExl <= WoL_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                                vecExclEff[oRow] = True
-                            else:
-                                vecExclEff[oRow] = False
-                        else:
-                            vecExclEff[oRow] = True
-                pcreff_Skip[vecExclEff] = np.nan
-
-                if 0:
-                    with warnings.catch_warnings():
-                        print(pcreff_indiv_Skip)
-                        warnings.simplefilter("ignore", category=RuntimeWarning)
-                        pcreffMedian_Skip = np.nanmedian(pcreff_indiv_Skip)
-                    for oRow in range(0, spFl[0]):
-                        if tar == vecTarget[oRow]:
-                            if not np.isnan(indiv_PCR_Eff[oRow]):
-                                print(str(pcreffMedian_Skip - pcrEfficiencyExl) + " " + str(indiv_PCR_Eff[oRow]) + " " + str(pcreffMedian_Skip + pcrEfficiencyExl))
-                                if (np.isnan(pcreffMedian_Skip) or
-                                        not (pcreffMedian_Skip - pcrEfficiencyExl <= indiv_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                                    vecExclIndivEff[oRow] = True
-                                    print("Removed")
-                    pcreff_indiv_Skip[vecExclIndivEff] = np.nan
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    pcreffMedian_Skip = np.nanmedian(pcreff_indiv_Skip)
-                for oRow in range(0, spFl[0]):
-                    if tar is None or tar == vecTarget[oRow]:
-                        if not np.isnan(indiv_PCR_Eff[oRow]):
-                            if (np.isnan(pcreffMedian_Skip) or
-                                    not (pcreffMedian_Skip - pcrEfficiencyExl <= indiv_PCR_Eff[oRow] <= pcreffMedian_Skip + pcrEfficiencyExl)):
-                                vecExclIndivEff[oRow] = True
-                            else:
-                                vecExclIndivEff[oRow] = False
-                        else:
-                            vecExclIndivEff[oRow] = True
-                pcreff_indiv_Skip[vecExclIndivEff] = np.nan
+                    pcreffMedian = np.nanmedian(tar_mean_PCR_Eff)
+                for row in range(0, spFl[0]):
+                    if tar == vecTarget[row]:
+                        if not np.isnan(indiv_PCR_Eff[row]):
+                            if (np.isnan(pcreffMedian) or
+                                    not (pcreffMedian - pcrEfficiencyExl <= indiv_PCR_Eff[row] <= pcreffMedian + pcrEfficiencyExl)):
+                                vecExclEff[row] = True
 
             if excludeEfficiency == "outlier":
-                vecExclEff[_lrp_removeOutlier(pcreff_Skip, vecNoPlateau)] = True
-                vecExclIndivEff[_lrp_removeOutlier(pcreff_indiv_Skip, vecNoPlateau)] = True
-                pcreff_Skip[vecExclEff] = np.nan
-                pcreff_indiv_Skip[vecExclIndivEff] = np.nan
+                # Calculate the skewness and Grubbs test to identify outliers ignoring nan.
+                vecExclEff[_lrp_removeOutlier(tar_mean_PCR_Eff, vecNoPlateau)] = True  # TODO: remove no plateau
 
+            # Remove the ones excluded by PCR Efficiency
+            tar_mean_PCR_Eff[vecExclEff] = np.nan
+
+            # Calculate the mean PCR Efficiency
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
-                tempMeanEff_Skip = np.nanmean(pcreff_Skip)
-                tempMeanIndiEff_Skip = np.nanmean(pcreff_indiv_Skip)
-                tempStdEff_Skip = np.nanstd(pcreff_Skip)
-                
-               # print(tarReverseLookup[tar] + " " + str(tempMeanEff_Skip) + " - " + str(tempMeanIndiEff_Skip))
+                tempMeanEff = np.nanmean(tar_mean_PCR_Eff)
+                tempStdEff = np.nanstd(tar_mean_PCR_Eff)
 
-            for oRow in range(0, spFl[0]):
-                if tar == vecTarget[oRow]:
-                    mean_PCR_Eff[oRow] = tempMeanEff_Skip
-                    mean_indiv_PCR_Eff[oRow] = tempMeanIndiEff_Skip
-                    mean_PCR_Eff_Err[oRow] = tempStdEff_Skip
-                    meanTarEff[tarReverseLookup[tar]] = tempMeanEff_Skip
+            for row in range(0, spFl[0]):
+                if tar == vecTarget[row]:
+                    mean_PCR_Eff[row] = tempMeanEff
+                    mean_PCR_Eff_Err[row] = tempStdEff
+                    meanTarEff[tarReverseLookup[tar]] = tempMeanEff
 
         #########################
         # write out the results #
@@ -15715,7 +15512,7 @@ class Run:
                         _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                     goodVal = "{:.3f}".format(vecBackground[rRow] - negShiftBaseline[rRow])
                     _change_subelement(rdmlElemData[rRow], "bgFluor", dataXMLelements, goodVal, True, "string")
-                    goodVal = "{:.3f}".format(threshold[0])
+                    goodVal = "{:.3f}".format(td0_fluor[rRow])
                     _change_subelement(rdmlElemData[rRow], "quantFluor", dataXMLelements, goodVal, True, "string")
             if updateTargetEfficiency:
                 tarXMLKeys = ["description", "documentation", "xRef", "type", "amplificationEfficiencyMethod",

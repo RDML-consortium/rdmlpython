@@ -303,6 +303,9 @@ curDa = {}
 with open(in_json, 'r') as openfile:
     laDa = json.load(openfile)
 
+print("\n##############################\n### Remove Temporary Files ###\n###############################")
+print('rm ' + os.path.join(parent_dir, "test/temp_*"))
+os.system('rm ' + os.path.join(parent_dir, "test/temp_*"))
 
 print("\n#######################\n### Technical Tests ###\n#######################")
 
