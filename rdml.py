@@ -1691,74 +1691,6 @@ def _lrp_assignNoPlateau(fluor, tarGroup, vecTarget, pointsInWoL, indMeanX, indM
     return indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl, upWin, lowWin, threshold, vecIsUsedInWoL, vecNoPlateau
 
 
-def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
-    """A function which calculates the skewness and Grubbs test to identify outliers ignoring nan.
-
-    Args:
-        data: The numpy array with the data
-        vecNoPlateau: The vector of samples without plateau.
-        alpha: The the significance level (default 0.05)
-
-    Returns:
-        The a bool array with the removed outliers set true.
-    """
-
-    oData = np.copy(data)
-    oLogic = np.zeros(data.shape, dtype=np.bool_)
-    loopOn = True
-
-    while loopOn:
-        count = np.count_nonzero(~np.isnan(oData))
-        if count < 3:
-            loopOn = False
-        else:
-            mean = np.nanmean(oData)
-            std = np.nanstd(oData, ddof=1)
-            skewness = scp.skew(oData, bias=False, nan_policy='omit')
-            skewness_SE = np.sqrt((6 * count * (count - 1)) / ((count - 2) * (count + 1) * (count + 3)))
-            skewness_t = np.abs(skewness) / skewness_SE
-            skewness_P = scp.t.sf(skewness_t, df=np.power(10, 10)) * 2
-
-            if skewness_P < alpha / 2.0:
-                # It's skewed!
-                grubbs_t = scp.t.ppf(1 - (alpha / count) / 2, (count - 2))
-                grubbs_Gcrit = ((count - 1) / np.sqrt(count)) * np.sqrt(np.power(grubbs_t, 2) /
-                                                                        ((count - 2) + np.power(grubbs_t, 2)))
-                if skewness > 0.0:
-                    data_max = np.nanmax(oData)
-                    grubbs_res = (data_max - mean) / std
-                    max_pos = np.nanargmax(oData)
-                    if grubbs_res > grubbs_Gcrit:
-                        # It's a true outlier
-                        oData[max_pos] = np.nan
-                        oLogic[max_pos] = True
-                    else:
-                        if vecNoPlateau[max_pos]:
-                            # It has no plateau
-                            oData[max_pos] = np.nan
-                            oLogic[max_pos] = True
-                        else:
-                            loopOn = False
-                else:
-                    data_min = np.nanmin(oData)
-                    grubbs_res = (mean - data_min) / std
-                    min_pos = np.nanargmin(oData)
-                    if grubbs_res > grubbs_Gcrit:
-                        # It's a true outlier
-                        oData[min_pos] = np.nan
-                        oLogic[min_pos] = True
-                    else:
-                        if vecNoPlateau[min_pos]:
-                            # It has no plateau
-                            oData[min_pos] = np.nan
-                            oLogic[min_pos] = True
-                        else:
-                            loopOn = False
-            else:
-                loopOn = False
-    return oLogic
-
-
 def _mca_smooth(tempList, rawFluor):
     """A function to smooth the melt curve date based on Friedmans supersmoother.
        # https://www.slac.stanford.edu/pubs/slacpubs/3250/slac-pub-3477.pdf
@@ -14481,7 +14413,7 @@ class Run:
         rar_CqIsShifting = 32
         rar_tooLowCqEff = 33
         rar_tooLowCqN0 = 34
-        rar_isUsedInWoL = 35
+        rar_isUsedForMeanPCREff = 35
         rar_nAmpli = 36
         rar_vol = 37
         rar_nCopyFact = 38
@@ -14501,8 +14433,6 @@ class Run:
         del_fact = 52
         rar_indiv_PCR_eff_L = 55
         rar_indiv_PCR_eff_H = 56
-
-        copyThreshold = _get_copies_threshold()
 
         # Constand default values
         AVOGADRO = 6.02214076e23
@@ -14843,89 +14773,6 @@ class Run:
             report += str(averageVolume) + " &micro;l\n"
         finalData["resultsLinRegPCRReport"] = report
 
-        # Initialization of the error vectors
-        vecAmplification = np.zeros(spFl[0], dtype=np.bool_)
-        vecNoAmplification = np.zeros(spFl[0], dtype=np.bool_)
-        vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
-        vecInstableBaseline = np.zeros(spFl[0], dtype=np.bool_)
-        vecNoPlateau = np.zeros(spFl[0], dtype=np.bool_)
-        vecNoisySample = np.zeros(spFl[0], dtype=np.bool_)
-        vecShortLogLin = np.zeros(spFl[0], dtype=np.bool_)
-        vecCtIsShifting = np.zeros(spFl[0], dtype=np.bool_)
-        vecExclEff = np.zeros(spFl[0], dtype=np.bool_)
-        vecExclIndivEff = np.zeros(spFl[0], dtype=np.bool_)
-        vecTooLowCqEff = np.zeros(spFl[0], dtype=np.bool_)
-        vecTooLowCqN0 = np.zeros(spFl[0], dtype=np.bool_)
-        vecIsUsedInWoL = np.zeros(spFl[0], dtype=np.bool_)
-
-        # Start and stop cycles of the log lin phase
-        rawMinBySD = np.zeros(spFl[0], dtype=np.int64)
-        rawMaxBySD = np.zeros(spFl[0], dtype=np.int64)
-        maxFD = np.zeros(spFl[0], dtype=np.int64)
-        maxSD = np.zeros(spFl[0], dtype=np.int64)
-        fluorIncrease = np.zeros(spFl[0], dtype=np.float64)
-        rawTD0 = -np.ones(spFl[0], dtype=np.float64)
-        check_four_cyc_inc_TD0 = np.zeros(spFl[0], dtype=np.bool_)
-
-        # Baseline correction and PCR eff
-        baselineLoopCount = np.zeros(spFl[0], dtype=np.float64)
-        baselineError = np.zeros(spFl[0], dtype=np.int64)
-        indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
-        indiv_PCR_Eff_x = -np.ones(spFl[0], dtype=np.float64)
-        indiv_PCR_Eff_y = -np.ones(spFl[0], dtype=np.float64)
-        indiv_nNull = np.zeros(spFl[0], dtype=np.float64)
-        indiv_PCR_Eff_r2 = -np.ones(spFl[0], dtype=np.float64)
-
-        indiv_PCR_Eff_H = np.ones(spFl[0], dtype=np.float64)
-        indiv_PCR_Eff_L = np.ones(spFl[0], dtype=np.float64)
-
-
-        logStart = np.zeros(spFl[0], dtype=np.int64)
-        logStop = np.zeros(spFl[0], dtype=np.int64)
-        logIncl = np.zeros(spFl[0], dtype=np.int64)
-
-        stopCyc = np.zeros(spFl[0], dtype=np.int64)
-        IniStopCyc = np.zeros(spFl[0], dtype=np.int64)
-        startCyc = np.zeros(spFl[0], dtype=np.int64)
-        startCycFix = np.zeros(spFl[0], dtype=np.int64)
-
-        negShiftBaseline = np.zeros(spFl[0], dtype=np.float64)
-
-        # Initialization of the PCR efficiency vectors
-        indiv_thres = np.zeros(spFl[0], dtype=np.float64)
-
-        mean_PCR_Eff = np.zeros(spFl[0], dtype=np.float64)
-        mean_indiv_PCR_Eff = np.zeros(spFl[0], dtype=np.float64)
-        mean_PCR_Eff_Err = np.zeros(spFl[0], dtype=np.float64)
-
-        iniStart = -np.ones(spFl[0], dtype=np.float64)
-
-        indivCq = -np.ones(spFl[0], dtype=np.float64)
-        meanCq = -np.ones(spFl[0], dtype=np.float64)
-
-        td0_mean_thres = np.zeros(spFl[0], dtype=np.float64)
-        td0_Cq = -np.ones(spFl[0], dtype=np.float64)
-        td0_indiCq = -np.ones(spFl[0], dtype=np.float64)
-        td0_meanCq = -np.ones(spFl[0], dtype=np.float64)
-        
-
-        nNulls = np.ones(spFl[0], dtype=np.float64)
-        nInclu = np.zeros(spFl[0], dtype=np.int64)
-        correl = np.zeros(spFl[0], dtype=np.float64)
-
-        indMeanX = np.zeros(spFl[0], dtype=np.float64)
-        indMeanY = np.zeros(spFl[0], dtype=np.float64)
-
-        # Delete
-        nNull = np.zeros(spFl[0], dtype=np.float64)
-        delNcopy = np.zeros(spFl[0], dtype=np.float64)
-        nNull[:] = -1.0
-        delNcopy[:] = np.nan
-
-        # Set all to nan
-        indMeanX[:] = np.nan
-        indMeanY[:] = np.nan
-
         #####################
         # Fill Matrix Gaps  #
         #####################
@@ -15031,6 +14878,12 @@ class Run:
         ##################################################
         # Calculate everything what is based on raw data #
         ##################################################
+        rawMinBySD = np.zeros(spFl[0], dtype=np.int64)
+        rawMaxBySD = np.zeros(spFl[0], dtype=np.int64)
+        maxFD = np.zeros(spFl[0], dtype=np.int64)
+        maxSD = np.zeros(spFl[0], dtype=np.int64)
+        rawTD0 = -np.ones(spFl[0], dtype=np.float64)
+        check_four_cyc_inc_TD0 = np.zeros(spFl[0], dtype=np.bool_)
         vecMinFluor = np.nanmin(rawFluor, axis=1)
         # maxFD is FD max + 2 if the fluorescence still increases
         maxFD = np.nanargmax(rawFlourFD, axis=1) + 1  # Cycles so +1 to array
@@ -15074,6 +14927,7 @@ class Run:
         ########################################
         # Correct negative fluorescence values #
         ########################################
+        negShiftBaseline = np.zeros(spFl[0], dtype=np.float64)
         posFluor = rawFluor.copy()
         # There should be no negative values in uncorrected raw data
         absMinFluor = np.nanmin(rawFluor)
@@ -15092,11 +14946,25 @@ class Run:
         # Baseline correction and PCR efficiency calculation #
         ######################################################
         # Set a background for failing samples
+        baselineError = np.zeros(spFl[0], dtype=np.int64)
+        vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
         vecBackground = np.nanmin(posFluor, axis=1) * 0.99
+        logStart = np.zeros(spFl[0], dtype=np.int64)
+        logStop = -np.ones(spFl[0], dtype=np.int64)
+        logIncl = -np.ones(spFl[0], dtype=np.int64)
+        usedStart = -np.ones(spFl[0], dtype=np.int64)
+        indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_x = -np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_y = -np.ones(spFl[0], dtype=np.float64)
+        indiv_nNull = np.zeros(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_r2 = -np.ones(spFl[0], dtype=np.float64)
+
+        indiv_PCR_Eff_H = np.ones(spFl[0], dtype=np.float64)
+        indiv_PCR_Eff_L = np.ones(spFl[0], dtype=np.float64)
+
         for row in range(0, spFl[0]):
             logStart[row] = rawMinBySD[row]
-            logIncl[row] = -1.0
-            logStop[row] = -1.0
+
             # start and maxSD in Cycles, so +1 to array.
             # Initialize start values
             curBase = 0.0
@@ -15114,6 +14982,7 @@ class Run:
                 baselineError[row] = 2
                 continue
             logIncl[row] = stop - start + 1
+            usedStart[row] = start
             logStop[row] = stop
             selSection = posFluor[row][start - 1:stop]
             # Check if the baseline is within the range
@@ -15142,7 +15011,6 @@ class Run:
                     indiv_PCR_Eff_y[row] = baselineFinalRes[4]
                     indiv_PCR_Eff_r2[row] = baselineFinalRes[5] * baselineFinalRes[5]
                     indiv_nNull[row] =  baselineFinalRes[6]
-                    baselineLoopCount[row] = loop
                     baselineError[row] = 0
                     break
                 if resInc[0] > resInc[1]:
@@ -15151,6 +15019,11 @@ class Run:
                     curBase += step
                 step *= 0.5
                 currentSection = selSection - curBase
+
+        for row in range(0, spFl[0]):
+            if baselineError[row] != 0:
+                vecBaselineError[row] = True
+                vecExludeMeanPCREff[row] = True
 
         # Do the baseline correction
         baselineCorrectedData = posFluor - vecBackground[:, np.newaxis]
@@ -15183,46 +15056,37 @@ class Run:
             if res[row][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
                 vecExludeMeanPCREff[row] = True
 
-        ###########################################################################
-        # First quality check : Is there enough amplification during the reaction #
-        ###########################################################################
-        # Amplification is TRUE if fluorescence increase the four cycles before TD0 
-        # and an PCR efficiency > 1.4 is present.
+        ######################################################################
+        # Quality checks : Is there enough amplification during the reaction #
+        ######################################################################
+        # Amplification is TRUE if fluorescence increase the four cycles
+        # before TD0 and an PCR efficiency > 1.4 is present.
+        vecAmplification = np.zeros(spFl[0], dtype=np.bool_)
         for row in range(0, spFl[0]):
             if check_four_cyc_inc_TD0[row]:
                 if indiv_PCR_Eff[row] > 1.4:
                     vecAmplification[row] = True
             if vecAmplification[row] == False:
-               # vecExludeMeanPCREff[row] = True
-               pass
+                vecExludeMeanPCREff[row] = True
 
         # Calculate the no plateau reactions
-        # TODO: Implement again
-
-        # vecNoPlateau
-
-
-
-
-
-        # TODO: Remove
-        WoL_PCR_Eff = indiv_PCR_Eff.copy()
-        meanTarEff = {}
-        for row in range(0, spFl[0]):
-            vecNoAmplification[row] = not vecAmplification[row]
-
-
-
-
-
-
+        vecNoPlateau = np.zeros(spFl[0], dtype=np.bool_)
+        for row in range(0, baselineCorrectedData.shape[0]):
+            if indiv_nNull[row] > 0.0:
+                if indiv_PCR_Eff[row] > 1.1:
+                    expectedFluor = indiv_nNull[row] * np.power(indiv_PCR_Eff[row], baselineCorrectedData.shape[1])
+                    if expectedFluor / baselineCorrectedData[row, baselineCorrectedData.shape[1] - 1] < 5:
+                        vecNoPlateau[row] = True
+        if excludeNoPlateau is True:
+            vecExludeMeanPCREff[vecNoPlateau] = True
 
         #####################################################
         # Calculation of the mean PCR efficiency per target #
         #####################################################
-        # Remove no plateau if requested
-        if excludeNoPlateau is True:
-            vecExludeMeanPCREff[vecNoPlateau] = True
+        vecExclPCREff = np.zeros(spFl[0], dtype=np.bool_)
+        mean_PCR_Eff = np.zeros(spFl[0], dtype=np.float64)
+        mean_PCR_Eff_Err = np.zeros(spFl[0], dtype=np.float64)
+        correl = np.zeros(spFl[0], dtype=np.float64)
 
         # Median values calculation
         calc_mean_PCR_Eff = indiv_PCR_Eff.copy()
@@ -15249,14 +15113,57 @@ class Run:
                         if not np.isnan(indiv_PCR_Eff[row]):
                             if (np.isnan(pcreffMedian) or
                                     not (pcreffMedian - pcrEfficiencyExl <= indiv_PCR_Eff[row] <= pcreffMedian + pcrEfficiencyExl)):
-                                vecExclEff[row] = True
+                                vecExclPCREff[row] = True
+                                vecExludeMeanPCREff[row] = True
 
             if excludeEfficiency == "outlier":
                 # Calculate the skewness and Grubbs test to identify outliers ignoring nan.
-                vecExclEff[_lrp_removeOutlier(tar_mean_PCR_Eff, vecNoPlateau)] = True  # TODO: remove no plateau
+                alpha=0.05
+                loopOn = True
+                while loopOn:
+                    count = np.count_nonzero(~np.isnan(tar_mean_PCR_Eff))
+                    if count < 3:
+                        loopOn = False
+                    else:
+                        skew_mean = np.nanmean(tar_mean_PCR_Eff)
+                        skew_std = np.nanstd(tar_mean_PCR_Eff, ddof=1)
+                        skewness = scp.skew(tar_mean_PCR_Eff, bias=False, nan_policy='omit')
+                        skewness_SE = np.sqrt((6 * count * (count - 1)) / ((count - 2) * (count + 1) * (count + 3)))
+                        skewness_t = np.abs(skewness) / skewness_SE
+                        skewness_P = scp.t.sf(skewness_t, df=np.power(10, 10)) * 2
+
+                        if skewness_P < alpha / 2.0:
+                            # It's skewed!
+                            grubbs_t = scp.t.ppf(1 - (alpha / count) / 2, (count - 2))
+                            grubbs_Gcrit = ((count - 1) / np.sqrt(count)) * np.sqrt(np.power(grubbs_t, 2) /
+                                                                                    ((count - 2) + np.power(grubbs_t, 2)))
+                            if skewness > 0.0:
+                                data_max = np.nanmax(tar_mean_PCR_Eff)
+                                grubbs_res = (data_max - skew_mean) / skew_std
+                                max_pos = np.nanargmax(tar_mean_PCR_Eff)
+                                if grubbs_res > grubbs_Gcrit:
+                                    # It's a true outlier
+                                    tar_mean_PCR_Eff[max_pos] = np.nan
+                                    vecExclPCREff[max_pos] = True
+                                    vecExludeMeanPCREff[row] = True
+                                else:
+                                    loopOn = False
+                            else:
+                                data_min = np.nanmin(tar_mean_PCR_Eff)
+                                grubbs_res = (skew_mean - data_min) / skew_std
+                                min_pos = np.nanargmin(tar_mean_PCR_Eff)
+                                if grubbs_res > grubbs_Gcrit:
+                                    # It's a true outlier
+                                    tar_mean_PCR_Eff[min_pos] = np.nan
+                                    vecExclPCREff[min_pos] = True
+                                    vecExludeMeanPCREff[row] = True
+                                else:
+                                    loopOn = False
+                        else:
+                            loopOn = False
 
             # Remove the ones excluded by PCR Efficiency
-            tar_mean_PCR_Eff[vecExclEff] = np.nan
+            tar_mean_PCR_Eff[vecExclPCREff] = np.nan
 
             # Calculate the mean PCR Efficiency
             with warnings.catch_warnings():
@@ -15264,8 +15171,11 @@ class Run:
                 tempMeanEff = np.nanmean(tar_mean_PCR_Eff)
                 tempStdEff = np.nanstd(tar_mean_PCR_Eff)
 
+            meanTarEff = {}
             for row in range(0, spFl[0]):
                 if tar == vecTarget[row]:
+                    if np.isnan(tempMeanEff):
+                        tempMeanEff = -1.0
                     mean_PCR_Eff[row] = tempMeanEff
                     mean_PCR_Eff_Err[row] = tempStdEff
                     meanTarEff[tarReverseLookup[tar]] = tempMeanEff
@@ -15280,8 +15190,8 @@ class Run:
                 res[rRow][rar_plat_base] = meanPlateau[rRow] / res[rRow][rar_baseline]
             else:
                 res[rRow][rar_plat_base] = 0.0
-            res[rRow][rar_lower_limit] = -1.0
-            res[rRow][rar_upper_limit] = -1.0
+            res[rRow][rar_lower_limit] = usedStart[row]
+            res[rRow][rar_upper_limit] = logStop[rRow]
 
             res[rRow][rar_n_log] = logStop[rRow] - logStart[rRow] + 1
             res[rRow][rar_stop_log] = logStop[rRow]
@@ -15301,62 +15211,29 @@ class Run:
                 ss_fix = 2.0
             res[rRow][rar_nAmpli] = ss_fix * target_limit[res[rRow][rar_tar]] * reactVol[rRow]
             if rawTD0[rRow] > 0.0:
-                if 2.3 > WoL_PCR_Eff[rRow] > 1.0:
-                    res[rRow][rar_indiv_Ncopy] = res[rRow][rar_nAmpli] / np.power(WoL_PCR_Eff[rRow], rawTD0[rRow])
+                if 2.3 > indiv_PCR_Eff[rRow] > 1.0:
+                    res[rRow][rar_indiv_Ncopy] = res[rRow][rar_nAmpli] / np.power(indiv_PCR_Eff[rRow], rawTD0[rRow])
                 if 2.3 > mean_PCR_Eff[rRow] > 1.0:
                     res[rRow][rar_Ncopy] = res[rRow][rar_nAmpli] / np.power(mean_PCR_Eff[rRow], rawTD0[rRow])
 
          #   if td0_Cq[rRow] > 0.0:
           #      print(str(res[rRow][1]) + " - " +  str(res[rRow][rar_Ncopy])  + " - " +  str(td0_Cq[rRow]) + " - " +  str(mean_PCR_Eff[rRow]))
  
-            res[rRow][rar_amplification] = not vecNoAmplification[rRow]
-            res[rRow][rar_baseline_error] = vecBaselineError[rRow]
-            res[rRow][rar_instable_baseline] = vecInstableBaseline[rRow]
+            res[rRow][rar_amplification] = vecAmplification[rRow]
+            res[rRow][rar_baseline_error] = baselineError[rRow]
+            res[rRow][rar_instable_baseline] = False  # TODO: Removw
             res[rRow][rar_plateau] = not vecNoPlateau[rRow]
-            res[rRow][rar_noisy_sample] = vecNoisySample[rRow]
-            res[rRow][rar_excl_eff] = vecExclEff[rRow]
-            res[rRow][rar_shortLogLinPhase] = vecShortLogLin[rRow]
-            res[rRow][rar_CqIsShifting] = vecCtIsShifting[rRow]
-            res[rRow][rar_tooLowCqEff] = vecTooLowCqEff[rRow]
-            res[rRow][rar_tooLowCqN0] = vecTooLowCqN0[rRow]
-            res[rRow][rar_isUsedInWoL] = vecIsUsedInWoL[rRow]
+            res[rRow][rar_noisy_sample] = False  # TODO: Removw
+            res[rRow][rar_excl_eff] = vecExclPCREff[rRow]
+            res[rRow][rar_shortLogLinPhase] = False  # TODO: Removw
+            res[rRow][rar_CqIsShifting] = False  # TODO: Removw
+            res[rRow][rar_tooLowCqEff] = False  # TODO: Removw
+            res[rRow][rar_tooLowCqN0] = False  # TODO: Removw
+            res[rRow][rar_isUsedForMeanPCREff] = not vecExludeMeanPCREff[rRow]
 
-        mmN0_sum = 0.0
-        mmNcopy_sum = 0.0
-        mmN0_num = 0
-        mmNcopy_num = 0
-        geomeanNo = 1.0
-        geomeanNcopy = 1.0
-        for rRow in range(0, len(res)):
-            if res[rRow][rar_isUsedInWoL]:
-                if res[rRow][rar_Ncopy] > 0.0 and res[rRow][del_N0] > 0.0:
-                    mmN0_sum += math.log(res[rRow][del_N0])
-                    mmNcopy_sum += math.log(res[rRow][rar_Ncopy])
-                    mmN0_num += 1
-                    mmNcopy_num += 1
-        if mmNcopy_num > 0:
-            geomeanNo = math.exp(mmN0_sum / mmN0_num)
-            geomeanNcopy = math.exp(mmNcopy_sum / mmNcopy_num)
 
-        for rRow in range(0, len(res)):
-            if nNull[rRow] > 0.0:
-                res[rRow][del_ncopy] = nNull[rRow] * geomeanNcopy / geomeanNo
-            else:
-                res[rRow][del_ncopy] = -1.0
-
-            if res[rRow][rar_Ncopy] == res[rRow][del_ncopy]:
-                    res[rRow][del_fact] = 1.0
-            elif res[rRow][rar_Ncopy] <= 0.0:
-                res[rRow][del_fact] = -0.1
-            elif res[rRow][del_ncopy] <= 0.0:
-                res[rRow][del_fact] = -0.2
-            else:
-                if res[rRow][del_ncopy] < res[rRow][rar_Ncopy]:
-                    res[rRow][del_fact] = res[rRow][del_ncopy] / res[rRow][rar_Ncopy]
-                else:
-                    res[rRow][del_fact] = res[rRow][rar_Ncopy] / res[rRow][del_ncopy]
             res[rRow][rar_indiv_PCR_eff_x] = indiv_PCR_Eff_x[rRow]
-            res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]
+            res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]  # TODO: Needed?
             res[rRow][rar_indiv_PCR_eff_L] = indiv_PCR_Eff_L[rRow]
             res[rRow][rar_indiv_PCR_eff_H] = indiv_PCR_Eff_H[rRow]
             res[rRow][rar_indiv_PCR_Eff_r2] = indiv_PCR_Eff_r2[rRow]
@@ -15465,7 +15342,6 @@ class Run:
         # write out the rdml results #
         ##############################
         # updateRDML = True
-        menJanTres = np.mean(indiv_thres)
         if updateRDML is True:
             self["backgroundDeterminationMethod"] = 'LinRegPCR, constant'
             self["cqDetectionMethod"] = 'automated threshold and baseline settings'
@@ -15541,7 +15417,7 @@ class Run:
                 for rCol in range(0, len(res[rRow])):
                     if rCol in [rar_amplification, rar_baseline_error, rar_instable_baseline, rar_plateau, rar_noisy_sample,
                                 rar_excl_eff, rar_shortLogLinPhase, rar_CqIsShifting,
-                                rar_tooLowCqEff, rar_tooLowCqN0, rar_isUsedInWoL]:
+                                rar_tooLowCqEff, rar_tooLowCqN0, rar_isUsedForMeanPCREff]:
                         if res[rRow][rCol]:
                             retCSV += "Yes\t"
                         else:
@@ -15836,7 +15712,7 @@ class Run:
         rawFluor = np.zeros(spFl, dtype=np.float64)
         rawFluor[rawFluor < 1] = np.nan
 
-        # Initialization of the vecNoAmplification vector
+        # Initialization of the vecExcludedByUser vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool_)
         rdmlElemData = []
 
