@@ -1974,7 +1974,7 @@ def _cleanErrorString(inStr, cleanStyle):
         for ele in strList:
             if ele in knownWarn:
                 continue
-            if re.search(r"^only \d+ values in log phase", ele):
+            if re.search(r"^only -*\d+ values in log phase", ele):
                 continue
             if re.search(r"^indiv PCR eff is .+", ele):
                 continue
@@ -14928,7 +14928,6 @@ class Run:
         baselineError = np.zeros(spFl[0], dtype=np.int64)
         vecBaselineError = np.zeros(spFl[0], dtype=np.bool_)
         vecBackground = np.nanmin(posFluor, axis=1) * 0.99
-        logStart = np.zeros(spFl[0], dtype=np.int64)
         logStop = -np.ones(spFl[0], dtype=np.int64)
         logIncl = -np.ones(spFl[0], dtype=np.int64)
         indiv_PCR_Eff = np.ones(spFl[0], dtype=np.float64)
@@ -14941,36 +14940,36 @@ class Run:
         indiv_PCR_Eff_L = np.ones(spFl[0], dtype=np.float64)
 
         for row in range(0, spFl[0]):
-            logStart[row] = rawMinBySD[row]
-
             # start and maxSD in Cycles, so +1 to array.
             # Initialize start values
             curBase = 0.0
-            baselineError[row] = 5
+            baselineError[row] = 1
+            if rawTD0[row] < 3.0:
+                baselineError[row] = 2
+                continue
             stop = int(rawTD0[row] - 0.5)  # int(rawTD0[row] + 0.5) # maxSD[row] ??
-
             # At minimum 4 cycles are required
             if stop < 4:
-                baselineError[row] = 1
+                baselineError[row] = 3
                 continue
             # At maximum 9 cycles should be inluded
             start = max(rawMinBySD[row] + 1, stop - 9 + 1)
             # Now check that 4 cycles are left
-            if stop - start + 1 < 4:
-                baselineError[row] = 2
-                continue
             logIncl[row] = stop - start + 1
             logStop[row] = stop
+            if logIncl[row] < 4:
+                baselineError[row] = 4
+                continue
             selSection = posFluor[row][start - 1:stop]
             # Check if the baseline is within the range
             resInc = _lrp_testSlopes2(selSection)
             if resInc[0] > resInc[1] :
-                baselineError[row] = 3
+                baselineError[row] = 5
                 continue
             testSelection = selSection - posFluor[row][start - 1] + 0.00000001
             resInc = _lrp_testSlopes2(testSelection)
             if resInc[0] < resInc[1] :
-                baselineError[row] = 4
+                baselineError[row] = 6
                 continue
             # Half the area and continue search in the good part
             curBase = posFluor[row][start - 1] * 0.5
@@ -15040,9 +15039,10 @@ class Run:
         # before TD0 and an PCR efficiency > 1.4 is present.
         vecAmplification = np.zeros(spFl[0], dtype=np.bool_)
         for row in range(0, spFl[0]):
-            if check_four_cyc_inc_TD0[row]:
-                if indiv_PCR_Eff[row] > 1.4:
-                    vecAmplification[row] = True
+            if rawTD0[row] > 2.0:
+                if check_four_cyc_inc_TD0[row]:
+                    if indiv_PCR_Eff[row] > 1.4:
+                        vecAmplification[row] = True
             if vecAmplification[row] == False:
                 vecExludeMeanPCREff[row] = True
 
@@ -15168,7 +15168,10 @@ class Run:
                 res[rRow][rar_plat_base] = 0.0
             res[rRow][rar_indiv_PCR_eff_x] = indiv_PCR_Eff_x[rRow]
             res[rRow][rar_indiv_PCR_eff_y] = indiv_PCR_Eff_y[rRow]
-            res[rRow][rar_n_log] = logStop[rRow] - logStart[rRow] + 1
+            if logStop[rRow] - rawMinBySD[rRow] + 1 > 1:
+                res[rRow][rar_n_log] = logStop[rRow] - rawMinBySD[rRow] + 1
+            else:
+                res[rRow][rar_n_log] = -1.0
             res[rRow][rar_stop_log] = logStop[rRow]
             res[rRow][rar_n_included] = logIncl[rRow]
             res[rRow][rar_indiv_PCR_eff] = indiv_PCR_Eff[rRow]
@@ -15217,8 +15220,6 @@ class Run:
                         exclVal += "amplification in negative control;"
                 if res[rRow][rar_baseline_error]:
                     noteVal += "baseline error;"
-                if res[rRow][rar_plateau]:
-                    noteVal += "plateau in negative control;"
 
             if res[rRow][rar_sample_type] in ["std", "pos"]:
                 if not (ncopy > 0.0):
@@ -15237,7 +15238,7 @@ class Run:
                     noteVal += "Ncopy < 10;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
-                if res[rRow][rar_indiv_PCR_eff] < 1.7:
+                if 1.1 < res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
                 if excludeEfficiency in ["outlier", "mean"]:
                     if not np.isfinite(res[rRow][rar_indiv_PCR_eff]) or res[rRow][rar_indiv_PCR_eff] < 1.0:
@@ -15268,7 +15269,7 @@ class Run:
                     noteVal += "Ncopy < 10;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
-                if res[rRow][rar_indiv_PCR_eff] < 1.7:
+                if 1.1 < res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += "indiv PCR eff is " + "{:.3f}".format(res[rRow][rar_indiv_PCR_eff]) + " < 1.7;"
                 if excludeEfficiency in ["outlier", "mean"]:
                     if not np.isfinite(res[rRow][rar_indiv_PCR_eff]) or res[rRow][rar_indiv_PCR_eff] < 1.0:
