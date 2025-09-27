@@ -2659,6 +2659,7 @@ class Rdml:
         self._node.attrib['version'] = "1.3"
         return ret
 
+
     def recreate_lost_ids(self):
         """Searches for lost ids and repairs them.
 

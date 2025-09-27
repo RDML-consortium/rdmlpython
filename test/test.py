@@ -18,7 +18,12 @@ import rdmlpython as rdml
 
 printExpRun = True
 
-rdml_file = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_raw.rdml")
+vermeulen_file = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_raw.rdml")
+vermeulen_std_5 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_15.rdml")
+vermeulen_std_4 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_150.rdml")
+vermeulen_std_3 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_1500.rdml")
+vermeulen_std_2 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_15000.rdml")
+vermeulen_std_1 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_150000.rdml")
 rdml_mach_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine.rdml")
 rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_primer_mix.rdml")
 out_amp_file = "temp_amplicon_primer_resuls.csv"
@@ -115,6 +120,28 @@ def stringNice(text, orgVal, storeVal, dist, dir, prec):
 
 def printNice(text, orgVal, storeVal, dist, dir, prec):
     print(stringNice(text, orgVal, storeVal, dist, dir, prec))
+
+
+def stringNice2(orgStore, storeStore, ele, form, dist, dir, org):
+    orgVal = float(saveNum(orgStore, ele))
+    storeVal = float(saveNum(storeStore, ele))
+    aa = ""
+    bb = ""
+    diff = 0
+    if dir == "+":
+        diff = orgVal - storeVal
+    else:
+        diff = storeVal - orgVal
+    if diff - dist > 0.0:
+        aa = '\033[42m'
+        bb = '\033[0m'
+    elif diff + dist < 0.0:
+        aa = '\033[41m'
+        bb = '\033[0m'
+    if org:
+        return(aa + form.format(orgVal) + bb)
+    else:
+        return(aa + form.format(storeVal) + bb)
 
 
 def printPrimerTable(tars, mix, cur, sav):
@@ -876,12 +903,61 @@ print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 # exit(0)
 
 print("\n######################\n### Test Vermeulen ###\n######################")
+print("  Testing ony standards.")
+# The standards only
+verm_res = {}
+vermeulen_stds = {"vermeulen_std_5": vermeulen_std_5,
+                  "vermeulen_std_4": vermeulen_std_4,
+                  "vermeulen_std_3": vermeulen_std_3,
+                  "vermeulen_std_2": vermeulen_std_2,
+                  "vermeulen_std_1": vermeulen_std_1}
+for std_file in vermeulen_stds:
+    if std_file not in verm_res:
+        verm_res[std_file] = {}
+    rdd = rdml.Rdml(vermeulen_stds[std_file])
+    expList = rdd.experiments()
+    ww = open("temp_" + std_file + ".csv", "w")
+    startLine = 0
+    reactionDataTrue = 0
+    reactionDataFalse = 0
+    for exp in expList:
+        runList = exp.runs()
+        for run in runList:
+            res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+            resTab = json.loads(res["LinRegPCR_Result_Table"])
+            for tabRow in range(startLine, len(resTab)):
+                if startLine == 0:
+                    ww.write("Experiment\tRun\t")
+                    startLine = 1
+                else:
+                    ww.write(exp["id"] + "\t" + run["id"] + "\t")
+                for tabCol in range(0, len(resTab[tabRow])):
+                    outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                    if tabCol < len(resTab[tabRow]) - 1:
+                        ww.write(outCell + "\t")
+                    else:
+                        ww.write(outCell + "\n")
+                # save the data
+                if tabRow > 0:
+                    if resTab[tabRow][rar_tar] not in verm_res[std_file]:
+                        verm_res[std_file][resTab[tabRow][rar_tar]] = {}
+                    if resTab[tabRow][rar_sample] not in verm_res[std_file][resTab[tabRow][rar_tar]]:
+                        verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]] = {}
+                        verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["mean Eff"] = []
+                        verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["Ncopy"] = []
+                    verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["mean Eff"].append(resTab[tabRow][rar_PCR_eff])
+                    verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])
+    ww.close()
+print("    Done.\n")
+
 # Time the test
+std_file = "vermeulen_all"
+verm_res[std_file] = {}
 startTime = time.time()
-rdd = rdml.Rdml(rdml_file)
+rdd = rdml.Rdml(vermeulen_file)
 
 expList = rdd.experiments()
-print("  The Test will run for up to 2 Minutes.")
+print("  Testing all data will run for up to 2 Minutes.")
 if len(expList) < 1:
     print("No experiments found!")
     sys.exit(0)
@@ -896,7 +972,7 @@ for exp in expList:
         sys.exit(0)
     for run in runList:
         if printExpRun:
-            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+            print("      Experiment: " + exp["id"] + " Run: " + run["id"])
         res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(startLine, len(resTab)):
@@ -917,16 +993,172 @@ for exp in expList:
                         reactionDataTrue += 1
                     else:
                         reactionDataFalse += 1
+            if tabRow > 0:
+                if resTab[tabRow][rar_sample].startswith("STD_"):
+                    if resTab[tabRow][rar_tar] not in verm_res[std_file]:
+                        verm_res[std_file][resTab[tabRow][rar_tar]] = {}
+                    if resTab[tabRow][rar_sample] not in verm_res[std_file][resTab[tabRow][rar_tar]]:
+                        verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]] = {}
+                        verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["mean Eff"] = []
+                        verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["Ncopy"] = []
+                    verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["mean Eff"].append(resTab[tabRow][rar_PCR_eff])
+                    verm_res[std_file][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample ]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])
+print("    Done.\n")
+ww.close()
+rdd.save("temp_vermeulen_linregpcr.rdml")
 
 curDa["reactionDataFalse"] = reactionDataFalse
 curDa["reactionDataSum"] = reactionDataFalse + reactionDataTrue
-
 printNice("Failing Reactions: ", curDa["reactionDataFalse"], laDa["reactionDataFalse"], 1, "-" , 0)
 printNice("Sum Reactions: ", curDa["reactionDataSum"], laDa["reactionDataSum"], 1, "+", 0)
 
+# Write the eff an Ncopy comparison
+print("  Testing how the reduction of reactions affects PCR efficiency and Ncopy:")
+vm_eff_diff = {}
+vm_eff_val = {}
+for cVer in verm_res:
+    for tar in verm_res[cVer]:
+        for sam in verm_res[cVer][tar]:
+            verm_res[cVer][tar][sam]["calc mean Eff"] = np.mean(verm_res[cVer][tar][sam]["mean Eff"])
+            verm_res[cVer][tar][sam]["calc Ncopy"] = np.mean(verm_res[cVer][tar][sam]["Ncopy"])
+out_st = "\n"
+out_st += "Target".ljust(23) + "all".ljust(8) + "STD 5".ljust(8) + "STD 4".ljust(8) + "STD 3".ljust(8) + "STD 2".ljust(8) + "STD 1".ljust(8)
+out_st += " ".ljust(2) + "all".ljust(8) + "STD 5".ljust(8) + "STD 4".ljust(8) + "STD 3".ljust(8) + "STD 2".ljust(8) + "STD 1".ljust(8) + "\n"
+out_st += "".ljust(23) + "PCR eff".ljust(8) + "PCR eff".ljust(8) + "PCR eff".ljust(8) + "PCR eff".ljust(8) + "PCR eff".ljust(8) + "PCR eff".ljust(8)
+out_st += " ".ljust(2) + "diff".ljust(8) + "diff".ljust(8) + "diff".ljust(8) + "diff".ljust(8) + "diff".ljust(8) + "diff".ljust(8) + "\n"
 
-ww.close()
-rdd.save("temp_vermeulen_linregpcr.rdml")
+for tar in verm_res[std_file]:
+    if tar == "ALUsq(Eurogentec)_20080228":
+        continue
+    out_st += tar.ljust(22)
+    for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                 "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+        out_st += "{:8.4f}".format(verm_res[cVer][tar]["STD_150000"]["calc mean Eff"])
+    out_st += "  "
+    for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                 "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+        if cVer not in vm_eff_diff:
+            vm_eff_diff[cVer] = []
+        if cVer not in vm_eff_val:
+            vm_eff_val[cVer] = []
+        vm_eff_val[cVer].append(verm_res[cVer][tar]["STD_150000"]["calc mean Eff"])
+        vm_eff_diff[cVer].append(verm_res[cVer][tar]["STD_150000"]["calc mean Eff"] - verm_res["vermeulen_std_5"][tar]["STD_150000"]["calc mean Eff"])
+        out_st += "{:8.4f}".format(verm_res[cVer][tar]["STD_150000"]["calc mean Eff"] - verm_res["vermeulen_std_5"][tar]["STD_150000"]["calc mean Eff"])
+    out_st += "\n"
+out_st += "Mean".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_eff_val_mean"] = np.nanmean(vm_eff_val[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_val_mean", "{:8.4f}", 0.0001, "+", True)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_eff_dif_mean"] = np.nanmean(vm_eff_diff[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_dif_mean", "{:8.4f}", 0.0001, "+", True)
+out_st += "\n"
+out_st += "Stored Mean".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_val_mean", "{:8.4f}", 0.0001, "+", False)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_dif_mean", "{:8.4f}", 0.0001, "+", False)
+out_st += "\n"
+out_st += "STD".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_eff_val_std"] = np.nanstd(vm_eff_val[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_val_std", "{:8.4f}", 0.0001, "+", True)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_eff_dif_std"] = np.nanstd(vm_eff_diff[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_dif_std", "{:8.4f}", 0.0001, "+", True)
+out_st += "\n"
+out_st += "Stored STD".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_val_std", "{:8.4f}", 0.0001, "+", False)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_eff_dif_std", "{:8.4f}", 0.0001, "+", False)
+out_st += "\n"
+
+print(out_st)
+
+vm_eff_diff = {}
+vm_eff_val = {}
+out_st = "\n"
+out_st += "Target".ljust(23) + "all".ljust(9) + "STD 5".ljust(9) + "STD 4".ljust(9) + "STD 3".ljust(9) + "STD 2".ljust(9) + "STD 1".ljust(9)
+out_st += " ".ljust(2) + "all".ljust(8) + "STD 5".ljust(8) + "STD 4".ljust(8) + "STD 3".ljust(8) + "STD 2".ljust(8) + "STD 1".ljust(8) + "\n"
+out_st += "".ljust(23) + "Ncopy".ljust(9) + "Ncopy".ljust(9) + "Ncopy".ljust(9) + "Ncopy".ljust(9) + "Ncopy".ljust(9) + "Ncopy".ljust(9)
+out_st += " ".ljust(2) + "fact".ljust(8) + "fact".ljust(8) + "fact".ljust(8) + "fact".ljust(8) + "fact".ljust(8) + "fact".ljust(8) + "\n"
+
+for tar in verm_res[std_file]:
+    if tar == "ALUsq(Eurogentec)_20080228":
+        continue
+   # if tar == "CLSTN1_20080227":
+   #     continue
+    out_st += tar.ljust(22)
+    for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                 "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+        out_st += "{:9.0f}".format(verm_res[cVer][tar]["STD_150000"]["calc Ncopy"])
+    out_st += "  "
+    for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                 "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+        if cVer not in vm_eff_diff:
+            vm_eff_diff[cVer] = []
+        if cVer not in vm_eff_val:
+            vm_eff_val[cVer] = []
+        vm_eff_val[cVer].append(verm_res[cVer][tar]["STD_150000"]["calc Ncopy"])
+        vm_eff_diff[cVer].append(verm_res[cVer][tar]["STD_150000"]["calc Ncopy"] / verm_res["vermeulen_std_5"][tar]["STD_150000"]["calc Ncopy"])
+        out_st += "{:8.4f}".format(verm_res[cVer][tar]["STD_150000"]["calc Ncopy"] / verm_res["vermeulen_std_5"][tar]["STD_150000"]["calc Ncopy"])
+    out_st += "\n"
+out_st += "Mean".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_ncopy_val_mean"] = np.nanmean(vm_eff_val[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_val_mean", "{:9.0f}", 1.0, "+", True)
+
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_ncopy_dif_mean"] = np.nanmean(vm_eff_diff[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_dif_mean", "{:8.4f}", 0.0001, "+", True)
+out_st += "\n"
+out_st += "Stored Mean".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_val_mean", "{:9.0f}", 1.0, "+", False)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_dif_mean", "{:8.4f}", 0.0001, "+", False)
+out_st += "\n"
+out_st += "STD".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_ncopy_val_std"] = np.nanstd(vm_eff_val[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_val_std","{:9.0f}", 1.0, "+", True)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    curDa[cVer + "_ncopy_dif_std"] = np.nanstd(vm_eff_diff[cVer])
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_dif_std", "{:8.4f}", 0.0001, "+", True)
+out_st += "\n"
+out_st += "Stored STD".ljust(22)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_val_std","{:9.0f}", 1.0, "+", False)
+out_st += " ".ljust(2)
+for cVer in ["vermeulen_all", "vermeulen_std_5", "vermeulen_std_4", 
+                "vermeulen_std_3", "vermeulen_std_2", "vermeulen_std_1"]:
+    out_st += stringNice2(curDa, laDa, cVer + "_ncopy_dif_std", "{:8.4f}", 0.0001, "+", False)
+out_st += "\n"
+print(out_st)
+
 endTime = time.time()
 runTime = endTime - startTime
 runMin = math.floor(runTime / 60.0)
