@@ -26,8 +26,10 @@ vermeulen_std_2 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen
 vermeulen_std_1 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_150000.rdml")
 rdml_mach_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine.rdml")
 rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_primer_mix.rdml")
+rdml_dil_file = os.path.join(parent_dir, "experiments/untergasser/large_DNA_dilutions.rdml")
 out_vol_file = "temp_volume_resuls.csv"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
+out_dil_file = "temp_large_DNA_dilutions_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
 out_json = "temp_test.json"
@@ -590,7 +592,7 @@ reactionDataFalse = 0
 linRegRes = {}
 for exp in expList:
     if exp["id"] == "Primer Test - EMBL":
-        print("\n################################\n### Primer Test ###\n################################")
+        print("\n###################\n### Primer Test ###\n###################")
     if exp["id"] == "Primer Conc - AMC":
         print("\n#############################\n### Test Primer Dilutions ###\n#############################")
     runList = exp.runs()
@@ -975,6 +977,204 @@ runSec = runTime - runMin* 60.0
 print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 
 # exit(0)
+
+print("\n############################\n### Test Large Dilutions ###\n############################")
+startTime = time.time()
+rd = rdml.Rdml(rdml_dil_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found in " + rdml_dil_file + "!")
+    sys.exit(0)
+ww = open(out_dil_file, "w")
+startLine = 0
+reactionDataTrue = 0
+reactionDataFalse = 0
+linRegRes = {}
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(startLine, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                        if resTab[tabRow][rar_sample] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"] = []
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"].append(resTab[tabRow][rar_TD0])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+
+                        reactionDataTrue += 1
+                    else:
+                        reactionDataFalse += 1
+
+    if exp["id"] == "DNA Dilutions - EMBL":
+        dil_test_key = "Large_DNA_Dil_A_"
+        dil_test_tar = ["FSTL_1_F_109", "FSTL_1_K_219", "FSTL_1_H_201", "FSTL_1_L_412"]
+        dil_test_sam = ["Dil BSG - 10e8", "Dil BSG - 10e7", "Dil BSG - 10e6", "Dil BSG - 10e5", "Dil BSG - 10e4", "Dil BSG - 10e3", "Dil BSG - 10e2",
+                        "Dil 1:10 - 10e8", "Dil 1:10 - 10e7", "Dil 1:10 - 10e6", "Dil 1:10 - 10e5", "Dil 1:10 - 10e4", "Dil 1:10 - 10e3", "Dil 1:10 - 10e2"]
+        dil_test_sam_A = ["Dil 1:10 - 10e8", "Dil 1:10 - 10e7", "Dil 1:10 - 10e6", "Dil 1:10 - 10e5", "Dil 1:10 - 10e4", "Dil 1:10 - 10e3", "Dil 1:10 - 10e2"]
+        dil_test_sam_B = ["Dil BSG - 10e8", "Dil BSG - 10e7", "Dil BSG - 10e6", "Dil BSG - 10e5", "Dil BSG - 10e4", "Dil BSG - 10e3", "Dil BSG - 10e2"]
+        dil_test_sam_C = ["10e8", "10e7", "10e6", "10e5", "10e4", "10e3", "10e2"]
+        for tar in dil_test_tar:
+            for sam in dil_test_sam:
+                if sam not in linRegRes["DNA Dilutions - EMBL"]["P10 - DNA Dilutions"][resTab[tabRow][rar_tar]]:
+                    continue
+                curDa[dil_test_key + "PCReff_" + tar] = linRegRes["DNA Dilutions - EMBL"]["P10 - DNA Dilutions"][tar]["PCReff"]
+                curDa[dil_test_key + "TD0_" + tar + "_" + sam] = np.mean(linRegRes["DNA Dilutions - EMBL"]["P10 - DNA Dilutions"][tar][sam]["TD0"])
+                curDa[dil_test_key + "Ncopy_" + tar + "_" + sam] = np.mean(linRegRes["DNA Dilutions - EMBL"]["P10 - DNA Dilutions"][tar][sam]["Ncopy"])
+
+        # PCR eff
+        out_str = " ".ljust(17)
+        for tar in dil_test_tar:
+            out_str +=  tar.ljust(17)
+        print(out_str)
+        out_str = "PCR eff".ljust(17)
+        for tar in dil_test_tar:
+            out_str +=  colorDiff(curDa, laDa, dil_test_key + "PCReff_" + tar, "{:6.3f}")  + "  "
+        print(out_str)
+        print("\n")
+        # TD0
+        out_str = " ".ljust(10)
+        for tar in dil_test_tar:
+            out_str +=  tar.ljust(17)
+            out_str +=  tar.ljust(17)
+        print(out_str)
+        out_str = " ".ljust(10)
+        for pos in range(0,8):
+            if pos % 2 == 0:
+                out_str +=  "Dil 1:10".ljust(17)
+            else:
+                out_str +=  "Dil BSG".ljust(17)
+        print(out_str)
+        for pos in range(0,7): 
+            out_str = dil_test_sam_C[pos].ljust(10)
+            for tar in dil_test_tar:
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "TD0_" + tar + "_" + dil_test_sam_A[pos], "{:6.3f}") + "  "
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "TD0_" + tar + "_" + dil_test_sam_B[pos], "{:6.3f}") + "  "
+            print(out_str)
+        print("\n")
+        # Ncopy
+        out_str = " ".ljust(10)
+        for tar in dil_test_tar:
+            out_str +=  tar.ljust(23)
+            out_str +=  tar.ljust(23)
+        print(out_str)
+        out_str = " ".ljust(10)
+        for pos in range(0,8):
+            if pos % 2 == 0:
+                out_str +=  "Dil 1:10".ljust(23)
+            else:
+                out_str +=  "Dil BSG".ljust(23)
+        print(out_str)
+        for pos in range(0,7): 
+            out_str = dil_test_sam_C[pos].ljust(10)
+            for tar in dil_test_tar:
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "Ncopy_" + tar + "_" + dil_test_sam_A[pos], "{:9.0f}") + "  "
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "Ncopy_" + tar + "_" + dil_test_sam_B[pos], "{:9.0f}") + "  "
+            print(out_str)
+        print("\n")
+
+    if exp["id"] == "dPCR - DKFZ":
+        dil_test_key = "Large_DNA_Dil_B_"
+        dil_test_tar = ["FSTL_1_F_109", "FSTL_1_K_219", "FSTL_1_H_201", "FSTL_1_L_412"]
+        dil_test_sam = ["Freeze 10e8", "Freeze 10e7", "Freeze 10e6", "Freeze 10e5", "Freeze 10e4", "Freeze 10e3", "Freeze 10e2",
+                        "Dil 1:10 - 10e8", "Dil 1:10 - 10e7", "Dil 1:10 - 10e6", "Dil 1:10 - 10e5", "Dil 1:10 - 10e4", "Dil 1:10 - 10e3", "Dil 1:10 - 10e2"]
+        dil_test_sam_A = ["Dil 1:10 - 10e8", "Dil 1:10 - 10e7", "Dil 1:10 - 10e6", "Dil 1:10 - 10e5", "Dil 1:10 - 10e4", "Dil 1:10 - 10e3", "Dil 1:10 - 10e2"]
+        dil_test_sam_B = ["Freeze 10e8", "Freeze 10e7", "Freeze 10e6", "Freeze 10e5", "Freeze 10e4", "Freeze 10e3", "Freeze 10e2"]
+        dil_test_sam_C = ["10e8", "10e7", "10e6", "10e5", "10e4", "10e3", "10e2"]
+        for tar in dil_test_tar:
+            for sam in dil_test_sam:
+                if sam not in linRegRes["dPCR - DKFZ"]["p11 - dPCR"][resTab[tabRow][rar_tar]]:
+                    continue
+                curDa[dil_test_key + "PCReff_" + tar] = linRegRes["dPCR - DKFZ"]["p11 - dPCR"][tar]["PCReff"]
+                curDa[dil_test_key + "TD0_" + tar + "_" + sam] = np.mean(linRegRes["dPCR - DKFZ"]["p11 - dPCR"][tar][sam]["TD0"])
+                curDa[dil_test_key + "Ncopy_" + tar + "_" + sam] = np.mean(linRegRes["dPCR - DKFZ"]["p11 - dPCR"][tar][sam]["Ncopy"])
+        # PCR eff
+        out_str = " ".ljust(17)
+        for tar in dil_test_tar:
+            out_str +=  tar.ljust(17)
+        print(out_str)
+        out_str = "PCR eff".ljust(17)
+        for tar in dil_test_tar:
+            out_str +=  colorDiff(curDa, laDa, dil_test_key + "PCReff_" + tar, "{:6.3f}")  + "  "
+        print(out_str)
+        print("\n")
+        # TD0
+        out_str = " ".ljust(10)
+        for tar in dil_test_tar:
+            out_str +=  tar.ljust(17)
+            out_str +=  tar.ljust(17)
+        print(out_str)
+        out_str = " ".ljust(10)
+        for pos in range(0,8):
+            if pos % 2 == 0:
+                out_str +=  "Dil 1:10".ljust(17)
+            else:
+                out_str +=  "Freeze".ljust(17)
+        print(out_str)
+        for pos in range(0,7): 
+            out_str = dil_test_sam_C[pos].ljust(10)
+            for tar in dil_test_tar:
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "TD0_" + tar + "_" + dil_test_sam_A[pos], "{:6.3f}") + "  "
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "TD0_" + tar + "_" + dil_test_sam_B[pos], "{:6.3f}") + "  "
+            print(out_str)
+        print("\n")
+        # Ncopy
+        out_str = " ".ljust(10)
+        for tar in dil_test_tar:
+            out_str +=  tar.ljust(23)
+            out_str +=  tar.ljust(23)
+        print(out_str)
+        out_str = " ".ljust(10)
+        for pos in range(0,8):
+            if pos % 2 == 0:
+                out_str +=  "Dil 1:10".ljust(23)
+            else:
+                out_str +=  "Freeze".ljust(23)
+        print(out_str)
+        for pos in range(0,7): 
+            out_str = dil_test_sam_C[pos].ljust(10)
+            for tar in dil_test_tar:
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "Ncopy_" + tar + "_" + dil_test_sam_A[pos], "{:9.0f}") + "  "
+                out_str +=  colorDiff(curDa, laDa, dil_test_key + "Ncopy_" + tar + "_" + dil_test_sam_B[pos], "{:9.0f}") + "  "
+            print(out_str)
+        print("\n")
+
+
+ww.close()
+rd.save("temp_test_large_DNA_dilutions_linregpcr.rdml")
+endTime = time.time()
+runTime = endTime - startTime
+runMin = math.floor(runTime / 60.0)
+runSec = runTime - runMin* 60.0
+print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 
 print("\n######################\n### Test Vermeulen ###\n######################")
 print("  Testing ony standards.")
