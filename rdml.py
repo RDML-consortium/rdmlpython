@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "3.0.0"
+    return "3.0.1"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -1706,7 +1706,7 @@ def standardCurveStats(data, noCq=False):
                 if concStr not in data[targets[tar]]["Cq_F0"]:
                     data[targets[tar]]["Cq_F0"][concStr] = []
                 for pos in range(0, len(data[targets[tar]]["Cq"][concStr])):
-                    if data[targets[tar]]["cq_eff"] > 0.0:
+                    if data[targets[tar]]["cq_eff"] > 1.0 and data[targets[tar]]["Cq"][concStr][pos] > 1.0:
                         data[targets[tar]]["Cq_F0"][concStr].append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
                         cq_check_y.append(np.log10(1.0 / np.power(data[targets[tar]]["cq_eff"], data[targets[tar]]["Cq"][concStr][pos])))
                     else:

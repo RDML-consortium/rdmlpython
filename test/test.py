@@ -26,6 +26,7 @@ vermeulen_std_2 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen
 vermeulen_std_1 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_150000.rdml")
 rdml_mach_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine.rdml")
 rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_primer_mix.rdml")
+out_vol_file = "temp_volume_resuls.csv"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
@@ -142,6 +143,16 @@ def stringNice2(orgStore, storeStore, ele, form, dist, dir, org):
         return(aa + form.format(orgVal) + bb)
     else:
         return(aa + form.format(storeVal) + bb)
+
+def colorDiff(currStore, saveStore, ele, form):
+    orgVal = form.format(saveNum(currStore, ele))
+    storeVal = form.format(saveNum(saveStore, ele))
+    aa = ""
+    bb = ""
+    if orgVal != storeVal:
+        aa = '\033[41m'
+        bb = '\033[0m'
+    return(aa + orgVal + " (" + storeVal + ")" + bb)
 
 
 def printPrimerTable(tars, mix, cur, sav):
@@ -427,7 +438,8 @@ expList = rd.experiments()
 if len(expList) < 1:
     print("No experiments found!")
     sys.exit(0)
-
+ww = open(out_vol_file, "w")
+startLine = 0
 linRegRes = {}
 colTar = []
 quant = []
@@ -442,6 +454,18 @@ for exp in expList:
         res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
                 if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
                     if float(resTab[tabRow][rar_Ncopy]) > 5.0:
                         if exp["id"] not in linRegRes:
@@ -455,12 +479,41 @@ for exp in expList:
                         if resTab[tabRow][rar_sample] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]:  # Sample
                             linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]] = {}
                             linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"] = []
                         
                         linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
 
         for tar in colTar:
             for sam in linRegRes[exp["id"]][run["id"]][tar]:
                 linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar][sam]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["TD0"])
+
+ww.close()
+rd.save("temp_volume.rdml")
+
+curDa["Test_Vol_AMC_384_05_TD0"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 5ul"]["TD0 mean"]
+curDa["Test_Vol_AMC_384_10_TD0"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul STD"]["TD0 mean"]
+curDa["Test_Vol_AMC_384_20_TD0"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 20ul"]["TD0 mean"]
+curDa["Test_Vol_EMBL_384_05_TD0"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 5ul"]["TD0 mean"]
+curDa["Test_Vol_EMBL_384_10_TD0"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1-STD"]["M1 gDNA 0.5ng/ul STD"]["TD0 mean"]
+curDa["Test_Vol_EMBL_384_20_TD0"] = linRegRes["EMBL Heidelberg DE - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 20ul"]["TD0 mean"]
+curDa["Test_Vol_EMBL_96_10_TD0"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 10ul"]["TD0 mean"]
+curDa["Test_Vol_EMBL_96_20_TD0"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1-STD"]["M1 gDNA 0.5ng/ul STD"]["TD0 mean"]
+curDa["Test_Vol_EMBL_96_40_TD0"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 40ul"]["TD0 mean"]
+
+print("\nAMC Amsterdam NL - 384 Wells")
+print("  5ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_05_TD0", "{:6.2f}"))
+print(" 10ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_10_TD0", "{:6.2f}"))
+print(" 20ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_20_TD0", "{:6.2f}"))
+print("\nEMBL Heidelberg DE - 384 Wells")
+print("  5ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_05_TD0", "{:6.2f}"))
+print(" 10ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_10_TD0", "{:6.2f}"))
+print(" 20ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_20_TD0", "{:6.2f}"))
+print("\nEMBL Heidelberg DE - 96 Wells")
+print(" 10ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_10_TD0", "{:6.2f}"))
+print(" 20ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_20_TD0", "{:6.2f}"))
+print(" 40ul - 0.5ng/ul - TD0: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_40_TD0", "{:6.2f}"))
 
 curDa["Test_Vol_AMC_384_05"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 5ul"]["Ncopy mean"]
 curDa["Test_Vol_AMC_384_10"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
@@ -473,17 +526,17 @@ curDa["Test_Vol_EMBL_96_20"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1
 curDa["Test_Vol_EMBL_96_40"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 40ul"]["Ncopy mean"]
 
 print("\nAMC Amsterdam NL - 384 Wells")
-print("  5ul - 0.5ng/ul -  750 copies: " + "{:6.1f}".format(curDa["Test_Vol_AMC_384_05"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_05")) + ")" )
-print(" 10ul - 0.5ng/ul - 1500 copies: " + "{:6.1f}".format(curDa["Test_Vol_AMC_384_10"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_10")) + ")" )
-print(" 20ul - 0.5ng/ul - 3000 copies: " + "{:6.1f}".format(curDa["Test_Vol_AMC_384_20"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_20")) + ")" )
+print("  5ul - 0.5ng/ul -  750 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_05", "{:6.1f}"))
+print(" 10ul - 0.5ng/ul - 1500 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_10", "{:6.1f}"))
+print(" 20ul - 0.5ng/ul - 3000 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_20", "{:6.1f}"))
 print("\nEMBL Heidelberg DE - 384 Wells")
-print("  5ul - 0.5ng/ul -  750 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_384_05"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_05")) + ")" )
-print(" 10ul - 0.5ng/ul - 1500 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_384_10"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_10")) + ")" )
-print(" 20ul - 0.5ng/ul - 3000 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_384_20"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_20")) + ")" )
+print("  5ul - 0.5ng/ul -  750 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_05", "{:6.1f}"))
+print(" 10ul - 0.5ng/ul - 1500 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_10", "{:6.1f}"))
+print(" 20ul - 0.5ng/ul - 3000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_20", "{:6.1f}"))
 print("\nEMBL Heidelberg DE - 96 Wells")
-print(" 10ul - 0.5ng/ul - 1500 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_96_10"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_10")) + ")" )
-print(" 20ul - 0.5ng/ul - 3000 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_96_20"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_20")) + ")" )
-print(" 40ul - 0.5ng/ul - 6000 copies: " + "{:6.1f}".format(curDa["Test_Vol_EMBL_96_40"]) + " (" + "{:6.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_40")) + ")" )
+print(" 10ul - 0.5ng/ul - 1500 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_10", "{:6.1f}"))
+print(" 20ul - 0.5ng/ul - 3000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_20", "{:6.1f}"))
+print(" 40ul - 0.5ng/ul - 6000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_40", "{:6.1f}"))
 
 curDa["Test_Vol_AMC_384_c0.2"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["gDNA 0.2ng/ul"]["Ncopy mean"]
 curDa["Test_Vol_AMC_384_c0.5"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul STD"]["Ncopy mean"]
@@ -503,33 +556,32 @@ curDa["Test_Vol_EMBL_96_c2"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1
 curDa["Test_Vol_EMBL_96_c4"] = linRegRes["EMBL Heidelberg DE - 96 Wells"]["Run 1"]["FSTL1"]["gDNA 4ng/ul"]["Ncopy mean"]
 
 print("\nAMC Amsterdam NL - 384 Wells")
-print(" 10ul - 0.2ng/ul -   600 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c0.2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c0.2")) + ")" )
-print(" 10ul - 0.5ng/ul -  1500 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c0.5"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c0.5")) + ")" )
-print(" 10ul - 1.0ng/ul -  3000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c1"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c1")) + ")" )
-print(" 10ul - 2.0ng/ul -  6000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c2")) + ")" )
-print(" 10ul - 4.0ng/ul - 12000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c4"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c4")) + ")" )
-print(" 10ul - 8.0ng/ul - 24000 copies: " + "{:8.1f}".format(curDa["Test_Vol_AMC_384_c8"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_AMC_384_c8")) + ")" )
+print(" 10ul - 0.2ng/ul -   600 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_c0.2", "{:8.1f}"))
+print(" 10ul - 0.5ng/ul -  1500 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_c0.5", "{:8.1f}"))
+print(" 10ul - 1.0ng/ul -  3000 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_c1", "{:8.1f}"))
+print(" 10ul - 2.0ng/ul -  6000 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_c2", "{:8.1f}"))
+print(" 10ul - 4.0ng/ul - 12000 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_c4", "{:8.1f}"))
+print(" 10ul - 8.0ng/ul - 24000 copies: " + colorDiff(curDa, laDa, "Test_Vol_AMC_384_c8", "{:8.1f}"))
 print("\nEMBL Heidelberg DE - 384 Wells")
-print(" 10ul - 0.2ng/ul -   600 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c0.2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c0.2")) + ")" )
-print(" 10ul - 0.5ng/ul -  1500 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c0.5"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c0.5")) + ")" )
-print(" 10ul - 1.0ng/ul -  3000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c1"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c1")) + ")" )
-print(" 10ul - 2.0ng/ul -  6000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c2")) + ")" )
-print(" 10ul - 4.0ng/ul - 12000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_384_c4"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_384_c4")) + ")" )
+print(" 10ul - 0.2ng/ul -   600 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_c0.2", "{:8.1f}"))
+print(" 10ul - 0.5ng/ul -  1500 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_c0.2", "{:8.1f}"))
+print(" 10ul - 1.0ng/ul -  3000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_c1", "{:8.1f}"))
+print(" 10ul - 2.0ng/ul -  6000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_c2", "{:8.1f}"))
+print(" 10ul - 4.0ng/ul - 12000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_384_c4", "{:8.1f}"))
 print("\nEMBL Heidelberg DE - 96 Wells")
-print(" 20ul - 0.2ng/ul -  1200 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c0.2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c0.2")) + ")" )
-print(" 20ul - 0.5ng/ul -  3000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c0.5"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c0.5")) + ")" )
-print(" 20ul - 1.0ng/ul -  6000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c1"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c1")) + ")" )
-print(" 20ul - 2.0ng/ul - 12000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c2"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c2")) + ")" )
-print(" 20ul - 4.0ng/ul - 24000 copies: " + "{:8.1f}".format(curDa["Test_Vol_EMBL_96_c4"]) + " (" + "{:8.1f}".format(saveNum(laDa, "Test_Vol_EMBL_96_c4")) + ")" )
+print(" 20ul - 0.2ng/ul -  1200 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_c0.2", "{:8.1f}"))
+print(" 20ul - 0.5ng/ul -  3000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_c0.2", "{:8.1f}"))
+print(" 20ul - 1.0ng/ul -  6000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_c1", "{:8.1f}"))
+print(" 20ul - 2.0ng/ul - 12000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_c2", "{:8.1f}"))
+print(" 20ul - 4.0ng/ul - 24000 copies: " + colorDiff(curDa, laDa, "Test_Vol_EMBL_96_c4", "{:8.1f}"))
 
-print("\n#############################\n### Test Primer Dilutions ###\n#############################")
 # Time the test
 startTime = time.time()
 rd = rdml.Rdml(rdml_amp_file)
 
 expList = rd.experiments()
 if len(expList) < 1:
-    print("No experiments found!")
+    print("No experiments found in " + rdml_amp_file + "!")
     sys.exit(0)
 ww = open(out_amp_file, "w")
 startLine = 0
@@ -537,6 +589,10 @@ reactionDataTrue = 0
 reactionDataFalse = 0
 linRegRes = {}
 for exp in expList:
+    if exp["id"] == "Primer Test - EMBL":
+        print("\n################################\n### Primer Test ###\n################################")
+    if exp["id"] == "Primer Conc - AMC":
+        print("\n#############################\n### Test Primer Dilutions ###\n#############################")
     runList = exp.runs()
     if len(runList) < 1:
         print("No runs found!")
@@ -569,15 +625,33 @@ for exp in expList:
                             linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
                             linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCR Eff indiv"] = []
                             linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy indiv"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
                             linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
-                        
+
                         linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCR Eff indiv"].append(resTab[tabRow][rar_indiv_PCR_eff])
                         linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy indiv"].append(resTab[tabRow][rar_indiv_Ncopy])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])
                         linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
 
                         reactionDataTrue += 1
                     else:
                         reactionDataFalse += 1
+
+    if exp["id"] == "Primer Test - EMBL":
+        prim_test_key = "Primer_Test_"
+        prim_test_tar = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_C_040", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_G_211",
+                         "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", "FSTL_1_*_259 AMC", "FSTL_1_L_412", "FSTL_1_M_398",
+                         "FSTL_1_N_386", "FSTL_1_O_417", "FSTL_1_P_820", "FSTL_1_R_790", "FSTL_1_S_778", "FSTL_1_T_770"]
+        for tar in prim_test_tar:
+            curDa[prim_test_key + "PCReff_" + tar] = linRegRes["Primer Test - EMBL"]["Primer Test"][tar]["PCReff"]
+            curDa[prim_test_key + "TD0_" + tar] = np.mean(linRegRes["Primer Test - EMBL"]["Primer Test"][tar]["TD0"])
+            curDa[prim_test_key + "Ncopy_" + tar] = np.mean(linRegRes["Primer Test - EMBL"]["Primer Test"][tar]["Ncopy"])
+        print("Target                TD0    (TD0   )    PCReff (PCReff)     Ncopy  (Ncopy  )")
+        for tar in prim_test_tar:
+            print(tar.ljust(22) + colorDiff(curDa, laDa, prim_test_key + "TD0_" + tar, "{:6.3f}") + "    "
+                                + colorDiff(curDa, laDa, prim_test_key + "PCReff_" + tar, "{:6.3f}") + "     "
+                                + colorDiff(curDa, laDa, prim_test_key + "Ncopy_" + tar, "{:6.0f}"))
 
     if exp["id"] == "Primer Conc - AMC":
         quant = exp.quantify()
