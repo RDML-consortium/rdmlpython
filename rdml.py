@@ -1539,6 +1539,7 @@ def standardCurveStats(data, noCq=False):
     for tar in range(0, len(targets)):
         # Values indicating failure
         data[targets[tar]]["cq_eff"] = -1.0
+        data[targets[tar]]["cq_eff_sd"] = -1.0
         data[targets[tar]]["mean_min"] = -1.0
         data[targets[tar]]["mean_max"] = -1.0
         data[targets[tar]]["bias_as_ratio"] = -1.0
@@ -1696,10 +1697,9 @@ def standardCurveStats(data, noCq=False):
                     data[targets[tar]]["all_cq"].append(data[targets[tar]]["Cq"][concStr][pos])
             slope, intercept, r_val, p_val, std_err = scp.linregress(data[targets[tar]]["all_std_scaled_log"], data[targets[tar]]["all_cq"])
             data[targets[tar]]["cq_slope_bias"] = slope
-            if slope != 0.0:
+            if slope < 0.0:
                 data[targets[tar]]["cq_eff"] = np.power(10, -1.0 / data[targets[tar]]["cq_slope_bias"])
-            else:
-                data[targets[tar]]["cq_eff"] = -1.0
+                data[targets[tar]]["cq_eff_sd"] = data[targets[tar]]["cq_eff"] * np.log(10) * 1 / (slope * slope) * std_err
 
             for concPos in range(0, len(data[targets[tar]]["std"]["val"])):
                 concStr = data[targets[tar]]["std"]["str"][concPos]
@@ -9330,6 +9330,8 @@ class Experiment:
         # Collect all Data
         pcrEff_sum = {}
         pcrEff_num = {}
+        pcrEff_sd_sum = {}
+        pcrEff_sd_num = {}
         for pRun in range(0, len(allRuns)):
             runA = allRuns[pRun]
             reacts = _get_all_children(runA._node, "react")
@@ -9360,6 +9362,18 @@ class Experiment:
                                 pcrEff_num[target] = 0
                             pcrEff_sum[target] += ampEff
                             pcrEff_num[target] += 1
+                    ampEffse = _get_first_child_text(react_data, "ampEffSE")
+                    if not ampEffse == "":
+                        try:
+                            ampEffse = float(ampEffse)
+                        except ValueError:
+                            pass
+                        if math.isfinite(ampEffse):
+                            if target not in pcrEff_sd_sum:
+                                pcrEff_sd_sum[target] = 0.0
+                                pcrEff_sd_num[target] = 0
+                            pcrEff_sd_sum[target] += ampEffse
+                            pcrEff_sd_num[target] += 1
                     if target not in sampleToQuantity:
                         continue
                     if sampleID not in sampleToQuantity[target]:
@@ -9448,7 +9462,11 @@ class Experiment:
             res["dil_std"][tar]["curve_pcr_eff"] = -1.0
             if tar in pcrEff_sum:
                 res["dil_std"][tar]["curve_pcr_eff"] = pcrEff_sum[tar] / pcrEff_num[tar]
+            res["dil_std"][tar]["curve_pcr_eff_sd"] = -1.0
+            if tar in pcrEff_sd_sum:
+                res["dil_std"][tar]["curve_pcr_eff_sd"] = pcrEff_sd_sum[tar] / pcrEff_sd_num[tar]
             res["dil_std"][tar]["dilution_pcr_eff"] = std_data[tar]["cq_eff"]
+            res["dil_std"][tar]["dilution_pcr_eff_sd"] = std_data[tar]["cq_eff_sd"]
             res["dil_std"][tar]["mean_min"] = std_data[tar]["mean_min"]
             res["dil_std"][tar]["mean_max"] = std_data[tar]["mean_max"]
             res["dil_std"][tar]["mean_ratio"] = std_data[tar]["bias_as_ratio"]
@@ -9652,13 +9670,15 @@ class Experiment:
 
         if saveResultsCSV:
             if len(res["dil_std"]) > 0:
-                res["tsv"]["dil_std"] = "Target\tCurve PCR Eff.\tDilution PCR Eff.\tStd Max\tNcopy Max\tSTD Min\tNcopy Min\tStd Ratio\tNcopy Ratio\t"
+                res["tsv"]["dil_std"] = "Target\tCurve PCR Eff.\tSD\tDilution PCR Eff.\tSD\tDil Max\tNcopy Max\tDil Min\tNcopy Min\tDil Ratio\tNcopy Ratio\t"
                 res["tsv"]["dil_std"] += "Slope Bias\tCorrelation R\tLinearity\tPrecision\tResolution\n"
                 sortTars = sorted(res["dil_std"].keys())
                 for target in sortTars:
                     res["tsv"]["dil_std"] += target + "\t"
                     res["tsv"]["dil_std"] += "{:.4f}".format(res["dil_std"][target]["curve_pcr_eff"]) + "\t"
+                    res["tsv"]["dil_std"] += "{:.4f}".format(res["dil_std"][target]["curve_pcr_eff_sd"]) + "\t"
                     res["tsv"]["dil_std"] += "{:.4f}".format(res["dil_std"][target]["dilution_pcr_eff"]) + "\t"
+                    res["tsv"]["dil_std"] += "{:.4f}".format(res["dil_std"][target]["dilution_pcr_eff_sd"]) + "\t"
                     res["tsv"]["dil_std"] += "{:.2f}".format(res["dil_std"][target]["expected_max"]) + "\t"
                     res["tsv"]["dil_std"] += "{:.2f}".format(res["dil_std"][target]["mean_max"]) + "\t"
                     res["tsv"]["dil_std"] += "{:.2f}".format(res["dil_std"][target]["expected_min"]) + "\t"
