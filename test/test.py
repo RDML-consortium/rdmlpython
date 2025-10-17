@@ -24,12 +24,14 @@ vermeulen_std_4 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen
 vermeulen_std_3 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_1500.rdml")
 vermeulen_std_2 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_15000.rdml")
 vermeulen_std_1 = os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_std_150000_150000.rdml")
-rdml_mach_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine.rdml")
+rdml_vol_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine.rdml")
 rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_primer_mix.rdml")
 rdml_dil_file = os.path.join(parent_dir, "experiments/untergasser/large_DNA_dilutions.rdml")
+rdml_probes_file = os.path.join(parent_dir, "experiments/untergasser/probes.rdml")
 out_vol_file = "temp_volume_resuls.csv"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
 out_dil_file = "temp_large_DNA_dilutions_resuls.csv"
+out_probes_file = "temp_probes_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
 out_json = "temp_test.json"
@@ -186,24 +188,24 @@ def printPrimerTable(tars, mix, cur, sav):
                 colCurSum[count][roNum] = cur[keyVal]
                 if keyVal not in sav:
                     continue
-                colSavSum[count][roNum] = sav[keyVal]
-                direct = cur[keyVal] - sav[keyVal]
-                diff = abs(cur[keyVal] - sav[keyVal])
+                colSavSum[count][roNum] = saveNum(sav, keyVal)
+                direct = cur[keyVal] - saveNum(sav, keyVal)
+                diff = abs(cur[keyVal] - saveNum(sav, keyVal))
                 if diff > prec[count]:
                     if direct > 0.0:
                         res +=  '\033[44m'
                     else:
                         res +=  '\033[41m'
                 if prin[count] == 0:
-                    res += "{:8.0f}".format(cur[keyVal]) + " (" + "{:8.0f}".format(sav[keyVal]) + ") "
+                    res += "{:8.0f}".format(cur[keyVal]) + " (" + "{:8.0f}".format(saveNum(sav, keyVal)) + ") "
                 elif prin[count] == 1:
-                    res += "{:8.1f}".format(cur[keyVal]) + " (" + "{:8.1f}".format(sav[keyVal]) + ") "
+                    res += "{:8.1f}".format(cur[keyVal]) + " (" + "{:8.1f}".format(saveNum(sav, keyVal)) + ") "
                 elif prin[count] == 2:
-                    res += "{:8.2f}".format(cur[keyVal]) + " (" + "{:8.2f}".format(sav[keyVal]) + ") "
+                    res += "{:8.2f}".format(cur[keyVal]) + " (" + "{:8.2f}".format(saveNum(sav, keyVal)) + ") "
                 elif prin[count] == 3:
-                    res += "{:8.3f}".format(cur[keyVal]) + " (" + "{:8.3f}".format(sav[keyVal]) + ") "
+                    res += "{:8.3f}".format(cur[keyVal]) + " (" + "{:8.3f}".format(saveNum(sav, keyVal)) + ") "
                 else:
-                    res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(sav[keyVal]) + ") "
+                    res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(saveNum(sav, keyVal)) + ") "
                 if diff > prec[count]:
                     res +=  '\033[0m'
             else:
@@ -267,15 +269,15 @@ def printCVTable(tars, mix, cur, sav):
     for row in tars:
         res = row.ljust(20)
         keyVal = "dilution_" + row.replace(" ", "_") + mix + "_cv"
-        if keyVal in cur and keyVal in sav:
-            direct = cur[keyVal] - sav[keyVal]
-            diff = abs(cur[keyVal] - sav[keyVal])
+        if keyVal in cur:
+            direct = cur[keyVal] - saveNum(sav, keyVal)
+            diff = abs(cur[keyVal] - saveNum(sav, keyVal))
             if diff > 0.01:
                 if direct > 0.0:
                     res +=  '\033[44m'
                 else:
                     res +=  '\033[41m'
-            res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(sav[keyVal]) + ") "
+            res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(saveNum(sav, keyVal)) + ") "
             if diff > 0.01:
                 res +=  '\033[0m'
         else:
@@ -283,8 +285,29 @@ def printCVTable(tars, mix, cur, sav):
         print(res)
 
 
-def printTable(rows, cols, prec, prin, cur, sav):
-    res = "".ljust(20)
+def printCVProbes(tars, mix, cur, sav):
+    print("".ljust(30) + "mean CV".ljust(20))
+    for row in tars:
+        res = row.ljust(30)
+        keyVal = "probes_" + row.replace(" ", "_") + mix + "_cv"
+        if keyVal in cur:
+            direct = cur[keyVal] - saveNum(sav, keyVal)
+            diff = abs(cur[keyVal] - saveNum(sav, keyVal))
+            if diff > 0.01:
+                if direct > 0.0:
+                    res +=  '\033[44m'
+                else:
+                    res +=  '\033[41m'
+            res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(saveNum(sav, keyVal)) + ") "
+            if diff > 0.01:
+                res +=  '\033[0m'
+        else:
+            res += "".ljust(20)
+        print(res)
+
+
+def printTable(spc, rows, cols, prec, prin, cur, sav):
+    res = "".ljust(spc)
     for col in cols:
         res += col.ljust(20)
     print(res)
@@ -294,35 +317,35 @@ def printTable(rows, cols, prec, prin, cur, sav):
     colSavSum[:] = np.nan
     roNum = 0
     for row in rows:
-        res = row.ljust(20)
+        res = row.ljust(spc)
         count = 0
         for col in cols:
             keyVal = row.replace(" ", "_") + "_" + col
             colCurSum[count][roNum] = cur[keyVal]
-            colSavSum[count][roNum] = sav[keyVal]
-            direct = cur[keyVal] - sav[keyVal]
-            diff = abs(cur[keyVal] - sav[keyVal])
+            colSavSum[count][roNum] = saveNum(sav, keyVal)
+            direct = cur[keyVal] - saveNum(sav, keyVal)
+            diff = abs(cur[keyVal] - saveNum(sav, keyVal))
             if diff > prec[count]:
                 if direct > 0.0:
                     res +=  '\033[44m'
                 else:
                     res +=  '\033[41m'
             if prin[count] == 0:
-                res += "{:8.0f}".format(cur[keyVal]) + " (" + "{:8.0f}".format(sav[keyVal]) + ") "
+                res += "{:8.0f}".format(cur[keyVal]) + " (" + "{:8.0f}".format(saveNum(sav, keyVal)) + ") "
             elif prin[count] == 1:
-                res += "{:8.1f}".format(cur[keyVal]) + " (" + "{:8.1f}".format(sav[keyVal]) + ") "
+                res += "{:8.1f}".format(cur[keyVal]) + " (" + "{:8.1f}".format(saveNum(sav, keyVal)) + ") "
             elif prin[count] == 2:
-                res += "{:8.2f}".format(cur[keyVal]) + " (" + "{:8.2f}".format(sav[keyVal]) + ") "
+                res += "{:8.2f}".format(cur[keyVal]) + " (" + "{:8.2f}".format(saveNum(sav, keyVal)) + ") "
             elif prin[count] == 3:
-                res += "{:8.3f}".format(cur[keyVal]) + " (" + "{:8.3f}".format(sav[keyVal]) + ") "
+                res += "{:8.3f}".format(cur[keyVal]) + " (" + "{:8.3f}".format(saveNum(sav, keyVal)) + ") "
             else:
-                res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(sav[keyVal]) + ") "
+                res += "{:8.5f}".format(cur[keyVal]) + " (" + "{:8.5f}".format(saveNum(sav, keyVal)) + ") "
             if diff > prec[count]:
                 res +=  '\033[0m'
             count += 1
         print(res)
         roNum += 1
-    res = "Mean".ljust(20)
+    res = "Mean".ljust(spc)
     count = 0
     for col in cols:
         meanCur = np.nanmean(colCurSum[count])
@@ -348,7 +371,7 @@ def printTable(rows, cols, prec, prin, cur, sav):
             res +=  '\033[0m'
         count += 1
     print(res)
-    res = "CV".ljust(20)
+    res = "CV".ljust(spc)
     count = 0
     for col in cols:
         cvCur = np.nanstd(colCurSum[count]) / np.nanmean(colCurSum[count])
@@ -366,7 +389,7 @@ def printTable(rows, cols, prec, prin, cur, sav):
         count += 1
     print(res)
     if "curve_pcr_eff" in cols:
-        res = "Diff cur dil".ljust(20)
+        res = "Diff cur dil".ljust(spc)
         std_ar = ["curve_pcr_eff", "dilution_pcr_eff"]
         sum_eff_cur = 0.0
         sum_eff_sav = 0.0
@@ -399,6 +422,8 @@ os.system('rm ' + os.path.join(parent_dir, "test/temp_*"))
 print("\n#######################\n### Technical Tests ###\n#######################")
 
 print("Test: Fill Matrix Gaps:")
+print("This RDML file has gaps in the matrix which need to be filled automatically.")
+print("----------------------")
 
 os.system('python3 ' + os.path.join(library_dir, "rdmlpython/rdml.py") +  
           ' -lrp ' + os.path.join(parent_dir, "experiments/technical/matrix_gaps.rdml") +
@@ -432,9 +457,13 @@ os.system('python3 ' + os.path.join(parent_dir, "test/diff_table.py") + ' ' +
 
 
 print("\n################################\n### Test Machine and Volumes ###\n################################")
+print("This test uses the dilution series with different volumes and machines. In principle all should have ")
+print("the same TD0 and Ncopy should be as expected.")
+print("----------------------")
+
 # Time the test
 startTime = time.time()
-rd = rdml.Rdml(rdml_mach_file)
+rd = rdml.Rdml(rdml_vol_file)
 
 expList = rd.experiments()
 if len(expList) < 1:
@@ -593,6 +622,10 @@ linRegRes = {}
 for exp in expList:
     if exp["id"] == "Primer Test - EMBL":
         print("\n###################\n### Primer Test ###\n###################")
+        print("This test uses the primer test data. In principle all targets should have a high PCReff and a ")
+        print("Ncopy of 1200. The TD0 should decrease with amplicon length.")
+        print("----------------------")
+
     if exp["id"] == "Primer Conc - AMC":
         print("\n#############################\n### Test Primer Dilutions ###\n#############################")
     runList = exp.runs()
@@ -710,13 +743,23 @@ for exp in expList:
             keyVal = tar.replace(" ", "_") + "_cv"
             curDa[keyVal] = quant["tec_data"]["genomic DNA 4ng"][tar]["Ncopy_cv"]   
 
+
+        print("\n####################\n### Ncopy and CV ###\n####################")
+        print("This test uses the primer dilution data. In principle all targets should have a Ncopy of 1200. The CV ")
+        print("of the seven reactions should be as low as possible.")
+        print("----------------------")
+
         print("Roche:")
         printPrimerTable(tars, "", curDa, laDa)
         print("\nSensi:")
         printPrimerTable(tars, "_SF", curDa, laDa)
         print("\nLC-Green:")
         printPrimerTable(tars, "_LC", curDa, laDa)
-        
+
+        print("\n#####################\n### indiv PCR eff ###\n#####################")
+        print("This test uses the primer dilution data. The individual PCR efficiency and the mean ")
+        print("of the seven reactions is calculated and the CV of the efficiencies.")
+        print("----------------------")
         print("\nRoche PCR efficiencies:                                                                           Mean                      CV")
         doTD0 = False
         xe = exp["id"]
@@ -942,6 +985,10 @@ for exp in expList:
                 curDa[keyVal] = num / float(sum)
 
         print("\n##########################\n### Test DNA Dilutions ###\n##########################")
+        print("This test uses the DNA dilution data. The mean of the CV on all Ncopy of one target ")
+        print("is calculated. It should be as low as possible.")
+        print("----------------------")
+
         print("Roche:")
         printCVTable(tar_roche, "", curDa, laDa)
         print("\nSensi:")
@@ -949,18 +996,23 @@ for exp in expList:
         print("\nLC-Green:")
         printCVTable(tar_roche, "_LC", curDa, laDa)
 
+        print("\n#########################\n### Test DNA Standard ###\n#########################")
+        print("This test uses the DNA dilution data. The parameters of a dilution standard are calculated. ")
+        print("The efficiencies of the curve and the dilution should be similar. The Ncopy match the expectations.")
+        print("----------------------")
+
         print("\n\nRoche:")
-        printTable(tar_roche, head_a, prec_a, print_a, curDa, laDa)
+        printTable(20, tar_roche, head_a, prec_a, print_a, curDa, laDa)
         print("\nSensi:")
-        printTable(tar_sensi, head_a, prec_a, print_a, curDa, laDa)
+        printTable(20, tar_sensi, head_a, prec_a, print_a, curDa, laDa)
         print("\nLC-Green:")
-        printTable(tar_lc, head_a, prec_a, print_a, curDa, laDa)
+        printTable(20, tar_lc, head_a, prec_a, print_a, curDa, laDa)
         print("\n\nRoche:")
-        printTable(tar_roche, head_b, prec_b, print_b, curDa, laDa)
+        printTable(20, tar_roche, head_b, prec_b, print_b, curDa, laDa)
         print("\nSensi:")
-        printTable(tar_sensi, head_b, prec_b, print_b, curDa, laDa)
+        printTable(20, tar_sensi, head_b, prec_b, print_b, curDa, laDa)
         print("\nLC-Green:")
-        printTable(tar_lc, head_b, prec_b, print_b, curDa, laDa)
+        printTable(20, tar_lc, head_b, prec_b, print_b, curDa, laDa)
 
 curDa["AMP_reactionDataFalse"] = reactionDataFalse
 curDa["AMP_reactionDataSum"] = reactionDataFalse + reactionDataTrue
@@ -979,6 +1031,9 @@ print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 # exit(0)
 
 print("\n############################\n### Test Large Dilutions ###\n############################")
+print("This test uses the large dilution data. It calculates the TD0 and the Ncopy. ")
+print("The calculated values should match the expected values.")
+print("----------------------")
 startTime = time.time()
 rd = rdml.Rdml(rdml_dil_file)
 
@@ -1176,7 +1231,180 @@ runMin = math.floor(runTime / 60.0)
 runSec = runTime - runMin* 60.0
 print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 
+print("\n###################\n### Test Probes ###\n###################")
+print("This test uses DNA dilutions but quantifies by probes. First calculate results.")
+print("----------------------")
+
+# Time the test
+startTime = time.time()
+rd = rdml.Rdml(rdml_probes_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_probes_file, "w")
+startLine = 0
+linRegRes = {}
+reactionDataTrue = 0
+reactionDataFalse = 0
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 0.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
+
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+
+                        reactionDataTrue += 1
+                    else:
+                        reactionDataFalse += 1
+
+    if exp["id"] == "Probes - AMC":
+        quant = exp.quantify()
+        head_var = ["curve_pcr_eff", "dilution_pcr_eff", "expected_max", "mean_max", "expected_min", "mean_min", 
+                    "expected_ratio", "mean_ratio", "slope_bias", "correlation_R", "linearity", 
+                    "reproducibility", "detectable_diff"]
+        head_a = ["curve_pcr_eff", "dilution_pcr_eff", "expected_max", "mean_max", "expected_min", "mean_min", 
+                    "expected_ratio", "mean_ratio"]
+        head_b = ["slope_bias", "correlation_R", "linearity", "reproducibility", "detectable_diff"]
+        prec_a = [0.001, 0.001, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        prec_b = [0.0001, 0.00001, 0.00001, 0.00001, 0.0001]
+        print_a = [3, 3, 0, 0, 0, 0, 0, 0]
+        print_b = [5, 5, 5, 5, 5]
+        tar_roche = ["FSTL_1_D_105 250nM 150nM", "FSTL_1_F_109 250nM 150nM", "FSTL_1_K_219 250nM 150nM", "FSTL_1_O_417 250nM 150nM"]
+        tar_idt = ["FSTL_1_D_105 250nM 150nM IDT", "FSTL_1_F_109 250nM 150nM IDT", "FSTL_1_K_219 250nM 150nM IDT", "FSTL_1_O_417 250nM 150nM IDT"]
+
+        for tar in tar_roche:
+            for var in head_var:
+                keyVal = tar.replace(" ", "_") + "_" + var
+                curDa[keyVal] = quant["dil_std"][tar][var]
+        for tar in tar_idt:
+            for var in head_var:
+                keyVal = tar.replace(" ", "_") + "_" + var
+                curDa[keyVal] = quant["dil_std"][tar][var]
+
+        print("\n#####################################\n### Test Probes with DNA Standard ###\n#####################################")
+        print("This test uses the DNA dilution but quantifies by probes. The parameters of a dilution ")
+        print("standard are calculated. The efficiencies of the curve and the dilution should be similar. ")
+        print("The Ncopy match the expectations.")
+        print("----------------------")
+
+        print("\n\nRoche:")
+        printTable(30, tar_roche, head_a, prec_a, print_a, curDa, laDa)
+        print("\nSensi:")
+        printTable(30, tar_idt, head_a, prec_a, print_a, curDa, laDa)
+        print("\n\nRoche:")
+        printTable(30, tar_roche, head_b, prec_b, print_b, curDa, laDa)
+        print("\nSensi:")
+        printTable(30, tar_idt, head_b, prec_b, print_b, curDa, laDa)
+
+        print("\n#############################################\n### Test Probes Primer Conc vs Probe Conc ###\n#############################################")
+        print("This test uses the 4ng DNA dilution data but quantifies by different primer and probe concentraion.")
+        print("The TD0 should be good, PCR efficiencies are calculated of 3 replicates and have big noise. Ncopy ")
+        print("is noisy due to the PCR efficiencies.")
+        print("----------------------")
+
+        probe_tar = ["FSTL_1_D_105 ", "FSTL_1_F_109 ", "FSTL_1_K_219 ", "FSTL_1_O_417 "]
+        probe_conc = ["500nM", "250nM", "150nM", "75nM", "50nM", "25nM"]
+        primer_conc = ["100nM", "250nM", "750nM"]
+        res = ""
+        for prim in primer_conc:
+            res += (prim + " TD0").ljust(15)
+            for col in probe_conc:
+                res += col.ljust(16)
+            res += "\n"
+            for tar in probe_tar:
+                res += tar.ljust(15)
+                count = 0
+                for probeC in probe_conc:
+                    tar_id = tar + prim + " " + probeC
+                    keyVal = "probe_prim_prob_" + tar_id.replace(" ", "_") + "_TD0"
+                    curDa[keyVal] = -1.0
+                    if tar_id in linRegRes[exp["id"]]["P8 - Primer conc - Probe conc"]:
+                        curDa[keyVal] = np.mean(linRegRes[exp["id"]]["P8 - Primer conc - Probe conc"][tar_id]["TD0"])
+                    res += colorDiff(curDa, laDa, keyVal, "{:6.2f}") + " "
+                res += "\n"
+            res += "\n"
+        print(res)
+        res = ""
+        for prim in primer_conc:
+            res += (prim + " PCReff").ljust(15)
+            for col in probe_conc:
+                res += col.ljust(18)
+            res += "\n"
+            for tar in probe_tar:
+                res += tar.ljust(15)
+                count = 0
+                for probeC in probe_conc:
+                    tar_id = tar + prim + " " + probeC
+                    keyVal = "probe_prim_prob_" + tar_id.replace(" ", "_") + "_PCReff"
+                    curDa[keyVal] = -1.0
+                    if tar_id in linRegRes[exp["id"]]["P8 - Primer conc - Probe conc"]:
+                        curDa[keyVal] = linRegRes[exp["id"]]["P8 - Primer conc - Probe conc"][tar_id]["PCReff"]
+                    res += colorDiff(curDa, laDa, keyVal, "{:7.4f}") + " "
+                res += "\n"
+            res += "\n"
+        print(res)
+        res = ""
+        for prim in primer_conc:
+            res += (prim + " Ncopy").ljust(17)
+            for col in probe_conc:
+                res += col.ljust(20)
+            res += "\n"
+            for tar in probe_tar:
+                res += tar.ljust(15)
+                count = 0
+                for probeC in probe_conc:
+                    tar_id = tar + prim + " " + probeC
+                    keyVal = "probe_prim_prob_" + tar_id.replace(" ", "_") + "_Ncopy"
+                    curDa[keyVal] = -1.0
+                    if tar_id in linRegRes[exp["id"]]["P8 - Primer conc - Probe conc"]:
+                        curDa[keyVal] = np.mean(linRegRes[exp["id"]]["P8 - Primer conc - Probe conc"][tar_id]["Ncopy"])
+                    res += colorDiff(curDa, laDa, keyVal, "{:8.1f}") + " "
+                res += "\n"
+            res += "\n"
+        print(res)
+
+ww.close()
+rd.save("temp_probes.rdml")
+
+
 print("\n######################\n### Test Vermeulen ###\n######################")
+print("This test uses the Vermeulen data. It first calculates everything.")
+print("----------------------")
 print("  Testing ony standards.")
 # The standards only
 verm_res = {}
@@ -1287,6 +1515,14 @@ printNice("Failing Reactions: ", curDa["reactionDataFalse"], laDa["reactionDataF
 printNice("Sum Reactions: ", curDa["reactionDataSum"], laDa["reactionDataSum"], 1, "+", 0)
 
 # Write the eff an Ncopy comparison
+print("\n######################\n### Test PCR eff ###\n######################")
+print("This test uses the Vermeulen data. The upper panel calculates the PCR efficiency and ")
+print("the lower panel calculates the coressponding Ncopy of the highest concentration. ")
+print("The left value uses all reactions of the 384 plate. The STD 5 only all standards ")
+print("(15 reactions) downt to SDT 1 with only the 3 replicates. On the right side the ")
+print("difference (upper) or the factor (lower) of each value to STD 5 is given.")
+print("----------------------")
+
 print("  Testing how the reduction of reactions affects PCR efficiency and Ncopy:")
 vm_eff_diff = {}
 vm_eff_val = {}
@@ -1437,6 +1673,11 @@ endTime = time.time()
 runTime = endTime - startTime
 runMin = math.floor(runTime / 60.0)
 runSec = runTime - runMin* 60.0
+print("\n######################\n### Test Vermeulen ###\n######################")
+print("This test uses the Vermeulen data. The upper panel calculates the test like published (by order): ")
+print("[Methods. 2013 Jan;59(1):32-46. doi: 10.1016/j.ymeth.2012.08.011.")
+print("The lower panel calculates result as mean. ")
+print("----------------------")
 print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))
 json_object = json.dumps(curDa, indent=4)
 with open(out_json, "w") as outfile:
