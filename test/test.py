@@ -28,10 +28,12 @@ rdml_vol_file = os.path.join(parent_dir, "experiments/untergasser/volume_machine
 rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_primer_mix.rdml")
 rdml_dil_file = os.path.join(parent_dir, "experiments/untergasser/large_DNA_dilutions.rdml")
 rdml_probes_file = os.path.join(parent_dir, "experiments/untergasser/probes.rdml")
+rdml_add_sybr_file = os.path.join(parent_dir, "experiments/untergasser/sybr_conc.rdml")
 out_vol_file = "temp_volume_resuls.csv"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
 out_dil_file = "temp_large_DNA_dilutions_resuls.csv"
 out_probes_file = "temp_probes_resuls.csv"
+out_add_sybr_file = "temp_sybr_conc_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
 out_json = "temp_test.json"
@@ -415,7 +417,7 @@ curDa = {}
 with open(in_json, 'r') as openfile:
     laDa = json.load(openfile)
 
-print("\n##############################\n### Remove Temporary Files ###\n###############################")
+print("\n##############################\n### Remove Temporary Files ###\n##############################")
 print('rm ' + os.path.join(parent_dir, "test/temp_*"))
 os.system('rm ' + os.path.join(parent_dir, "test/temp_*"))
 
@@ -461,8 +463,6 @@ print("This test uses the dilution series with different volumes and machines. I
 print("the same TD0 and Ncopy should be as expected.")
 print("----------------------")
 
-# Time the test
-startTime = time.time()
 rd = rdml.Rdml(rdml_vol_file)
 
 expList = rd.experiments()
@@ -1400,6 +1400,113 @@ for exp in expList:
 
 ww.close()
 rd.save("temp_probes.rdml")
+
+
+print("\n###################################\n### Test Added Dye to Probe Mix ###\n###################################")
+print("This test uses the probe mixes from Roche and IDT and add defined amounts of SYBR I. ")
+print("7ng DNA were used 2600 copies should be expected. As PCR efficiency is based on ")
+print("3 reactions, Ncopy will have big noise. ")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_add_sybr_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_add_sybr_file, "w")
+startLine = 0
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if exp["id"] not in linRegRes:
+                        linRegRes[exp["id"]] = {}
+                    if run["id"] not in linRegRes[exp["id"]]:
+                        linRegRes[exp["id"]][run["id"]] = {}
+                    if resTab[tabRow][rar_tar] not in colTar:
+                        colTar.append(resTab[tabRow][rar_tar])
+                    if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+                    
+                    linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                    linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in colTar:
+            if tar in linRegRes[exp["id"]][run["id"]]:
+                linRegRes[exp["id"]][run["id"]][tar]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["TD0"])    
+
+    
+for conc in ["200", "400", "800", "1600"]:
+    for uMix in ["ROCHE", "IDT"]:
+        addMix = ""
+        if uMix == "IDT":
+            addMix = " IDT"
+        curDa["Test_ADD_DYE_" + uMix + "_" + conc + "_TD0"] = linRegRes["Probe Mix SYBR"]["P4 - SYBR conc"]["FSTL_1_*_259 250nM 1:" + conc + addMix]["TD0 mean"]
+        curDa["Test_ADD_DYE_" + uMix + "_" + conc + "_PCReff"] = linRegRes["Probe Mix SYBR"]["P4 - SYBR conc"]["FSTL_1_*_259 250nM 1:" + conc + addMix]["PCReff"]
+        curDa["Test_ADD_DYE_" + uMix + "_" + conc + "_Ncopy"] = linRegRes["Probe Mix SYBR"]["P4 - SYBR conc"]["FSTL_1_*_259 250nM 1:" + conc + addMix]["Ncopy mean"]
+
+res = "\n             TD0                                PCReff                                 Ncopy\n"
+res +=  "             Roche            IDT               Roche              IDT                 Roche            IDT\n"
+for conc in ["200", "400", "800", "1600"]:
+    res += "SYBR 1:" + conc.ljust(6)
+    res += colorDiff(curDa, laDa, "Test_ADD_DYE_ROCHE_" + conc + "_TD0", "{:6.2f}") + "  "
+    res += colorDiff(curDa, laDa, "Test_ADD_DYE_IDT_" + conc + "_TD0", "{:6.2f}") + "   "
+    res += colorDiff(curDa, laDa, "Test_ADD_DYE_ROCHE_" + conc + "_PCReff", "{:7.4f}") + "  "
+    res += colorDiff(curDa, laDa, "Test_ADD_DYE_IDT_" + conc + "_PCReff", "{:7.4f}") + "   "
+    res += colorDiff(curDa, laDa, "Test_ADD_DYE_ROCHE_" + conc + "_Ncopy", "{:6.1f}") + "  "
+    res += colorDiff(curDa, laDa, "Test_ADD_DYE_IDT_" + conc + "_Ncopy", "{:6.1f}") + " "
+    res += "\n"
+print(res)
+
+add_dye_test_tar = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_C_040", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109",
+                    "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", "FSTL_1_L_412", "FSTL_1_M_398",
+                    "FSTL_1_O_417", "FSTL_1_P_820"]
+for tar in add_dye_test_tar:
+    for prim in ["100nM", "250nM", "750nM"]:
+        for conc in ["500", "1600"]:
+            curDa["Test_ADD_DYE_" + tar + "_" + prim + "_" + conc + "_TD0"] = linRegRes["Probe Mix SYBR"]["P7 - SYBR Primer"][tar + " " + prim + " 1:" + conc]["TD0 mean"]
+
+res = "\nTD0             1:500                                               1:1600\n"
+res +=  "                100nM            250nM            750nM             100nM            250nM            750nM\n"
+for tar in add_dye_test_tar:
+    res += tar.ljust(16)
+    for conc in ["500", "1600"]:
+        for prim in ["100nM", "250nM", "750nM"]:
+            res += colorDiff(curDa, laDa, "Test_ADD_DYE_" + tar + "_" + prim + "_" + conc + "_TD0", "{:6.2f}") + "  "
+        res += " "
+    res += "\n"
+print(res)
+
+ww.close()
+rd.save("temp_add_sybr.rdml")
 
 
 print("\n######################\n### Test Vermeulen ###\n######################")
