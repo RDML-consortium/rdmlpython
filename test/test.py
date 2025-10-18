@@ -320,7 +320,7 @@ def printCVProbes(tars, mix, cur, sav):
         print(res)
 
 
-def printTable(spc, rows, cols, prec, prin, cur, sav):
+def printTable(spc, pref, rows, cols, prec, prin, cur, sav):
     res = "".ljust(spc)
     for col in cols:
         res += col.ljust(20)
@@ -334,7 +334,7 @@ def printTable(spc, rows, cols, prec, prin, cur, sav):
         res = row.ljust(spc)
         count = 0
         for col in cols:
-            keyVal = row.replace(" ", "_") + "_" + col
+            keyVal = pref + row.replace(" ", "_") + "_" + col
             colCurSum[count][roNum] = cur[keyVal]
             colSavSum[count][roNum] = saveNum(sav, keyVal)
             direct = cur[keyVal] - saveNum(sav, keyVal)
@@ -409,8 +409,8 @@ def printTable(spc, rows, cols, prec, prin, cur, sav):
         sum_eff_sav = 0.0
         num_eff = 0.0
         for row in rows:
-            keyCurv = row.replace(" ", "_") + "_curve_pcr_eff"
-            keyDil = row.replace(" ", "_") + "_dilution_pcr_eff"
+            keyCurv = pref + row.replace(" ", "_") + "_curve_pcr_eff"
+            keyDil = pref + row.replace(" ", "_") + "_dilution_pcr_eff"
             if keyCurv in cur and keyDil in cur:
                 if keyCurv in sav and keyDil in sav:
                     sum_eff_cur += abs(cur[keyDil] - cur[keyCurv])
@@ -1014,17 +1014,17 @@ for exp in expList:
         print("----------------------")
 
         print("\n\nRoche:")
-        printTable(20, tar_roche, head_a, prec_a, print_a, curDa, laDa)
+        printTable(20, "", tar_roche, head_a, prec_a, print_a, curDa, laDa)
         print("\nSensi:")
-        printTable(20, tar_sensi, head_a, prec_a, print_a, curDa, laDa)
+        printTable(20, "", tar_sensi, head_a, prec_a, print_a, curDa, laDa)
         print("\nLC-Green:")
-        printTable(20, tar_lc, head_a, prec_a, print_a, curDa, laDa)
+        printTable(20, "", tar_lc, head_a, prec_a, print_a, curDa, laDa)
         print("\n\nRoche:")
-        printTable(20, tar_roche, head_b, prec_b, print_b, curDa, laDa)
+        printTable(20, "", tar_roche, head_b, prec_b, print_b, curDa, laDa)
         print("\nSensi:")
-        printTable(20, tar_sensi, head_b, prec_b, print_b, curDa, laDa)
+        printTable(20, "", tar_sensi, head_b, prec_b, print_b, curDa, laDa)
         print("\nLC-Green:")
-        printTable(20, tar_lc, head_b, prec_b, print_b, curDa, laDa)
+        printTable(20, "", tar_lc, head_b, prec_b, print_b, curDa, laDa)
 
 curDa["AMP_reactionDataFalse"] = reactionDataFalse
 curDa["AMP_reactionDataSum"] = reactionDataFalse + reactionDataTrue
@@ -1335,13 +1335,13 @@ for exp in expList:
         print("----------------------")
 
         print("\n\nRoche:")
-        printTable(30, tar_roche, head_a, prec_a, print_a, curDa, laDa)
+        printTable(30, "", tar_roche, head_a, prec_a, print_a, curDa, laDa)
         print("\nSensi:")
-        printTable(30, tar_idt, head_a, prec_a, print_a, curDa, laDa)
+        printTable(30, "", tar_idt, head_a, prec_a, print_a, curDa, laDa)
         print("\n\nRoche:")
-        printTable(30, tar_roche, head_b, prec_b, print_b, curDa, laDa)
+        printTable(30, "", tar_roche, head_b, prec_b, print_b, curDa, laDa)
         print("\nSensi:")
-        printTable(30, tar_idt, head_b, prec_b, print_b, curDa, laDa)
+        printTable(30, "", tar_idt, head_b, prec_b, print_b, curDa, laDa)
 
         print("\n#############################################\n### Test Probes Primer Conc vs Probe Conc ###\n#############################################")
         print("This test uses the 4ng DNA dilution data but quantifies by different primer and probe concentraion.")
@@ -1416,8 +1416,7 @@ rd.save("temp_probes.rdml")
 
 print("\n#######################################\n### Test Own SYBR Mix - DMSO and Mg ###\n#######################################")
 print("This test uses the FastStart Taq DNA Polymerase from Roche (Cat. No. 04 738 357 001) and adds defined amounts of SYBR I. ")
-print("defined amounts of SYBR I. 5ng DNA were used 1500 copies should be expected. As PCR efficiency is based on ")
-print("3 reactions, Ncopy will have big noise. ")
+print("5ng gDNA were used 1500 copies should be expected. As PCR efficiency is based on 3 reactions, Ncopy will have big noise. ")
 print("----------------------")
 
 rd = rdml.Rdml(rdml_ownmix_a_file)
@@ -1498,8 +1497,7 @@ rd.save("temp_ownmix_a.rdml")
 
 print("\n########################################\n### Test Own SYBR Mix - SYBR and BSA ###\n########################################")
 print("This test uses the FastStart Taq DNA Polymerase from Roche (Cat. No. 04 738 357 001) and adds defined amounts of SYBR I. ")
-print("defined amounts of SYBR I. 5ng DNA were used 1500 copies should be expected. As PCR efficiency is based on ")
-print("3 reactions, Ncopy will have big noise. ")
+print("5ng gDNA were used 1500 copies should be expected. As PCR efficiency is based on 3 reactions, Ncopy will have big noise. ")
 print("----------------------")
 
 rd = rdml.Rdml(rdml_ownmix_b_file)
@@ -1589,8 +1587,8 @@ rd.save("temp_ownmix_b.rdml")
 
 print("\n#######################################\n### Test Own SYBR Mix - Primer Conc ###\n#######################################")
 print("This test uses the FastStart Taq DNA Polymerase from Roche (Cat. No. 04 738 357 001) and adds defined amounts of SYBR I. ")
-print("defined amounts of SYBR I. 5ng DNA were used 1500 copies should be expected. This experiment had many failing technical ")
-print("replicates, Ncopy will have big noise. ")
+print("5ng gDNA were used 1500 copies should be expected. This experiment had many failing technical replicates, Ncopy will ")
+print("have big noise. ")
 print("----------------------")
 
 rd = rdml.Rdml(rdml_ownmix_c_file)
@@ -1781,6 +1779,230 @@ print(res)
 
 ww.close()
 rd.save("temp_add_sybr.rdml")
+
+
+print("\n########################################\n### Test Eva Green - Dye Conc vs Mix ###\n########################################")
+print("This test uses the Roche Probe Mastermix and the IDT Probe Mix and adds defined amounts of Eva Green. ")
+print("7ng DNA were used 2100 copies should be expected. The difference is mainly due to PCR efficiency ")
+print("calculation. ")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_eva_a_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_eva_a_file, "w")
+startLine = 0
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in colTar:
+                            colTar.append(resTab[tabRow][rar_tar])
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in colTar:
+            if tar in linRegRes[exp["id"]][run["id"]]:
+                linRegRes[exp["id"]][run["id"]][tar]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["TD0"])    
+    
+tars = ["FSTL_1_F_109", "FSTL_1_H_201"]
+concs = ["L", "M", "H"]
+cSt = ["0.125", "0.250", "1.250"]
+
+for tar in tars:
+    for conc in concs:
+        for mix in ["R", "I"]:
+            curDa["Test_EVAGREEN_A_" + tar + "_" + conc + "_" + mix + "_TD0"] = linRegRes["Eva Green A"]["Run 1"][tar + " " + conc + " " + mix]["TD0 mean"]
+            curDa["Test_EVAGREEN_A_" + tar + "_" + conc + "_" + mix + "_PCReff"] = linRegRes["Eva Green A"]["Run 1"][tar + " " + conc + " " + mix]["PCReff"]
+            curDa["Test_EVAGREEN_A_" + tar + "_" + conc + "_" + mix + "_Ncopy"] = linRegRes["Eva Green A"]["Run 1"][tar + " " + conc + " " + mix]["Ncopy mean"]
+
+res = "\n                                   TD0                                PCReff                                 Ncopy\n"
+res +=  "                                   Roche            IDT               Roche              IDT                 Roche              IDT\n"
+for tar in tars:
+    for cPos in range(0,3):
+        res += ("Eva Green " + cSt[cPos] + "uM - " +  tar).ljust(35)
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_A_" + tar + "_" + concs[cPos] + "_R_TD0", "{:6.2f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_A_" + tar + "_" + concs[cPos] + "_I_TD0", "{:6.2f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_A_" + tar + "_" + concs[cPos] + "_R_PCReff", "{:7.4f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_A_" + tar + "_" + concs[cPos] + "_I_PCReff", "{:7.4f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_A_" + tar + "_" + concs[cPos] + "_R_Ncopy", "{:7.1f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_A_" + tar + "_" + concs[cPos] + "_I_Ncopy", "{:7.1f}")
+        res += "\n"
+    res += "\n"
+print(res)
+
+ww.close()
+rd.save("temp_eva_a.rdml")
+
+
+print("\n######################################################\n### Test Eva Green - Primer Conc vs Eva Green Conc ###\n######################################################")
+print("This test uses the IDT Probe Mix and adds defined amounts of Eva Green. It tests if Eva Green gets ")
+print("limiting in low concentartions. ")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_eva_b_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_eva_b_file, "w")
+startLine = 0
+linRegRes = {}
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                        if resTab[tabRow][rar_sample] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]:  # Sample
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in linRegRes[exp["id"]][run["id"]]:
+            for sam in linRegRes[exp["id"]][run["id"]][tar]:
+                linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar][sam]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["TD0"])
+    quant = exp.quantify()
+
+['genomic DNA 7ng', 'genomic DNA 20ng', 'genomic DNA 2ng', 'genomic DNA 0.7ng']
+
+tars = ['FSTL_1_A_047', 'FSTL_1_B_042', 'FSTL_1_D_105', 'FSTL_1_E_097', 'FSTL_1_F_109', 'FSTL_1_H_201', 
+        'FSTL_1_I_204', 'FSTL_1_K_219', 'FSTL_1_L_412', 'FSTL_1_M_398']
+
+tars = ['FSTL_1_A_047', 'FSTL_1_B_042', 'FSTL_1_D_105', 'FSTL_1_E_097', 'FSTL_1_F_109', 'FSTL_1_H_201']
+prims = [" 100nM", ""]
+priSt = ["100nM", "250nM"]
+concs = [" Low", ""]
+cSt = ["0.125", "1.250"]
+
+for tar in tars:
+    for cPos in range(0, 2):
+        for pPos in range(0, 2):
+            if 'genomic DNA 7ng' in linRegRes["Eva Green B"]["Run 1"][tar + prims[pPos] + concs[cPos]]:
+                curDa["Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_" + cSt[cPos] + "_TD0"] = linRegRes["Eva Green B"]["Run 1"][tar + prims[pPos] + concs[cPos]]['genomic DNA 7ng']["TD0 mean"]
+                curDa["Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_" + cSt[cPos] + "_PCReff"] = linRegRes["Eva Green B"]["Run 1"][tar + prims[pPos] + concs[cPos]]['genomic DNA 7ng']["PCReff"]
+                curDa["Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_" + cSt[cPos] + "_Ncopy"] = linRegRes["Eva Green B"]["Run 1"][tar + prims[pPos] + concs[cPos]]['genomic DNA 7ng']["Ncopy mean"]
+            else:
+                print("--" + tar + prims[pPos] + concs[cPos] + "---")
+
+res = "\n                                   TD0                               PCReff                                Ncopy\n"
+res +=  "Eva Green                          0.125            1.250            0.125              1.250              0.125              1.250             \n"
+for pPos in range(0, 2):
+    for tar in tars:
+        res += ("Primer Conc " + priSt[pPos] + " - " +  tar).ljust(35)
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_0.125_TD0", "{:6.2f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_1.250_TD0", "{:6.2f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_0.125_PCReff", "{:7.4f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_1.250_PCReff", "{:7.4f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_0.125_Ncopy", "{:7.1f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_EVAGREEN_B_" + tar + "_7ng_" + priSt[pPos] + "_1.250_Ncopy", "{:7.1f}") + "  "
+        res += "\n"
+    res += "\n"
+print(res)
+
+
+
+head_var = ["curve_pcr_eff", "dilution_pcr_eff", "expected_max", "mean_max", "expected_min", "mean_min", 
+            "expected_ratio", "mean_ratio", "slope_bias", "correlation_R", "linearity", 
+            "reproducibility", "detectable_diff"]
+head_a = ["curve_pcr_eff", "dilution_pcr_eff", "expected_max", "mean_max", "expected_min", "mean_min", 
+            "expected_ratio", "mean_ratio"]
+head_b = ["slope_bias", "correlation_R", "linearity", "reproducibility", "detectable_diff"]
+prec_a = [0.001, 0.001, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+prec_b = [0.0001, 0.00001, 0.00001, 0.00001, 0.0001]
+print_a = [3, 3, 0, 0, 0, 0, 0, 0]
+print_b = [5, 5, 5, 5, 5]
+tars = ['FSTL_1_A_047', 'FSTL_1_B_042', 'FSTL_1_D_105', 'FSTL_1_E_097', 'FSTL_1_F_109', 'FSTL_1_H_201', 
+        'FSTL_1_I_204', 'FSTL_1_K_219', 'FSTL_1_L_412', 'FSTL_1_M_398']
+
+for tar in tars:
+    for var in head_var:
+        keyVal = "Test_EVAGREEN_B_DIL_" + tar.replace(" ", "_") + "_" + var
+        curDa[keyVal] = quant["dil_std"][tar][var]
+
+print("\n##########################################\n### Test Eva Green - Different Primers ###\n##########################################")
+print("This test uses the IDT Probe Mix and adds defined amounts of Eva Green. It tests all primer pais in ")
+print("normal Eva Green concentartions. ")
+print("----------------------")
+
+
+printTable(30, "Test_EVAGREEN_B_DIL_", tars, head_a, prec_a, print_a, curDa, laDa)
+print(" ")
+printTable(30, "Test_EVAGREEN_B_DIL_", tars, head_b, prec_b, print_b, curDa, laDa)
+
+
+ww.close()
+rd.save("temp_eva_a.rdml")
 
 
 print("\n######################\n### Test Vermeulen ###\n######################")
