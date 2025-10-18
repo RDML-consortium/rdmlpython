@@ -29,11 +29,23 @@ rdml_amp_file = os.path.join(parent_dir, "experiments/untergasser/amplicon_prime
 rdml_dil_file = os.path.join(parent_dir, "experiments/untergasser/large_DNA_dilutions.rdml")
 rdml_probes_file = os.path.join(parent_dir, "experiments/untergasser/probes.rdml")
 rdml_add_sybr_file = os.path.join(parent_dir, "experiments/untergasser/sybr_conc.rdml")
+rdml_ownmix_a_file = os.path.join(parent_dir, "experiments/untergasser/own_mix_a.rdml")
+rdml_ownmix_b_file = os.path.join(parent_dir, "experiments/untergasser/own_mix_b.rdml")
+rdml_ownmix_c_file = os.path.join(parent_dir, "experiments/untergasser/own_mix_c.rdml")
+rdml_eva_a_file = os.path.join(parent_dir, "experiments/untergasser/eva_green_a.rdml")
+rdml_eva_b_file = os.path.join(parent_dir, "experiments/untergasser/eva_green_b.rdml")
+rdml_eva_c_file = os.path.join(parent_dir, "experiments/untergasser/eva_green_c.rdml")
 out_vol_file = "temp_volume_resuls.csv"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
 out_dil_file = "temp_large_DNA_dilutions_resuls.csv"
 out_probes_file = "temp_probes_resuls.csv"
 out_add_sybr_file = "temp_sybr_conc_resuls.csv"
+out_ownmix_a_file = "temp_ownmix_a_resuls.csv"
+out_ownmix_b_file = "temp_ownmix_b_resuls.csv"
+out_ownmix_c_file = "temp_ownmix_c_resuls.csv"
+out_eva_a_file = "temp_eva_green_a_resuls.csv"
+out_eva_b_file = "temp_eva_green_b_resuls.csv"
+out_eva_c_file = "temp_eva_green_c_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
 out_json = "temp_test.json"
@@ -1400,6 +1412,268 @@ for exp in expList:
 
 ww.close()
 rd.save("temp_probes.rdml")
+
+
+print("\n#######################################\n### Test Own SYBR Mix - DMSO and Mg ###\n#######################################")
+print("This test uses the FastStart Taq DNA Polymerase from Roche (Cat. No. 04 738 357 001) and adds defined amounts of SYBR I. ")
+print("defined amounts of SYBR I. 5ng DNA were used 1500 copies should be expected. As PCR efficiency is based on ")
+print("3 reactions, Ncopy will have big noise. ")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_ownmix_a_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_ownmix_a_file, "w")
+startLine = 0
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in colTar:
+                            colTar.append(resTab[tabRow][rar_tar])
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+                        
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in colTar:
+            if tar in linRegRes[exp["id"]][run["id"]]:
+                linRegRes[exp["id"]][run["id"]][tar]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["TD0"])    
+
+for dmso in ["0.0", "2.5", "5.0"]:
+    for mg in ["3.0", "5.0"]:
+        curDa["Test_OWNMIX_A_" + dmso + "_" + mg + "_TD0"] = linRegRes["Own Mix A"]["Run 1"]["DMSO " + dmso + " - Mg " + mg]["TD0 mean"]
+        curDa["Test_OWNMIX_A_" + dmso + "_" + mg + "_PCReff"] = linRegRes["Own Mix A"]["Run 1"]["DMSO " + dmso + " - Mg " + mg]["PCReff"]
+        curDa["Test_OWNMIX_A_" + dmso + "_" + mg + "_Ncopy"] = linRegRes["Own Mix A"]["Run 1"]["DMSO " + dmso + " - Mg " + mg]["Ncopy mean"]
+
+res = "\n                    TD0               PCReff              Ncopy\n"
+for dmso in ["0.0", "2.5", "5.0"]:
+    for mg in ["3.0", "5.0"]:
+        res += ("DMSO " + dmso + " - Mg " + mg).ljust(20)
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_A_" + dmso + "_" + mg + "_TD0", "{:6.2f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_A_" + dmso + "_" + mg + "_PCReff", "{:7.4f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_A_" + dmso + "_" + mg + "_Ncopy", "{:7.1f}")
+        res += "\n"
+print(res)
+
+ww.close()
+rd.save("temp_ownmix_a.rdml")
+
+
+print("\n########################################\n### Test Own SYBR Mix - SYBR and BSA ###\n########################################")
+print("This test uses the FastStart Taq DNA Polymerase from Roche (Cat. No. 04 738 357 001) and adds defined amounts of SYBR I. ")
+print("defined amounts of SYBR I. 5ng DNA were used 1500 copies should be expected. As PCR efficiency is based on ")
+print("3 reactions, Ncopy will have big noise. ")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_ownmix_b_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_ownmix_b_file, "w")
+startLine = 0
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if exp["id"] not in linRegRes:
+                        linRegRes[exp["id"]] = {}
+                    if run["id"] not in linRegRes[exp["id"]]:
+                        linRegRes[exp["id"]][run["id"]] = {}
+                    if resTab[tabRow][rar_tar] not in colTar:
+                        colTar.append(resTab[tabRow][rar_tar])
+                    if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+                    
+                    linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                    linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in colTar:
+            if tar in linRegRes[exp["id"]][run["id"]]:
+                linRegRes[exp["id"]][run["id"]][tar]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["TD0"])    
+
+for dmso in ["SYBR", "No_BSA", "Sigma"]:
+    for conc in ["100", "200", "400", "800"]:
+        useConc = " BSA"
+        startStr = dmso
+        if dmso == "No_BSA":
+            useConc = ""
+            startStr = "SYBR"
+        curDa["Test_OWNMIX_B_" + dmso + "_" + conc + "_TD0"] = linRegRes["Own Mix B"]["Run 1"][startStr + " 1:" + conc + useConc]["TD0 mean"]
+        curDa["Test_OWNMIX_B_" + dmso + "_" + conc + "_PCReff"] = linRegRes["Own Mix B"]["Run 1"][startStr + " 1:" + conc + useConc]["PCReff"]
+        curDa["Test_OWNMIX_B_" + dmso + "_" + conc + "_Ncopy"] = linRegRes["Own Mix B"]["Run 1"][startStr + " 1:" + conc + useConc]["Ncopy mean"]
+
+res = "\n                    TD0               PCReff              Ncopy\n"
+for conc in ["100", "200", "400", "800"]:
+    for dmso in ["SYBR", "No_BSA", "Sigma"]:
+        useConc = " BSA"
+        startStr = dmso
+        if dmso == "No_BSA":
+            useConc = ""
+            startStr = "SYBR"
+        res += (startStr.ljust(5) + " 1:" + conc + useConc).ljust(20)
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_B_" + dmso + "_" + conc + "_TD0", "{:6.2f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_B_" + dmso + "_" + conc + "_PCReff", "{:7.4f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_B_" + dmso + "_" + conc + "_Ncopy", "{:7.1f}")
+        res += "\n"
+print(res)
+
+ww.close()
+rd.save("temp_ownmix_b.rdml")
+
+
+print("\n#######################################\n### Test Own SYBR Mix - Primer Conc ###\n#######################################")
+print("This test uses the FastStart Taq DNA Polymerase from Roche (Cat. No. 04 738 357 001) and adds defined amounts of SYBR I. ")
+print("defined amounts of SYBR I. 5ng DNA were used 1500 copies should be expected. This experiment had many failing technical ")
+print("replicates, Ncopy will have big noise. ")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_ownmix_c_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_ownmix_c_file, "w")
+startLine = 0
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in colTar:
+                            colTar.append(resTab[tabRow][rar_tar])
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in colTar:
+            if tar in linRegRes[exp["id"]][run["id"]]:
+                linRegRes[exp["id"]][run["id"]][tar]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar]["TD0"])    
+    
+tars = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109",
+        "FSTL_1_H_201", "FSTL_1_I_204", "FSTL_1_K_219", "FSTL_1_*_259", "FSTL_1_L_412"]
+
+for tar in tars:
+    for conc in ["100nM", "250nM", "750nM"]:
+        useConc = " " + conc
+        if conc == "250nM":
+            useConc = ""
+        curDa["Test_OWNMIX_C_" + tar + "_" + conc + "_TD0"] = linRegRes["Own Mix C"]["Run 1"][tar + useConc]["TD0 mean"]
+        curDa["Test_OWNMIX_C_" + tar + "_" + conc + "_PCReff"] = linRegRes["Own Mix C"]["Run 1"][tar + useConc]["PCReff"]
+        curDa["Test_OWNMIX_C_" + tar + "_" + conc + "_Ncopy"] = linRegRes["Own Mix C"]["Run 1"][tar + useConc]["Ncopy mean"]
+
+res = "\n                    TD0               PCReff              Ncopy\n"
+for conc in ["100nM", "250nM", "750nM"]:
+    for tar in tars:
+        res += (tar + " " + conc).ljust(20)
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_C_" + tar + "_" + conc + "_TD0", "{:6.2f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_C_" + tar + "_" + conc + "_PCReff", "{:7.4f}") + "   "
+        res += colorDiff(curDa, laDa, "Test_OWNMIX_C_" + tar + "_" + conc + "_Ncopy", "{:7.1f}")
+        res += "\n"
+    res += "\n"
+print(res)
+
+ww.close()
+rd.save("temp_ownmix_c.rdml")
 
 
 print("\n###################################\n### Test Added Dye to Probe Mix ###\n###################################")
