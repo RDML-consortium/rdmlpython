@@ -35,6 +35,7 @@ rdml_ownmix_c_file = os.path.join(parent_dir, "experiments/untergasser/own_mix_c
 rdml_eva_a_file = os.path.join(parent_dir, "experiments/untergasser/eva_green_a.rdml")
 rdml_eva_b_file = os.path.join(parent_dir, "experiments/untergasser/eva_green_b.rdml")
 rdml_eva_c_file = os.path.join(parent_dir, "experiments/untergasser/eva_green_c.rdml")
+rdml_quant_meth_file = os.path.join(parent_dir, "experiments/untergasser/quantification_methods.rdml")
 out_vol_file = "temp_volume_resuls.csv"
 out_amp_file = "temp_amplicon_primer_resuls.csv"
 out_dil_file = "temp_large_DNA_dilutions_resuls.csv"
@@ -46,6 +47,7 @@ out_ownmix_c_file = "temp_ownmix_c_resuls.csv"
 out_eva_a_file = "temp_eva_green_a_resuls.csv"
 out_eva_b_file = "temp_eva_green_b_resuls.csv"
 out_eva_c_file = "temp_eva_green_c_resuls.csv"
+out_quant_meth_file = "temp_quantification_methods_resuls.csv"
 out_file = "temp_vermeulen_resuls.csv"
 in_json = "stored_results_test.json"
 out_json = "temp_test.json"
@@ -1934,11 +1936,6 @@ for exp in expList:
                 linRegRes[exp["id"]][run["id"]][tar][sam]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["TD0"])
     quant = exp.quantify()
 
-['genomic DNA 7ng', 'genomic DNA 20ng', 'genomic DNA 2ng', 'genomic DNA 0.7ng']
-
-tars = ['FSTL_1_A_047', 'FSTL_1_B_042', 'FSTL_1_D_105', 'FSTL_1_E_097', 'FSTL_1_F_109', 'FSTL_1_H_201', 
-        'FSTL_1_I_204', 'FSTL_1_K_219', 'FSTL_1_L_412', 'FSTL_1_M_398']
-
 tars = ['FSTL_1_A_047', 'FSTL_1_B_042', 'FSTL_1_D_105', 'FSTL_1_E_097', 'FSTL_1_F_109', 'FSTL_1_H_201']
 prims = [" 100nM", ""]
 priSt = ["100nM", "250nM"]
@@ -1996,13 +1993,239 @@ print("normal Eva Green concentartions. ")
 print("----------------------")
 
 
-printTable(30, "Test_EVAGREEN_B_DIL_", tars, head_a, prec_a, print_a, curDa, laDa)
+printTable(15, "Test_EVAGREEN_B_DIL_", tars, head_a, prec_a, print_a, curDa, laDa)
 print(" ")
-printTable(30, "Test_EVAGREEN_B_DIL_", tars, head_b, prec_b, print_b, curDa, laDa)
+printTable(15, "Test_EVAGREEN_B_DIL_", tars, head_b, prec_b, print_b, curDa, laDa)
 
 
 ww.close()
-rd.save("temp_eva_a.rdml")
+rd.save("temp_eva_b.rdml")
+
+
+print("\n###################################\n### Test Quantification Methods ###\n###################################")
+print("This test uses the probe mixes from Roche and IDT and add defined amounts of Eva Green, ")
+print("SYBR I or uses the hyrolysis probe. 7ng, 2ng and 0.7 ng DNA were used and 2600, 740 and ")
+print("260 copies should be expected. First we look at only the Eva Green reactions.")
+print("----------------------")
+
+rd = rdml.Rdml(rdml_quant_meth_file)
+
+expList = rd.experiments()
+if len(expList) < 1:
+    print("No experiments found!")
+    sys.exit(0)
+ww = open(out_quant_meth_file, "w")
+startLine = 0
+linRegRes = {}
+colTar = []
+quant = []
+for exp in expList:
+    runList = exp.runs()
+    if len(runList) < 1:
+        print("No runs found!")
+        sys.exit(0)
+    for run in runList:
+        if printExpRun:
+            print("Experiment: " + exp["id"] + " Run: " + run["id"])
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        resTab = json.loads(res["LinRegPCR_Result_Table"])
+        for tabRow in range(0, len(resTab)):
+            if startLine == 0:
+                ww.write("Experiment\tRun\t")
+                startLine = 1
+            else:
+                ww.write(exp["id"] + "\t" + run["id"] + "\t")
+            for tabCol in range(0, len(resTab[tabRow])):
+                outCell = str(resTab[tabRow][tabCol]).replace("\t", ";")
+                if tabCol < len(resTab[tabRow]) - 1:
+                    ww.write(outCell + "\t")
+                else:
+                    ww.write(outCell + "\n")
+            if startLine == 1:
+                if resTab[tabRow][rar_sample_type] in ["unkn", "std"]:
+                    if float(resTab[tabRow][rar_Ncopy]) > 5.0:
+                        if exp["id"] not in linRegRes:
+                            linRegRes[exp["id"]] = {}
+                        if run["id"] not in linRegRes[exp["id"]]:
+                            linRegRes[exp["id"]][run["id"]] = {}
+                        if resTab[tabRow][rar_tar] not in linRegRes[exp["id"]][run["id"]]:
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]] = {}
+                        if resTab[tabRow][rar_sample] not in linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]]:  # Sample
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]] = {}
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"] = []
+                            linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["PCReff"] = resTab[tabRow][rar_PCR_eff]
+
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["Ncopy"].append(resTab[tabRow][rar_Ncopy])  # Ncopy
+                        linRegRes[exp["id"]][run["id"]][resTab[tabRow][rar_tar]][resTab[tabRow][rar_sample]]["TD0"].append(resTab[tabRow][rar_TD0])  # TD0
+
+        for tar in linRegRes[exp["id"]][run["id"]]:
+            for sam in linRegRes[exp["id"]][run["id"]][tar]:
+                linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["Ncopy"])
+                linRegRes[exp["id"]][run["id"]][tar][sam]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["TD0"])
+    quant = exp.quantify()
+
+sams = ['genomic DNA 7ng', 'genomic DNA 2ng', 'genomic DNA 0.7ng']
+
+tars = ["FSTL_1_A_047", "FSTL_1_B_042", "FSTL_1_D_105", "FSTL_1_E_097", "FSTL_1_F_109", "FSTL_1_H_201", 
+        "FSTL_1_I_204", "FSTL_1_M_398"]
+
+for tar in tars:
+    curDa["Test_QUANT_METH_A_" + tar + "_PCReff"] = linRegRes["Quantification Methods"]["Run 1"][tar]['genomic DNA 7ng']["PCReff"]
+    for sam in sams:
+        curDa["Test_QUANT_METH_A_" + tar + "_" + sam + "_TD0"] = linRegRes["Quantification Methods"]["Run 1"][tar][sam]["TD0 mean"]
+        curDa["Test_QUANT_METH_A_" + tar + "_" + sam + "_Ncopy"] = linRegRes["Quantification Methods"]["Run 1"][tar][sam]["Ncopy mean"]
+
+res = "\n                  TD0                                                 PCReff              Ncopy\n"
+res +=  "1.25uM Eva Green  7ng              2ng              0.2ng                                 7ng - 2600 cop     2ng - 740 cop      0.2ng - 260 cop\n"
+for tar in tars:
+    res += (tar).ljust(18)
+    for sam in sams:
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_A_" + tar + "_" + sam + "_TD0", "{:6.2f}") + "  "
+    res += " " + colorDiff(curDa, laDa, "Test_QUANT_METH_A_" + tar + "_PCReff", "{:7.4f}") + "   "
+    for sam in sams:
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_A_" + tar + "_" + sam + "_Ncopy", "{:7.1f}") + "  "
+    res += "\n"
+print(res)
+
+head_var = ["curve_pcr_eff", "dilution_pcr_eff", "expected_max", "mean_max", "expected_min", "mean_min", 
+            "expected_ratio", "mean_ratio", "slope_bias", "correlation_R", "linearity", 
+            "reproducibility", "detectable_diff"]
+head_a = ["curve_pcr_eff", "dilution_pcr_eff", "expected_max", "mean_max", "expected_min", "mean_min", 
+            "expected_ratio", "mean_ratio"]
+head_b = ["slope_bias", "correlation_R", "linearity", "reproducibility", "detectable_diff"]
+prec_a = [0.001, 0.001, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+prec_b = [0.0001, 0.00001, 0.00001, 0.00001, 0.0001]
+print_a = [3, 3, 0, 0, 0, 0, 0, 0]
+print_b = [5, 5, 5, 5, 5]
+
+for tar in tars:
+    for var in head_var:
+        keyVal = "Test_QUANT_METH_B_DIL_" + tar.replace(" ", "_") + "_" + var
+        curDa[keyVal] = quant["dil_std"][tar][var]
+
+print("\n#####################################################\n### Test Quantification Methods - Quantify output ###\n#####################################################")
+print("This are the same results as before but from the quantify module. ")
+print("----------------------")
+
+printTable(15, "Test_QUANT_METH_B_DIL_", tars, head_a, prec_a, print_a, curDa, laDa)
+print(" ")
+printTable(15, "Test_QUANT_METH_B_DIL_", tars, head_b, prec_b, print_b, curDa, laDa)
+
+print("\n#####################################################\n### Test Quantification Methods - Compare Methods ###\n#####################################################")
+print("Now the data from the different quantification methods all added to the Roche probe kit and additionally the Roche SYBR I kit. ")
+print("----------------------")
+
+sams = ['genomic DNA 7ng', 'genomic DNA 2ng', 'genomic DNA 0.7ng']
+
+tars = ["FSTL_1_D_105", "FSTL_1_F_109", "FSTL_1_H_201", "FSTL_1_K_219", 
+        "FSTL_1_D_105  Roche SYBR", "FSTL_1_F_109 Roche SYBR", "FSTL_1_H_201 Roche SYBR", 
+        "FSTL_1_D_105 250nM 150nM", "FSTL_1_F_109 250nM 150nM", "FSTL_1_F_109 250nM 150nM IDT", "FSTL_1_K_219 250nM 150nM", 
+        "FSTL_1_D_105 SYBR", "FSTL_1_F_109 SYBR", "FSTL_1_K_219 SYBR" ]
+
+for tar in tars:
+    curDa["Test_QUANT_METH_C_" + tar + "_PCReff"] = linRegRes["Quantification Methods"]["Run 1"][tar]['genomic DNA 7ng']["PCReff"]
+    for sam in sams:
+        curDa["Test_QUANT_METH_C_" + tar + "_" + sam + "_TD0"] = linRegRes["Quantification Methods"]["Run 1"][tar][sam]["TD0 mean"]
+        curDa["Test_QUANT_METH_C_" + tar + "_" + sam + "_Ncopy"] = linRegRes["Quantification Methods"]["Run 1"][tar][sam]["Ncopy mean"]
+
+tars = ["FSTL_1_D_105", "FSTL_1_F_109", "FSTL_1_H_201", "FSTL_1_K_219"]
+
+res = "\n                  TD0\n"
+res +=  sams[0] + "   Eva Green        SYBR I           Hydro. Probe       Roche SYBR I\n"
+samNr = 0
+for sam in sams:
+    for tar in tars:
+        res += (tar).ljust(18)
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + "_" + sam + "_TD0", "{:6.2f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " SYBR_" + sam + "_TD0", "{:6.2f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " 250nM 150nM_" + sam + "_TD0", "{:6.2f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " Roche SYBR_" + sam + "_TD0", "{:6.2f}") + "  "
+
+        res += "\n"
+    samNr += 1
+    if samNr < 3:
+        res +=  sams[samNr] + "\n"
+print(res)
+res = "\n                  PCReff\n"
+res +=  sams[0] + "   Eva Green          SYBR I             Hydro. Probe       Roche SYBR I\n"
+samNr = 0
+for sam in sams:
+    for tar in tars:
+        res += (tar).ljust(18)
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + "_PCReff", "{:7.4f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " SYBR_PCReff", "{:7.4f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " 250nM 150nM_PCReff", "{:7.4f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " Roche SYBR_PCReff", "{:7.4f}") + "  "
+
+        res += "\n"
+    samNr += 1
+    if samNr < 3:
+        res +=  sams[samNr] + "\n"
+print(res)
+res = "\n                  Ncopy\n"
+res +=  sams[0] + "   Eva Green          SYBR I             Hydro. Probe       Roche SYBR I\n"
+samNr = 0
+for sam in sams:
+    for tar in tars:
+        res += (tar).ljust(18)
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + "_" + sam + "_Ncopy", "{:7.1f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " SYBR_" + sam + "_Ncopy", "{:7.1f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " 250nM 150nM_" + sam + "_Ncopy", "{:7.1f}") + "  "
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + " Roche SYBR_" + sam + "_Ncopy", "{:7.1f}") + "  "
+
+        res += "\n"
+    samNr += 1
+    if samNr < 3:
+        res +=  sams[samNr] + "\n"
+print(res)
+
+print("\n#################################################\n### Test Quantification Methods - Probe Mixes ###\n#################################################")
+print("The only difference is Roche Probe mix vs IDT Probe mix. ")
+print("----------------------")
+
+
+sams = ['genomic DNA 7ng', 'genomic DNA 2ng', 'genomic DNA 0.7ng']
+tars = ["FSTL_1_F_109 250nM 150nM", "FSTL_1_F_109 250nM 150nM IDT"]
+
+for tar in tars:
+    curDa["Test_QUANT_METH_E_" + tar + "_PCReff"] = linRegRes["Quantification Methods"]["Run 1"][tar]['genomic DNA 7ng']["PCReff"]
+    for sam in sams:
+        curDa["Test_QUANT_METH_E_" + tar + "_" + sam + "_TD0"] = linRegRes["Quantification Methods"]["Run 1"][tar][sam]["TD0 mean"]
+        curDa["Test_QUANT_METH_E_" + tar + "_" + sam + "_Ncopy"] = linRegRes["Quantification Methods"]["Run 1"][tar][sam]["Ncopy mean"]
+
+res = "\n                              TD0                                                 PCReff              Ncopy\n"
+res +=  "Hydrolysis Probe              7ng              2ng              0.2ng                                 7ng - 2600 cop     2ng - 740 cop      0.2ng - 260 cop\n"
+for tar in tars:
+    res += (tar).ljust(30)
+    for sam in sams:
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + "_" + sam + "_TD0", "{:6.2f}") + "  "
+    res += " " + colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + "_PCReff", "{:7.4f}") + "   "
+    for sam in sams:
+        res += colorDiff(curDa, laDa, "Test_QUANT_METH_C_" + tar + "_" + sam + "_Ncopy", "{:7.1f}") + "  "
+    res += "\n"
+print(res)
+
+tars = ["FSTL_1_D_105", "FSTL_1_D_105 SYBR", "FSTL_1_D_105 250nM 150nM", "FSTL_1_D_105  Roche SYBR", 
+        "FSTL_1_F_109", "FSTL_1_F_109 SYBR", "FSTL_1_F_109 250nM 150nM", "FSTL_1_F_109 250nM 150nM IDT", "FSTL_1_F_109 Roche SYBR", 
+        "FSTL_1_H_201", "FSTL_1_H_201 Roche SYBR", 
+        "FSTL_1_K_219", "FSTL_1_K_219 SYBR", "FSTL_1_K_219 250nM 150nM"]
+
+for tar in tars:
+    for var in head_var:
+        keyVal = "Test_QUANT_METH_D_DIL_" + tar.replace(" ", "_") + "_" + var
+        curDa[keyVal] = quant["dil_std"][tar][var]
+
+print("\n#####################################################\n### Test Quantification Methods - Quantify output ###\n#####################################################")
+print("This are the same results as before but from the quantify module. ")
+print("----------------------")
+
+printTable(30, "Test_QUANT_METH_D_DIL_", tars, head_a, prec_a, print_a, curDa, laDa)
+print(" ")
+printTable(30, "Test_QUANT_METH_D_DIL_", tars, head_b, prec_b, print_b, curDa, laDa)
+
+ww.close()
+rd.save("temp_quantification_methods.rdml")
 
 
 print("\n######################\n### Test Vermeulen ###\n######################")
