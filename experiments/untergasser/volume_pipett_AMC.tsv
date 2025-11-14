@@ -1,0 +1,34 @@
+﻿	Sample	Primers	1	2	3	4	5	6	7	8	9			
+A			5	5	5	20	20	20						
+A	Human DNA A2 5ng 10µl	Fstl1	one mix	one mix	one mix	one mix	one mix	one mix					105 make 130	75 ng
+B	Human DNA	Fstl1	2ng	5ng	10ng	0ng	20ng	40ng	80ng					
+C	Human DNA	Fstl1	2ng	5ng	10ng	0ng	20ng	40ng	80ng					
+D	Human DNA	Fstl1	2ng	5ng	10ng	0ng	20ng	40ng	80ng					
+E	chicken Wnt11 fragment	no primer	5	10	20	40	0	80						
+F	chicken Wnt11 fragment	no primer	5	10	20	40	0	80						
+G	chicken Wnt11 fragment	no primer	5	10	20	40	0	80						
+H	chicken Axin1 fragment	no primer	5	10	20	40								
+I	chicken Axin1 fragment	no primer	5	10	20	40								
+J	chicken Axin1 fragment	no primer	5	10	20	40								
+														
+			1:100		1:10		1:10							
+			2	5	10	0	20	40	80				Primer 1:40	
+	2ng Human Genomic	DNA	4	30	2	0	4	8	16				Mix 2.5 + 2.5 + 95	
+		Water	12	18	14	16	12	8	0					
+		Primer	4	12	4	4	4	4	4		36			
+		Puffer	20	60	20	20	20	20	20		180			
+														
+		Sum	40	120	40	40	40	40	40					
+														
+	WNT11  23ng		0.25	0.5	1	2		4						
+	Axin 10ng		0.5	1	2	4								
+														
+	WNT11  23ng	DNA	1	2	4	8	0	16						
+		Water	19	18	16	12	20	4						
+		Puffer	20	20	20	20	20	20						
+		Sum	40	40	40	40	40	40						
+														
+	Axin 10ng	DNA	2	4	8	16								
+		Water	18	16	12	4								
+		Puffer	20	20	20	20								
+		Sum	40	40	40	40								

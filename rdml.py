@@ -15099,21 +15099,21 @@ class Run:
             if updateRDML is True:
                 dataXMLelements = _getXMLDataType()
                 for rRow in range(0, len(res)):
-                    if rdmlElemData[rRow] is not None:
-                        _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
-                        if dataVersion in ["1.3", "1.4"]:
-                            _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
-                            lCol = truePeakFinPos[rRow]
-                            if lCol >= 0:
+                    if res[rRow][rar_tar_chemistry] in ["non-saturating DNA binding dye", "saturating DNA binding dye"]:
+                        if rdmlElemData[rRow] is not None:
+                            _change_subelement(rdmlElemData[rRow], "excl", dataXMLelements, res[rRow][rar_excl], True, "string")
+                            if dataVersion in ["1.3", "1.4"]:
+                                _change_subelement(rdmlElemData[rRow], "note", dataXMLelements, res[rRow][rar_note], True, "string")
                                 if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
-                                    finalFactor = peakResFluor[rRow][lCol] / peakResSumFuor[rRow]
-                                    goodVal = "{:.3f}".format(finalFactor)
-                                    _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
-                                    _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
-                            else:
-                                if res[rRow][rar_tar_chemistry] == "saturating DNA binding dye":
-                                     _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, "0.0", True, "string")
-                                     _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
+                                    lCol = truePeakFinPos[rRow]
+                                    if lCol >= 0:
+                                        finalFactor = peakResFluor[rRow][lCol] / peakResSumFuor[rRow]
+                                        goodVal = "{:.3f}".format(finalFactor)
+                                        _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, goodVal, True, "string")
+                                        _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
+                                    else:
+                                        _change_subelement(rdmlElemData[rRow], "corrF", dataXMLelements, "0.0", True, "string")
+                                        _change_subelement(rdmlElemData[rRow], "corrCq", dataXMLelements, "", True, "string")
             finalData["resultsList"] = resTable
 
         if err != "":

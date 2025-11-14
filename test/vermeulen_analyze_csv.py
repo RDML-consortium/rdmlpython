@@ -26,9 +26,9 @@ import rdmlpython as rdml
 use_results = False  # True - results from paper, False - use output form run_analyze_vermeulen_rdml.py
 set_method = 0  # 0 - Standard-Cq, 1 - LinRegPCR, 2 - 5PSM, 3 - FPK-PCR, 4 - LRE-Emax, 5 - LRE-E100, 6 - Cy0, 7 - MAK2, 8 - DART, 9 - 4PLM, 10 - PCR-Miner
 
-out_file_bias = "temp_vermeulen_report_bias.csv"
-out_file_var = "temp_vermeulen_report_variation.csv"
-out_file_diff = "temp_vermeulen_report_difference.csv"
+out_file_bias = "temp_vermeulen_report_bias.tsv"
+out_file_var = "temp_vermeulen_report_variation.tsv"
+out_file_diff = "temp_vermeulen_report_difference.tsv"
 
 ww = open(out_file_bias, "w")
 wv = open(out_file_var, "w")
@@ -147,7 +147,7 @@ else:
              "PTPRH", "PTPRN2", "QPCT", "SCG2", "SDHA(1)", "SLC25A5", "SLC6A8", "SNAPC1", "TNFRSF", 
              "TYMS", "UBC(2)", "ULK2", "WSB1"]
     sampes = ["STD_15", "STD_150", "STD_1500", "STD_15000", "STD_150000"]
-    with open("temp_vermeulen_resuls.csv", newline='') as tfile:
+    with open("temp_vermeulen_results.tsv", newline='') as tfile:
         table = list(csv.reader(tfile, delimiter="\t"))
         for row in range(1, len(table)):
             if table[row][0] != "biomarker_set":

@@ -1,0 +1,117 @@
+Experiment	Run	well	sample	target	Machine Cq
+AMC Amsterdam NL - 384 Wells	Run 1	A1	M1 gDNA 0.5ng/ul - 5ul	FSTL1	23.85
+AMC Amsterdam NL - 384 Wells	Run 1	A2	M1 gDNA 0.5ng/ul - 5ul	FSTL1	23.90
+AMC Amsterdam NL - 384 Wells	Run 1	A3	M1 gDNA 0.5ng/ul - 5ul	FSTL1	23.92
+AMC Amsterdam NL - 384 Wells	Run 1	A4	M1 gDNA 0.5ng/ul - 20ul	FSTL1	24.33
+AMC Amsterdam NL - 384 Wells	Run 1	A5	M1 gDNA 0.5ng/ul - 20ul	FSTL1	24.07
+AMC Amsterdam NL - 384 Wells	Run 1	A6	M1 gDNA 0.5ng/ul - 20ul	FSTL1	24.11
+AMC Amsterdam NL - 384 Wells	Run 1	B1	gDNA 0.2ng/ul	FSTL1	25.67
+AMC Amsterdam NL - 384 Wells	Run 1	B2	M1 gDNA 0.5ng/ul STD	FSTL1	23.90
+AMC Amsterdam NL - 384 Wells	Run 1	B3	gDNA 1ng/ul	FSTL1	23.34
+AMC Amsterdam NL - 384 Wells	Run 1	B4	Neg. Contr.	FSTL1	30.32
+AMC Amsterdam NL - 384 Wells	Run 1	B5	gDNA 2ng/ul	FSTL1	22.11
+AMC Amsterdam NL - 384 Wells	Run 1	B6	gDNA 4ng/ul	FSTL1	20.97
+AMC Amsterdam NL - 384 Wells	Run 1	B7	gDNA 8ng/ul	FSTL1	19.99
+AMC Amsterdam NL - 384 Wells	Run 1	C1	gDNA 0.2ng/ul	FSTL1	25.55
+AMC Amsterdam NL - 384 Wells	Run 1	C2	M1 gDNA 0.5ng/ul STD	FSTL1	23.94
+AMC Amsterdam NL - 384 Wells	Run 1	C3	gDNA 1ng/ul	FSTL1	23.43
+AMC Amsterdam NL - 384 Wells	Run 1	C4	Neg. Contr.	FSTL1	34.16
+AMC Amsterdam NL - 384 Wells	Run 1	C5	gDNA 2ng/ul	FSTL1	22.13
+AMC Amsterdam NL - 384 Wells	Run 1	C6	gDNA 4ng/ul	FSTL1	20.99
+AMC Amsterdam NL - 384 Wells	Run 1	C7	gDNA 8ng/ul	FSTL1	19.99
+AMC Amsterdam NL - 384 Wells	Run 1	D1	gDNA 0.2ng/ul	FSTL1	25.59
+AMC Amsterdam NL - 384 Wells	Run 1	D2	M1 gDNA 0.5ng/ul STD	FSTL1	23.94
+AMC Amsterdam NL - 384 Wells	Run 1	D3	gDNA 1ng/ul	FSTL1	23.31
+AMC Amsterdam NL - 384 Wells	Run 1	D4	Neg. Contr.	FSTL1	33.93
+AMC Amsterdam NL - 384 Wells	Run 1	D5	gDNA 2ng/ul	FSTL1	22.13
+AMC Amsterdam NL - 384 Wells	Run 1	D6	gDNA 4ng/ul	FSTL1	21.02
+AMC Amsterdam NL - 384 Wells	Run 1	D7	gDNA 8ng/ul	FSTL1	20.02
+					
+EMBL Heidelberg DE - 384 Wells	Run 1	well	sample	target	Machine Cq
+EMBL Heidelberg DE - 384 Wells	Run 1	D4	M1 gDNA 0.5ng/ul - 5ul	FSTL1	23.47
+EMBL Heidelberg DE - 384 Wells	Run 1	D5	M1 gDNA 0.5ng/ul - 5ul	FSTL1	23.34
+EMBL Heidelberg DE - 384 Wells	Run 1	D6	M1 gDNA 0.5ng/ul - 5ul	FSTL1	23.21
+EMBL Heidelberg DE - 384 Wells	Run 1	D7	M1 gDNA 0.5ng/ul - 20ul	FSTL1	22.31
+EMBL Heidelberg DE - 384 Wells	Run 1	D8	M1 gDNA 0.5ng/ul - 20ul	FSTL1	22.29
+EMBL Heidelberg DE - 384 Wells	Run 1	D9	M1 gDNA 0.5ng/ul - 20ul	FSTL1	22.25
+EMBL Heidelberg DE - 384 Wells	Run 1	E4	M1 gDNA 0.5ng/ul STD	FSTL1-STD	22.79
+EMBL Heidelberg DE - 384 Wells	Run 1	E5	M1 gDNA 0.5ng/ul STD	FSTL1-STD	22.65
+EMBL Heidelberg DE - 384 Wells	Run 1	E6	M1 gDNA 0.5ng/ul STD	FSTL1-STD	22.76
+EMBL Heidelberg DE - 384 Wells	Run 1	E7	M1 gDNA 0.5ng/ul STD	FSTL1-STD	22.60
+EMBL Heidelberg DE - 384 Wells	Run 1	E8	M1 gDNA 0.5ng/ul STD	FSTL1-STD	22.58
+EMBL Heidelberg DE - 384 Wells	Run 1	E9	M1 gDNA 0.5ng/ul STD	FSTL1-STD	22.67
+EMBL Heidelberg DE - 384 Wells	Run 1	E10	M1 gDNA 0.5ng/ul	FSTL1	22.61
+EMBL Heidelberg DE - 384 Wells	Run 1	E11	M1 gDNA 0.5ng/ul	FSTL1	22.42
+EMBL Heidelberg DE - 384 Wells	Run 1	E12	M1 gDNA 0.5ng/ul	FSTL1	22.63
+EMBL Heidelberg DE - 384 Wells	Run 1	E13	M1 gDNA 0.5ng/ul	FSTL1	22.59
+EMBL Heidelberg DE - 384 Wells	Run 1	F4	gDNA 0.2ng/ul	FSTL1	24.72
+EMBL Heidelberg DE - 384 Wells	Run 1	F5	M1 gDNA 0.5ng/ul	FSTL1	22.65
+EMBL Heidelberg DE - 384 Wells	Run 1	F6	gDNA 1ng/ul	FSTL1	21.31
+EMBL Heidelberg DE - 384 Wells	Run 1	F7	Neg. Contr.	FSTL1	34.61
+EMBL Heidelberg DE - 384 Wells	Run 1	F8	gDNA 2ng/ul	FSTL1	20.46
+EMBL Heidelberg DE - 384 Wells	Run 1	F9	gDNA 4ng/ul	FSTL1	19.30
+EMBL Heidelberg DE - 384 Wells	Run 1	F10	gDNA EMBL 0.5ng/ul	FSTL1	22.45
+EMBL Heidelberg DE - 384 Wells	Run 1	F11	gDNA EMBL 1.0ng/ul	FSTL1	21.35
+EMBL Heidelberg DE - 384 Wells	Run 1	G4	gDNA 0.2ng/ul	FSTL1	24.68
+EMBL Heidelberg DE - 384 Wells	Run 1	G5	M1 gDNA 0.5ng/ul	FSTL1	22.45
+EMBL Heidelberg DE - 384 Wells	Run 1	G6	gDNA 1ng/ul	FSTL1	21.59
+EMBL Heidelberg DE - 384 Wells	Run 1	G7	Neg. Contr.	FSTL1	34.35
+EMBL Heidelberg DE - 384 Wells	Run 1	G8	gDNA 2ng/ul	FSTL1	20.48
+EMBL Heidelberg DE - 384 Wells	Run 1	G9	gDNA 4ng/ul	FSTL1	19.56
+EMBL Heidelberg DE - 384 Wells	Run 1	G10	gDNA EMBL 0.5ng/ul	FSTL1	22.51
+EMBL Heidelberg DE - 384 Wells	Run 1	G11	gDNA EMBL 1.0ng/ul	FSTL1	21.55
+EMBL Heidelberg DE - 384 Wells	Run 1	H4	gDNA 0.2ng/ul	FSTL1	24.64
+EMBL Heidelberg DE - 384 Wells	Run 1	H5	M1 gDNA 0.5ng/ul	FSTL1	22.63
+EMBL Heidelberg DE - 384 Wells	Run 1	H6	gDNA 1ng/ul	FSTL1	21.60
+EMBL Heidelberg DE - 384 Wells	Run 1	H7	Neg. Contr.	FSTL1	35.92
+EMBL Heidelberg DE - 384 Wells	Run 1	H8	gDNA 2ng/ul	FSTL1	20.65
+EMBL Heidelberg DE - 384 Wells	Run 1	H9	gDNA 4ng/ul	FSTL1	19.52
+EMBL Heidelberg DE - 384 Wells	Run 1	H10	gDNA EMBL 0.5ng/ul	FSTL1	22.62
+EMBL Heidelberg DE - 384 Wells	Run 1	H11	gDNA EMBL 1.0ng/ul	FSTL1	21.55
+					
+EMBL Heidelberg DE - 96 Wells	Run 1	well	sample	target	Machine Cq
+EMBL Heidelberg DE - 96 Wells	Run 1	A1	M1 gDNA 0.5ng/ul - 10ul	FSTL1	17.84
+EMBL Heidelberg DE - 96 Wells	Run 1	A2	M1 gDNA 0.5ng/ul - 10ul	FSTL1	16.68
+EMBL Heidelberg DE - 96 Wells	Run 1	A3	M1 gDNA 0.5ng/ul - 10ul	FSTL1	15.99
+EMBL Heidelberg DE - 96 Wells	Run 1	A4	M1 gDNA 0.5ng/ul - 40ul	FSTL1	11.08
+EMBL Heidelberg DE - 96 Wells	Run 1	A5	M1 gDNA 0.5ng/ul - 40ul	FSTL1	11.82
+EMBL Heidelberg DE - 96 Wells	Run 1	A6	M1 gDNA 0.5ng/ul - 40ul	FSTL1	11.95
+EMBL Heidelberg DE - 96 Wells	Run 1	A8	M1 gDNA 0.5ng/ul	FSTL1	14.38
+EMBL Heidelberg DE - 96 Wells	Run 1	A9	M1 gDNA 0.5ng/ul	FSTL1	13.27
+EMBL Heidelberg DE - 96 Wells	Run 1	A10	M1 gDNA 0.5ng/ul	FSTL1	13.00
+EMBL Heidelberg DE - 96 Wells	Run 1	B1	M1 gDNA 0.5ng/ul STD	FSTL1-STD	15.29
+EMBL Heidelberg DE - 96 Wells	Run 1	B2	M1 gDNA 0.5ng/ul STD	FSTL1-STD	11.94
+EMBL Heidelberg DE - 96 Wells	Run 1	B3	M1 gDNA 0.5ng/ul STD	FSTL1-STD	12.31
+EMBL Heidelberg DE - 96 Wells	Run 1	B4	M1 gDNA 0.5ng/ul STD	FSTL1-STD	12.52
+EMBL Heidelberg DE - 96 Wells	Run 1	B5	M1 gDNA 0.5ng/ul STD	FSTL1-STD	14.30
+EMBL Heidelberg DE - 96 Wells	Run 1	B6	M1 gDNA 0.5ng/ul STD	FSTL1-STD	11.16
+EMBL Heidelberg DE - 96 Wells	Run 1	B7	M1 gDNA 0.5ng/ul	FSTL1	11.40
+EMBL Heidelberg DE - 96 Wells	Run 1	B8	M1 gDNA 0.5ng/ul	FSTL1	11.28
+EMBL Heidelberg DE - 96 Wells	Run 1	B9	M1 gDNA 0.5ng/ul	FSTL1	14.37
+EMBL Heidelberg DE - 96 Wells	Run 1	B10	M1 gDNA 0.5ng/ul	FSTL1	14.89
+EMBL Heidelberg DE - 96 Wells	Run 1	B11	M1 gDNA 0.5ng/ul	FSTL1	14.28
+EMBL Heidelberg DE - 96 Wells	Run 1	B12	M1 gDNA 0.5ng/ul	FSTL1	15.25
+EMBL Heidelberg DE - 96 Wells	Run 1	C1	gDNA 0.2ng/ul	FSTL1	16.26
+EMBL Heidelberg DE - 96 Wells	Run 1	C2	M1 gDNA 0.5ng/ul	FSTL1	14.83
+EMBL Heidelberg DE - 96 Wells	Run 1	C3	gDNA 1ng/ul	FSTL1	13.75
+EMBL Heidelberg DE - 96 Wells	Run 1	C4	Neg. Contr.	FSTL1	19.76
+EMBL Heidelberg DE - 96 Wells	Run 1	C5	gDNA 2ng/ul	FSTL1	13.47
+EMBL Heidelberg DE - 96 Wells	Run 1	C6	gDNA 4ng/ul	FSTL1	12.60
+EMBL Heidelberg DE - 96 Wells	Run 1	C7	gDNA EMBL 0.5ng/ul	FSTL1	15.30
+EMBL Heidelberg DE - 96 Wells	Run 1	C8	gDNA EMBL 1.0ng/ul	FSTL1	15.16
+EMBL Heidelberg DE - 96 Wells	Run 1	D1	gDNA 0.2ng/ul	FSTL1	16.90
+EMBL Heidelberg DE - 96 Wells	Run 1	D2	M1 gDNA 0.5ng/ul	FSTL1	
+EMBL Heidelberg DE - 96 Wells	Run 1	D3	gDNA 1ng/ul	FSTL1	12.84
+EMBL Heidelberg DE - 96 Wells	Run 1	D4	Neg. Contr.	FSTL1	25.29
+EMBL Heidelberg DE - 96 Wells	Run 1	D5	gDNA 2ng/ul	FSTL1	12.90
+EMBL Heidelberg DE - 96 Wells	Run 1	D6	gDNA 4ng/ul	FSTL1	11.32
+EMBL Heidelberg DE - 96 Wells	Run 1	D7	gDNA EMBL 0.5ng/ul	FSTL1	14.33
+EMBL Heidelberg DE - 96 Wells	Run 1	D8	gDNA EMBL 1.0ng/ul	FSTL1	12.21
+EMBL Heidelberg DE - 96 Wells	Run 1	E1	gDNA 0.2ng/ul	FSTL1	16.42
+EMBL Heidelberg DE - 96 Wells	Run 1	E2	M1 gDNA 0.5ng/ul	FSTL1	13.16
+EMBL Heidelberg DE - 96 Wells	Run 1	E3	gDNA 1ng/ul	FSTL1	13.24
+EMBL Heidelberg DE - 96 Wells	Run 1	E4	Neg. Contr.	FSTL1	
+EMBL Heidelberg DE - 96 Wells	Run 1	E5	gDNA 2ng/ul	FSTL1	
+EMBL Heidelberg DE - 96 Wells	Run 1	E6	gDNA 4ng/ul	FSTL1	12.91
+EMBL Heidelberg DE - 96 Wells	Run 1	E7	gDNA EMBL 0.5ng/ul	FSTL1	15.08
+EMBL Heidelberg DE - 96 Wells	Run 1	E8	gDNA EMBL 1.0ng/ul	FSTL1	13.32

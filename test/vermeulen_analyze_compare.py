@@ -43,7 +43,7 @@ for row in range(0, len(data)):
             else:
                 data[row][col] = data[row][col] / 10000.0
 
-with open("temp_vermeulen_report_bias.csv", newline='') as tfile:
+with open("temp_vermeulen_report_bias.tsv", newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     data.append([])
     for col in range(2, len(table[40])):
@@ -85,7 +85,7 @@ with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods
                 else:
                     print("Error finite " + str(row) + " " + str(col) + " : " + table[row][0] + " " + table[0][col]+ " : " +  table[row][col])
 
-with open("temp_vermeulen_report_bias.csv", newline='') as tfile:
+with open("temp_vermeulen_report_bias.tsv", newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     data.append([])
     for col in range(2, len(table[111])):
@@ -123,7 +123,7 @@ with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods
                 else:
                     print("Error finite " + str(row) + " " + str(col) + " : " + table[row][0] + " " + table[0][col]+ " : " +  table[row][col])
 
-with open("temp_vermeulen_report_bias.csv", newline='') as tfile:
+with open("temp_vermeulen_report_bias.tsv", newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     data.append([])
     for col in range(2, len(table[112])):
@@ -161,7 +161,7 @@ with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods
                 else:
                     print("Error finite " + str(row) + " " + str(col) + " : " + table[row][0] + " " + table[0][col]+ " : " +  table[row][col])
 
-with open("temp_vermeulen_report_difference.csv", newline='') as tfile:
+with open("temp_vermeulen_report_difference.tsv", newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     data.append([])
     for col in range(3, len(table[97])):

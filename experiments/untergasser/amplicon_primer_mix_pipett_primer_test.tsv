@@ -1,0 +1,47 @@
+		3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22
+C		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+D		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+E		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+F		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+G		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+H		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+I		FSTL_1_A_047	FSTL_1_B_042	FSTL_1_C_040	FSTL_1_D_105	FSTL_1_E_097	FSTL_1_F_109	FSTL_1_G_211	FSTL_1_H_201	FSTL_1_I_204	FSTL_1_K_219	FSTL_1_*_259	FSTL_1_*_259_AMC	FSTL_1_L_412	FSTL_1_M_398	FSTL_1_N_386	FSTL_1_O_417	FSTL_1_P_820	FSTL_1_R_790	FSTL_1_S_778	FSTL_1_T_770
+K	Roche Mix + FSTL_1_*_259				DNA 20ng	DNA 20ng	DNA 20ng	DNA 2ng	DNA 2ng	DNA 2ng	DNA 0.2ng	DNA 0.2ng	DNA 0.2ng								
+L	Applied Mix + FSTL_1_*_259				DNA 20ng	DNA 20ng	DNA 20ng	DNA 2ng	DNA 2ng	DNA 2ng	DNA 0.2ng	DNA 0.2ng	DNA 0.2ng								
+																					
+																					
+Mix Roche:	"LightCycler® 480 SYBR® Green I Master; 04887352001; Roche Diagnostics GmbH; Mannheim; Germany"																				
+Mix Applied:	"SYBR Green PCR Master Mix; 4309155; Applied Biosystems; Warrington; UK"																				
+DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																				
+																					
+Approach: Make mastermix including everything except primers, aliquot and add primer dilutions. K+L: Make mastermix including everything except DNA, aliquot and add DNA dilutions.																					
+																					
+	Primer Stock Solutions: 100 µM																				
+	Primer dilution 1:40			forward primer 5µl + reverse primer 5µl + 190µl water																	
+																					
+	Hum Gen DNA 1:10 dil  = 20ng/µl																				
+	4ng per reaction = 1200 copies																				
+																					
+																					
+	Primer test - rows C-I			Replicates		Pairs		Dilution test - rows K-L			60										
+																					
+			1	8		20				1	4		3								
+																					
+	4ng	DNA	0.2	1.6		32.0		4ng	DNA	4.0	16.0		48.0								
+		Water	3.8	30.4		608.0			Water	0.0	0.0		0.0								
+	Primer 1:40	Primer	1.0	8.0		160.0		Primer 1:40	Primer	1.0	4.0		12.0								
+		Puffer	5.0	40.0		800.0			Puffer	5.0	20.0		60.0								
+																					
+		Sum	10.0	80.0		1600.0			Sum	10.0	40.0		120.0								
+																					
+		no Primers	9.0	72.0		1440.0			no Primers	9.0	36.0		108.0								
+																					
+																					
+																					
+										Dil 1:40	Dil 1:400	Dil 1:4000									
+								1:10	DNA	10	5	5									
+									Water	30	195	1995									
+																					
+									ng/µl	5	0.5	0.05									
+									in 4µl	20	2	0.20									
+									copies	6000	600	60									

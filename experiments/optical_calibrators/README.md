@@ -6,7 +6,7 @@ The idea of absolute quantification using optical calibrators dates back to earl
 The experiments below were run on a LightCycler 480 II from Roche using the LightCycler 480 SYBR Green I Master Mix from Roche (04887352001) in the Academisch Medisch Centrum (AMC) in Amsterdam, Netherlands. All reactions are performed in 10Âµl.
 
 
-## Experiment OC-1 (3.12.2021)
+## Experiment OC-1 (03.12.2021)
 This was an initial test for optical primers. Digested Lambda DNA was added to five different primer sets as well as without primers to investigate if primers have an impact on optical calibration.  
 
 Raw data are available as [experiment_OC_1.rdml](experiment_OC_1.rdml)
@@ -100,7 +100,7 @@ The fluorescence is proportional to the DNA concentration in range of 0.01-0.04Â
 
 
 ## Next Experiment
-The optical calibrators are included in the volume experiment comparing different volumes, genomic DNA concentrations and different machines in Untergasser folder.
+The optical calibrators are included in the [experiment volumes and machines](../untergasser/README.md#experiment_volume) comparing different volumes, genomic DNA concentrations and different machines in Untergasser folder.
 
 
 ## Conclusion

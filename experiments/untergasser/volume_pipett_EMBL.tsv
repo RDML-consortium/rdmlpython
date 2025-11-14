@@ -1,0 +1,46 @@
+	Sample	Primers	1	2	3	4	5	6	7	8	9						384	96
+A		µl	5	5	5	20	20	20										
+A	Human DNA A2 5ng 10µl	Fstl1	one mix	one mix	one mix	one mix	one mix	one mix									5	10
+B	Human DNA A2 5ng 10µl	Fstl1	one mix	one mix	one mix	one mix	one mix	one mix	one mix	one mix	one mix		all 10µl				10	20
+C	Human DNA	Fstl1	2ng	5ng	10ng	0ng	20ng	40ng	5ng	10ng			all 10µl				20	40
+D	Human DNA	Fstl1	2ng	5ng	10ng	0ng	20ng	40ng	5ng	10ng			all 10µl				30	60
+E	Human DNA	Fstl1	2ng	5ng	10ng	0ng	20ng	40ng	5ng	10ng			all 10µl					
+F	chicken new WNT11	no primer	0	5	10	20							all 10µl				65	130
+G	chicken new WNT11	no primer	0	5	10	20							all 10µl					
+H	chicken new WNT11	no primer	0	5	10	20							all 10µl				585	
+I	chicken Wnt11 fragment	no primer	10	10	10								all 10µl					
+J	chicken Axin1 fragment	no primer	10	10	10								all 10µl					
+																	384	96
+																		
+			1:10		1:10		1:10		EMBL	EMBL	Big Mix		Primer 1:40				5	10
+			2	5	10	0	20	40	5	10	5		Mix 2.5 + 2.5 + 95				10	20
+																	20	40
+	Human Genomic 20ng/µl	DNA	1.1	2.75	5.5	0	11	22	2.75	5.5	16.25	66.85						
+		Water	42.9	41.25	38.5	44	33	22	41.25	38.5	243.75							
+		Primer	11	11	11	11	11	11	11	11	65	153					35	70
+		Puffer	55	55	55	55	55	55	55	55	325	805						
+																	315	
+		Sum	110	110	110	110	110	110	110	110	650							
+																		
+																		
+	chicken new WNT11 20ng		0	0.25	0.5	1												
+			0	5	10	20												
+																		
+	WNT11	DNA	0	2.75	5.5	11												
+		Water	55	52.25	49.5	44												
+		Puffer	55	55	55	55												
+		Sum	110	110	110	110												
+																		
+																		
+	WNT11  23ng		0.5															
+	Axin 10ng		1															
+																		
+	WNT11  23ng	DNA	2															
+		Water	18															
+		Puffer	20															
+		Sum	40															
+																		
+	Axin 10ng	DNA	4															
+		Water	16															
+		Puffer	20															
+		Sum	40															
