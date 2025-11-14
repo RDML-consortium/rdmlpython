@@ -19,7 +19,7 @@ head = ["Standard-Cq", "LinRegPCR (old)", "5PSM", "FPK-PCR", "LRE-Emax", "LRE-E1
 
 startPos = 0
 data = []
-with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.tsv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -69,7 +69,7 @@ bias_std = np.std(data, axis=1, ddof=1)
 
 startPos = 3
 data = []
-with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.tsv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -107,7 +107,7 @@ linearity_std = np.std(data, axis=1, ddof=1)
 
 startPos = 4
 data = []
-with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.tsv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])
@@ -145,7 +145,7 @@ precision_std = np.std(data, axis=1, ddof=1)
 
 startPos = 5
 data = []
-with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.csv"), newline='') as tfile:
+with open(os.path.join(parent_dir, "experiments/vermeulen/data_vermeulen_methods_results.tsv"), newline='') as tfile:
     table = list(csv.reader(tfile, delimiter="\t"))
     for row in range(startPos * 13 + 1, startPos * 13 + 12):
         data.append([])

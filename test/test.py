@@ -2501,7 +2501,7 @@ runMin = math.floor(runTime / 60.0)
 runSec = runTime - runMin* 60.0
 print("\n######################\n### Test Vermeulen ###\n######################")
 print("This test uses the Vermeulen data. The upper panel calculates the test like published (by order): ")
-print("[Methods. 2013 Jan;59(1):32-46. doi: 10.1016/j.ymeth.2012.08.011.")
+print("Methods. 2013 Jan;59(1):32-46. doi: 10.1016/j.ymeth.2012.08.011.")
 print("The lower panel calculates result as mean. ")
 print("----------------------")
 print("Runtime: " + str(runMin) + ":" + "{:.3f}".format(runSec))

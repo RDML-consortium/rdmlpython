@@ -84,7 +84,7 @@ rar_probe2_conc = 43
 rar_amplicon_len = 44
 
 if use_results:
-    with open("data_vermeulen_methods_quant.csv", newline='') as tfile:
+    with open("data_vermeulen_methods_quant.tsv", newline='') as tfile:
         table = list(csv.reader(tfile, delimiter=";"))
         startRow = 17 * (set_method) + 1
         for row in range(startRow + 1, startRow + 16):
@@ -109,7 +109,7 @@ if use_results:
                         print("Error " + str(row) + " " + str(col) + " : " + table[startRow][col] + " - " + table[row][2] + " = " + table[row][col])
 
     if set_method not in [4, 5, 7]:
-        with open("data_vermeulen_methods_cq.csv", newline='') as tfile:
+        with open("data_vermeulen_methods_cq.tsv", newline='') as tfile:
             table = list(csv.reader(tfile, delimiter=";"))
             startRow = 17 * (set_method) + 1
             for row in range(startRow + 1, startRow + 16):
