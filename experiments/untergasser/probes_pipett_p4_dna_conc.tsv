@@ -1,0 +1,58 @@
+	Mix		2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24		FSL1 with SYBR	Final SYBR
+A	Roche	FSTL_1_D_105	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:50	4000nM
+B	Roche	FSTL_1_F_109	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:100	2000nM
+C	Roche	FSTL_1_K_219	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:200	1000nM
+D	Roche	FSTL_1_O_417	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:400	500nM
+E	Roche	FSTL_1_T_770	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:800	250nM
+F	Roche	No Primer	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:1600	125nM
+G	IDT	FSTL_1_D_105	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:50	4000nM
+H	IDT	FSTL_1_F_109	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:100	2000nM
+I	IDT	FSTL_1_K_219	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:200	1000nM
+J	IDT	FSTL_1_O_417	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:400	500nM
+K	IDT	FSTL_1_T_770	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:800	250nM
+L	IDT	No Primer	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2	0	0	0		7	7	7			1:1600	125nM
+M																												
+N								given ng DNA per tube														7	7	7			Roche SYBR I	
+																												
+		Mix Roche:	"LightCycler® 480 Probes Master; 04707494001; Roche Diagnostics GmbH; Mannheim; Germany"																									
+		Mix IDT:	"PrimeTime® Gene Expression 2X Master Mix; 1055770; Integrated DNA Technologies; Leuven; Belgium"																									
+		DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																									
+		SYBR Green I:	"SYBR Green I; 200× in DMSO; D010; ABP Biosciences; Beltsville; USA"																									
+																												
+		Approach: Make mastermix including everything except DNA, aliquot and add DNA dilutions. To the add SYBR columns SYBR dilutions were added to the probe mix instead of the hydrolysis probe.																										
+																												
+					Primer Stock Solutions: 100 µM																							
+					Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water																				
+																												
+					Hum Gen DNA 1:10 dil  = 20ng/µl																							
+					4ng per reaction = 1200 copies																							
+																												
+		ng/µl			20	7	2	0.7	0.2	0																		
+		Hum Gen DNA 1:10 dil  = 20ng/µl			600	420	60	21	6	0																		
+		Water			0	780	540	579	594	600																		
+																												
+		copies/µl			6000	2100	600	210	60																			
+																												
+				Mix for hydrolysis probes:											Mix for adding SYBR to the probe mix:													
+							Replicates					Sum						Replicates					Sum					
+																												
+						1	4		7			7					1	4		7			7					
+																												
+					DNA	1.00	4.0		28			196.0				DNA	1.00	4.0		28			196.0					
+					Water	3.60	14.4		100.8			705.6				Water	2.75	11.0		77			539.0					
+				1:10!	Primer	0.25	1.0		7.0			49.0			1:10!	Primer	0.25	1.0		7			49.0					
+				1:10!	Probe	0.15	0.6		4.2			29.4				SYBR	1.00	4.0		28			196.0					
+					Puffer	5.00	20.0		140			980.0				Puffer	5.00	20.0		140			980.0					
+																												
+					Sum	10.00	40.0		280			1960.0				Sum	10.00	40.0		280			1960.0					
+																												
+					no DNA	9.00	36.0		252							no DNA	9.00	36.0		252								
+																												
+															Required SYBR dilutions:				SYBR is 200x and 200µM									
+																					SYBR	Water						
+																	1:50		1:5		2	8						
+																	1:100		1:10		2	18						
+																	1:200		1:20		2	38						
+																	1:400		1:40		2	78						
+																	1:800		1:80		2	158						
+																	1:1600		1:160		2	318						

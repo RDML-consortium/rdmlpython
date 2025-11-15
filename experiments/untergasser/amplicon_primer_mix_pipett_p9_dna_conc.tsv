@@ -1,0 +1,44 @@
+		2	3	4	5	6	7	8	9	10	11	12	13	14	15	16
+C	FSTL_1_C_040	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+D	FSTL_1_F_109	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+E	FSTL_1_H_201	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+F	FSTL_1_I_204	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+G	FSTL_1_K_219	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+H	FSTL_1_M_386	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+I	FSTL_1_O_417	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+J	FSTL_1_P_820	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+K	No Primer	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	0.2	0.2	0.2
+																
+									given ng DNA per tube							
+																
+	Mix:	5x LCG PCR Master Wittwer Lab														
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"														
+																
+	Approach: Make mastermix, aliqout and add primer, aliquot and add DNA dilutions.															
+																
+				Primer Stock Solutions: 100 µM												
+				Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water									
+																
+				Hum Gen DNA 1:10 dil  = 20ng/µl												
+				4ng per reaction = 1200 copies												
+																
+	ng/µl			20	7	2	0.7	0.2	0							
+	Hum Gen DNA 1:10 dil  = 20ng/µl			600	420	60	21	6	0							
+	Water			0	780	540	579	594	600							
+																
+	copies/µl			6000	2100	600	210	60								
+																
+						Replicates					Sum					
+																
+					1	4		6			10					
+																
+				DNA	1.00	4.0		24			240.0					
+				Water	6.75	27.0		162			1620.0					
+			1:10!	Primer	0.25	1.0		6			60.0					
+				Puffer	2.00	8.0		48			480.0					
+																
+				Sum	10.00	40.0		240			2400.0					
+																
+				no DNA	9.00	36.0										
+																
+				no DNA. no Primer				210								
