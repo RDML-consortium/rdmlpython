@@ -1,0 +1,41 @@
+Well	Sample	Target	Expected Copies	Conc(copies/µL)	Status	Experiment	SampleType	TargetType	Supermix	DyeName(s)	Copies/20µLWell	TotalConfMax	TotalConfMin	PoissonConfMax	PoissonConfMin	Accepted Droplets	Positives	Negatives	Ch1+Ch2+	Ch1+Ch2-	Ch1-Ch2+	Ch1-Ch2-	Linkage	CNV	TotalCNVMax	TotalCNVMin	PoissonCNVMax	PoissonCNVMin	ReferenceCopies	UnknownCopies	Threshold1	Threshold2	Threshold3	ReferenceUsed	Ratio	TotalRatioMax	TotalRatioMin	PoissonRatioMax	PoissonRatioMin	Fractional Abundance	TotalFractionalAbundanceMax	TotalFractionalAbundanceMin	PoissonFractionalAbundanceMax	PoissonFractionalAbundanceMin	MeanAmplitudeOfPositives	MeanAmplitudeOfNegatives	MeanAmplitudeTotal	ExperimentComments	MergedWells	TotalConfidenceMax68	TotalConfidenceMin68	PoissonConfidenceMax68	PoissonConfidenceMin68	TotalCNVMax68	TotalCNVMin68	PoissonCNVMax68	PoissonCNVMin68	TotalRatioMax68	TotalRatioMin68	PoissonRatioMax68	PoissonRatioMin68	TotalFractionalAbundanceMax68	TotalFractionalAbundanceMin68	PoissonFractionalAbundanceMax68	PoissonFractionalAbundanceMin68
+A01	FF	FSTL_1_F_109	?	133.67	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	2673.40			139.35	128.02	19953	2143	17810	0.00	0.00	0.00	0.00									936.81														3205.54	392.62	694.73					136.56	130.78												
+A02	NTC	FSTL_1_F_110	0	No Call	CHECK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM						20490	0	20490	0.00	0.00	0.00	0.00																																											
+A03	EMBL20	FSTL_1_F_111	480	487.49	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	9749.72			499.15	475.94	20263	6874	13389	0.00	0.00	0.00	0.00									905.52														3214.89	393.31	1350.50					493.42	481.58												
+A04	20	FSTL_1_F_112	480	603.27	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	12065.46			616.89	589.81	19443	7800	11643	0.00	0.00	0.00	0.00									896.84														3171.54	388.38	1504.90					610.20	596.39												
+A05	7	FSTL_1_F_113	168	223.43	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	4468.54			231.05	215.85	19252	3330	15922	0.00	0.00	0.00	0.00									498.50														3150.07	389.54	867.03					227.31	219.56												
+A06	2	FSTL_1_F_114	48	59.06	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	1181.21			62.75	55.38	20138	986	19152	0.00	0.00	0.00	0.00									890.79														3183.69	392.24	528.91					60.94	57.18												
+A07	0.7	FSTL_1_F_115	16.8	20.50	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	410.00			22.69	18.31	19451	336	19115	0.00	0.00	0.00	0.00									614.76														3137.11	388.04	435.52					21.62	19.38												
+A08	0.2	FSTL_1_F_116	4.8	15.56	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	311.28			17.47	13.66	19479	256	19223	0.00	0.00	0.00	0.00									581.21														3136.26	391.75	427.82					16.54	14.59												
+B01	FF	FSTL_1_K_219	?	151.44	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	3028.86			157.41	145.51	20615	2490	18125	0.00	0.00	0.00	0.00									922.36														2986.57	390.21	703.81					154.48	148.41												
+B02	NTC	FSTL_1_K_220	0	No Call	CHECK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM						18895	0	18895	0.00	0.00	0.00	0.00																																											
+B03	EMBL20	FSTL_1_K_221	480	347.91	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	6958.27			357.45	338.45	20261	5187	15074	0.00	0.00	0.00	0.00									854.72														3109.64	397.81	1092.07					352.77	343.08												
+B04	20	FSTL_1_K_222	480	586.18	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	11723.63			599.59	572.92	19314	7579	11735	0.00	0.00	0.00	0.00									892.60														3021.46	390.09	1422.66					593.00	579.40												
+B05	7	FSTL_1_K_223	168	201.57	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	4031.35			208.72	194.46	19548	3078	16470	0.00	0.00	0.00	0.00									886.91														3014.51	391.15	804.22					205.21	197.94												
+B06	2	FSTL_1_K_224	48	54.95	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	1099.03			58.67	51.24	18407	840	17567	0.00	0.00	0.00	0.00									562.72														3028.63	403.22	523.03					56.85	53.06												
+B07	0.7	FSTL_1_K_225	16.8	21.57	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	431.31			23.78	19.35	20040	364	19676	0.00	0.00	0.00	0.00									579.19														3015.39	393.38	441.01					22.70	20.44												
+B08	0.2	FSTL_1_K_226	4.8	6.20	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	123.98			7.40	5.00	19599	103	19496	0.00	0.00	0.00	0.00									505.40														2954.86	395.43	408.88					6.81	5.59												
+C01	a20000	FSTL_1_F_112	8000	8388.60	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	167772.05			9042.65	7836.64	18739	18724	15	0.00	0.00	0.00	0.00									429.99														3024.43	382.66	3022.31					8706.01	8097.32												
+C02	a2000	FSTL_1_F_113	800	784.26	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	15685.19			800.20	768.53	20088	9774	10314	0.00	0.00	0.00	0.00									903.93														3017.61	383.65	1665.23					792.37	776.21												
+C03	a200	FSTL_1_F_114	80	81.34	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	1626.89			85.77	76.94	19519	1304	18215	0.00	0.00	0.00	0.00									630.87														3034.15	389.48	566.16					83.60	79.09												
+C04	a20	FSTL_1_F_115	8	7.04	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	140.76			8.29	5.78	20287	121	20166	0.00	0.00	0.00	0.00									869.74														3005.13	390.76	406.35					7.68	6.40												
+C05	a20000	FSTL_1_K_231	8000	7734.56	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	154691.25			8200.46	7322.94	20062	20034	28	0.00	0.00	0.00	0.00									469.49														3014.51	388.80	3010.85					7963.53	7519.51												
+C06	a2000	FSTL_1_K_232	800	748.55	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	14970.91			763.79	733.49	20604	9699	10905	0.00	0.00	0.00	0.00									897.67														2974.71	392.89	1608.24					756.30	740.84												
+C07	a200	FSTL_1_K_233	80	77.99	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	1559.71			82.30	73.69	19645	1260	18385	0.00	0.00	0.00	0.00									868.89														3012.33	398.59	566.23					80.19	75.79												
+C08	a20	FSTL_1_K_234	8	7.02	OK	DQ	Unknown	Unknown	ddPCR Supermix for Probes (no dUTP)	FAM	140.43			8.25	5.80	21174	126	21048	0.00	0.00	0.00	0.00									503.55														2913.85	397.85	412.82					7.65	6.40												
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	

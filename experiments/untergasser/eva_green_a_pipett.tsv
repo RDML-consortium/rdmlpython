@@ -1,0 +1,58 @@
+				6	7	8	9	10	11	12	13									
+B				Eva high		Roche		F												
+C		1.25		Eva high		Roche		H												
+D				Eva high		IDT		F												
+E				Eva high		IDT		H												
+F				Eva med		Roche		F												
+G		0.25		Eva med		Roche		H												
+H				Eva med		IDT		F												
+I				Eva med		IDT		H												
+J				Eva low		Roche		F												
+K		0.125		Eva low		Roche		H												
+L				Eva low		IDT		F												
+M				Eva low		IDT		H												
+N				regular Roche qPCR				F												
+O				regular Roche qPCR				H												
+																				
+																				
+	Mix Roche:	"LightCycler® 480 Probes Master; 04707494001; Roche Diagnostics GmbH; Mannheim; Germany"																		
+	Mix IDT:	"PrimeTime® Gene Expression 2X Master Mix; 1055770; Integrated DNA Technologies; Leuven; Belgium"																		
+	Mix regular Roche:	"LightCycler® 480 SYBR® Green I Master; 04887352001; Roche Diagnostics GmbH; Mannheim; Germany"																		
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																		
+	Eva Green:	"EvaGreen® Dye - 20X in Water; 31000-T; Biotium; Fremont; USA"																		
+																				
+		Primer Stock Solutions: 100 µM																		
+		Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water															
+																				
+		Hum Gen DNA 1:10 dil  = 20ng/µl																		
+		4ng per reaction = 1200 copies																		
+																				
+		"Eva green stock is 25µM and was diluted with water to 12.5µM, 2.5µM and 1.25 µM used below."																		
+																				
+			Replicates			Sum														
+																				
+		1	8			15														
+																				
+4ng	DNA	1.00	8.0			120.0														
+	Water	2.75	22.0			330.0														
+	Primer	0.25	2.0			30.0														
+	Eva Green	1.00	8.0			120.0														
+	Puffer	5.00	40.0			600.0														
+																				
+	Sum	10.00	80.0			1200.0														
+																				
+	no Primers	9.75	78.0																	
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				
+																				

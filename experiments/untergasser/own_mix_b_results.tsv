@@ -1,0 +1,48 @@
+Experiment	Run	well	sample	sample type	sample nucleotide	target	target type	target dye	target chemistry	excluded	note	baseline	n in log phase	n included	last log cycle	indiv PCR eff	R2	PCR eff	STD PCR eff	TD0	indiv Ncopy	Ncopy	amplification	baseline error	plateau	excl PCR efficiency	used for mean PCR efficiency
+Own Mix B	Run 1	C9	5ng gDNA	std	ds	SYBR 1:100 BSA	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	63882	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	C10	5ng gDNA	std	ds	SYBR 1:200 BSA	toi	SYBR 1:200	non-saturating DNA binding dye			42891	12	9	29	1.9437	0.9994	1.9288	0.0213	29.66	228.1	286.6	True	0	True	False	True
+Own Mix B	Run 1	C11	5ng gDNA	std	ds	SYBR 1:400 BSA	ref	SYBR 1:400	non-saturating DNA binding dye			38814	9	8	24	1.9644	0.9984	1.9914	0.0191	25.04	1880.2	1335.4	True	0	True	False	True
+Own Mix B	Run 1	C12	5ng gDNA	std	ds	SYBR 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			23206	9	8	24	1.9535	0.9990	1.9107	0.0362	24.54	1513.8	2607.4	True	0	True	False	True
+Own Mix B	Run 1	C13	5ng gDNA	std	ds	OLD SYBR 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			19213	10	9	24	1.9643	0.9965	2.2160	0.3204	24.73	1162.4	58.9	True	0	True	False	True
+Own Mix B	Run 1	D9	5ng gDNA	std	ds	SYBR 1:100 BSA	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	76193	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	D10	5ng gDNA	std	ds	SYBR 1:200 BSA	toi	SYBR 1:200	non-saturating DNA binding dye			46983	10	9	30	1.9440	0.9994	1.9288	0.0213	30.88	100.6	128.3	True	0	True	False	True
+Own Mix B	Run 1	D11	5ng gDNA	std	ds	SYBR 1:400 BSA	ref	SYBR 1:400	non-saturating DNA binding dye			32999	10	9	24	2.0054	0.9985	1.9914	0.0191	24.99	1163.2	1385.5	True	0	True	False	True
+Own Mix B	Run 1	D12	5ng gDNA	std	ds	SYBR 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			52691	11	9	24	1.8650	0.9972	1.9107	0.0362	24.51	4812.0	2659.3	True	0	True	False	True
+Own Mix B	Run 1	D13	5ng gDNA	std	ds	OLD SYBR 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			31392	11	9	24	2.0156	0.9970	2.2160	0.3204	24.74	611.9	58.6	True	0	True	False	True
+Own Mix B	Run 1	E9	5ng gDNA	std	ds	SYBR 1:100 BSA	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	47397	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	E10	5ng gDNA	std	ds	SYBR 1:200 BSA	toi	SYBR 1:200	non-saturating DNA binding dye			15212	9	8	31	1.8987	0.9999	1.9288	0.0213	32.09	96.3	58.1	True	0	True	False	True
+Own Mix B	Run 1	E11	5ng gDNA	std	ds	SYBR 1:400 BSA	ref	SYBR 1:400	non-saturating DNA binding dye			41649	10	9	24	2.0045	0.9951	1.9914	0.0191	25.07	1114.2	1312.2	True	0	True	False	True
+Own Mix B	Run 1	E12	5ng gDNA	std	ds	SYBR 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			6806	9	8	24	1.9135	0.9926	1.9107	0.0362	24.61	2394.4	2484.5	True	0	True	False	True
+Own Mix B	Run 1	E13	5ng gDNA	std	ds	OLD SYBR 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			874485	5	4	24	2.6682	0.9962	2.2160	0.3204	24.71	-1.0	59.7	True	0	True	False	True
+Own Mix B	Run 1	G9	5ng gDNA	std	ds	SYBR 1:100	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	54429	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	G10	5ng gDNA	std	ds	SYBR 1:200	ref	SYBR 1:200	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	21901	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	G11	5ng gDNA	std	ds	SYBR 1:400	ref	SYBR 1:400	non-saturating DNA binding dye			48989	9	8	24	1.9816	0.9983	1.9736	0.0109	25.12	1434.3	1587.4	True	0	True	False	True
+Own Mix B	Run 1	G12	5ng gDNA	std	ds	SYBR 1:800	ref	SYBR 1:800	non-saturating DNA binding dye			35706	10	9	24	1.9461	0.9830	1.9370	0.0071	24.70	1493.1	1677.4	True	0	True	False	True
+Own Mix B	Run 1	G13	5ng gDNA	std	ds	Roche	ref	SYBR	non-saturating DNA binding dye			25061	10	9	25	1.9411	0.9966	1.8992	0.0432	26.14	977.3	1727.9	True	0	True	False	True
+Own Mix B	Run 1	H9	5ng gDNA	std	ds	SYBR 1:100	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	39646	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	H10	5ng gDNA	std	ds	SYBR 1:200	ref	SYBR 1:200	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	3650	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	H11	5ng gDNA	std	ds	SYBR 1:400	ref	SYBR 1:400	non-saturating DNA binding dye			36108	9	8	26	1.9810	0.9992	1.9736	0.0109	27.05	385.5	426.6	True	0	True	False	True
+Own Mix B	Run 1	H12	5ng gDNA	std	ds	SYBR 1:800	ref	SYBR 1:800	non-saturating DNA binding dye			11360	9	8	25	1.9287	0.9892	1.9370	0.0071	26.29	655.5	585.8	True	0	True	False	True
+Own Mix B	Run 1	H13	5ng gDNA	std	ds	Roche	ref	SYBR	non-saturating DNA binding dye			3047	12	9	25	1.9434	0.9923	1.8992	0.0432	26.10	973.7	1774.0	True	0	True	False	True
+Own Mix B	Run 1	H14	5ng gDNA	std	ds	Roche	ref	SYBR	non-saturating DNA binding dye			16367	10	9	25	1.8506	0.9980	1.8992	0.0432	26.20	3298.6	1671.5	True	0	True	False	True
+Own Mix B	Run 1	I9	5ng gDNA	std	ds	SYBR 1:100	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	48424	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	I10	5ng gDNA	std	ds	SYBR 1:200	ref	SYBR 1:200	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	62316	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	I11	5ng gDNA	std	ds	SYBR 1:400	ref	SYBR 1:400	non-saturating DNA binding dye			32849	9	8	25	1.9583	0.9998	1.9736	0.0109	25.94	1113.5	908.9	True	0	True	False	True
+Own Mix B	Run 1	I12	5ng gDNA	std	ds	SYBR 1:800	ref	SYBR 1:800	non-saturating DNA binding dye			30297	8	7	24	1.9361	0.9998	1.9370	0.0071	24.76	1626.7	1608.4	True	0	True	False	True
+Own Mix B	Run 1	I13	5ng gDNA	std	ds	Roche	ref	SYBR	non-saturating DNA binding dye			-11005	7	6	25	1.8619	0.9999	1.8992	0.0432	26.19	2817.7	1674.7	True	0	True	False	True
+Own Mix B	Run 1	K9	5ng gDNA	std	ds	Sigma 1:100 BSA	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	6268	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	K10	5ng gDNA	std	ds	Sigma 1:200 BSA	ref	SYBR 1:200	non-saturating DNA binding dye		Ncopy < 10	16867	13	9	36	1.7209	0.9998	1.8602	0.1012	36.95	161.4	9.1	True	0	True	False	True
+Own Mix B	Run 1	K11	5ng gDNA	std	ds	Sigma 1:400 BSA	ref	SYBR 1:400	non-saturating DNA binding dye			-1671	8	7	25	1.9106	0.9990	1.9640	0.0477	25.56	2689.3	1328.7	True	0	True	False	True
+Own Mix B	Run 1	K12	5ng gDNA	std	ds	Sigma 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			6105	8	7	24	1.8592	0.9984	1.9343	0.0533	24.74	4486.5	1685.9	True	0	True	False	True
+Own Mix B	Run 1	K13	5ng gDNA	std	ds	Sensifast	ref	SYBR	non-saturating DNA binding dye			10732	10	9	25	1.8782	0.9982	1.9129	0.0212	25.53	3411.2	2137.0	True	0	True	False	True
+Own Mix B	Run 1	L9	5ng gDNA	std	ds	Sigma 1:100 BSA	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	47028	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	L10	5ng gDNA	std	ds	Sigma 1:200 BSA	ref	SYBR 1:200	non-saturating DNA binding dye			43798	11	9	30	1.9586	0.9997	1.8602	0.1012	31.45	54.4	275.7	True	0	True	False	True
+Own Mix B	Run 1	L11	5ng gDNA	std	ds	Sigma 1:400 BSA	ref	SYBR 1:400	non-saturating DNA binding dye			10137	11	9	24	2.0264	0.9970	1.9640	0.0477	25.28	728.9	1608.0	True	0	True	False	True
+Own Mix B	Run 1	L12	5ng gDNA	std	ds	Sigma 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			19541	9	8	24	1.9654	0.9994	1.9343	0.0533	24.55	1297.5	1919.7	True	0	True	False	True
+Own Mix B	Run 1	L13	5ng gDNA	std	ds	Sensifast	ref	SYBR	non-saturating DNA binding dye			13695	12	9	25	1.9142	0.9999	1.9129	0.0212	25.52	2111.6	2146.3	True	0	True	False	True
+Own Mix B	Run 1	L14	5ng gDNA	std	ds	Sensifast	ref	SYBR	non-saturating DNA binding dye			19258	12	9	24	1.9256	0.9985	1.9129	0.0212	25.48	1866.2	2206.6	True	0	True	False	True
+Own Mix B	Run 1	M9	5ng gDNA	std	ds	Sigma 1:100 BSA	ref	SYBR 1:100	non-saturating DNA binding dye	no amplification in positive control	no TD0 found in positive control	7393	-1	-1	-1	1.0000	-1.0000	-1.0000		-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix B	Run 1	M10	5ng gDNA	std	ds	Sigma 1:200 BSA	ref	SYBR 1:200	non-saturating DNA binding dye			41295	12	9	33	1.9009	0.9997	1.8602	0.1012	33.70	32.9	68.4	True	0	True	False	True
+Own Mix B	Run 1	M11	5ng gDNA	std	ds	Sigma 1:400 BSA	ref	SYBR 1:400	non-saturating DNA binding dye			39301	9	8	24	1.9550	0.9992	1.9640	0.0477	25.45	1617.2	1438.7	True	0	True	False	True
+Own Mix B	Run 1	M12	5ng gDNA	std	ds	Sigma 1:800 BSA	ref	SYBR 1:800	non-saturating DNA binding dye			22590	10	9	24	1.9782	0.9979	1.9343	0.0533	24.55	1106.2	1919.0	True	0	True	False	True
+Own Mix B	Run 1	M13	5ng gDNA	std	ds	Sensifast	ref	SYBR	non-saturating DNA binding dye			13880	14	9	25	1.9338	0.9992	1.9129	0.0212	25.58	1559.5	2058.8	True	0	True	False	True

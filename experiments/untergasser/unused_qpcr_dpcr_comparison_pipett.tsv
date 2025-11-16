@@ -1,0 +1,48 @@
+			10	11	12	13	14	15	16	17	18	19	20	21	22	23	24		
+			x				SYBR Green				x	p		Probes			p		
+			x	x	x	x	x	x	x	x	x	p	FSTL_1_F_109	Probes	p	FSTL_1_K_219	p		
+	Primer conc		100	100	100	250	250	250	750	750	750	250	250	250	250	250	250		
+1	FSTL_1_F_109	A	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06		
+2	FSTL_1_H_201	B	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05		
+3	FSTL_1_K_219	C	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04		
+4	FSTL_1_L_412	D	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+06	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03		
+5	FSTL_1_F_109	E	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL		
+6	FSTL_1_H_201	F	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC		
+7	FSTL_1_K_219	G	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL	x	SYBR Green
+8	FSTL_1_L_412	H	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	1.E+05	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC	x	100
+9	FSTL_1_F_109	I	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL		SYBR Green
+10	FSTL_1_H_201	J	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC		250
+11	FSTL_1_K_219	K	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL	HG EMBL	x	SYBR Green
+12	FSTL_1_L_412	L	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	1.E+04	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC	HG AMC	x	750
+13	FSTL_1_F_109	M	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03								
+14	FSTL_1_H_201	N	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	Hum Gen DNA 1:10 dil  = 20ng/µl					1ng = 300 copies		
+15	FSTL_1_K_219	O	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03								
+16	FSTL_1_L_412	P	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03	1.E+03								
+																			
+									given copies DNA per tube										
+																			
+	SYBR Green Mix:	"LightCycler® 480 SYBR® Green I Master; 04887352001; Roche Diagnostics GmbH; Mannheim; Germany"																	
+	Probe Mix:	"PerfeCTa Multiplex qPCR ToughMix; 95147-250; Quantabio; Beverly; USA"																	
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																	
+	DNA:	Purified PCR amplicon dilutions from previous experiment.																	
+																			
+		Primer Stock Solutions: 100 µM																	
+																			
+	Primer Dilutions		100			250			750			Probe Dilutions							
+																			
+			1	200		1	200		1	200			1	200					
+	Water		3.98	796.0		3.95	790.0		3.85	770.0			3.94	788.0					
+	Primer FW	pure	0.010	2.0		0.025	5.0		0.075	15.0			0.025	5.0					
+	Primer RV	pure	0.010	2.0		0.025	5.0		0.075	15.0			0.025	5.0					
+	Probe	pure	0.000	0.0		0.000	0.0		0.000	0.0			0.010	2.0					
+																			
+	Sum		4.00	800.0		4.00	800.0		4.00	800.0			4.00	800.0					
+																			
+																			
+			1	4		18							1	4		18			
+																			
+		DNA	1.00	4.0		72						DNA	1.00	4.0		72			
+	Mix from above	Primer	4.00	16.0		288				Mix from above		Primer	4.00	16.0		288			
+		Puffer	5.00	20.0		360						Puffer	2.00	8.0		144			
+												Water	3.00	12.0					
+		Sum	10.00	40.0		720						Sum	10.00	40.0		720			

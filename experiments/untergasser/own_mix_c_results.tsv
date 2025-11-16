@@ -1,0 +1,223 @@
+Experiment	Run	well	sample	sample type	sample nucleotide	target	target type	target dye	target chemistry	excluded	note	baseline	n in log phase	n included	last log cycle	indiv PCR eff	R2	PCR eff	STD PCR eff	TD0	indiv Ncopy	Ncopy	amplification	baseline error	plateau	excl PCR efficiency	used for mean PCR efficiency
+Own Mix C	Run 1	G1	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			13292	9	8	25	2.0211	0.9945	1.9827	0.0440	25.56	741.0	1209.7	True	0	True	False	True
+Own Mix C	Run 1	G2	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			13809	8	7	25	2.0423	0.9990	1.9827	0.0440	25.55	572.9	1220.5	True	0	True	False	True
+Own Mix C	Run 1	G3	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			15543	8	7	24	2.0294	0.9991	1.9827	0.0440	25.49	703.3	1273.2	True	0	True	False	True
+Own Mix C	Run 1	G4	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			12045	8	7	24	1.9388	0.9935	1.9827	0.0440	25.39	2407.3	1362.3	True	0	True	False	True
+Own Mix C	Run 1	G5	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			32465	7	6	24	1.9227	0.9999	1.9827	0.0440	25.48	2804.5	1282.2	True	0	True	False	True
+Own Mix C	Run 1	G6	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			27544	9	8	25	1.9630	0.9991	1.9827	0.0440	25.57	1554.2	1203.4	True	0	True	False	True
+Own Mix C	Run 1	G7	4ng gDNA	unkn	ds	FSTL_1_A_047 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			9352	9	8	25	1.9617	0.9897	1.9827	0.0440	25.54	1615.8	1231.4	True	0	True	False	True
+Own Mix C	Run 1	G8	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye			-3099	10	9	24	1.8909	0.9916	1.7332	0.1706	25.31	4785.4	43364.0	True	0	True	False	True
+Own Mix C	Run 1	G9	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.496 < 1.7	-5094	10	9	24	1.4963	0.9364	1.7332	0.1706	24.83	2167604.7	56297.1	True	0	True	False	True
+Own Mix C	Run 1	G10	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-15829	-1	-1	-1	1.0000	-1.0000	1.7332	0.1706	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	G11	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye			8946	10	9	24	1.8125	0.9956	1.7332	0.1706	25.27	14288.8	44223.4	True	0	True	False	True
+Own Mix C	Run 1	G12	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-30288	-1	-1	-1	1.0000	-1.0000	1.7332	0.1706	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	G13	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;baseline error	-7541	6	5	24	1.0000	-1.0000	1.7332	0.1706	25.29	-1.0	43801.7	False	5	True	False	False
+Own Mix C	Run 1	G14	4ng gDNA	unkn	ds	FSTL_1_A_047	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;only 4 values in log phase	-7327	4	3	14	1.0000	-1.0000	1.7332	0.1706	15.15	-1.0	11593839.0	False	4	True	False	False
+Own Mix C	Run 1	G15	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-6570	7	6	23	1.7803	0.9639	1.8594	0.0561	24.43	36492.4	12608.3	True	0	True	False	True
+Own Mix C	Run 1	G16	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-18895	-1	-1	-1	1.0000	-1.0000	1.8594	0.0561	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	G17	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-9081	-1	-1	-1	1.0000	-1.0000	1.8594	0.0561	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	G18	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-5090	7	6	24	1.8945	0.9878	1.8594	0.0561	24.95	5748.3	9159.2	True	0	True	False	True
+Own Mix C	Run 1	G19	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-18546	-1	-1	-1	1.0000	-1.0000	1.8594	0.0561	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	G20	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-12423	-1	-1	-1	1.0000	-1.0000	1.8594	0.0561	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	G21	4ng gDNA	unkn	ds	FSTL_1_A_047 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			8102	9	8	24	1.9035	0.9951	1.8594	0.0561	25.18	4374.9	7895.2	True	0	True	False	True
+Own Mix C	Run 1	H1	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			11511	7	6	25	1.9766	0.9997	1.9814	0.0943	25.85	1209.5	1135.4	True	0	True	False	True
+Own Mix C	Run 1	H2	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			13771	9	8	25	2.0745	0.9890	1.9814	0.0943	25.90	333.1	1093.8	True	0	True	False	True
+Own Mix C	Run 1	H3	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			17506	8	7	25	2.1283	0.9762	1.9814	0.0943	25.86	177.4	1127.0	True	0	True	False	True
+Own Mix C	Run 1	H4	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			16325	8	7	25	1.8703	0.9995	1.9814	0.0943	25.89	4904.4	1101.1	True	0	True	False	True
+Own Mix C	Run 1	H5	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			6473	8	7	25	1.8799	0.9962	1.9814	0.0943	25.89	4294.6	1100.8	True	0	True	False	True
+Own Mix C	Run 1	H6	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-4422	-1	-1	-1	1.0000	-1.0000	1.9814	0.0943	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H7	4ng gDNA	unkn	ds	FSTL_1_B_042 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			3207	8	7	25	1.9589	0.9991	1.9814	0.0943	25.93	1437.4	1068.8	True	0	True	False	True
+Own Mix C	Run 1	H8	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye			-4212	8	7	25	2.0587	0.9941	1.8635	0.1952	25.68	476.5	6155.0	True	0	True	False	True
+Own Mix C	Run 1	H9	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.668 < 1.7	-5359	9	8	25	1.6682	0.9929	1.8635	0.1952	25.53	113619.6	6732.2	True	0	True	False	True
+Own Mix C	Run 1	H10	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-39348	-1	-1	-1	1.0000	-1.0000	1.8635	0.1952	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H11	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;indiv PCR eff is 1.300 < 1.7	-7387	10	9	24	1.3002	0.9852	1.8635	0.1952	25.19	72175475.6	8319.9	False	0	True	False	False
+Own Mix C	Run 1	H12	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-17994	-1	-1	-1	1.0000	-1.0000	1.8635	0.1952	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H13	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;only 4 values in log phase;Ncopy > 100 Mio	6253	4	3	9	1.0000	-1.0000	1.8635	0.1952	9.96	-1.0	109088574.8	False	4	True	False	False
+Own Mix C	Run 1	H14	4ng gDNA	unkn	ds	FSTL_1_B_042	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	2358	-1	-1	-1	1.0000	-1.0000	1.8635	0.1952	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H15	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	5150	-1	-1	-1	1.0000	-1.0000	1.8402	0.2321	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H16	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.608 < 1.7	-12985	7	6	24	1.6081	0.9747	1.8402	0.2321	25.11	354122.0	11986.1	True	0	True	False	True
+Own Mix C	Run 1	H17	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-5475	-1	-1	-1	1.0000	-1.0000	1.8402	0.2321	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H18	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-5083	-1	-1	-1	1.0000	-1.0000	1.8402	0.2321	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H19	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			11757	10	9	25	2.0723	0.9958	1.8402	0.2321	25.74	384.6	8182.1	True	0	True	False	True
+Own Mix C	Run 1	H20	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-3122	-1	-1	-1	1.0000	-1.0000	1.8402	0.2321	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	H21	4ng gDNA	unkn	ds	FSTL_1_B_042 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;Ncopy < 10	-44213	17	9	36	1.0143	0.9918	1.8402	0.2321	37.03	31815413256.1	8.4	False	0	True	False	False
+Own Mix C	Run 1	I1	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			12858	8	7	25	1.9173	0.9998	1.9151	0.0571	25.66	1202.7	1238.5	True	0	True	False	True
+Own Mix C	Run 1	I2	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			48781	8	7	25	1.9301	0.9982	1.9151	0.0571	25.57	1073.4	1310.5	True	0	True	False	True
+Own Mix C	Run 1	I3	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			36215	9	8	25	1.9514	0.9983	1.9151	0.0571	25.63	780.1	1262.2	True	0	True	False	True
+Own Mix C	Run 1	I4	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			19984	8	7	25	2.0006	0.9973	1.9151	0.0571	25.53	442.0	1347.6	True	0	True	False	True
+Own Mix C	Run 1	I5	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			29783	9	8	25	1.8867	0.9960	1.9151	0.0571	25.71	1757.8	1197.5	True	0	True	False	True
+Own Mix C	Run 1	I6	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			-1080	7	6	25	1.8005	0.9996	1.9151	0.0571	26.09	4673.5	934.7	True	0	True	False	True
+Own Mix C	Run 1	I7	4ng gDNA	unkn	ds	FSTL_1_D_105 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			9253	10	9	25	1.9190	0.9977	1.9151	0.0571	25.52	1282.1	1351.3	True	0	True	False	True
+Own Mix C	Run 1	I8	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	10945	-1	-1	-1	1.0000	-1.0000	1.9432	0.0548	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	I9	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye			9715	8	7	24	2.0238	0.9978	1.9432	0.0548	24.92	503.5	1387.1	True	0	True	False	True
+Own Mix C	Run 1	I10	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye			-9877	8	7	24	1.8790	0.9984	1.9432	0.0548	24.82	3418.0	1485.4	True	0	True	False	True
+Own Mix C	Run 1	I11	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye			30062	9	8	24	1.9602	0.9984	1.9432	0.0548	24.80	1213.5	1506.3	True	0	True	False	True
+Own Mix C	Run 1	I12	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye			623	9	8	24	1.9097	0.9944	1.9432	0.0548	24.98	2055.1	1331.1	True	0	True	False	True
+Own Mix C	Run 1	I13	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-4353	-1	-1	-1	1.0000	-1.0000	1.9432	0.0548	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	I14	4ng gDNA	unkn	ds	FSTL_1_D_105	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;only 3 values in log phase;Ncopy > 100 Mio	-28953	3	2	5	1.0000	-1.0000	1.9432	0.0548	5.96	-1.0	411447340.1	False	4	True	False	False
+Own Mix C	Run 1	I15	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			4074	7	6	24	1.9605	0.9999	1.9868	0.0786	24.71	1280.2	920.0	True	0	True	False	True
+Own Mix C	Run 1	I16	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			6190	11	9	24	2.0812	0.9849	1.9868	0.0786	24.77	280.8	886.1	True	0	True	False	True
+Own Mix C	Run 1	I17	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-2754	-1	-1	-1	1.0000	-1.0000	1.9868	0.0786	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	I18	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			14507	8	7	24	2.0838	0.9879	1.9868	0.0786	24.67	293.6	950.6	True	0	True	False	True
+Own Mix C	Run 1	I19	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			14121	10	9	24	1.9379	0.9962	1.9868	0.0786	24.72	1702.2	918.5	True	0	True	False	True
+Own Mix C	Run 1	I20	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-8731	10	9	24	1.9958	0.9635	1.9868	0.0786	24.63	870.6	973.0	True	0	True	False	True
+Own Mix C	Run 1	I21	4ng gDNA	unkn	ds	FSTL_1_D_105 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-7789	22	9	24	1.8619	0.9885	1.9868	0.0786	24.60	4913.8	994.7	True	0	True	False	True
+Own Mix C	Run 1	J1	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			20473	6	5	24	1.9873	0.9998	2.0297	0.0714	25.48	585.1	341.5	True	0	True	False	True
+Own Mix C	Run 1	J2	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			17278	7	6	24	2.0509	0.9998	2.0297	0.0714	25.48	262.4	341.7	True	0	True	False	True
+Own Mix C	Run 1	J3	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			9719	10	9	25	2.0322	0.9972	2.0297	0.0714	25.54	318.3	328.3	True	0	True	False	True
+Own Mix C	Run 1	J4	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			10686	10	9	24	2.1038	0.9885	2.0297	0.0714	25.42	143.7	357.4	True	0	True	False	True
+Own Mix C	Run 1	J5	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			7053	10	9	25	2.1173	0.9983	2.0297	0.0714	25.55	110.3	324.5	True	0	True	False	True
+Own Mix C	Run 1	J6	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			1801	10	9	25	1.8873	0.9984	2.0297	0.0714	25.52	2123.3	331.4	True	0	True	False	True
+Own Mix C	Run 1	J7	4ng gDNA	unkn	ds	FSTL_1_E_097 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			13280	8	7	24	2.0294	0.9980	2.0297	0.0714	25.39	364.6	363.1	True	0	True	False	True
+Own Mix C	Run 1	J8	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye			-5218	6	5	24	1.9513	0.9989	1.9342	0.0172	24.53	1765.1	2189.1	True	0	True	False	True
+Own Mix C	Run 1	J9	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye			-2623	9	8	24	1.9408	0.9949	1.9342	0.0172	24.98	1493.9	1625.5	True	0	True	False	True
+Own Mix C	Run 1	J10	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-15556	-1	-1	-1	1.0000	-1.0000	1.9342	0.0172	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J11	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye			-10952	11	9	24	1.9106	0.9894	1.9342	0.0172	24.98	2198.3	1617.6	True	0	True	False	True
+Own Mix C	Run 1	J12	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-35150	-1	-1	-1	1.0000	-1.0000	1.9342	0.0172	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J13	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-9388	-1	-1	-1	1.0000	-1.0000	1.9342	0.0172	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J14	4ng gDNA	unkn	ds	FSTL_1_E_097	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-4808	-1	-1	-1	1.0000	-1.0000	1.9342	0.0172	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J15	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			5582	9	8	24	1.9392	0.9989	1.9647	0.0517	24.83	1677.1	1211.7	True	0	True	False	True
+Own Mix C	Run 1	J16	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-12295	9	8	24	1.9016	0.9891	1.9647	0.0517	24.75	2878.1	1282.2	True	0	True	False	True
+Own Mix C	Run 1	J17	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-21384	-1	-1	-1	1.0000	-1.0000	1.9647	0.0517	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J18	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-2989	9	8	23	2.0417	0.9961	1.9647	0.0517	24.44	617.8	1581.3	True	0	True	False	True
+Own Mix C	Run 1	J19	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-25376	-1	-1	-1	1.0000	-1.0000	1.9647	0.0517	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J20	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-11947	-1	-1	-1	1.0000	-1.0000	1.9647	0.0517	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	J21	4ng gDNA	unkn	ds	FSTL_1_E_097 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			10064	9	8	24	1.9764	0.9963	1.9647	0.0517	24.90	998.4	1157.2	True	0	True	False	True
+Own Mix C	Run 1	K1	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			9611	8	7	25	1.9292	0.9980	1.9441	0.1077	25.93	825.7	676.2	True	0	True	False	True
+Own Mix C	Run 1	K2	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			12582	8	7	25	1.9927	0.9982	1.9441	0.1077	26.08	322.0	612.4	True	0	True	False	True
+Own Mix C	Run 1	K3	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			14958	10	9	25	2.0472	0.9968	1.9441	0.1077	25.98	170.8	653.7	True	0	True	False	True
+Own Mix C	Run 1	K4	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			20181	10	9	25	1.9302	0.9974	1.9441	0.1077	26.01	773.0	640.8	True	0	True	False	True
+Own Mix C	Run 1	K5	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			8827	10	9	25	2.0599	0.9764	1.9441	0.1077	25.98	145.2	652.4	True	0	True	False	True
+Own Mix C	Run 1	K6	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			7038	9	8	25	1.9389	0.9921	1.9441	0.1077	25.95	716.5	668.0	True	0	True	False	True
+Own Mix C	Run 1	K7	4ng gDNA	unkn	ds	FSTL_1_F_109 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			-35365	6	5	25	1.7109	0.9999	1.9441	0.1077	26.16	16381.9	578.6	True	0	True	False	True
+Own Mix C	Run 1	K8	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye			10064	14	9	24	1.7656	0.9982	1.7232	0.2045	24.91	14627.7	26807.3	True	0	True	False	True
+Own Mix C	Run 1	K9	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.560 < 1.7	-12495	14	9	24	1.5604	0.9441	1.7232	0.2045	25.02	302298.6	25259.2	True	0	True	False	True
+Own Mix C	Run 1	K10	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;indiv PCR eff is 1.358 < 1.7	-10136	10	9	25	1.3581	0.9867	1.7232	0.2045	25.81	7694002.4	16495.0	False	0	True	False	False
+Own Mix C	Run 1	K11	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	10937	-1	-1	-1	1.0000	-1.0000	1.7232	0.2045	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	K12	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	1000	-1	-1	-1	1.0000	-1.0000	1.7232	0.2045	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	K13	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye			-838	9	8	24	2.0401	0.9997	1.7232	0.2045	25.03	368.7	25212.4	True	0	True	False	True
+Own Mix C	Run 1	K14	4ng gDNA	unkn	ds	FSTL_1_F_109	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.527 < 1.7	-9972	13	9	24	1.5266	0.9655	1.7232	0.2045	25.24	477385.4	22433.4	True	0	True	False	True
+Own Mix C	Run 1	K15	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;indiv PCR eff is 1.288 < 1.7	-12954	5	4	24	1.2877	0.9999	1.9574	0.0666	24.62	40999989.5	1367.5	False	0	True	False	False
+Own Mix C	Run 1	K16	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			4971	10	9	24	1.9699	0.9983	1.9574	0.0666	24.78	1048.5	1227.7	True	0	True	False	True
+Own Mix C	Run 1	K17	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-36819	9	8	24	1.9386	0.9980	1.9574	0.0666	24.77	1562.2	1230.2	True	0	True	False	True
+Own Mix C	Run 1	K18	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.405 < 1.7;PCR efficiency outlier	-18073	8	7	25	1.4052	0.9763	1.9574	0.0666	25.73	3279067.8	648.6	True	0	True	True	True
+Own Mix C	Run 1	K19	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-3357	9	8	24	2.0109	0.9985	1.9574	0.0666	24.69	667.4	1298.9	True	0	True	False	True
+Own Mix C	Run 1	K20	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			9575	10	9	24	2.0279	0.9992	1.9574	0.0666	24.79	506.3	1216.7	True	0	True	False	True
+Own Mix C	Run 1	K21	4ng gDNA	unkn	ds	FSTL_1_F_109 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-165893	9	8	24	1.8397	0.9898	1.9574	0.0666	24.76	5779.3	1245.0	True	0	True	False	True
+Own Mix C	Run 1	K22	4ng gDNA	unkn	ds	SensiFast Mix	ref	SYBR - Sensifast	non-saturating DNA binding dye			-10524	15	9	25	1.9021	0.9980	1.8602	0.0435	25.65	2282.5	4044.5	True	0	True	False	True
+Own Mix C	Run 1	K23	4ng gDNA	unkn	ds	SensiFast Mix	ref	SYBR - Sensifast	non-saturating DNA binding dye			3104	10	9	25	1.8296	0.9989	1.8602	0.0435	25.78	5717.8	3730.4	True	0	True	False	True
+Own Mix C	Run 1	K24	4ng gDNA	unkn	ds	SensiFast Mix	ref	SYBR - Sensifast	non-saturating DNA binding dye			-11661	11	9	25	1.8390	0.9996	1.8602	0.0435	25.62	5525.9	4118.2	True	0	True	False	True
+Own Mix C	Run 1	L1	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			-2837	9	8	26	1.8733	0.9998	1.8819	0.0587	26.73	579.7	512.9	True	0	True	False	True
+Own Mix C	Run 1	L2	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			7274	7	6	26	1.9038	0.9996	1.8819	0.0587	26.77	368.5	501.9	True	0	True	False	True
+Own Mix C	Run 1	L3	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			18096	10	9	26	1.9159	0.9974	1.8819	0.0587	26.85	293.9	475.5	True	0	True	False	True
+Own Mix C	Run 1	L4	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			20364	7	6	26	1.7750	0.9998	1.8819	0.0587	26.77	2400.4	501.8	True	0	True	False	True
+Own Mix C	Run 1	L5	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			16591	11	9	26	1.9824	0.9896	1.8819	0.0587	26.75	126.1	506.9	True	0	True	False	True
+Own Mix C	Run 1	L6	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			7541	9	8	26	1.8685	0.9987	1.8819	0.0587	26.83	583.9	481.8	True	0	True	False	True
+Own Mix C	Run 1	L7	4ng gDNA	unkn	ds	FSTL_1_H_201 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			4281	10	9	26	1.8545	0.9962	1.8819	0.0587	26.74	753.4	508.9	True	0	True	False	True
+Own Mix C	Run 1	L8	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye			8755	9	8	24	1.9580	0.9991	1.8732	0.0549	24.76	669.3	2004.3	True	0	True	False	True
+Own Mix C	Run 1	L9	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye			3769	8	7	24	1.8781	0.9998	1.8732	0.0549	24.97	1642.4	1753.7	True	0	True	False	True
+Own Mix C	Run 1	L10	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;indiv PCR eff is 1.355 < 1.7	-14915	10	9	30	1.3549	0.9864	1.8732	0.0549	30.99	916271.7	40.0	False	0	True	False	False
+Own Mix C	Run 1	L11	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye			8155	9	8	24	1.8081	0.9996	1.8732	0.0549	25.00	4178.7	1726.5	True	0	True	False	True
+Own Mix C	Run 1	L12	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-11239	-1	-1	-1	1.0000	-1.0000	1.8732	0.0549	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	L13	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye			-2213	8	7	24	1.8485	0.9974	1.8732	0.0549	24.93	2507.6	1801.2	True	0	True	False	True
+Own Mix C	Run 1	L14	4ng gDNA	unkn	ds	FSTL_1_H_201	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-13646	-1	-1	-1	1.0000	-1.0000	1.8732	0.0549	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	L15	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			12756	11	9	24	1.9031	0.9992	1.9028	0.0918	24.72	1388.1	1394.9	True	0	True	False	True
+Own Mix C	Run 1	L16	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-9630	7	6	23	1.7419	0.9994	1.9028	0.0918	24.24	16115.6	1892.7	True	0	True	False	True
+Own Mix C	Run 1	L17	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;indiv PCR eff is 1.186 < 1.7	-8815	9	8	30	1.1864	0.9878	1.9028	0.0918	31.15	54764783.2	22.3	False	0	True	False	False
+Own Mix C	Run 1	L18	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-8436	8	7	24	1.9445	0.9988	1.9028	0.0918	24.64	858.6	1465.6	True	0	True	False	True
+Own Mix C	Run 1	L19	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	3165	-1	-1	-1	1.0000	-1.0000	1.9028	0.0918	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	L20	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			17320	8	7	24	2.0231	0.9991	1.9028	0.0918	24.71	308.2	1402.6	True	0	True	False	True
+Own Mix C	Run 1	L21	4ng gDNA	unkn	ds	FSTL_1_H_201 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			24442	9	8	24	1.9012	0.9976	1.9028	0.0918	24.75	1391.6	1363.3	True	0	True	False	True
+Own Mix C	Run 1	L22	4ng gDNA	unkn	ds	SensiFast Mix	ref	SYBR - Sensifast	non-saturating DNA binding dye			18654	11	9	25	1.8591	0.9978	1.8602	0.0435	25.66	4084.8	4021.8	True	0	True	False	True
+Own Mix C	Run 1	L23	4ng gDNA	unkn	ds	SensiFast Mix	ref	SYBR - Sensifast	non-saturating DNA binding dye			872	14	9	25	1.9294	0.9984	1.8602	0.0435	25.65	1585.1	4047.5	True	0	True	False	True
+Own Mix C	Run 1	L24	4ng gDNA	unkn	ds	SensiFast Mix	ref	SYBR - Sensifast	non-saturating DNA binding dye			-11544	10	9	25	1.8019	0.9835	1.8602	0.0435	25.73	8733.1	3849.7	True	0	True	False	True
+Own Mix C	Run 1	M1	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			10902	8	7	26	1.8559	0.9994	1.8522	0.0746	26.78	709.5	748.8	True	0	True	False	True
+Own Mix C	Run 1	M2	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			14938	11	9	26	1.9939	0.9957	1.8522	0.0746	26.63	115.7	823.4	True	0	True	False	True
+Own Mix C	Run 1	M3	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			14604	7	6	26	1.8826	0.9995	1.8522	0.0746	26.66	524.0	809.1	True	0	True	False	True
+Own Mix C	Run 1	M4	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			7170	7	6	25	1.8572	0.9988	1.8522	0.0746	26.28	950.2	1020.0	True	0	True	False	True
+Own Mix C	Run 1	M5	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			8937	8	7	26	1.7349	0.9996	1.8522	0.0746	26.55	4922.5	866.3	True	0	True	False	True
+Own Mix C	Run 1	M6	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			5367	7	6	25	1.7881	0.9993	1.8522	0.0746	26.48	2294.3	902.5	True	0	True	False	True
+Own Mix C	Run 1	M7	4ng gDNA	unkn	ds	FSTL_1_I_204 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			4058	11	9	26	1.8528	0.9985	1.8522	0.0746	26.54	860.5	868.2	True	0	True	False	True
+Own Mix C	Run 1	M8	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-29833	-1	-1	-1	1.0000	-1.0000	1.9331	0.0767	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	M9	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye			626	10	9	24	1.9649	0.9911	1.9331	0.0767	24.62	665.9	995.3	True	0	True	False	True
+Own Mix C	Run 1	M10	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	18054	-1	-1	-1	1.0000	-1.0000	1.9331	0.0767	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	M11	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye			-12267	9	8	24	2.0070	0.9708	1.9331	0.0767	25.42	225.8	586.1	True	0	True	False	True
+Own Mix C	Run 1	M12	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye			1324	9	8	24	1.8274	0.9947	1.9331	0.0767	24.83	3488.9	863.3	True	0	True	False	True
+Own Mix C	Run 1	M13	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	9368	-1	-1	-1	1.0000	-1.0000	1.9331	0.0767	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	M14	4ng gDNA	unkn	ds	FSTL_1_I_204	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;only 3 values in log phase	-9807	3	2	9	1.0000	-1.0000	1.9331	0.0767	10.13	-1.0	13974732.1	False	4	True	False	False
+Own Mix C	Run 1	M15	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			10274	8	7	23	2.1635	0.9923	1.9597	0.1146	24.20	85.7	939.8	True	0	True	False	True
+Own Mix C	Run 1	M16	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-6517	8	7	23	1.9853	0.9565	1.9597	0.1146	24.34	623.6	856.0	True	0	True	False	True
+Own Mix C	Run 1	M17	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-29069	-1	-1	-1	1.0000	-1.0000	1.9597	0.1146	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	M18	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-12953	-1	-1	-1	1.0000	-1.0000	1.9597	0.1146	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	M19	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			2902	7	6	23	1.9459	0.9996	1.9597	0.1146	24.09	1198.1	1011.6	True	0	True	False	True
+Own Mix C	Run 1	M20	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			20197	8	7	23	1.8508	0.9996	1.9597	0.1146	24.18	3791.2	951.9	True	0	True	False	True
+Own Mix C	Run 1	M21	4ng gDNA	unkn	ds	FSTL_1_I_204 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			17175	8	7	23	1.8527	0.9995	1.9597	0.1146	24.14	3801.9	980.8	True	0	True	False	True
+Own Mix C	Run 1	M22	4ng gDNA	unkn	ds	F Roche Mix	toi	SYBR - Roche	non-saturating DNA binding dye			29164	11	9	25	1.9187	0.9904	1.8654	0.0394	26.35	1157.5	2430.8	True	0	True	False	True
+Own Mix C	Run 1	M23	4ng gDNA	unkn	ds	F Roche Mix	toi	SYBR - Roche	non-saturating DNA binding dye			-3735	9	8	26	1.8536	0.9996	1.8654	0.0394	26.53	2569.3	2172.9	True	0	True	False	True
+Own Mix C	Run 1	M24	4ng gDNA	unkn	ds	F Roche Mix	toi	SYBR - Roche	non-saturating DNA binding dye			-112	14	9	25	1.8703	0.9996	1.8654	0.0394	26.37	2235.5	2396.1	True	0	True	False	True
+Own Mix C	Run 1	N1	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			10772	9	8	24	1.8445	0.9932	2.0054	0.1599	25.26	1982.7	239.6	True	0	True	False	True
+Own Mix C	Run 1	N2	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			3475	8	7	24	2.3551	0.9814	2.0054	0.1599	25.34	-1.0	226.5	True	0	True	False	True
+Own Mix C	Run 1	N3	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			1885	8	7	24	2.0731	0.9983	2.0054	0.1599	25.32	99.6	230.7	True	0	True	False	True
+Own Mix C	Run 1	N4	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			15149	8	7	24	1.9698	0.9998	2.0054	0.1599	25.27	373.0	237.4	True	0	True	False	True
+Own Mix C	Run 1	N5	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			14967	9	8	25	1.8809	0.9995	2.0054	0.1599	25.51	1031.8	201.1	True	0	True	False	True
+Own Mix C	Run 1	N6	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			8142	8	7	24	2.0063	0.9966	2.0054	0.1599	25.39	216.3	218.8	True	0	True	False	True
+Own Mix C	Run 1	N7	4ng gDNA	unkn	ds	FSTL_1_K_219 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			10710	9	8	24	1.9081	0.9982	2.0054	0.1599	25.12	921.2	264.2	True	0	True	False	True
+Own Mix C	Run 1	N8	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye			8213	9	8	23	2.0184	0.9922	2.0105	0.0155	24.25	414.2	455.4	True	0	True	False	True
+Own Mix C	Run 1	N9	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-3155	-1	-1	-1	1.0000	-1.0000	2.0105	0.0155	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	N10	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye			6773	8	7	23	1.9906	0.9982	2.0105	0.0155	24.24	582.7	457.5	True	0	True	False	True
+Own Mix C	Run 1	N11	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye			-8533	7	6	24	2.0077	0.9943	2.0105	0.0155	25.05	270.2	260.9	True	0	True	False	True
+Own Mix C	Run 1	N12	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye		PCR efficiency outlier	-34344	10	9	24	2.1487	0.9942	2.0105	0.0155	24.90	55.2	288.7	True	0	True	True	True
+Own Mix C	Run 1	N13	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye			-580	8	7	23	2.0357	0.9967	2.0105	0.0155	24.29	328.0	443.8	True	0	True	False	True
+Own Mix C	Run 1	N14	4ng gDNA	unkn	ds	FSTL_1_K_219	toi	SYBR 1:800	non-saturating DNA binding dye			30111	9	8	23	2.0002	0.9951	2.0105	0.0155	24.41	462.8	408.3	True	0	True	False	True
+Own Mix C	Run 1	N15	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			31521	8	7	23	1.9150	0.9999	2.0504	0.1060	24.06	1680.4	324.9	True	0	True	False	True
+Own Mix C	Run 1	N16	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			13391	9	8	23	1.9882	0.9981	2.0504	0.1060	24.22	608.2	288.6	True	0	True	False	True
+Own Mix C	Run 1	N17	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			9278	9	8	23	2.0321	0.9978	2.0504	0.1060	24.10	391.0	315.1	True	0	True	False	True
+Own Mix C	Run 1	N18	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			-65	9	8	23	2.2382	0.9879	2.0504	0.1060	24.06	39.3	324.3	True	0	True	False	True
+Own Mix C	Run 1	N19	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			10393	8	7	23	1.9436	0.9990	2.0504	0.1060	24.12	1126.3	310.3	True	0	True	False	True
+Own Mix C	Run 1	N20	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			14276	9	8	23	2.1032	0.9776	2.0504	0.1060	24.09	172.2	317.8	True	0	True	False	True
+Own Mix C	Run 1	N21	4ng gDNA	unkn	ds	FSTL_1_K_219 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			18660	9	8	23	2.1322	0.9976	2.0504	0.1060	24.03	129.7	332.0	True	0	True	False	True
+Own Mix C	Run 1	N22	4ng gDNA	unkn	ds	F Roche Mix	toi	SYBR - Roche	non-saturating DNA binding dye			39718	14	9	26	1.7941	0.9953	1.8654	0.0394	26.58	5942.1	2108.6	True	0	True	False	True
+Own Mix C	Run 1	N23	4ng gDNA	unkn	ds	F Roche Mix	toi	SYBR - Roche	non-saturating DNA binding dye			-2416	10	9	25	1.8563	0.9978	1.8654	0.0394	26.39	2705.2	2377.5	True	0	True	False	True
+Own Mix C	Run 1	N24	4ng gDNA	unkn	ds	F Roche Mix	toi	SYBR - Roche	non-saturating DNA binding dye			-12275	11	9	25	1.8994	0.9913	1.8654	0.0394	26.47	1396.1	2251.6	True	0	True	False	True
+Own Mix C	Run 1	O1	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			14456	9	8	25	1.9732	0.9879	1.9066	0.0704	25.87	201.1	489.0	True	0	True	False	True
+Own Mix C	Run 1	O2	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			13011	10	9	25	1.8577	0.9952	1.9066	0.0704	25.85	969.3	495.2	True	0	True	False	True
+Own Mix C	Run 1	O3	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			7852	8	7	25	1.8437	0.9972	1.9066	0.0704	25.87	1168.9	490.4	True	0	True	False	True
+Own Mix C	Run 1	O4	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			13365	10	9	25	1.8451	0.9963	1.9066	0.0704	25.83	1174.1	502.9	True	0	True	False	True
+Own Mix C	Run 1	O5	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			10031	9	8	25	1.9558	0.9991	1.9066	0.0704	25.87	253.5	489.6	True	0	True	False	True
+Own Mix C	Run 1	O6	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			6038	8	7	25	1.8458	0.9996	1.9066	0.0704	25.56	1368.8	597.4	True	0	True	False	True
+Own Mix C	Run 1	O7	4ng gDNA	unkn	ds	FSTL_1_*_259 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			6142	10	9	25	2.0251	0.9941	1.9066	0.0704	25.74	113.0	533.3	True	0	True	False	True
+Own Mix C	Run 1	O8	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye			6182	8	7	23	2.0389	0.9987	1.9988	0.0435	24.44	239.0	388.3	True	0	True	False	True
+Own Mix C	Run 1	O9	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye			12908	8	7	23	1.9078	1.0000	1.9988	0.0435	24.41	1236.9	396.8	True	0	True	False	True
+Own Mix C	Run 1	O10	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye			11507	9	8	23	2.0350	0.9997	1.9988	0.0435	24.47	245.1	380.5	True	0	True	False	True
+Own Mix C	Run 1	O11	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye			10859	10	9	23	1.9977	0.9990	1.9988	0.0435	24.34	423.0	417.3	True	0	True	False	True
+Own Mix C	Run 1	O12	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye			10505	8	7	23	2.0032	0.9982	1.9988	0.0435	24.31	402.1	424.1	True	0	True	False	True
+Own Mix C	Run 1	O13	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye		indiv PCR eff is 1.587 < 1.7;PCR efficiency outlier	-9527	9	8	19	1.5873	0.9745	1.9988	0.0435	20.06	821271.5	8052.9	True	0	True	True	True
+Own Mix C	Run 1	O14	4ng gDNA	unkn	ds	FSTL_1_*_259	toi	SYBR 1:800	non-saturating DNA binding dye			6828	8	7	23	2.0101	0.9968	1.9988	0.0435	24.43	342.3	392.8	True	0	True	False	True
+Own Mix C	Run 1	O15	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			18497	9	8	23	1.9723	0.9998	2.0107	0.0664	24.27	604.9	378.5	True	0	True	False	True
+Own Mix C	Run 1	O16	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			7777	8	7	23	2.0053	0.9972	2.0107	0.0664	24.24	413.2	387.1	True	0	True	False	True
+Own Mix C	Run 1	O17	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			6707	7	6	23	1.9209	0.9978	2.0107	0.0664	24.19	1207.0	399.5	True	0	True	False	True
+Own Mix C	Run 1	O18	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			5549	8	7	23	1.9823	0.9996	2.0107	0.0664	24.15	580.1	411.5	True	0	True	False	True
+Own Mix C	Run 1	O19	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			3825	9	8	23	1.9914	0.9914	2.0107	0.0664	24.20	502.2	397.6	True	0	True	False	True
+Own Mix C	Run 1	O20	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			13247	8	7	23	2.1444	0.9981	2.0107	0.0664	24.20	84.0	398.7	True	0	True	False	True
+Own Mix C	Run 1	O21	4ng gDNA	unkn	ds	FSTL_1_*_259 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			4812	9	8	23	2.0584	0.9940	2.0107	0.0664	24.12	238.2	419.4	True	0	True	False	True
+Own Mix C	Run 1	P1	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye		no amplification;no TD0 found	-11160	-1	-1	-1	1.0000	-1.0000	1.8437	0.0530	-1.00	-1.0	-1.0	False	2	True	False	False
+Own Mix C	Run 1	P2	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			3808	10	9	28	1.8800	0.9976	1.8437	0.0530	28.87	66.6	116.9	True	0	True	False	True
+Own Mix C	Run 1	P3	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			6795	12	9	27	1.7781	0.9903	1.8437	0.0530	28.17	499.2	179.9	True	0	True	False	True
+Own Mix C	Run 1	P4	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			2996	8	7	28	1.7677	1.0000	1.8437	0.0530	28.57	467.9	140.5	True	0	True	False	True
+Own Mix C	Run 1	P5	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			25849	9	8	27	1.9004	0.9896	1.8437	0.0530	28.19	75.8	178.0	True	0	True	False	True
+Own Mix C	Run 1	P6	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			-2383	10	9	27	1.8909	0.9926	1.8437	0.0530	27.97	100.3	203.6	True	0	True	False	True
+Own Mix C	Run 1	P7	4ng gDNA	unkn	ds	FSTL_1_L_412 100nM	toi	SYBR 1:800	non-saturating DNA binding dye			-3844	9	8	27	1.8450	0.9988	1.8437	0.0530	28.11	182.4	186.1	True	0	True	False	True
+Own Mix C	Run 1	P8	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			13433	8	7	25	1.8324	0.9999	1.9464	0.0813	25.90	845.6	177.3	True	0	True	False	True
+Own Mix C	Run 1	P9	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			22062	10	9	25	1.8496	0.9944	1.9464	0.0813	25.83	691.4	185.2	True	0	True	False	True
+Own Mix C	Run 1	P10	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			13073	9	8	24	1.9048	0.9953	1.9464	0.0813	25.35	441.2	255.2	True	0	True	False	True
+Own Mix C	Run 1	P11	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			34022	8	7	24	2.0353	0.9995	1.9464	0.0813	25.36	81.8	254.0	True	0	True	False	True
+Own Mix C	Run 1	P12	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			14945	9	8	24	2.0606	0.9924	1.9464	0.0813	25.32	61.6	261.0	True	0	True	False	True
+Own Mix C	Run 1	P13	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			-8457	8	7	26	1.9701	0.9979	1.9464	0.0813	27.09	57.6	80.0	True	0	True	False	True
+Own Mix C	Run 1	P14	4ng gDNA	unkn	ds	FSTL_1_L_412	toi	SYBR 1:800	non-saturating DNA binding dye			9534	8	7	24	1.9717	0.9987	1.9464	0.0813	25.44	172.5	239.9	True	0	True	False	True
+Own Mix C	Run 1	P15	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			23215	8	7	24	1.8611	0.9996	1.9480	0.0868	24.94	1024.3	328.1	True	0	True	False	True
+Own Mix C	Run 1	P16	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			12932	8	7	23	2.0141	0.9991	1.9480	0.0868	24.47	199.1	450.3	True	0	True	False	True
+Own Mix C	Run 1	P17	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			8959	8	7	24	1.9384	0.9996	1.9480	0.0868	24.62	458.8	406.0	True	0	True	False	True
+Own Mix C	Run 1	P18	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			10097	7	6	23	1.8534	0.9997	1.9480	0.0868	24.46	1532.1	453.2	True	0	True	False	True
+Own Mix C	Run 1	P19	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			5997	10	9	23	2.1215	0.9819	1.9480	0.0868	24.46	56.0	451.4	True	0	True	False	True
+Own Mix C	Run 1	P20	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			9381	9	8	24	1.9397	0.9978	1.9480	0.0868	24.53	480.4	432.6	True	0	True	False	True
+Own Mix C	Run 1	P21	4ng gDNA	unkn	ds	FSTL_1_L_412 750nM	toi	SYBR 1:800	non-saturating DNA binding dye			1164	10	9	24	1.9080	0.9917	1.9480	0.0868	24.79	607.7	363.4	True	0	True	False	False

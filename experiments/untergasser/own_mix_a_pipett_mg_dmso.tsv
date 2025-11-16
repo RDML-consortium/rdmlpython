@@ -1,0 +1,53 @@
+		2	3	4	5	6	7	8	9		11	12	13	14	15	16										
+						no SYBR							SYBR													
+C		DMSO 0		mg 3	mg3	mg3	mg5	mg5	mg5		mg 3	mg3	mg3	mg5	mg5	mg5										
+D		DMSO2.5		mg 3	mg3	mg3	mg5	mg5	mg5		mg 3	mg3	mg3	mg5	mg5	mg5										
+E		DMSO 5		mg 3	mg3	mg3	mg5	mg5	mg5		mg 3	mg3	mg3	mg5	mg5	mg5										
+																										
+											ROCHE	ROCHE	ROCHE													
+																										
+	Mix:	"FastStart Taq DNA Polymerase - 5 U/µl - dNTPack; 04738314001; Roche Diagnostics GmbH; Mannheim; Germany"																								
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																								
+	SYBR Green I:	"SYBR Green I; 200× in DMSO; D010; ABP Biosciences; Beltsville; USA"																								
+																										
+		Primer Stock Solutions: 100 µM																								
+		Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water																					
+																										
+		Hum Gen DNA 1:10 dil  = 20ng/µl																								
+		4ng per reaction = 1200 copies																								
+																										
+	FSTL_1_H_201		FSTL_1_F_109			Replicates					3mM Mg								5mM Mg							
+																										
+					1	4		2					1	7		7					1	7		7		
+																										
+			5ng	DNA	0.25	1.0		2			5ng	DNA	0.25	1.75		12.25			5ng	DNA	0.25	1.75		12.25		
+				Water	4.50	18.0		36				Puffer	1.00	7.00		49.00				Puffer	1.00	7.00		49.00		
+			1:10!	Primer	0.25	1.0		2			1:10!	Primer	0.25	1.75		12.25			1:10!	Primer	0.25	1.75		12.25		
+				Puffer	5.00	20.0		40			25mM	Mg	1.20	8.40		58.80			25mM	Mg	2.00	14.00		98.00		
+											10mM	dNTP	0.20	1.40		9.80			10mM	dNTP	0.20	1.40		9.80		
+				Sum	10.00	40.0		80				Pol	0.08	0.56		3.92				Pol	0.08	0.56		3.92		
+											10g/l	BSA	0.20	1.40		9.80			10g/l	BSA	0.20	1.40		9.80		
+												DMSO	0.50	3.50		24.50				DMSO	0.50	3.50		24.50		
+											1:80	SYBR	1.00	7.00		49.00			1:80	SYBR	1.00	7.00		49.00		
+												Water	5.32	37.24		260.68				Water	4.52	31.64		221.48		
+																										
+												Sum	10.00	70.00		490.00				Sum	10.00	70.00		490.00		
+																										
+											No DMSO & SYBR			59.50								59.50				
+	Notes:																									
+	SYBR Stock dilute 1:80 in water								5mM Mg in the mix 69.5 was added. so x 0.85 DMSO and SYBR!!!																	
+																										
+	Variation:		Mg		3.0	5.0																				
+			DMSO		0.0	2.5	5.0																			
+			SYBR		0.0	1.0																				
+																										
+			Temp		57.0	60.0																				
+																										
+																										
+																										
+																										
+																										
+																										
+																										
+																										
+																										

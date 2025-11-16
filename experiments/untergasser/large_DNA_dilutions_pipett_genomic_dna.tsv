@@ -1,0 +1,68 @@
+			1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24												
+			FSTL_1_F_109			FSTL_1_H_201			FSTL_1_F_109			FSTL_1_H_201			FSTL_1_F_109			FSTL_1_H_201			FSTL_1_F_109			FSTL_1_H_201														
+A																					G1	G1	G1	G1	G1	G1												
+B																					G2	G2	G2	G2	G2	G2												
+C																					G3	G3	G3	G3	G3	G3												
+D																					G4	G4	G4	G4	G4	G4												
+E																					G5	G5	G5	G5	G5	G5												
+F			G6	G6	G6	G6	G6	G6	G7	G7	G7	G7	G7	G7	G8	G8	G8	G8	G8	G8	20	20	20	20	20	20												
+			Roche												Applied																							
+G	FSTL_1_F_109		20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7												
+H	FSTL_1_H_201		20	20	20	7	7	7	2	2	2	0.7	0.7	0.7	20	20	20	7	7	7	2	2	2	0.7	0.7	0.7												
+																																						
+													given ng DNA per tube																									
+			Roche																																			
+I	FSTL_1_F_109	1:10 Dil	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+J	FSTL_1_H_201	1:10 Dil	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+K	FSTL_1_K_219	1:10 Dil	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+L	FSTL_1_L_412	1:10 Dil	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+M	FSTL_1_F_109	Dil BSG	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+N	FSTL_1_H_201	Dil BSG	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+O	FSTL_1_K_219	Dil BSG	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+P	FSTL_1_L_412	Dil BSG	1.E+09	1.E+09	1.E+09	1.E+08	1.E+08	1.E+08	1.E+07	1.E+07	1.E+07	1.E+06	1.E+06	1.E+06	1.E+05	1.E+05	1.E+05	1.E+04	1.E+04	1.E+04	1.E+03	1.E+03	1.E+03	1.E+02	1.E+02	1.E+02												
+																																						
+													given copies DNA per tube																									
+																																						
+		Mix Roche:	"LightCycler® 480 SYBR® Green I Master; 04887352001; Roche Diagnostics GmbH; Mannheim; Germany"																																			
+		Mix Applied:	"SYBR Green PCR Master Mix; 4309155; Applied Biosystems; Warrington; UK"																																			
+		DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																																			
+		DNA:	"Monarch® Spin gDNA Extraction Kit; T3010S; New England Biolabs; Ipswich; UK"																																			
+																																						
+		Approach: Analyze genomic DNA quantification by comparing commercial genomic DNA with extracted DNA from saliva and blood. Additionally the Applied mix is compared with the Roche mix.																																				
+																																						
+			Primer Stock Solutions: 100 µM																																			
+			Primer dilution 1:40			forward primer 5µl + reverse primer 5µl + 190µl water																																
+																																						
+			Hum Gen DNA 1:10 dil  = 20ng/µl																																			
+			4ng per reaction = 1200 copies																																			
+																																						
+	ng/µl		20	7	2	0.7	0.2	0																														
+	Hum Gen DNA 1:10 dil  = 20ng/µl		600	420	60	21	6	0																														
+	Water		0	780	540	579	594	600																														
+																																						
+	copies/µl		6000	2100	600	210	60																															
+																																						
+		DNA Dilutions: The stock with 10^9 copies of purified PCR amplicons was diluted for 1:10 Dil by subsequent 1:10 dilution steps. The Dil BSG was pipetted as described:																																				
+																																						
+		1.E+09	1.E+08	1.E+07	1.E+06	1.E+05	1.E+04		1.E+02				Len	10^9	Nanodrop			10µl gDNA																				
+		x			x			x					219	125ng	36.4	3.4																						
+	water		90	495	1500	90	495	1500	90				412	250ng	67.0	3.7																						
+	1.E+09		10	5																																		
+	1.E+06				1.5	10	5							The amplicons were purified from AMC plate 3																								
+	1.E+03							1.5	10					row	Plate 3	col	col																					
+														I	FSTL_1_K_219	2	16																					
+														L	FSTL_1_L_412	2	16																					
+																																						
+																																						
+		FSTL_1_H_201	FSTL_1_F_109			Replicates				FSTL_1_H_201	FSTL_1_F_109		Replicates					FSTL_1_K_219	FSTL_1_L_412		Replicates																	
+		Roche Kit	Roche Kit							EMBL Kit	EMBL Kit							Roche Kit	Roche Kit																			
+					1	4		30				1	4		5					1	4		18															
+																																						
+				DNA	1.00	4.0		120			DNA	1.00	4.0		20				DNA	1.00	4.0		72															
+				Water	3.75	15.0		450			Water	3.75	15.0		75				Water	3.75	15.0		270															
+			1:10!	Primer	0.25	1.0		30			Primer	0.25	1.0		5			1:10!	Primer	0.25	1.0		18															
+				Puffer	5.00	20.0		600			Puffer	5.00	20.0		100				Puffer	5.00	20.0		360															
+																																						
+				Sum	10.00	40.0		1200			Sum	10.00	40.0		200				Sum	10.00	40.0		720															
+																																						
+				no DNA	9.00	36.0		1080			no DNA	9.00	36.0		180				no DNA	9.00	36.0		648															

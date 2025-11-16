@@ -1,0 +1,65 @@
+	1	2	3	4	5	6	7	8		Mix
+A	test	0	EMBL 20	20	7	2	0.7	0.2		Probe
+B	test	0	EMBL 20	20	7	2	0.7	0.2		Probe
+C	200000	20000	2000	200	200000	20000	2000	200		Probe
+D	200000	20000	2000	200	200000	20000	2000	200		EvaGreen
+										
+	1	2	3	4	5	6	7	8		Mix
+A	FSTL_1_F_109	FSTL_1_F_110	FSTL_1_F_111	FSTL_1_F_112	FSTL_1_F_113	FSTL_1_F_114	FSTL_1_F_115	FSTL_1_F_116		Probe
+B	FSTL_1_K_219	FSTL_1_K_220	FSTL_1_K_221	FSTL_1_K_222	FSTL_1_K_223	FSTL_1_K_224	FSTL_1_K_225	FSTL_1_K_226		Probe
+C	FSTL_1_F_109	FSTL_1_F_110	FSTL_1_F_111	FSTL_1_F_112	FSTL_1_K_219	FSTL_1_K_220	FSTL_1_K_221	FSTL_1_K_222		Probe
+D	FSTL_1_H_201	FSTL_1_H_202	FSTL_1_H_203	FSTL_1_H_204	FSTL_1_L_412	FSTL_1_L_413	FSTL_1_L_414	FSTL_1_L_415		EvaGreen
+										
+										
+Mix Probe:	"ddPCR Supermix for Probes; 186-3023; Roche Diagnostics GmbH; Mannheim; Germany"									
+Mix EvaGreen:	"QX200 ddPCR EvaGreen Supermix; 186-4033; Roche Diagnostics GmbH; Mannheim; Germany"									
+DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"									
+DNA:	Purified PCR amplicon dilutions from previous experiment.									
+										
+	Primer Stock Solutions: 100 µM									
+	Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water						
+										
+	Hum Gen DNA 1:10 dil  = 20ng/µl									
+	4ng per reaction = 1200 copies									
+										
+	As the reactions ar prepared in 25µl. the human genomic DNA has different concentrations:									
+										
+		20	7	2	0.7	0.2				
+	copy in 2 µl	12000	4200	1200	420	120				
+	copy/µl	480	168	48	16.8	4.8				
+										
+	As the reactions ar prepared in 25µl. the PCR amplicons have different concentrations:									
+										
+		10^5	10^4	10^3	10^2					
+	copy in 2 µl	200000	20000	2000	200					
+	copy/µl	8000	800	80	8					
+										
+										
+										
+	The Probe Mix			Replicates						
+	FSTL_1_F_112	FSTL_1_K_219								
+			1	16						
+										
+		DNA	2.00	32.0						
+		Water	9.75	156.0						
+	1:10!	Primer	0.50	8.0						
+	1:10!	Probe	0.25	4.0						
+		Puffer	12.50	200.0						
+										
+		Sum	25.00	400.0						
+										
+		no DNA	23.00	368.0						
+										
+										
+	Te Eva Green Mix			Replicates						
+	FSTL_1_H_204	FSTL_1_L_412								
+			1	5						
+										
+		DNA	2.00	10.0						
+		Water	10.10	50.5						
+	1:40!	Primer	0.40	2.0						
+		Puffer	12.50	62.5						
+										
+		Sum	25.00	125.0						
+										
+		no DNA	23.00	115.0						

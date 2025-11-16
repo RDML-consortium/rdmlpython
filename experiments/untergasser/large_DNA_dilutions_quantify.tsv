@@ -1,0 +1,30 @@
+	Qbit4	NanoDrop		qPCR			qPCR		
+				FSTL_1_F_109			FSTL_1_H_201		
+Sample ID	ng/ul 	ng/ul 		Ncopy/10µl	SD		Ncopy/10µl	SD	
+Buccal Swap 1	38.00	28.65		7140.4	167.7		6262.6	85.6	
+Buccal Swap 2	63.80	49.84		13863.7	92.9		11653.1	174.4	
+Buccal Swap 3	39.40	32.12		8732.4	188.9		8692.6	58.5	
+Buccal Swap 4	37.60	32.92		7623.6	1512.1		6383.2	144.4	
+Buccal Swap 5	48.80	54.94		8275.0	137.0		7751.6	370.3	
+Buccal Swap 6	12.40	11.87		2555.8	38.7		2322.3	99.3	
+Blood 7	30.20	20.02		6682.5	180.6		6879.0	73.4	
+Blood 8	33.60	24.14		7026.1	71.3		6933.8	112.2	
+genomic DNA 20ng - AMC	13.50	22.69		9264.9	146.9		9873.3	323.0	
+genomic DNA 20ng - EMBL	12.20	19.93		7748.0	41.5		7283.3	70.4	
+amplicon k	36.40	36.47							
+amplicon l	67.00	70.74							
+									
+									
+Sample ID	Qbit/NanoDrop		F109/H201		F109/Qbit	H201/Qbit		F109/NanoDrop	H201/NanoDrop
+Buccal Swap 1	1.33		1.14		187.91	164.81		249.23	218.59
+Buccal Swap 2	1.28		1.19		217.30	182.65		278.16	233.81
+Buccal Swap 3	1.23		1.00		221.63	220.63		271.87	270.63
+Buccal Swap 4	1.14		1.19		202.76	169.77		231.58	193.90
+Buccal Swap 5	0.89		1.07		169.57	158.84		150.62	141.09
+Buccal Swap 6	1.04		1.10		206.12	187.28		215.32	195.64
+Blood 7	1.51		0.97		221.27	227.78		333.79	343.61
+Blood 8	1.39		1.01		209.11	206.36		291.06	287.23
+genomic DNA 20ng - AMC	0.59		0.94		686.29	731.35		408.33	435.14
+genomic DNA 20ng - EMBL	0.61		1.06		635.08	596.99		388.76	365.44
+amplicon k	1.00								
+amplicon l	0.95								

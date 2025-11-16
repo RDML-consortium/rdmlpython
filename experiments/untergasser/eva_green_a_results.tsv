@@ -1,0 +1,99 @@
+Experiment	Run	well	sample	sample type	sample nucleotide	target	target type	target dye	target chemistry	excluded	note	baseline	n in log phase	n included	last log cycle	indiv PCR eff	R2	PCR eff	STD PCR eff	TD0	indiv Ncopy	Ncopy	amplification	baseline error	plateau	excl PCR efficiency	used for mean PCR efficiency
+Eva Green A	Run 1	B7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			109206	9	8	26	1.9721	0.9993	1.9750	0.0317	27.10	614.9	590.9	True	0	True	False	True
+Eva Green A	Run 1	B8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			92310	9	8	26	1.9294	0.9994	1.9750	0.0317	27.09	1112.8	591.5	True	0	True	False	True
+Eva Green A	Run 1	B9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			91974	10	9	26	2.0099	0.9988	1.9750	0.0317	27.16	352.0	566.7	True	0	True	False	True
+Eva Green A	Run 1	B10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			86705	9	8	26	1.9541	0.9991	1.9750	0.0317	27.12	775.2	581.4	True	0	True	False	True
+Eva Green A	Run 1	B11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			85747	10	9	26	2.0093	0.9908	1.9750	0.0317	27.14	358.0	571.6	True	0	True	False	True
+Eva Green A	Run 1	B12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			93706	8	7	26	1.9425	0.9985	1.9750	0.0317	27.12	907.3	579.0	True	0	True	False	True
+Eva Green A	Run 1	B13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H R	toi	Eva Green H	saturating DNA binding dye			97627	10	9	26	2.0074	0.9962	1.9750	0.0317	27.11	377.5	587.0	True	0	True	False	True
+Eva Green A	Run 1	C7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			86547	10	9	27	1.9123	0.9990	1.8856	0.0282	28.47	580.9	866.3	True	0	True	False	True
+Eva Green A	Run 1	C8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			86115	12	9	28	1.8227	0.9993	1.8856	0.0282	28.51	2228.8	846.4	True	0	True	False	True
+Eva Green A	Run 1	C9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			83239	10	9	27	1.8937	0.9997	1.8856	0.0282	28.43	786.3	887.7	True	0	True	False	True
+Eva Green A	Run 1	C10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			90705	10	9	27	1.8816	0.9995	1.8856	0.0282	28.39	970.6	913.2	True	0	True	False	True
+Eva Green A	Run 1	C11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			94543	10	9	27	1.9130	0.9971	1.8856	0.0282	28.43	588.2	886.5	True	0	True	False	True
+Eva Green A	Run 1	C12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			94605	9	8	27	1.8922	0.9956	1.8856	0.0282	28.45	793.9	875.9	True	0	True	False	True
+Eva Green A	Run 1	C13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H R	toi	Eva Green H	saturating DNA binding dye			102547	12	9	27	1.8840	0.9989	1.8856	0.0282	28.47	889.0	867.4	True	0	True	False	True
+Eva Green A	Run 1	D7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			69364	24	9	26	1.8606	0.9997	1.8669	0.0042	26.90	3360.1	3069.5	True	0	True	False	True
+Eva Green A	Run 1	D8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			66662	24	9	26	1.8642	0.9993	1.8669	0.0042	26.93	3130.5	3010.3	True	0	True	False	True
+Eva Green A	Run 1	D9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			65240	24	9	26	1.8716	0.9999	1.8669	0.0042	26.83	2987.0	3195.2	True	0	True	False	True
+Eva Green A	Run 1	D10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			64005	16	9	26	1.8657	0.9986	1.8669	0.0042	26.80	3327.3	3272.8	True	0	True	False	True
+Eva Green A	Run 1	D11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			72575	24	9	26	1.8738	0.9999	1.8669	0.0042	26.90	2780.8	3070.1	True	0	True	False	True
+Eva Green A	Run 1	D12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			78183	24	9	26	1.8642	0.9996	1.8669	0.0042	26.87	3241.0	3116.0	True	0	True	False	True
+Eva Green A	Run 1	D13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 H I	toi	Eva Green H	saturating DNA binding dye			81135	24	9	26	1.8682	0.9992	1.8669	0.0042	26.92	2965.8	3021.2	True	0	True	False	True
+Eva Green A	Run 1	E7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye			63721	25	9	27	1.7997	0.9999	1.7938	0.0087	27.89	4586.7	5028.2	True	0	True	False	True
+Eva Green A	Run 1	E8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye			67043	19	9	27	1.7818	0.9999	1.7938	0.0087	27.86	6170.3	5117.6	True	0	True	False	True
+Eva Green A	Run 1	E9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye			54832	25	9	27	1.7849	0.9998	1.7938	0.0087	27.82	6029.1	5254.0	True	0	True	False	True
+Eva Green A	Run 1	E10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye			64994	19	9	27	1.8042	0.9998	1.7938	0.0087	27.80	4522.9	5312.3	True	0	True	False	True
+Eva Green A	Run 1	E11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye			64406	25	9	27	1.8022	0.9999	1.7938	0.0087	27.84	4559.4	5191.8	True	0	True	False	True
+Eva Green A	Run 1	E12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye			71176	24	9	27	1.7899	1.0000	1.7938	0.0087	27.84	5498.9	5178.3	True	0	True	False	True
+Eva Green A	Run 1	E13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 H I	toi	Eva Green H	saturating DNA binding dye		indiv PCR eff is 1.655 < 1.7;PCR efficiency outlier	375588	25	9	27	1.6549	0.9940	1.7938	0.0087	27.72	51872.2	5553.7	True	0	True	True	True
+Eva Green A	Run 1	F7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			24804	8	7	26	1.9328	0.9993	2.0186	0.0675	26.93	1184.9	367.6	True	0	True	False	True
+Eva Green A	Run 1	F8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			27345	8	7	26	2.0039	0.9997	2.0186	0.0675	26.90	457.9	375.8	True	0	True	False	True
+Eva Green A	Run 1	F9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			24841	8	7	26	1.9488	0.9999	2.0186	0.0675	26.91	956.5	371.0	True	0	True	False	True
+Eva Green A	Run 1	F10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			28830	9	8	26	1.9707	0.9969	2.0186	0.0675	26.91	709.8	371.8	True	0	True	False	True
+Eva Green A	Run 1	F11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			58246	8	7	26	2.1182	0.9851	2.0186	0.0675	26.81	110.1	400.2	True	0	True	False	True
+Eva Green A	Run 1	F12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			42296	9	8	26	2.0692	0.9893	2.0186	0.0675	26.97	182.9	356.4	True	0	True	False	True
+Eva Green A	Run 1	F13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M R	toi	Eva Green M	saturating DNA binding dye			43526	8	7	26	2.0869	0.9895	2.0186	0.0675	26.96	146.4	358.7	True	0	True	False	True
+Eva Green A	Run 1	G7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			26029	8	7	25	1.8782	0.9999	2.0099	0.0945	26.25	3925.5	662.2	True	0	True	False	True
+Eva Green A	Run 1	G8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			24516	10	9	25	2.0988	0.9974	2.0099	0.0945	26.28	208.7	650.8	True	0	True	False	True
+Eva Green A	Run 1	G9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			26673	9	8	25	1.9362	0.9968	2.0099	0.0945	26.22	1803.1	676.8	True	0	True	False	True
+Eva Green A	Run 1	G10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			33115	8	7	25	1.9711	0.9958	2.0099	0.0945	26.36	1026.7	614.2	True	0	True	False	True
+Eva Green A	Run 1	G11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			41172	9	8	25	2.1203	0.9816	2.0099	0.0945	26.26	162.1	660.1	True	0	True	False	True
+Eva Green A	Run 1	G12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			40779	8	7	25	2.1247	0.9981	2.0099	0.0945	26.36	141.8	613.3	True	0	True	False	True
+Eva Green A	Run 1	G13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M R	toi	Eva Green M	saturating DNA binding dye			39833	7	6	25	1.9401	0.9990	2.0099	0.0945	26.26	1664.4	657.4	True	0	True	False	True
+Eva Green A	Run 1	H7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye			17905	11	9	26	1.8591	0.9988	1.8546	0.0031	26.55	4275.6	4559.8	True	0	True	False	True
+Eva Green A	Run 1	H8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye			18506	12	9	26	1.8532	0.9940	1.8546	0.0031	26.61	4470.8	4381.5	True	0	True	False	True
+Eva Green A	Run 1	H9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye		no amplification;indiv PCR eff is 1.193 < 1.7	-10734	12	9	26	1.1931	0.9864	1.8546	0.0031	26.56	552960295.4	4514.1	False	0	True	False	False
+Eva Green A	Run 1	H10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye		PCR efficiency outlier	14578	12	9	26	1.9215	0.9939	1.8546	0.0031	26.53	1796.8	4604.5	True	0	True	True	True
+Eva Green A	Run 1	H11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye			27828	14	9	26	1.8567	0.9960	1.8546	0.0031	26.52	4502.6	4644.7	True	0	True	False	True
+Eva Green A	Run 1	H12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye			23983	7	6	26	1.8500	0.9999	1.8546	0.0031	26.59	4724.2	4425.7	True	0	True	False	True
+Eva Green A	Run 1	H13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 M I	toi	Eva Green M	saturating DNA binding dye			20584	11	9	26	1.8538	0.9941	1.8546	0.0031	26.60	4451.7	4405.7	True	0	True	False	True
+Eva Green A	Run 1	I7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			17875	10	9	25	1.8514	0.9916	1.8466	0.0765	26.36	5339.4	5716.8	True	0	True	False	True
+Eva Green A	Run 1	I8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			19311	9	8	25	1.8093	0.9978	1.8466	0.0765	26.50	9045.4	5265.1	True	0	True	False	True
+Eva Green A	Run 1	I9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			18312	23	9	25	1.7034	0.9838	1.8466	0.0765	26.34	48512.9	5790.6	True	0	True	False	True
+Eva Green A	Run 1	I10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			33859	8	7	25	1.8623	0.9969	1.8466	0.0765	26.38	4525.4	5662.0	True	0	True	False	True
+Eva Green A	Run 1	I11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			23207	14	9	25	1.9702	0.9775	1.8466	0.0765	26.41	1006.8	5572.6	True	0	True	False	True
+Eva Green A	Run 1	I12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			25032	10	9	25	1.9025	0.9960	1.8466	0.0765	26.40	2547.6	5599.4	True	0	True	False	True
+Eva Green A	Run 1	I13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 M I	toi	Eva Green M	saturating DNA binding dye			-5124	8	7	25	1.8270	0.9934	1.8466	0.0765	26.46	7161.9	5399.8	True	0	True	False	True
+Eva Green A	Run 1	J7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			22357	7	6	26	2.0075	0.9995	2.0279	0.1578	26.92	428.9	326.7	True	0	True	False	True
+Eva Green A	Run 1	J8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			16070	7	6	26	1.9928	0.9976	2.0279	0.1578	26.86	544.8	340.9	True	0	True	False	True
+Eva Green A	Run 1	J9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			25224	7	6	26	2.3213	0.9934	2.0279	0.1578	26.89	-1.0	332.5	True	0	True	False	True
+Eva Green A	Run 1	J10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			16250	6	5	26	1.7496	0.9997	2.0279	0.1578	26.87	17836.4	338.0	True	0	True	False	True
+Eva Green A	Run 1	J11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			21919	7	6	26	2.0095	0.9920	2.0279	0.1578	26.85	437.5	342.3	True	0	True	False	True
+Eva Green A	Run 1	J12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			26552	7	6	26	2.1163	0.9936	2.0279	0.1578	26.88	106.6	335.9	True	0	True	False	True
+Eva Green A	Run 1	J13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L R	toi	Eva Green L	saturating DNA binding dye			1124	9	8	26	1.9982	0.9965	2.0279	0.1578	26.90	492.9	331.6	True	0	True	False	True
+Eva Green A	Run 1	K7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			51267	6	5	25	2.2822	0.9973	2.0547	0.1794	26.14	25.9	402.9	True	0	True	False	True
+Eva Green A	Run 1	K8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			14786	8	7	25	1.9820	0.9990	2.0547	0.1794	26.11	1052.5	411.3	True	0	True	False	True
+Eva Green A	Run 1	K9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			-5745	8	7	25	2.3662	0.9908	2.0547	0.1794	26.04	-1.0	431.3	True	0	True	False	True
+Eva Green A	Run 1	K10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			17969	8	7	25	1.9347	0.9997	2.0547	0.1794	26.12	1966.2	408.5	True	0	True	False	True
+Eva Green A	Run 1	K11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			16158	6	5	25	1.8609	1.0000	2.0547	0.1794	26.08	5549.9	419.2	True	0	True	False	True
+Eva Green A	Run 1	K12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			8758	7	6	25	1.9172	0.9976	2.0547	0.1794	26.14	2464.0	403.1	True	0	True	False	True
+Eva Green A	Run 1	K13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L R	toi	Eva Green L	saturating DNA binding dye			15424	8	7	25	2.0394	0.9995	2.0547	0.1794	26.07	512.6	421.9	True	0	True	False	True
+Eva Green A	Run 1	L7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			14872	9	8	26	1.8493	0.9917	1.8255	0.0552	26.74	4364.4	6167.9	True	0	True	False	True
+Eva Green A	Run 1	L8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			11934	7	6	25	1.9427	0.9998	1.8255	0.0552	26.47	1394.4	7243.1	True	0	True	False	True
+Eva Green A	Run 1	L9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			13011	11	9	25	1.7905	0.9805	1.8255	0.0552	26.42	12493.8	7492.9	True	0	True	False	True
+Eva Green A	Run 1	L10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			19474	14	9	26	1.8010	0.9965	1.8255	0.0552	26.66	9287.5	6482.5	True	0	True	False	True
+Eva Green A	Run 1	L11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			11901	10	9	26	1.7782	0.9959	1.8255	0.0552	26.54	13938.6	6941.6	True	0	True	False	True
+Eva Green A	Run 1	L12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			14578	9	8	26	1.7737	0.9990	1.8255	0.0552	26.53	14998.7	6991.5	True	0	True	False	True
+Eva Green A	Run 1	L13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 L I	toi	Eva Green L	saturating DNA binding dye			11042	8	7	26	1.8430	0.9961	1.8255	0.0552	26.57	5294.9	6827.5	True	0	True	False	True
+Eva Green A	Run 1	M7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye			10625	9	8	25	1.8921	0.9957	1.9184	0.1033	26.40	2933.3	2038.0	True	0	True	False	True
+Eva Green A	Run 1	M8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye			24774	8	7	25	1.8750	0.9997	1.9184	0.1033	26.31	3944.6	2159.6	True	0	True	False	True
+Eva Green A	Run 1	M9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye			13367	10	9	25	1.9298	0.9968	1.9184	0.1033	26.40	1747.2	2043.1	True	0	True	False	True
+Eva Green A	Run 1	M10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye			18277	11	9	25	2.1121	0.9935	1.9184	0.1033	26.32	171.3	2152.3	True	0	True	False	True
+Eva Green A	Run 1	M11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye			12315	9	8	25	1.7651	0.9765	1.9184	0.1033	26.30	19483.6	2179.7	True	0	True	False	True
+Eva Green A	Run 1	M12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye		no amplification;no TD0 found	-5375	-1	-1	-1	1.0000	-1.0000	1.9184	0.1033	-1.00	-1.0	-1.0	False	2	True	False	False
+Eva Green A	Run 1	M13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 L I	toi	Eva Green L	saturating DNA binding dye			16051	12	9	25	1.9364	0.9895	1.9184	0.1033	26.18	1850.3	2361.5	True	0	True	False	True
+Eva Green A	Run 1	N7	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			12833	12	9	24	1.9049	0.9982	1.9393	0.0507	25.06	3204.6	2045.5	True	0	True	False	True
+Eva Green A	Run 1	N8	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			18915	10	9	24	2.0127	0.9956	1.9393	0.0507	25.07	804.9	2043.8	True	0	True	False	True
+Eva Green A	Run 1	N9	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			14278	12	9	24	1.9098	0.9974	1.9393	0.0507	25.12	2894.3	1969.1	True	0	True	False	True
+Eva Green A	Run 1	N10	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			11614	8	7	24	1.8799	0.9997	1.9393	0.0507	25.01	4617.3	2119.6	True	0	True	False	True
+Eva Green A	Run 1	N11	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			20143	11	9	24	1.9967	0.9922	1.9393	0.0507	25.14	931.8	1941.4	True	0	True	False	True
+Eva Green A	Run 1	N12	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			23729	11	9	24	1.8927	0.9939	1.9393	0.0507	25.03	3856.2	2097.7	True	0	True	False	True
+Eva Green A	Run 1	N13	Genomic DNA 7ng	unkn	ds	FSTL_1_F_109 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			13731	11	9	24	1.9784	0.9961	1.9393	0.0507	25.11	1206.6	1991.0	True	0	True	False	True
+Eva Green A	Run 1	O7	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			11451	10	9	24	1.9089	0.9980	1.8996	0.0254	24.86	1878.5	2120.8	True	0	True	False	True
+Eva Green A	Run 1	O8	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			14595	9	8	24	1.8633	0.9998	1.8996	0.0254	24.86	3431.1	2123.3	True	0	True	False	True
+Eva Green A	Run 1	O9	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			18535	11	9	24	1.9384	0.9986	1.8996	0.0254	24.89	1255.4	2077.8	True	0	True	False	True
+Eva Green A	Run 1	O10	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			14755	9	8	24	1.9004	0.9994	1.8996	0.0254	24.88	2080.3	2103.4	True	0	True	False	True
+Eva Green A	Run 1	O11	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			15402	9	8	24	1.8633	0.9999	1.8996	0.0254	24.84	3482.4	2156.0	True	0	True	False	True
+Eva Green A	Run 1	O12	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			12115	10	9	24	1.9141	0.9991	1.8996	0.0254	24.90	1717.8	2075.8	True	0	True	False	True
+Eva Green A	Run 1	O13	Genomic DNA 7ng	unkn	ds	FSTL_1_H_201 SYBR	toi	SYBR - Roche	non-saturating DNA binding dye			13107	11	9	24	1.9087	0.9995	1.8996	0.0254	24.87	1875.8	2114.0	True	0	True	False	False

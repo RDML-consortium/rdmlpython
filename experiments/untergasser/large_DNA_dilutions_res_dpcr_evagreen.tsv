@@ -1,0 +1,16 @@
+Well	Sample	Target	Expected Copies	Conc(copies/µL)	Status	Experiment	SampleType	TargetType	Supermix	DyeName(s)	Copies/20µLWell	TotalConfMax	TotalConfMin	PoissonConfMax	PoissonConfMin	Accepted Droplets	Positives	Negatives	Ch1+Ch2+	Ch1+Ch2-	Ch1-Ch2+	Ch1-Ch2-	Linkage	CNV	TotalCNVMax	TotalCNVMin	PoissonCNVMax	PoissonCNVMin	ReferenceCopies	UnknownCopies	Threshold1	Threshold2	Threshold3	ReferenceUsed	Ratio	TotalRatioMax	TotalRatioMin	PoissonRatioMax	PoissonRatioMin	Fractional Abundance	TotalFractionalAbundanceMax	TotalFractionalAbundanceMin	PoissonFractionalAbundanceMax	PoissonFractionalAbundanceMin	MeanAmplitudeOfPositives	MeanAmplitudeOfNegatives	MeanAmplitudeTotal	ExperimentComments	MergedWells	TotalConfidenceMax68	TotalConfidenceMin68	PoissonConfidenceMax68	PoissonConfidenceMin68	TotalCNVMax68	TotalCNVMin68	PoissonCNVMax68	PoissonCNVMin68	TotalRatioMax68	TotalRatioMin68	PoissonRatioMax68	PoissonRatioMin68	TotalFractionalAbundanceMax68	TotalFractionalAbundanceMin68	PoissonFractionalAbundanceMax68	PoissonFractionalAbundanceMin68
+A02	a2000	FSTL_1_H_204	800	817.79	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	16355.82			833.55	802.24	21793	10918	10875	0.00	0.00	0.00	0.00									2757.64																					825.80	809.83												
+A03	a200	FSTL_1_H_205	80	88.57	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	1771.50			93.00	84.17	21317	1546	19771	0.00	0.00	0.00	0.00									2612.67																					90.83	86.32												
+A04	a20	FSTL_1_H_206	8	6.88	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	137.63			8.10	5.67	21090	123	20967	0.00	0.00	0.00	0.00									2226.80																					7.50	6.26												
+A05	a20000	FSTL_1_L_412	8000	3437.33	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	68746.58			3507.08	3371.49	20375	19278	1097	0.00	0.00	0.00	0.00									7145.06																					3472.40	3403.28												
+A06	a2000	FSTL_1_L_413	800	534.90	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	10697.94			547.54	522.38	19341	7066	12275	0.00	0.00	0.00	0.00									3958.04																					541.33	528.50												
+A07	a200	FSTL_1_L_414	80	68.03	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	1360.62			71.81	64.26	22194	1247	20947	0.00	0.00	0.00	0.00									3026.72																					69.96	66.11												
+A08	a20	FSTL_1_L_415	8	5.63	OK	DQ	Unknown	Unknown	QX200 ddPCR EvaGreen Supermix	EvaGreen	112.58			6.84	4.57	19902	95	19807	0.00	0.00	0.00	0.00									2584.69																					6.23	5.07												
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	
+																																																																	

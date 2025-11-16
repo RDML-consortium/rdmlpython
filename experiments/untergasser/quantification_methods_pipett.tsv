@@ -1,0 +1,59 @@
+	added reporter		4	5	6	7	8	9	10	11	12		13	14	15	16	17	18	19	20	21		
+A	Eva Green	FSTL_1_A_047	7	7	7	2	2	2	0.7	0.7	0.7												
+B	Eva Green	FSTL_1_B_042	7	7	7	2	2	2	0.7	0.7	0.7												
+C	Eva Green	FSTL_1_D_105	7	7	7	2	2	2	0.7	0.7	0.7		7	7	7	2	2	2	0.7	0.7	0.7		FSTL_1_D_105 Roche
+D	Eva Green	FSTL_1_E_097	7	7	7	2	2	2	0.7	0.7	0.7												
+E	Eva Green	FSTL_1_F_109	7	7	7	2	2	2	0.7	0.7	0.7		7	7	7	2	2	2	0.7	0.7	0.7		FSTL_1_F_109 Roche
+F	Eva Green	FSTL_1_H_201	7	7	7	2	2	2	0.7	0.7	0.7		7	7	7	2	2	2	0.7	0.7	0.7		FSTL_1_H_201 Roche
+G	Eva Green	FSTL_1_I_204	7	7	7	2	2	2	0.7	0.7	0.7												
+H	Eva Green	FSTL_1_K_219	7	7	7	2	2	2	0.7	0.7	0.7												
+I	Eva Green	FSTL_1_L_412	7	7	7	2	2	2	0.7	0.7	0.7												
+J	Eva Green	FSTL_1_M_398	7	7	7	2	2	2	0.7	0.7	0.7												
+K	hydrolysis Probe	FSTL_1_D_105	7	7	7	2	2	2	0.7	0.7	0.7			Probe									
+L	hydrolysis Probe	FSTL_1_F_109	7	7	7	2	2	2	0.7	0.7	0.7		7	7	7	2	2	2	0.7	0.7	0.7		FSTL_1_F_109 IDT
+M	hydrolysis Probe	FSTL_1_K_219	7	7	7	2	2	2	0.7	0.7	0.7												
+N	SYBR Green I	FSTL_1_D_105	7	7	7	2	2	2	0.7	0.7	0.7												
+O	SYBR Green I	FSTL_1_F_109	7	7	7	2	2	2	0.7	0.7	0.7			Mix regular Roche									
+P	SYBR Green I	FSTL_1_K_219	7	7	7	2	2	2	0.7	0.7	0.7												
+																							
+					given is ng human DNA in mix																		
+																							
+	Mix Probe Roche:	"LightCycler® 480 Probes Master; 04707494001; Roche Diagnostics GmbH; Mannheim; Germany"																					
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																					
+	Eva Green:	"EvaGreen® Dye - 20X in Water; 31000-T; Biotium; Fremont; USA"																					
+	SYBR Green I:	"SYBR Green I; 200× in DMSO; D010; ABP Biosciences; Beltsville; USA"																					
+																							
+		Primer Stock Solutions: 100 µM																					
+		Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water																		
+																							
+		Eva Green is used from stock																					
+																							
+		Probe 1:10 is 150mM. 2.3µl is added to Rest																					
+																							
+		SYBR is 0.25x. 0.25nM. The 1:200 stock is diluted 4µl + 316µl (1:80). Add 3.5																					
+																							
+		Hum Gen DNA 1:10 dil  = 20ng/µl																					
+		4ng per reaction = 1200 copies																					
+																							
+		"Eva green stock is 25µM and was diluted with water to 12.5µM, 2.5µM and 1.25 µM used below."																					
+																							
+		D H K is mixed with DNA, last is added fluorochrome																					
+		Rest is mixed with fluorochrome, last is added DNA																					
+																							
+				Replicates			Sum																
+						D H K		Rest		D H K													
+			1	3.5		3.5		3.5		3.5		7.5											
+																							
+		DNA	1.00	3.50		12.25		12.25		42.88		91.88											
+		Water	3.25	11.38		39.81		39.81		139.34		298.59											
+	1:10	Primer	0.25	0.88		3.06		3.06		10.72		22.97											
+		Eva Green	0.50	1.75		6.13		6.13		21.44		45.94											
+		Puffer	5.00	17.50		61.25		61.25		214.38		459.38											
+						0.00																	
+		Sum	10.00	35.00		122.50		122.50		428.75		918.8											
+																							
+		no Primers	9.50	33.25		104.13																	
+																							
+																							
+																							
+																							

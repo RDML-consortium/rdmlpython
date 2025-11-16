@@ -1,0 +1,23 @@
+Experiment	Run	well	sample	sample type	sample nucleotide	target	target type	target dye	target chemistry	excluded	note	baseline	n in log phase	n included	last log cycle	indiv PCR eff	R2	PCR eff	STD PCR eff	TD0	indiv Ncopy	Ncopy	amplification	baseline error	plateau	excl PCR efficiency	used for mean PCR efficiency
+Own Mix A	Run 1	D11	5ng gDNA	unkn	ds	DMSO 0.0 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			29326	9	8	24	1.9257	0.9990	1.9644	0.0395	24.67	1975.8	1210.1	True	0	True	False	True
+Own Mix A	Run 1	D12	5ng gDNA	unkn	ds	DMSO 0.0 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			32200	9	8	24	1.9487	0.9998	1.9644	0.0395	24.67	1475.8	1211.9	True	0	True	False	True
+Own Mix A	Run 1	D13	5ng gDNA	unkn	ds	DMSO 0.0 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			32647	11	9	24	2.0186	0.9989	1.9644	0.0395	24.65	624.2	1222.2	True	0	True	False	True
+Own Mix A	Run 1	D14	5ng gDNA	unkn	ds	DMSO 0.0 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			21752	11	9	24	2.0105	0.9978	1.9551	0.0393	24.80	621.9	1243.9	True	0	True	False	True
+Own Mix A	Run 1	D15	5ng gDNA	unkn	ds	DMSO 0.0 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			21514	10	9	24	1.9302	0.9959	1.9551	0.0393	24.78	1729.8	1258.5	True	0	True	False	True
+Own Mix A	Run 1	D16	5ng gDNA	unkn	ds	DMSO 0.0 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			19994	13	9	24	1.9246	0.9974	1.9551	0.0393	24.78	1863.9	1262.7	True	0	True	False	True
+Own Mix A	Run 1	E11	5ng gDNA	unkn	ds	DMSO 2.5 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			28849	8	7	24	1.9292	0.9989	1.9288	0.0104	25.14	1386.6	1393.8	True	0	True	False	True
+Own Mix A	Run 1	E12	5ng gDNA	unkn	ds	DMSO 2.5 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			-1025	7	6	24	1.9413	0.9998	1.9288	0.0104	25.07	1244.5	1463.7	True	0	True	False	True
+Own Mix A	Run 1	E13	5ng gDNA	unkn	ds	DMSO 2.5 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			651616	5	4	24	1.9159	1.0000	1.9288	0.0104	25.22	1564.4	1320.5	True	0	True	False	True
+Own Mix A	Run 1	E14	5ng gDNA	unkn	ds	DMSO 2.5 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			7808	5	4	24	2.2093	0.9996	2.0526	0.1315	25.09	47.9	303.6	True	0	True	False	True
+Own Mix A	Run 1	E15	5ng gDNA	unkn	ds	DMSO 2.5 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			24141	11	9	24	2.0609	0.9988	2.0526	0.1315	25.21	250.0	277.0	True	0	True	False	True
+Own Mix A	Run 1	E16	5ng gDNA	unkn	ds	DMSO 2.5 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			17345	9	8	24	1.8875	0.9943	2.0526	0.1315	25.19	2328.2	281.7	True	0	True	False	True
+Own Mix A	Run 1	F11	5ng gDNA	unkn	ds	DMSO 5.0 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			85237	11	9	25	1.8897	0.9987	1.9351	0.0534	25.53	1818.3	992.6	True	0	True	False	True
+Own Mix A	Run 1	F12	5ng gDNA	unkn	ds	DMSO 5.0 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			42896	12	9	25	2.0101	0.9995	1.9351	0.0534	25.56	369.4	976.4	True	0	True	False	True
+Own Mix A	Run 1	F13	5ng gDNA	unkn	ds	DMSO 5.0 - Mg 3.0	ref	SYBR	non-saturating DNA binding dye			39914	10	9	25	1.9054	0.9951	1.9351	0.0534	25.57	1434.6	966.2	True	0	True	False	True
+Own Mix A	Run 1	F14	5ng gDNA	unkn	ds	DMSO 5.0 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			28801	8	7	25	1.9962	0.9989	1.9481	0.0449	25.71	397.2	743.8	True	0	True	False	True
+Own Mix A	Run 1	F15	5ng gDNA	unkn	ds	DMSO 5.0 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			29450	9	8	25	1.9599	0.9986	1.9481	0.0449	25.79	603.5	705.2	True	0	True	False	True
+Own Mix A	Run 1	F16	5ng gDNA	unkn	ds	DMSO 5.0 - Mg 5.0	ref	SYBR	non-saturating DNA binding dye			10484	10	9	25	1.8882	0.9926	1.9481	0.0449	25.71	1655.5	741.5	True	0	True	False	True
+Own Mix A	Run 1	H8	5ng gDNA	unkn	ds	Roche	ref	SYBR	non-saturating DNA binding dye			16675	15	9	25	1.9087	0.9990	1.9196	0.0427	25.84	1153.5	995.1	True	0	True	False	True
+Own Mix A	Run 1	H9	5ng gDNA	unkn	ds	Roche	ref	SYBR	non-saturating DNA binding dye			9758	8	7	25	1.9900	0.9999	1.9196	0.0427	25.85	389.2	987.8	True	0	True	False	True
+Own Mix A	Run 1	H10	5ng gDNA	unkn	ds	Roche	ref	SYBR	non-saturating DNA binding dye			24000	10	9	25	1.9048	0.9990	1.9196	0.0427	25.96	1128.4	922.6	True	0	True	False	True
+Own Mix A	Run 1	H11	5ng gDNA	unkn	ds	Roche	ref	SYBR	non-saturating DNA binding dye			21711	11	9	25	1.8750	0.9946	1.9196	0.0427	25.93	1726.9	938.3	True	0	True	False	True

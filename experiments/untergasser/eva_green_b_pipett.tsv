@@ -1,0 +1,54 @@
+	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22		
+A	FSTL_1_A_047			7				20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+B	FSTL_1_B_042			7				20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+C	FSTL_1_D_105			7				20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+D	FSTL_1_E_097			7				20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+E	FSTL_1_F_109			7				20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+F	FSTL_1_H_201			7				20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		1.25nM Eva Green
+G	FSTL_1_I_204							20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+H	FSTL_1_K_219							20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+I	FSTL_1_L_412							20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+J	FSTL_1_M_398							20	20	20	7	7	7	2	2	2	0.7	0.7	0.7		
+K	FSTL_1_A_047			7				7	7	7	7	7	7	7						x	
+L	FSTL_1_B_042			7				7	7	7	7	7	7	7						x	
+M	FSTL_1_D_105			7				7	7	7	7	7	7	7						x	
+N	FSTL_1_E_097			7				7	7	7	7	7	7	7						x	0.125nM EvaGreen
+O	FSTL_1_F_109			7				7	7	7	7	7	7	7						x	
+P	FSTL_1_H_201			7				7	7	7	7	7	7	7						x	
+								x	x	x	x	x	x	x	x	x	x	x	x		
+			100nM Primers									250nM Primers									
+																					
+	Mix IDT:	"PrimeTime® Gene Expression 2X Master Mix; 1055770; Integrated DNA Technologies; Leuven; Belgium"																			
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																			
+	Eva Green:	"EvaGreen® Dye - 20X in Water; 31000-T; Biotium; Fremont; USA"																			
+																					
+		Primer Stock Solutions: 100 µM																			
+		Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water																
+		1:10	Water		1:10	Water															
+	Dil 1.0 is 1:100	2	18		5	45															
+	Dil 2.5 is 1:40	5	15		12.5	37.5															
+	Dil 7.5 is 1:13.33	15	5		37.5	12.5															
+																					
+		Hum Gen DNA 1:10 dil  = 20ng/µl																			
+		4ng per reaction = 1200 copies																			
+																					
+		"Eva green stock is 25µM and was diluted with water to 12.5µM, 2.5µM and 1.25 µM used below."																			
+																					
+																					
+			Replicates			Sum					Replicates			Sum			Sum				
+																					
+		1	7.5			7				1	4			4.5			11				
+																					
+4ng	DNA	1.0	7.5			52.5		4ng	DNA	1.0	4.0			18.0			198.0				
+	Water	2.0	15.0			105.0			Water	2.0	8.0			36.0			396.0				
+	Primer	1.0	7.5			52.5			Primer	1.0	4.0			18.0			198.0				
+	Eva Green	1.0	7.5			52.5			Eva Green	1.0	4.0			18.0			198.0				
+	Puffer	5.0	37.5			262.5			Puffer	5.0	20.0			90.0			990.0				
+																					
+	Sum	10.0	75.0			525.0			Sum	10.0	40.0			180.0			1980.0				
+																					
+	no Primers	9.0	67.5						no Primers	9.0	36.0			144.0							
+																					
+																					
+																					
+																					

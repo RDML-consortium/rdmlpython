@@ -1,0 +1,55 @@
+		1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24		
+Primers		100nM	100nM	100nM	100nM	100nM	100nM	100nM	250nM	250nM	250nM	250nM	250nM	250nM	250nM	750nM	750nM	750nM	750nM	750nM	750nM	750nM					
+G	FSTL_1_A_047																										
+H	FSTL_1_B_042																										
+I	FSTL_1_D_105																										
+J	FSTL_1_E_097																										
+K	FSTL_1_F_109																						Sensifast				
+L	FSTL_1_H_201																										
+M	FSTL_1_I_204																						Roche				
+N	FSTL_1_K_219																										
+O	FSTL_1 (classic 259)																						No Primer	No Primer	No Primer		
+P	FSTL_1_L_412																						No Primer	No Primer	No Primer		
+																											
+																											
+	Mix:	"FastStart Taq DNA Polymerase - 5 U/µl - dNTPack; 04738314001; Roche Diagnostics GmbH; Mannheim; Germany"																									
+	DNA:	"Human Genomic DNA; 11691112001; Roche Diagnostics GmbH; Mannheim; Germany"																									
+	SYBR Green I:	"SYBR Green I; 200× in DMSO; D010; ABP Biosciences; Beltsville; USA"																									
+																											
+		Primer Stock Solutions: 100 µM																									
+		Primer dilution 1:10			forward primer 10µl + reverse primer 10µl + 80µl water																						
+																											
+		Hum Gen DNA 1:10 dil  = 20ng/µl																									
+		4ng per reaction = 1200 copies																									
+																											
+																											
+	1:800		1	8		35																					
+																											
+	4ng	DNA	0.20	1.60		56.0																					
+		Puffer	1.00	8.00		280.0																					
+	1:10!	Primer	1.00	8.00		280.0																					
+	25mM	Mg	1.20	9.60		336.0																					
+	10mM	dNTP	0.20	1.60		56.0																					
+		Pol	0.08	0.64		22.4																					
+	10g/l	BSA	0.20	1.60		56.0																					
+		DMSO	0.00	0.00		0.0																					
+	1:80	SYBR	1.00	8.00		280.0																					
+		Water	5.12	40.96		1433.6																					
+																											
+		Sum	10.00	80.00		2800.0																					
+																											
+	No Primer			72.00																							
+																											
+																											
+				Replicates																							
+	Roche																										
+	Sensifast		1	7																							
+																											
+	4ng	DNA	0.2	1.4																							
+		Water	4.6	31.9																							
+		Primer	0.3	1.8																							
+		Puffer	5.0	35.0																							
+																											
+		Sum	10.0	70.0																							
+																											
+		no Primers	9.8	68.3																							
