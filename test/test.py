@@ -424,6 +424,12 @@ def printTable(spc, pref, rows, cols, prec, prin, cur, sav):
             res += "{:8.3f}".format(eff_diff_cur) + " (" + "{:8.3f}".format(eff_diff_sav) + ") "
             print(res)
 
+def create_mean(par, fil):
+    infile = fil
+    outfile = fil.replace("results", "mean")
+    os.system('python3 rate_tsv.py -f' + os.path.join(os.path.join(par, "test"), infile) +
+                                 ' -o ' + os.path.join(os.path.join(par, "test"), outfile) +
+                                 ' -n') # -pm -n
 
 laDa = {}
 curDa = {}
@@ -535,6 +541,7 @@ for exp in expList:
                 linRegRes[exp["id"]][run["id"]][tar][sam]["TD0 mean"] = np.mean(linRegRes[exp["id"]][run["id"]][tar][sam]["TD0"])
 
 ww.close()
+create_mean(parent_dir, out_vol_file)
 rd.save("temp_volume.rdml")
 
 curDa["Test_Vol_AMC_384_05_TD0"] = linRegRes["AMC Amsterdam NL - 384 Wells"]["Run 1"]["FSTL1"]["M1 gDNA 0.5ng/ul - 5ul"]["TD0 mean"]
@@ -1035,6 +1042,7 @@ printNice("Failing Reactions: ", curDa["AMP_reactionDataFalse"], laDa["AMP_react
 printNice("Sum Reactions: ", curDa["AMP_reactionDataSum"], laDa["AMP_reactionDataSum"], 1, "+", 0)
 
 ww.close()
+create_mean(parent_dir, out_amp_file)
 rd.save("temp_test_amplicon_primer_linregpcr.rdml")
 endTime = time.time()
 runTime = endTime - startTime
@@ -1238,6 +1246,7 @@ for exp in expList:
 
 
 ww.close()
+create_mean(parent_dir, out_dil_file)
 rd.save("temp_test_large_DNA_dilutions_linregpcr.rdml")
 endTime = time.time()
 runTime = endTime - startTime
@@ -1413,6 +1422,7 @@ for exp in expList:
         print(res)
 
 ww.close()
+create_mean(parent_dir, out_probes_file)
 rd.save("temp_probes.rdml")
 
 
@@ -1494,6 +1504,7 @@ for dmso in ["0.0", "2.5", "5.0"]:
 print(res)
 
 ww.close()
+create_mean(parent_dir, out_ownmix_a_file)
 rd.save("temp_ownmix_a.rdml")
 
 
@@ -1584,6 +1595,7 @@ for conc in ["100", "200", "400", "800"]:
 print(res)
 
 ww.close()
+create_mean(parent_dir, out_ownmix_b_file)
 rd.save("temp_ownmix_b.rdml")
 
 
@@ -1673,6 +1685,7 @@ for conc in ["100nM", "250nM", "750nM"]:
 print(res)
 
 ww.close()
+create_mean(parent_dir, out_ownmix_c_file)
 rd.save("temp_ownmix_c.rdml")
 
 
@@ -1780,6 +1793,7 @@ for tar in add_dye_test_tar:
 print(res)
 
 ww.close()
+create_mean(parent_dir, out_add_sybr_file)
 rd.save("temp_add_sybr.rdml")
 
 
@@ -1872,6 +1886,7 @@ for tar in tars:
 print(res)
 
 ww.close()
+create_mean(parent_dir, out_eva_a_file)
 rd.save("temp_eva_a.rdml")
 
 
@@ -1999,6 +2014,7 @@ printTable(15, "Test_EVAGREEN_B_DIL_", tars, head_b, prec_b, print_b, curDa, laD
 
 
 ww.close()
+create_mean(parent_dir, out_eva_b_file)
 rd.save("temp_eva_b.rdml")
 
 
@@ -2225,6 +2241,7 @@ print(" ")
 printTable(30, "Test_QUANT_METH_D_DIL_", tars, head_b, prec_b, print_b, curDa, laDa)
 
 ww.close()
+create_mean(parent_dir, out_quant_meth_file)
 rd.save("temp_quantification_methods.rdml")
 
 
