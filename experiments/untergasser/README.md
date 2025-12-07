@@ -143,7 +143,11 @@ SYBR Green I is available in a 10000x solution from Sigma-Aldrich (S9430), which
 |Carl Roth      |495|0.309|
 |EvaGreen       |495|0.131|
 
+<a id="sybr_stability"></a>
 
+## Experiment SYBR Stability (28.11.2025)
+This experiment investigates how stable SYBR Green I is in the qPCR machine at 72°C over time. Furtehrmore, it gives an indication how the measurements of the same reaction vary. The experiment runs a relgular qPCR for 35 cycles and then keeps the mix at 72°C without cycling and measures fluorescence every 30 seconds. Green dots are fluorescence measurements.  
 
+![Cycling Protocol](sybr_stability_run_protocol.jpg)
 
-
+The pipetting scheme of the qPCR is available as [sybr_stability_pipett.tsv](sybr_stability_pipett.tsv), the raw data are stored as experiment "dPCR - DKFZ" in [sybr_stability.rdml](sybr_stability.rdml) and the analyzed results in [sybr_stability_results.tsv](sybr_stability_results.tsv). In general, the SYBR Green one is stable over time and the machine has a measurement CV around 0.002-0.004.
