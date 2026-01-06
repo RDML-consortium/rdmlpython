@@ -120,7 +120,7 @@ This experiment was run on DKFZ on the Lightcycler480DKFZ for the qPCR and the Q
 ## Experiment Eva Green Concentration (17.09.2025)
 As Eva Green is used in dPCR, we decided to repeat the primer and DNA dilutions experiments with the probe mixes and add Eva Green. In the first run we tested in a small set different Eva Green concentrations with the different probe mixes (17.09.2025). The pipetting scheme is available as [eva_green_a_pipett.tsv](eva_green_a_pipett.tsv), the raw data are stored in [eva_green_a.rdml](eva_green_a.rdml) and the results from the dPCR are available as [eva_green_a_results.tsv](eva_green_a_results.tsv).
 
-In the second run we tested different Eva Green concentration with 100mM and 250mM primers in the Roche probe mixes (17.09.2025). The pipetting scheme is available as [eva_green_b_pipett.tsv](eva_green_b_pipett.tsv), the raw data are stored in [eva_green_b.rdml](eva_green_b.rdml) and the results from the dPCR are available as [eva_green_b_results.tsv](eva_green_b_results.tsv).
+In the second run we tested different Eva Green concentration with 100mM and 250mM primers in the IDT probe mix (17.09.2025). The pipetting scheme is available as [eva_green_b_pipett.tsv](eva_green_b_pipett.tsv), the raw data are stored in [eva_green_b.rdml](eva_green_b.rdml) and the results from the dPCR are available as [eva_green_b_results.tsv](eva_green_b_results.tsv).
 
 <a id="reporters"></a>
 
@@ -129,7 +129,7 @@ The Roche probe mix can be complemented with any reporter. Therefore, we used wi
 
 <a id="sybr_mystery"></a>
 
-# Experiment The SYBR Green Mystery (17.04.2025, 17.09.2025)
+## Experiment The SYBR Green Mystery (17.04.2025, 17.09.2025)
 SYBR Green I is available in a 10000x solution from Sigma-Aldrich (S9430), which does not provide a concentration. The SBYR Green I used in this study is a 200x solution with a concentration of 200µM from ABP Biosciences (D010). Furthermore, there is a SYBR Green I available in 11x solution and 110µM concentration from Carl Roth (1CN2.1). The concentrations of ABP Biosciences and Carl Roth differ, as ABP Biosciences uses an ε of 66000M⁻¹cm⁻¹and Carl Roth and ε of 27000M⁻¹cm⁻¹ to calculate the concentration by Beer-Lambert law (A = ε·c·l). Be aware that spectrometers use l=1cm while the NanoDrop uses l=0.1cm. We diluted the stock from Sigma-Aldrich 50 times in DMSO to get a comparable 200x stock and measured all stock solutions including Eva Green with a NanoDrop. We follow the argumentation by [Mao et al. page 13 BMC Biotech.2007; 7:76.](http://www.biomedcentral.com/1472-6750/7/76) and use an ε of 58000M⁻¹cm⁻¹ in all our calculations to convert absorbance to concentration, then a concentration c of 200µM SYBR Green I concentration results in an absorbance A of 11.6. In the experiments the stock solution of ABP Biosciences was used as 200µM.
 
 |Stock          |nm |A    |
