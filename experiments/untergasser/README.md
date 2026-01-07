@@ -125,7 +125,7 @@ In the second run we tested different Eva Green concentration with 100mM and 250
 <a id="reporters"></a>
 
 ## Experiment Different Fluorescence Reporters (22.10.2025)
-The Roche probe mix can be complemented with any reporter. Therefore, we used within one run a hydrolysis probe, Eva Green or SYBR Green I. The pipetting scheme is available as [quantification_methods_pipett.tsv](quantification_methods_pipett.tsv), the raw data are stored in [quantification_methods.rdml](quantification_methods.rdml) and the results from the dPCR are available as [quantification_methods_results.tsv](quantification_methods_results.tsv).
+The Roche probe mix can be complemented with any reporter. Therefore, we used within one run a hydrolysis probe, Eva Green or SYBR Green I. This experiment also tested different amplicon length with Eva Green using the Roche probe mix. The pipetting scheme is available as [quantification_methods_pipett.tsv](quantification_methods_pipett.tsv), the raw data are stored in [quantification_methods.rdml](quantification_methods.rdml) and the results from the dPCR are available as [quantification_methods_results.tsv](quantification_methods_results.tsv).
 
 <a id="sybr_mystery"></a>
 

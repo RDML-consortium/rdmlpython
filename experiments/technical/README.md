@@ -32,4 +32,9 @@ Cycle 1 is always missing
 337 - O1 - Cycle 1-8, 20-22 and 44-45 missing  
 339 - O3 - Only Cycle 20 present  
 343 - O7 - No data present  
-  
+
+
+File shifted_baseline.tsv and shifted_baseline.rdml
+---------------------------------------------------
+
+Here a constant value saved in the Cq column of the shifted_baseline.tsv file was added to all fluorescence values of one reaction. The top section is unmodified, the bottom section has the same values modified and the target has an additional " X". This should not change the calculations of RDML-Tools.

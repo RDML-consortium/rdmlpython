@@ -1662,8 +1662,12 @@ def standardCurveStats(data, noCq=False):
             data[targets[tar]]["SSderivation"] = data[targets[tar]]["SSres"] - data[targets[tar]]["SSwithin"]
             data[targets[tar]]["MSbetween"] = data[targets[tar]]["SSbetween"] / (data[targets[tar]]["var_groups"] - 1.0)
             data[targets[tar]]["MSregression"] = data[targets[tar]]["SSregression"] / 1
-            data[targets[tar]]["MSderivation"] = data[targets[tar]]["SSderivation"] / (data[targets[tar]]["var_groups"] - 2.0)
-            data[targets[tar]]["MSwithin"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+            if data[targets[tar]]["var_groups"] > 2.0:
+                data[targets[tar]]["MSderivation"] = data[targets[tar]]["SSderivation"] / (data[targets[tar]]["var_groups"] - 2.0)
+                data[targets[tar]]["MSwithin"] = data[targets[tar]]["SSwithin"] / (data[targets[tar]]["var_n"] - data[targets[tar]]["var_groups"])
+            else:
+                data[targets[tar]]["MSderivation"] = -1.0
+                data[targets[tar]]["MSwithin"] = -1.0
         else:
             data[targets[tar]]["slope_bias"] = -1.0
             data[targets[tar]]["correlation_R"] = -1.0
