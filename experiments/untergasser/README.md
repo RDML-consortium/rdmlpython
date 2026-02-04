@@ -13,7 +13,7 @@ This folder contains the pipetting schemes for each run and the corresponding RD
 |LCGreen    |SYBR Green I|5x LCG PCR Master from the Wittwer Lab                                        |
 |Roche Probe|Probe       |LightCycler 480 Probes Master from Roche (04707494001)                        |
 |IDT Probe  |Probe       |PrimeTime Gene Expression 2X Master from Integrated DNA Technologies (1055770)|
-|Roche PCR  |PCR         |                          |
+|Roche PCR  |PCR         |FastStart Taq DNA Polymerase kit from Roche (04738314001)                     |
 
 ## The qPCR machines used in this study
 |Machine Name      |Wells|Location| Machine Details                          |
@@ -146,7 +146,7 @@ SYBR Green I is available in a 10000x solution from Sigma-Aldrich (S9430), which
 <a id="sybr_stability"></a>
 
 ## Experiment SYBR Stability (28.11.2025)
-This experiment investigates how stable SYBR Green I is in the qPCR machine at 72°C over time. Furtehrmore, it gives an indication how the measurements of the same reaction vary. The experiment runs a relgular qPCR for 35 cycles and then keeps the mix at 72°C without cycling and measures fluorescence every 30 seconds. Green dots are fluorescence measurements.  
+This experiment investigates how stable SYBR Green I is in the qPCR machine at 72°C over time. Furthermore, it gives an indication how the measurements of the same reaction vary. The experiment runs a relgular qPCR for 35 cycles and then keeps the mix at 72°C without cycling and measures fluorescence every 30 seconds. Green dots are fluorescence measurements.  
 
 ![Cycling Protocol](sybr_stability_run_protocol.jpg)
 
