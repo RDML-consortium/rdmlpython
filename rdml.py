@@ -29,7 +29,7 @@ def get_rdml_lib_version():
         The version string of the RDML library.
     """
 
-    return "3.0.1"
+    return "3.0.2"
 
 
 class NpEncoder(json.JSONEncoder):
@@ -12624,7 +12624,7 @@ class Run:
         return
 
     def webAppLinRegPCR(self, pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=False, excludeNoPlateau=True,
-                        excludeEfficiency="outlier", excludeInstableBaseline=True):
+                        excludeEfficiency="outlier", maxCycExpPhase=9):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
 
         Args:
@@ -12647,14 +12647,14 @@ class Run:
         allData = self.getreactjson()
 
         # print("RDML-Command:\nPCR-Eff: " +str(pcrEfficiencyExl) + "\nUp-Tar: " +str(updateTargetEfficiency) + "\nUp-RDML: " +str(updateRDML) + 
-        #       "\nNo-Plat: " +str(excludeNoPlateau) + "\nExcl-Eff: " +str(excludeEfficiency) + "\nInst-Base: " +str(excludeInstableBaseline))
+        #       "\nNo-Plat: " +str(excludeNoPlateau) + "\nExcl-Eff: " +str(excludeEfficiency) + "\nmaxCycExpPhase: " +str(maxCycExpPhase))
 
         res = self.linRegPCR(pcrEfficiencyExl=pcrEfficiencyExl,
                              updateTargetEfficiency=updateTargetEfficiency,
                              updateRDML=updateRDML,
                              excludeNoPlateau=excludeNoPlateau,
                              excludeEfficiency=excludeEfficiency,
-                             excludeInstableBaseline=excludeInstableBaseline,
+                             maxCycExpPhase=maxCycExpPhase,
                              saveRaw=False,
                              saveRawFixed=False,
                              saveBaslineCorr=True,
@@ -12706,7 +12706,7 @@ class Run:
 
     def linRegPCR(self, pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=False,
                   excludeNoPlateau=True, excludeEfficiency="outlier",
-                  excludeInstableBaseline=True, commaConv=False, ignoreExclusion=False,
+                  maxCycExpPhase=9, ignoreExclusion=False,
                   saveRaw=False, saveRawFixed=False, saveBaslineCorr=False, saveResultsList=False,
                   saveResultsCSV=False, verbose=False):
         """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
@@ -12718,7 +12718,7 @@ class Run:
             updateRDML: If true, update the RDML data with the calculated values.
             excludeNoPlateau: If true, samples without plateau are excluded from mean PCR efficiency calculation.
             excludeEfficiency: Choose "outlier", "mean", "include" to exclude based on indiv PCR eff.
-            excludeInstableBaseline: If true, instable baselines give a baseline error.
+            maxCycExpPhase: Max. length of the exponential phase, default 9.
             ignoreExclusion: If true, ignore the RDML exclusion strings.
             saveRaw: If true, no raw values are given in the returned data
             saveRawFixed: If true, no fixed raw values are given in the returned data
@@ -12750,8 +12750,10 @@ class Run:
             raise RdmlError('LinRegPCR updateRDML parameter must be True or False.')
         if type(excludeNoPlateau) != bool:
             raise RdmlError('LinRegPCR excludeNoPlateau parameter must be True or False.')
-        if type(excludeInstableBaseline) != bool:
-            raise RdmlError('LinRegPCR excludeInstableBaseline parameter must be True or False.')
+        if type(maxCycExpPhase) != int:
+            raise RdmlError('LinRegPCR maxCycExpPhase parameter must be a number >= 4.')
+        if maxCycExpPhase < 4:
+            raise RdmlError('LinRegPCR maxCycExpPhase parameter must be a number >= 4.')
         if type(ignoreExclusion) != bool:
             raise RdmlError('LinRegPCR ignoreExclusion parameter must be True or False.')
         if type(saveRaw) != bool:
@@ -13420,8 +13422,8 @@ class Run:
             if stop < 4:
                 baselineError[row] = 3
                 continue
-            # At maximum 9 cycles should be inluded
-            start = max(rawMinBySD[row] + 1, stop - 9 + 1)
+            # At maximum 9 cycles should be inluded in maxCycExpPhase
+            start = max(rawMinBySD[row] + 1, stop - maxCycExpPhase + 1)
             # Now check that 4 cycles are left
             logIncl[row] = stop - start + 1
             logStop[row] = stop
@@ -15141,12 +15143,11 @@ def main():
                         help='LinRegPCR: provide a range for for exclusion from mean PCR efficiency')
     parser.add_argument('--excludeNoPlateau', action='store_true',
                         help='LinRegPCR: exclude no plateau samples from mean PCR efficiency')
-    parser.add_argument('--includeInstableBaseline', action='store_true',
-                        help='LinRegPCR: include samples with an instable baseline')
+    parser.add_argument('--maxCycExpPhase', metavar="9",
+                        help='LinRegPCR: maximum number of cycles in the exponential phase')
     parser.add_argument('--excludeEfficiency', metavar="outlier",
                         help='LinRegPCR: choose [outlier, mean, include] to exclude different individual efficiency ' +
                              'samples from mean PCR efficiency')
-    parser.add_argument('--commaConv', action='store_true', help='LinRegPCR: convert comma to dot in numbers')
     parser.add_argument('--ignoreExclusion', action='store_true', help='LinRegPCR: ignore the exclusion field')
     parser.add_argument('--saveRaw', metavar="raw_data.csv",
                         help='LinRegPCR & MeltCurveAnalysis: output file for raw (unmodified) data')
@@ -15283,8 +15284,7 @@ def main():
         cli_pcrEfficiencyExl = 0.05
         cli_excludeNoPlateau = False
         cli_excludeEfficiency = "outlier"
-        cli_excludeInstableBaseline = True
-        cli_commaConv = False
+        cli_maxCycExpPhase = 9
         cli_ignoreExclusion = False
         cli_verbose = False
         cli_saveRDML = False
@@ -15299,12 +15299,8 @@ def main():
             cli_excludeNoPlateau = True
         if args.excludeEfficiency:
             cli_excludeEfficiency = args.excludeEfficiency
-        if args.includeInstableBaseline:
-            cli_excludeInstableBaseline = False
-        else:
-            cli_excludeInstableBaseline = True
-        if args.commaConv:
-            cli_commaConv = True
+        if args.maxCycExpPhase:
+            cli_excludeEfficiency = args.maxCycExpPhase
         if args.ignoreExclusion:
             cli_ignoreExclusion = True
         if args.verbose:
@@ -15322,8 +15318,7 @@ def main():
 
         cli_result = cli_run.linRegPCR(pcrEfficiencyExl=cli_pcrEfficiencyExl, updateRDML=cli_saveRDML,
                                        excludeNoPlateau=cli_excludeNoPlateau, excludeEfficiency=cli_excludeEfficiency,
-                                       excludeInstableBaseline=cli_excludeInstableBaseline,
-                                       commaConv=cli_commaConv, ignoreExclusion=cli_ignoreExclusion,
+                                       maxCycExpPhase=cli_maxCycExpPhase, ignoreExclusion=cli_ignoreExclusion,
                                        saveRaw=cli_saveRawData, saveRawFixed=cli_saveRawFixedData, saveBaslineCorr=cli_saveBaselineData,
                                        saveResultsList=False, saveResultsCSV=cli_saveResultData,
                                        verbose=cli_verbose)

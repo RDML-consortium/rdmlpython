@@ -502,7 +502,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -656,7 +656,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(startLine, len(resTab)):
             if startLine == 0:
@@ -1076,7 +1076,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(startLine, len(resTab)):
             if startLine == 0:
@@ -1281,7 +1281,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -1450,7 +1450,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -1532,7 +1532,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -1624,7 +1624,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -1714,7 +1714,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -1822,7 +1822,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -1913,7 +1913,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -2043,7 +2043,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier", excludeInstableBaseline=False)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=True, updateRDML=True, excludeNoPlateau=False, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(0, len(resTab)):
             if startLine == 0:
@@ -2268,7 +2268,7 @@ for std_file in vermeulen_stds:
     for exp in expList:
         runList = exp.runs()
         for run in runList:
-            res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+            res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
             resTab = json.loads(res["LinRegPCR_Result_Table"])
             for tabRow in range(startLine, len(resTab)):
                 if startLine == 0:
@@ -2318,7 +2318,7 @@ for exp in expList:
     for run in runList:
         if printExpRun:
             print("      Experiment: " + exp["id"] + " Run: " + run["id"])
-        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier", excludeInstableBaseline=True)
+        res = run.webAppLinRegPCR(pcrEfficiencyExl=0.05, updateTargetEfficiency=False, updateRDML=True, excludeNoPlateau=True, excludeEfficiency="outlier")
         resTab = json.loads(res["LinRegPCR_Result_Table"])
         for tabRow in range(startLine, len(resTab)):
             if startLine == 0:
